@@ -5,8 +5,5 @@ plugins {
     id("com.google.dagger.hilt.android") version "2.51" apply false
     id("androidx.room") version "2.6.1" apply false
 }
-    // Neon-Ascent/build.gradle.kts   ← PROJECT LEVEL
-    plugins {
-        // ... other plugins like 
-    }
+
     
