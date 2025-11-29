@@ -3,28 +3,24 @@ package com.neon.ascent.ui.theme
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFF00FFFF), // Neon Cyan
-    secondary = Color(0xFFAA00FF), // Electric Violet
-    background = Color(0xFF0A0A0A), // Obsidian Black
-    surface = Color(0xFF1A1A1A),
+private val NeonScheme = darkColorScheme(
+    primary = Color(0xFF00FFFF),
+    secondary = Color(0xFFAA00FF),
+    background = Color(0xFF0A0A0A),
+    surface = Color(0xFF1C1C1C),
     onPrimary = Color.Black,
-    onSecondary = Color.White,
-    onBackground = Color.White,
-    onSurface = Color.White,
+    onBackground = Color(0xFFE0E0E0),
+    onSurface = Color(0xFFE0E0E0),
 )
 
 @Composable
-fun NeonAscentTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit
-) {
+fun NeonAscentTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = DarkColorScheme, // Always dark for cyberpunk
+        colorScheme = NeonScheme,
+        typography = Typography,
         content = content
     )
 }
