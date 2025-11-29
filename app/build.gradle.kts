@@ -64,6 +64,11 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.navigation:navigation-compose:2.7.7")
 
+    // Room
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1") // Optional, for Kotlin coroutines support
+    kapt("androidx.room:room-compiler:2.6.1")
+
     // Health Connect
     implementation("androidx.health:health-connect-client:1.1.0-alpha04")
 
