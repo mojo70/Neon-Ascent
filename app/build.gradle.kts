@@ -70,7 +70,7 @@ dependencies {
     kapt("androidx.room:room-compiler:2.6.1")
 
     // Health Connect
-    implementation("androidx.health.connect:connect-client:1.2.0-alpha02")
+    implementation("androidx.health.connect:connect-client:1.1.0-alpha12")
 
 
     // Hilt
