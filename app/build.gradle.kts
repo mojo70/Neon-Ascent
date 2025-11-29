@@ -3,7 +3,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("dagger.hilt.android.plugin")
-    id("androidx.room")
+    id("androidx.room") version "2.6.1"
     kotlin("kapt")
 }
 
