@@ -7,13 +7,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 private val NeonScheme = darkColorScheme(
-    primary = Color(0xFF00FFFF),
-    secondary = Color(0xFFAA00FF),
-    background = Color(0xFF0A0A0A),
-    surface = Color(0xFF1C1C1C),
+    primary = Color(0xFF00FF9C), // Matrix green
+    secondary = Color(0xFFFF006E), // Cyberpink
+    background = Color(0xFF050505), // Near black
+    surface = Color(0xFF0F0F0F), // Dark gray
     onPrimary = Color.Black,
-    onBackground = Color(0xFFE0E0E0),
-    onSurface = Color(0xFFE0E0E0),
+    onSecondary = Color.White,
+    onBackground = Color(0xFF00FF9C), // Matrix green text for labels
+    onSurface = Color(0xFFE0E0E0), // High visibility light gray for input text
+    error = Color(0xFFFF3131),
+    outline = Color(0xFF39FF14) // Neon outline
 )
 
 @Composable

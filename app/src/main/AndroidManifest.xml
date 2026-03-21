@@ -1,13 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.BODY_SENSORS" /> <!-- For health -->
+    <uses-permission android:name="android.permission.BODY_SENSORS" />
 
     <application
         android:name=".NeonAscentApplication"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:theme="@style/Theme.NeonAscent">
+        android:theme="@style/Theme.NeonAscent"
+        android:hardwareAccelerated="true">
         <activity
             android:name=".MainActivity"
             android:exported="true">
