@@ -29,7 +29,11 @@ fun AppNavigation(
     val navController = rememberNavController()
     val userCharacter by dashboardViewModel.userCharacter.collectAsState()
 
-    val startDestination = if (userCharacter?.isCreationComplete == true) "dashboard" else "creation"
+    // Determine start destination based on character completion
+    // We use a derived state to ensure the NavHost can handle the initial state
+    val startDestination = remember(userCharacter) {
+        if (userCharacter?.isCreationComplete == true) "dashboard" else "creation"
+    }
 
     NavHost(navController = navController, startDestination = startDestination) {
         composable("creation") {
@@ -72,7 +76,14 @@ fun AppNavigation(
         }
         
         composable("settings") {
-            SettingsScreen(onBack = { navController.popBackStack() })
+            SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onResetComplete = {
+                    navController.navigate("creation") {
+                        popUpTo("dashboard") { inclusive = true }
+                    }
+                }
+            )
         }
         
         composable("character_bio") { PlaceholderScreen("CHARACTER BIOGRAPHY", navController::popBackStack) }
