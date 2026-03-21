@@ -3,7 +3,6 @@ package com.neon.ascent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import com.neon.ascent.feature.charactercreation.CharacterCreationScreen
 import com.neon.ascent.ui.theme.NeonAscentTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -13,7 +12,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             NeonAscentTheme {
-                CharacterCreationScreen()
+                AppNavigation()
             }
         }
     }
