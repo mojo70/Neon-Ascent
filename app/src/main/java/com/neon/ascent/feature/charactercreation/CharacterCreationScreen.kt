@@ -145,7 +145,9 @@ fun MorphologyIcon(value: Float, modifier: Modifier = Modifier) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CharacterCreationScreen(onInitialize: () -> Unit) {
+fun CharacterCreationScreen(
+    onInitialize: (String, String, String, String, String, Float, String?, String?, String?) -> Unit
+) {
     var name by remember { mutableStateOf("") }
     var sex by remember { mutableStateOf("") }
     var dob by remember { mutableStateOf("") }
@@ -315,7 +317,9 @@ fun CharacterCreationScreen(onInitialize: () -> Unit) {
 
             // Complex Submit Button
             Button(
-                onClick = onInitialize,
+                onClick = { 
+                    onInitialize(name, sex, dob, units, weight, somatotype, heightFeet, heightInches, heightCm) 
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(68.dp)
