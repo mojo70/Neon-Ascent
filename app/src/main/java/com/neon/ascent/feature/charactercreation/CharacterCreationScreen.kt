@@ -1,6 +1,6 @@
 package com.neon.ascent.feature.charactercreation
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,17 +18,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neon.ascent.ui.theme.NeonAscentTheme
+import kotlinx.coroutines.delay
+import kotlin.random.Random
 
 // Custom shape for cyberpunk aesthetic
 val CyberButtonShape = GenericShape { size, _ ->
@@ -41,6 +39,44 @@ val CyberButtonShape = GenericShape { size, _ ->
     lineTo(24f, size.height)
     lineTo(0f, size.height - 24f)
     close()
+}
+
+@Composable
+fun GlitchOverlay() {
+    var glitchTrigger by remember { mutableStateOf(0) }
+    
+    LaunchedEffect(Unit) {
+        while(true) {
+            delay(Random.nextLong(2000, 5000))
+            glitchTrigger++
+            delay(Random.nextLong(50, 150))
+            glitchTrigger++
+        }
+    }
+
+    if (glitchTrigger % 2 != 0) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val count = Random.nextInt(3, 8)
+            repeat(count) {
+                val y = Random.nextFloat() * size.height
+                val height = Random.nextFloat() * 20f + 2f
+                val width = size.width * (Random.nextFloat() * 0.5f + 0.2f)
+                val x = if (Random.nextBoolean()) 0f else size.width - width
+                
+                val color = when(Random.nextInt(3)) {
+                    0 -> Color(0xFF00FF9C).copy(alpha = 0.4f)
+                    1 -> Color(0xFFFF006E).copy(alpha = 0.4f)
+                    else -> Color.White.copy(alpha = 0.3f)
+                }
+                
+                drawRect(
+                    color = color,
+                    topLeft = Offset(x, y),
+                    size = Size(width, height)
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -73,20 +109,17 @@ fun MorphologyIcon(value: Float, modifier: Modifier = Modifier) {
         val center = Offset(size.width / 2, size.height / 2)
         
         // Body scaling factors based on ecto (0) -> meso (5) -> endo (10)
-        // Shoulder width
         val shoulderWidth = when {
-            value <= 5f -> 40f + (value * 8f) // 40 to 80
-            else -> 80f + ((value - 5f) * 4f) // 80 to 100
+            value <= 5f -> 40f + (value * 8f)
+            else -> 80f + ((value - 5f) * 4f)
         }
         
-        // Waist width
         val waistWidth = when {
-            value <= 5f -> 30f + (value * 2f) // 30 to 40
-            else -> 40f + ((value - 5f) * 12f) // 40 to 100
+            value <= 5f -> 30f + (value * 2f)
+            else -> 40f + ((value - 5f) * 12f)
         }
 
         val bodyPath = Path().apply {
-            // Head (Hexagon style)
             moveTo(center.x - 10f, 10f)
             lineTo(center.x + 10f, 10f)
             lineTo(center.x + 15f, 25f)
@@ -94,19 +127,16 @@ fun MorphologyIcon(value: Float, modifier: Modifier = Modifier) {
             lineTo(center.x - 15f, 25f)
             close()
 
-            // Torso
-            moveTo(center.x - shoulderWidth/2, 40f) // Left shoulder
-            lineTo(center.x + shoulderWidth/2, 40f) // Right shoulder
-            lineTo(center.x + waistWidth/2, 90f)   // Right waist
-            lineTo(center.x - waistWidth/2, 90f)   // Left waist
+            moveTo(center.x - shoulderWidth/2, 40f)
+            lineTo(center.x + shoulderWidth/2, 40f)
+            lineTo(center.x + waistWidth/2, 90f)
+            lineTo(center.x - waistWidth/2, 90f)
             close()
         }
 
-        // Draw glow
         drawPath(bodyPath, color.copy(alpha = 0.3f))
         drawPath(bodyPath, color, style = Stroke(width = strokeWidth))
         
-        // Decorative "circuit" lines
         drawLine(color, Offset(center.x, 40f), Offset(center.x, 90f), strokeWidth = 1f)
         drawLine(color, Offset(center.x - shoulderWidth/4, 50f), Offset(center.x - waistWidth/4, 80f), strokeWidth = 1f)
         drawLine(color, Offset(center.x + shoulderWidth/4, 50f), Offset(center.x + waistWidth/4, 80f), strokeWidth = 1f)
@@ -132,6 +162,7 @@ fun CharacterCreationScreen() {
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF020202))) {
         CyberGridBackground()
+        GlitchOverlay()
         
         // Scanline overlay effect
         Box(
