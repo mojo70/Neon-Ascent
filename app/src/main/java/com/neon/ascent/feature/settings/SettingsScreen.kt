@@ -21,17 +21,20 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.feature.charactercreation.CyberButtonShape
 import com.neon.ascent.feature.charactercreation.CyberFrame
 import com.neon.ascent.feature.charactercreation.CyberGridBackground
 import com.neon.ascent.feature.charactercreation.GlitchOverlay
+import com.neon.ascent.util.BiometricAuthManager
 import kotlinx.coroutines.delay
 import kotlin.random.Random
 
@@ -75,6 +78,11 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onResetComplete: () -> Unit
 ) {
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    val biometricLockEnabled by viewModel.isBiometricLockEnabled.collectAsState()
+    val biometricAuthManager = remember { BiometricAuthManager(context) }
+    
     var showResetDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     
@@ -102,7 +110,10 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(16.dp))
             
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) {
+                IconButton(onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onBack()
+                }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF00FF9C))
                 }
                 Text(
@@ -120,10 +131,40 @@ fun SettingsScreen(
 
             CyberFrame(label = "CHARACTER CORE") {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    SettingsItem("EDIT AVATAR / BIO", onClick = {})
-                    SettingsItem("RESET NEURAL PROFILE", color = Color(0xFFFF006E), onClick = { showResetDialog = true })
-                    SettingsItem("EXPORT_CHARACTER [.JSON]", onClick = {})
-                    SettingsItem("IMPORT_CHARACTER [.JSON]", onClick = {})
+                    SettingsItem("EDIT AVATAR / BIO", onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    })
+                    SettingsItem("RESET NEURAL PROFILE", color = Color(0xFFFF006E), onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        if (biometricLockEnabled) {
+                            biometricAuthManager.authenticate(
+                                context as FragmentActivity,
+                                "RESET PROFILE",
+                                "Confirm biometric signature to wipe profile",
+                                onSuccess = { showResetDialog = true },
+                                onError = { /* Show error */ }
+                            )
+                        } else {
+                            showResetDialog = true
+                        }
+                    })
+                    SettingsItem("EXPORT_CHARACTER [.JSON]", onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        if (biometricLockEnabled) {
+                            biometricAuthManager.authenticate(
+                                context as FragmentActivity,
+                                "EXPORT DATA",
+                                "Confirm biometric signature to download character data",
+                                onSuccess = { /* Proceed with export */ },
+                                onError = { /* Show error */ }
+                            )
+                        } else {
+                            // Proceed with export
+                        }
+                    })
+                    SettingsItem("IMPORT_CHARACTER [.JSON]", onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    })
                 }
             }
 
@@ -132,7 +173,7 @@ fun SettingsScreen(
             CyberFrame(label = "WEARABLE LINKS") {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Button(
-                        onClick = {},
+                        onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp)
@@ -148,7 +189,7 @@ fun SettingsScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(
                             checked = true, 
-                            onCheckedChange = {},
+                            onCheckedChange = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
                             colors = CheckboxDefaults.colors(checkedColor = Color(0xFF00FF9C), uncheckedColor = Color.DarkGray)
                         )
                         Text("SHARE BIOMETRICS TO BOOST STATS", color = Color.White, fontSize = 12.sp)
@@ -164,15 +205,15 @@ fun SettingsScreen(
                         Text("NEON INTENSITY", color = Color.White.copy(alpha = 0.6f), fontSize = 10.sp)
                         Slider(
                             value = 0.8f, 
-                            onValueChange = {}, 
+                            onValueChange = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) }, 
                             colors = SliderDefaults.colors(thumbColor = Color(0xFF00FF9C), activeTrackColor = Color(0xFF00FF9C))
                         )
                     }
                     
-                    ToggleSetting("TERMINAL BEEPS", true)
-                    ToggleSetting("RAIN NOISE", false)
-                    ToggleSetting("ICE ALERTS", true)
-                    ToggleSetting("RUNNER BOUNTIES", true)
+                    ToggleSetting("TERMINAL BEEPS", true, onCheckedChange = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) })
+                    ToggleSetting("RAIN NOISE", false, onCheckedChange = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) })
+                    ToggleSetting("ICE ALERTS", true, onCheckedChange = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) })
+                    ToggleSetting("RUNNER BOUNTIES", true, onCheckedChange = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) })
                 }
             }
 
@@ -180,9 +221,39 @@ fun SettingsScreen(
 
             CyberFrame(label = "SECURITY & LOGS") {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    SettingsItem("DATA EXPORT [.LOG]", onClick = {})
-                    SettingsItem("DELETE ACCOUNT", color = Color(0xFFFF006E), onClick = { showDeleteDialog = true })
-                    ToggleSetting("BIOMETRIC LOCK", false)
+                    SettingsItem("DATA EXPORT [.LOG]", onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    })
+                    SettingsItem("DELETE ACCOUNT", color = Color(0xFFFF006E), onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        showDeleteDialog = true
+                    })
+                    ToggleSetting(
+                        label = "BIOMETRIC LOCK", 
+                        checked = biometricLockEnabled,
+                        onCheckedChange = { enabled ->
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            if (enabled) {
+                                if (biometricAuthManager.canAuthenticate()) {
+                                    biometricAuthManager.authenticate(
+                                        context as FragmentActivity,
+                                        "ENABLE BIOMETRIC LOCK",
+                                        "Confirm identity to secure system nodes",
+                                        onSuccess = { viewModel.setBiometricLockEnabled(true) },
+                                        onError = { /* Error handling */ }
+                                    )
+                                }
+                            } else {
+                                biometricAuthManager.authenticate(
+                                    context as FragmentActivity,
+                                    "DISABLE BIOMETRIC LOCK",
+                                    "Confirm identity to unlock system nodes",
+                                    onSuccess = { viewModel.setBiometricLockEnabled(false) },
+                                    onError = { /* Error handling */ }
+                                )
+                            }
+                        }
+                    )
                 }
             }
 
@@ -193,14 +264,21 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 40.dp)
             ) {
                 Text("BUILD_HASH: 7F2A91X_STABLE", color = Color.Gray, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
-                Text("MEET THE DECKERS WHO BUILT THIS", color = Color(0xFF00FF9C).copy(alpha = 0.5f), fontSize = 10.sp, modifier = Modifier.clickable { })
+                Text("MEET THE DECKERS WHO BUILT THIS", color = Color(0xFF00FF9C).copy(alpha = 0.5f), fontSize = 10.sp, modifier = Modifier.clickable {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                })
+                Text("REPORT BUG", color = Color(0xFF00FF9C).copy(alpha = 0.5f), fontSize = 10.sp, modifier = Modifier.clickable {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                })
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     "JACK OUT", 
                     color = Color(0xFFFF006E), 
                     fontWeight = FontWeight.Black, 
                     letterSpacing = 4.sp,
-                    modifier = Modifier.clickable { }
+                    modifier = Modifier.clickable { 
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    }
                 )
             }
         }
@@ -211,6 +289,7 @@ fun SettingsScreen(
                 description = "This will wipe all progress. Enter 'JACKIN' to proceed.",
                 confirmText = "JACKIN",
                 onConfirm = { 
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     viewModel.resetProfile { 
                         showResetDialog = false
                         onResetComplete()
@@ -225,7 +304,10 @@ fun SettingsScreen(
                 title = "TERMINATE ACCOUNT?",
                 description = "Permanent data deletion. 30-day grace period applies.",
                 confirmText = "TERMINATE",
-                onConfirm = { showDeleteDialog = false },
+                onConfirm = { 
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    showDeleteDialog = false 
+                },
                 onDismiss = { showDeleteDialog = false }
             )
         }
@@ -233,7 +315,7 @@ fun SettingsScreen(
 }
 
 @Composable
-fun ToggleSetting(label: String, checked: Boolean) {
+fun ToggleSetting(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(), 
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -242,7 +324,7 @@ fun ToggleSetting(label: String, checked: Boolean) {
         Text(label, color = Color.White, fontSize = 14.sp)
         Switch(
             checked = checked, 
-            onCheckedChange = {}, 
+            onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color(0xFF00FF9C),
                 checkedTrackColor = Color(0xFF00FF9C).copy(alpha = 0.3f),

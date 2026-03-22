@@ -18,16 +18,18 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 class SettingsRepository @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
-    private val biometricLockKey = booleanPreferencesKey("biometric_lock")
+    private object PreferencesKeys {
+        val BIOMETRIC_LOCK = booleanPreferencesKey("biometric_lock")
+    }
 
     val isBiometricLockEnabled: Flow<Boolean> = context.dataStore.data
         .map { preferences ->
-            preferences[biometricLockKey] ?: false
+            preferences[PreferencesKeys.BIOMETRIC_LOCK] ?: false
         }
 
     suspend fun setBiometricLockEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
-            preferences[biometricLockKey] = enabled
+            preferences[PreferencesKeys.BIOMETRIC_LOCK] = enabled
         }
     }
 }
