@@ -76,7 +76,8 @@ fun MatrixRainBackground() {
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     onBack: () -> Unit,
-    onResetComplete: () -> Unit
+    onResetComplete: () -> Unit,
+    onDeepNodeUnlock: () -> Unit
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -87,6 +88,10 @@ fun SettingsScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showPinDialog by remember { mutableStateOf(false) }
     var pinAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+
+    // Secret screen states
+    var buildHashClickCount by remember { mutableStateOf(0) }
+    var showPasswordDialog by remember { mutableStateOf(false) }
     
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0A0A0A))) {
         MatrixRainBackground()
@@ -303,7 +308,20 @@ fun SettingsScreen(
                 horizontalAlignment = Alignment.CenterHorizontally, 
                 modifier = Modifier.fillMaxWidth().padding(bottom = 40.dp)
             ) {
-                Text("BUILD_HASH: 7F2A91X_STABLE", color = Color.Gray, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                Text(
+                    text = "BUILD_HASH: 7F2A91X_STABLE", 
+                    color = Color.Gray, 
+                    fontSize = 10.sp, 
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.clickable {
+                        buildHashClickCount++
+                        if (buildHashClickCount >= 7) {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            showPasswordDialog = true
+                            buildHashClickCount = 0
+                        }
+                    }
+                )
                 Text("MEET THE DECKERS WHO BUILT THIS", color = Color(0xFF00FF9C).copy(alpha = 0.5f), fontSize = 10.sp, modifier = Modifier.clickable {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 })
@@ -360,6 +378,66 @@ fun SettingsScreen(
                 },
                 onDismiss = { showPinDialog = false }
             )
+        }
+
+        if (showPasswordDialog) {
+            SecretPasswordDialog(
+                onCorrectPassword = {
+                    showPasswordDialog = false
+                    onDeepNodeUnlock()
+                },
+                onDismiss = { showPasswordDialog = false }
+            )
+        }
+    }
+}
+
+@Composable
+fun SecretPasswordDialog(onCorrectPassword: () -> Unit, onDismiss: () -> Unit) {
+    var password by remember { mutableStateOf("") }
+    val haptic = LocalHapticFeedback.current
+    
+    Dialog(onDismissRequest = onDismiss) {
+        Box(
+            modifier = Modifier
+                .clip(CyberButtonShape)
+                .background(Color(0xFF0F0F0F))
+                .border(2.dp, Color(0xFFFF006E), CyberButtonShape)
+                .padding(24.dp)
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(">>> ACCESS_RESTRICTED <<<", color = Color(0xFFFF006E), fontWeight = FontWeight.Black, fontSize = 18.sp)
+                Spacer(Modifier.height(16.dp))
+                
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    placeholder = { Text("ENTER PASSWORD", color = Color.Gray) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFFFF006E),
+                        unfocusedBorderColor = Color.DarkGray,
+                        focusedTextColor = Color.White
+                    )
+                )
+                
+                Spacer(Modifier.height(24.dp))
+                
+                Button(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        if (password == "!c3Br3@k3r") {
+                            onCorrectPassword()
+                        } else {
+                            password = ""
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(50.dp).clip(CyberButtonShape),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF006E))
+                ) {
+                    Text("BREAK ICE", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
         }
     }
 }

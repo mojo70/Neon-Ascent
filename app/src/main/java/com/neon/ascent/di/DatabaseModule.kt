@@ -26,7 +26,7 @@ object DatabaseModule {
         return Room.databaseBuilder(
             context,
             AppDatabase::class.java,
-            "neon_ascent_db"
+            "neon_ascent_v2_secure.db" // Renamed to avoid conflict with unencrypted legacy db
         )
         .openHelperFactory(factory)
         .build()

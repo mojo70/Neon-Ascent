@@ -20,6 +20,8 @@ import com.neon.ascent.feature.charactercreation.CyberGridBackground
 import com.neon.ascent.feature.dashboard.DashboardScreen
 import com.neon.ascent.feature.dashboard.DashboardViewModel
 import com.neon.ascent.feature.settings.SettingsScreen
+import com.neon.ascent.feature.settings.DeepNodeScreen
+import com.neon.ascent.feature.loading.LoadingScreen
 
 @Composable
 fun AppNavigation(
@@ -29,13 +31,17 @@ fun AppNavigation(
     val navController = rememberNavController()
     val userCharacter by dashboardViewModel.userCharacter.collectAsState()
 
-    // Determine start destination based on character completion
-    // We use a derived state to ensure the NavHost can handle the initial state
-    val startDestination = remember(userCharacter) {
-        if (userCharacter?.isCreationComplete == true) "dashboard" else "creation"
-    }
-
-    NavHost(navController = navController, startDestination = startDestination) {
+    NavHost(navController = navController, startDestination = "loading") {
+        composable("loading") {
+            LoadingScreen(
+                onLoadingFinished = {
+                    val target = if (userCharacter?.isCreationComplete == true) "dashboard" else "creation"
+                    navController.navigate(target) {
+                        popUpTo("loading") { inclusive = true }
+                    }
+                }
+            )
+        }
         composable("creation") {
             CharacterCreationScreen(
                 onInitialize = { name, sex, dob, units, weight, somatotype, ft, inches, cm ->
@@ -82,8 +88,15 @@ fun AppNavigation(
                     navController.navigate("creation") {
                         popUpTo("dashboard") { inclusive = true }
                     }
+                },
+                onDeepNodeUnlock = {
+                    navController.navigate("deep_node")
                 }
             )
+        }
+
+        composable("deep_node") {
+            DeepNodeScreen(onBack = { navController.popBackStack() })
         }
         
         composable("character_bio") { PlaceholderScreen("CHARACTER BIOGRAPHY", navController::popBackStack) }
