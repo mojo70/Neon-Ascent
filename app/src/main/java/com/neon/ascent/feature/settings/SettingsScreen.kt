@@ -85,6 +85,8 @@ fun SettingsScreen(
     
     var showResetDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showPinDialog by remember { mutableStateOf(false) }
+    var pinAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0A0A0A))) {
         MatrixRainBackground()
@@ -136,30 +138,48 @@ fun SettingsScreen(
                     })
                     SettingsItem("RESET NEURAL PROFILE", color = Color(0xFFFF006E), onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        val action = { showResetDialog = true }
                         if (biometricLockEnabled) {
-                            biometricAuthManager.authenticate(
-                                context as FragmentActivity,
-                                "RESET PROFILE",
-                                "Confirm biometric signature to wipe profile",
-                                onSuccess = { showResetDialog = true },
-                                onError = { /* Show error */ }
-                            )
+                            if (biometricAuthManager.canAuthenticate()) {
+                                biometricAuthManager.authenticate(
+                                    context as FragmentActivity,
+                                    "RESET PROFILE",
+                                    "Confirm biometric signature to wipe profile",
+                                    onSuccess = action,
+                                    onError = { 
+                                        pinAction = action
+                                        showPinDialog = true 
+                                    }
+                                )
+                            } else {
+                                pinAction = action
+                                showPinDialog = true
+                            }
                         } else {
-                            showResetDialog = true
+                            action()
                         }
                     })
                     SettingsItem("EXPORT_CHARACTER [.JSON]", onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        val action = { /* Proceed with export */ }
                         if (biometricLockEnabled) {
-                            biometricAuthManager.authenticate(
-                                context as FragmentActivity,
-                                "EXPORT DATA",
-                                "Confirm biometric signature to download character data",
-                                onSuccess = { /* Proceed with export */ },
-                                onError = { /* Show error */ }
-                            )
+                            if (biometricAuthManager.canAuthenticate()) {
+                                biometricAuthManager.authenticate(
+                                    context as FragmentActivity,
+                                    "EXPORT DATA",
+                                    "Confirm biometric signature to download character data",
+                                    onSuccess = action,
+                                    onError = { 
+                                        pinAction = action
+                                        showPinDialog = true 
+                                    }
+                                )
+                            } else {
+                                pinAction = action
+                                showPinDialog = true
+                            }
                         } else {
-                            // Proceed with export
+                            action()
                         }
                     })
                     SettingsItem("IMPORT_CHARACTER [.JSON]", onClick = {
@@ -223,6 +243,26 @@ fun SettingsScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     SettingsItem("DATA EXPORT [.LOG]", onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        val action = { /* Export logs */ }
+                        if (biometricLockEnabled) {
+                            if (biometricAuthManager.canAuthenticate()) {
+                                biometricAuthManager.authenticate(
+                                    context as FragmentActivity,
+                                    "EXPORT LOGS",
+                                    "Confirm biometric signature to export system logs",
+                                    onSuccess = action,
+                                    onError = { 
+                                        pinAction = action
+                                        showPinDialog = true 
+                                    }
+                                )
+                            } else {
+                                pinAction = action
+                                showPinDialog = true
+                            }
+                        } else {
+                            action()
+                        }
                     })
                     SettingsItem("DELETE ACCOUNT", color = Color(0xFFFF006E), onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -310,6 +350,60 @@ fun SettingsScreen(
                 },
                 onDismiss = { showDeleteDialog = false }
             )
+        }
+
+        if (showPinDialog) {
+            CyberPinDialog(
+                onConfirm = { 
+                    showPinDialog = false
+                    pinAction?.invoke()
+                },
+                onDismiss = { showPinDialog = false }
+            )
+        }
+    }
+}
+
+@Composable
+fun CyberPinDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    var pin by remember { mutableStateOf("") }
+    
+    Dialog(onDismissRequest = onDismiss) {
+        Box(
+            modifier = Modifier
+                .clip(CyberButtonShape)
+                .background(Color(0xFF0F0F0F))
+                .border(2.dp, Color(0xFF00FF9C), CyberButtonShape)
+                .padding(24.dp)
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("ENTER_PIN_CODE", color = Color(0xFF00FF9C), fontWeight = FontWeight.Black, fontSize = 20.sp)
+                Spacer(Modifier.height(16.dp))
+                
+                OutlinedTextField(
+                    value = pin,
+                    onValueChange = { if (it.length <= 4) pin = it },
+                    placeholder = { Text("####", color = Color.Gray) },
+                    modifier = Modifier.width(120.dp),
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF00FF9C),
+                        unfocusedBorderColor = Color.DarkGray,
+                        focusedTextColor = Color.White
+                    )
+                )
+                
+                Spacer(Modifier.height(24.dp))
+                
+                Button(
+                    onClick = onConfirm,
+                    enabled = pin.length == 4, // Assuming a 4-digit PIN for now
+                    modifier = Modifier.fillMaxWidth().height(50.dp).clip(CyberButtonShape),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C))
+                ) {
+                    Text("VALIDATE", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            }
         }
     }
 }

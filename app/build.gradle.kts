@@ -82,9 +82,17 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     // Room
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    ksp("androidx.room:room-compiler:2.6.1")
+    val roomVersion = "2.6.1"
+    implementation("androidx.room:room-runtime:$roomVersion")
+    implementation("androidx.room:room-ktx:$roomVersion")
+    ksp("androidx.room:room-compiler:$roomVersion")
+    
+    // SQLCipher for Room encryption
+    implementation("net.zetetic:android-database-sqlcipher:4.5.4")
+    implementation("androidx.sqlite:sqlite-ktx:2.4.0")
+
+    // Security - Crypto for DataStore/SharedPrefs encryption
+    implementation("androidx.security:security-crypto-ktx:1.1.0-alpha06")
 
     // Health Connect - downgraded to support API 34
     implementation("androidx.health.connect:connect-client:1.1.0-alpha01")

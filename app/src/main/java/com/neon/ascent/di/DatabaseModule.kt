@@ -9,6 +9,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import net.sqlcipher.database.SupportFactory
 import javax.inject.Singleton
 
 @Module
@@ -17,11 +18,18 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
+        // In a real production app, the passphrase should be securely generated
+        // and retrieved from the Android Keystore System.
+        val passphrase = net.sqlcipher.database.SQLiteDatabase.getBytes("NEON_ASCENT_SECURE_KEY".toCharArray())
+        val factory = SupportFactory(passphrase)
+
         return Room.databaseBuilder(
             context,
             AppDatabase::class.java,
             "neon_ascent_db"
-        ).build()
+        )
+        .openHelperFactory(factory)
+        .build()
     }
 
     @Provides

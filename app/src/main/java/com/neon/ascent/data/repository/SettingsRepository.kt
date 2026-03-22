@@ -1,35 +1,40 @@
 package com.neon.ascent.data.repository
 
 import android.content.Context
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.preferencesDataStore
+import android.content.SharedPreferences
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
-
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
 @Singleton
 class SettingsRepository @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
-    private object PreferencesKeys {
-        val BIOMETRIC_LOCK = booleanPreferencesKey("biometric_lock")
+    private val masterKey = MasterKey.Builder(context)
+        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+        .build()
+
+    private val sharedPreferences: SharedPreferences = EncryptedSharedPreferences.create(
+        context,
+        "secure_settings",
+        masterKey,
+        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+    )
+
+    private val _isBiometricLockEnabled = MutableStateFlow(getBiometricLockEnabled())
+    val isBiometricLockEnabled: StateFlow<Boolean> = _isBiometricLockEnabled
+
+    fun setBiometricLockEnabled(enabled: Boolean) {
+        sharedPreferences.edit().putBoolean("biometric_lock", enabled).apply()
+        _isBiometricLockEnabled.value = enabled
     }
 
-    val isBiometricLockEnabled: Flow<Boolean> = context.dataStore.data
-        .map { preferences ->
-            preferences[PreferencesKeys.BIOMETRIC_LOCK] ?: false
-        }
-
-    suspend fun setBiometricLockEnabled(enabled: Boolean) {
-        context.dataStore.edit { preferences ->
-            preferences[PreferencesKeys.BIOMETRIC_LOCK] = enabled
-        }
+    private fun getBiometricLockEnabled(): Boolean {
+        return sharedPreferences.getBoolean("biometric_lock", false)
     }
 }
