@@ -29,12 +29,24 @@ class SettingsRepository @Inject constructor(
     private val _isBiometricLockEnabled = MutableStateFlow(getBiometricLockEnabled())
     val isBiometricLockEnabled: StateFlow<Boolean> = _isBiometricLockEnabled
 
+    private val _isReligionShortcutEnabled = MutableStateFlow(getReligionShortcutEnabled())
+    val isReligionShortcutEnabled: StateFlow<Boolean> = _isReligionShortcutEnabled
+
     fun setBiometricLockEnabled(enabled: Boolean) {
         sharedPreferences.edit().putBoolean("biometric_lock", enabled).apply()
         _isBiometricLockEnabled.value = enabled
     }
 
+    fun setReligionShortcutEnabled(enabled: Boolean) {
+        sharedPreferences.edit().putBoolean("religion_shortcut", enabled).apply()
+        _isReligionShortcutEnabled.value = enabled
+    }
+
     private fun getBiometricLockEnabled(): Boolean {
         return sharedPreferences.getBoolean("biometric_lock", false)
+    }
+
+    private fun getReligionShortcutEnabled(): Boolean {
+        return sharedPreferences.getBoolean("religion_shortcut", false)
     }
 }

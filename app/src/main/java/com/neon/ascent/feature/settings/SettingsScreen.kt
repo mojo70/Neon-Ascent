@@ -1,10 +1,12 @@
 package com.neon.ascent.feature.settings
 
+import android.util.Log
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -313,14 +315,20 @@ fun SettingsScreen(
                     color = Color.Gray, 
                     fontSize = 10.sp, 
                     fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.clickable {
-                        buildHashClickCount++
-                        if (buildHashClickCount >= 7) {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            showPasswordDialog = true
-                            buildHashClickCount = 0
+                    modifier = Modifier
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            buildHashClickCount++
+                            Log.d("SettingsScreen", "Build hash clicked: $buildHashClickCount")
+                            if (buildHashClickCount >= 7) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                showPasswordDialog = true
+                                buildHashClickCount = 0
+                            }
                         }
-                    }
+                        .padding(16.dp) // Increase touch target size
                 )
                 Text("MEET THE DECKERS WHO BUILT THIS", color = Color(0xFF00FF9C).copy(alpha = 0.5f), fontSize = 10.sp, modifier = Modifier.clickable {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)

@@ -9,9 +9,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.neon.ascent.feature.charactercreation.CharacterCreationScreen
 import com.neon.ascent.feature.charactercreation.NeuralScanScreen
 import com.neon.ascent.feature.charactercreation.AvatarCaptureScreen
@@ -77,7 +79,8 @@ fun AppNavigation(
                 onAttributeSetClick = { navController.navigate("attribute_scan") },
                 onStoryClick = { navController.navigate("story") },
                 onGoalSetClick = { navController.navigate("goals") },
-                onSettingsClick = { navController.navigate("settings") }
+                onSettingsClick = { navController.navigate("settings") },
+                onReligionClick = { navController.navigate("deep_node/RELIGION") }
             )
         }
         
@@ -90,13 +93,20 @@ fun AppNavigation(
                     }
                 },
                 onDeepNodeUnlock = {
-                    navController.navigate("deep_node")
+                    navController.navigate("deep_node/ROOT")
                 }
             )
         }
 
-        composable("deep_node") {
-            DeepNodeScreen(onBack = { navController.popBackStack() })
+        composable(
+            route = "deep_node/{subScreen}",
+            arguments = listOf(navArgument("subScreen") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val subScreen = backStackEntry.arguments?.getString("subScreen") ?: "ROOT"
+            DeepNodeScreen(
+                initialSubScreen = subScreen,
+                onBack = { navController.popBackStack() }
+            )
         }
         
         composable("character_bio") { PlaceholderScreen("CHARACTER BIOGRAPHY", navController::popBackStack) }

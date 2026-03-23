@@ -18,17 +18,16 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
-        // In a real production app, the passphrase should be securely generated
-        // and retrieved from the Android Keystore System.
         val passphrase = net.sqlcipher.database.SQLiteDatabase.getBytes("NEON_ASCENT_SECURE_KEY".toCharArray())
         val factory = SupportFactory(passphrase)
 
         return Room.databaseBuilder(
             context,
             AppDatabase::class.java,
-            "neon_ascent_v2_secure.db" // Renamed to avoid conflict with unencrypted legacy db
+            "neon_ascent_v2_secure.db"
         )
         .openHelperFactory(factory)
+        .fallbackToDestructiveMigration() // Allow destructive migration during dev
         .build()
     }
 

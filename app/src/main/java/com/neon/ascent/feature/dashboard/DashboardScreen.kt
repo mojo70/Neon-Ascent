@@ -31,6 +31,7 @@ import com.neon.ascent.feature.charactercreation.CyberButtonShape
 import com.neon.ascent.feature.charactercreation.CyberFrame
 import com.neon.ascent.feature.charactercreation.CyberGridBackground
 import com.neon.ascent.feature.charactercreation.GlitchOverlay
+import com.neon.ascent.feature.settings.SettingsViewModel
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.random.Random
@@ -38,13 +39,16 @@ import kotlin.random.Random
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel(),
+    settingsViewModel: SettingsViewModel = hiltViewModel(),
     onAvatarClick: () -> Unit,
     onAttributeSetClick: () -> Unit,
     onStoryClick: () -> Unit,
     onGoalSetClick: () -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    onReligionClick: () -> Unit
 ) {
     val userCharacter by viewModel.userCharacter.collectAsState()
+    val isReligionShortcutEnabled by settingsViewModel.isReligionShortcutEnabled.collectAsState()
     val currentTime = remember { mutableStateOf(LocalDateTime.now()) }
     
     LaunchedEffect(Unit) {
@@ -89,6 +93,10 @@ fun DashboardScreen(
 
                 Column(horizontalAlignment = Alignment.End) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (isReligionShortcutEnabled) {
+                            CyberCrossIcon(onClick = onReligionClick)
+                            Spacer(Modifier.width(12.dp))
+                        }
                         NeuralJackIcon(onClick = onSettingsClick)
                         Spacer(Modifier.width(12.dp))
                         Text(
@@ -163,6 +171,44 @@ fun DashboardScreen(
             }
             
             Spacer(modifier = Modifier.height(40.dp))
+        }
+    }
+}
+
+@Composable
+fun CyberCrossIcon(onClick: () -> Unit) {
+    val haptic = LocalHapticFeedback.current
+    Box(
+        modifier = Modifier
+            .size(32.dp)
+            .clickable {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick()
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val color = Color(0xFF00FF9C)
+            val strokeWidth = 2.dp.toPx()
+            
+            // Vertical bar
+            drawLine(
+                color = color,
+                start = Offset(center.x, 4.dp.toPx()),
+                end = Offset(center.x, size.height - 4.dp.toPx()),
+                strokeWidth = strokeWidth
+            )
+            // Horizontal bar
+            drawLine(
+                color = color,
+                start = Offset(4.dp.toPx(), center.y - 4.dp.toPx()),
+                end = Offset(size.width - 4.dp.toPx(), center.y - 4.dp.toPx()),
+                strokeWidth = strokeWidth
+            )
+            
+            // Decorative corners (cyber feel)
+            drawRect(color = color, topLeft = Offset(0f, 0f), size = androidx.compose.ui.geometry.Size(4.dp.toPx(), 4.dp.toPx()))
+            drawRect(color = color, topLeft = Offset(size.width - 4.dp.toPx(), 0f), size = androidx.compose.ui.geometry.Size(4.dp.toPx(), 4.dp.toPx()))
         }
     }
 }

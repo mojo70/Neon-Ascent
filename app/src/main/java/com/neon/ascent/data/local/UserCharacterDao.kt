@@ -17,4 +17,7 @@ interface UserCharacterDao {
 
     @Query("DELETE FROM user_character WHERE id = 0")
     suspend fun resetCharacter()
+
+    @Query("UPDATE user_character SET holyGhost = :level WHERE id = 0")
+    suspend fun updateHolyGhost(level: Int)
 }

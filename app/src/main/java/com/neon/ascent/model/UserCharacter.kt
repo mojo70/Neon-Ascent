@@ -26,6 +26,7 @@ data class UserCharacter(
     val charisma: Int? = null,
     val agility: Int? = null,
     val luck: Int? = null,
+    val holyGhost: Int? = null,
     val avatarPath: String? = null,
     val isCreationComplete: Boolean = false
 )
