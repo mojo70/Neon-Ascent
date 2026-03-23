@@ -65,7 +65,7 @@ fun HolographicAvatarHub(
                 if (isEditingName) {
                     OutlinedTextField(
                         value = editedName,
-                        onValueChange = { editedName = it.uppercase() },
+                        onValueChange = { editedName = it },
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Color(0xFF00FF9C),
