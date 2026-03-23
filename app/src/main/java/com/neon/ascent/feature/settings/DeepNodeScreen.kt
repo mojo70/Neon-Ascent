@@ -2,6 +2,7 @@ package com.neon.ascent.feature.settings
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,6 +17,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
@@ -30,6 +33,7 @@ import com.neon.ascent.feature.charactercreation.CyberFrame
 import com.neon.ascent.feature.charactercreation.CyberGridBackground
 import com.neon.ascent.feature.charactercreation.GlitchOverlay
 import kotlinx.coroutines.delay
+import kotlin.random.Random
 
 @Composable
 fun DeepNodeScreen(
@@ -165,26 +169,74 @@ fun DeepNodeScreen(
 
 @Composable
 fun RebirthOverlay(onAnimationFinished: () -> Unit) {
-    var visible by remember { mutableStateOf(false) }
+    var phase by remember { mutableStateOf(0) } // 0: Splatter, 1: Run Down, 2: Fade to White
     
+    val bloodColor = Color(0xFF8B0000) // Deep red blood
+    val animProgress = remember { Animatable(0f) }
+
     LaunchedEffect(Unit) {
-        visible = true
-        delay(3000)
-        visible = false
+        // Phase 0: Splatter
+        phase = 0
         delay(500)
+        
+        // Phase 1: Run down
+        phase = 1
+        animProgress.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 2000, easing = LinearEasing)
+        )
+        
+        // Phase 2: Fade to white
+        phase = 2
+        delay(500)
+        
+        // Hold on white
+        delay(2000)
         onAnimationFinished()
     }
 
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(animationSpec = tween(1000)) + scaleIn(initialScale = 0.8f),
-        exit = fadeOut(animationSpec = tween(500))
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.White.copy(alpha = 0.9f)),
-            contentAlignment = Alignment.Center
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Background - turns white in Phase 2
+        val bgColor by animateColorAsState(
+            targetValue = if (phase >= 2) Color.White else Color.Black,
+            animationSpec = tween(1000),
+            label = "BgColor"
+        )
+        
+        Box(modifier = Modifier.fillMaxSize().background(bgColor))
+
+        if (phase < 2) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val dropCount = 15
+                val random = Random(42)
+                
+                for (i in 0 until dropCount) {
+                    val startX = random.nextFloat() * size.width
+                    val dropWidth = random.nextFloat() * 40f + 20f
+                    val fallDistance = size.height * animProgress.value
+                    
+                    // Main blood streak
+                    drawRect(
+                        color = bloodColor,
+                        topLeft = Offset(startX, 0f),
+                        size = Size(dropWidth, fallDistance)
+                    )
+                    
+                    // Splatter head (round)
+                    drawCircle(
+                        color = bloodColor,
+                        radius = dropWidth / 1.5f,
+                        center = Offset(startX + dropWidth / 2, fallDistance)
+                    )
+                }
+            }
+        }
+
+        // Rebirth Text - appears when white
+        AnimatedVisibility(
+            visible = phase >= 2,
+            enter = fadeIn(animationSpec = tween(1000)) + scaleIn(initialScale = 0.5f),
+            modifier = Modifier.align(Alignment.Center)
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
