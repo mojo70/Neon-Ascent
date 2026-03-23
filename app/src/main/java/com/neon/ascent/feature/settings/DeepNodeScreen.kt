@@ -1,5 +1,7 @@
 package com.neon.ascent.feature.settings
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -12,10 +14,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -24,16 +29,19 @@ import com.neon.ascent.feature.charactercreation.CyberButtonShape
 import com.neon.ascent.feature.charactercreation.CyberFrame
 import com.neon.ascent.feature.charactercreation.CyberGridBackground
 import com.neon.ascent.feature.charactercreation.GlitchOverlay
+import kotlinx.coroutines.delay
 
 @Composable
 fun DeepNodeScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     initialSubScreen: String = "ROOT",
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onRebirthSuccess: () -> Unit = {}
 ) {
     var currentSubScreen by remember { mutableStateOf(initialSubScreen) }
     val isReligionShortcutEnabled by viewModel.isReligionShortcutEnabled.collectAsState()
     var showAltarDialog by remember { mutableStateOf(false) }
+    var showRebirthOverlay by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF020202))) {
         CyberGridBackground()
@@ -138,9 +146,61 @@ fun DeepNodeScreen(
                 onAccept = { 
                     viewModel.acceptHolyGhost()
                     showAltarDialog = false 
+                    showRebirthOverlay = true
                 },
                 onDismiss = { showAltarDialog = false }
             )
+        }
+
+        if (showRebirthOverlay) {
+            RebirthOverlay(onAnimationFinished = {
+                showRebirthOverlay = false
+                onRebirthSuccess()
+            })
+        }
+    }
+}
+
+@Composable
+fun RebirthOverlay(onAnimationFinished: () -> Unit) {
+    var visible by remember { mutableStateOf(false) }
+    
+    LaunchedEffect(Unit) {
+        visible = true
+        delay(3000)
+        visible = false
+        delay(500)
+        onAnimationFinished()
+    }
+
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(animationSpec = tween(1000)) + scaleIn(initialScale = 0.8f),
+        exit = fadeOut(animationSpec = tween(500))
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.White.copy(alpha = 0.9f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    "REBIRTH",
+                    style = MaterialTheme.typography.displayLarge.copy(
+                        color = Color.Black,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 20.sp
+                    )
+                )
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    "WASHED BY THE BLOOD // SYSTEM PURIFIED",
+                    color = Color.Red,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 2.sp
+                )
+            }
         }
     }
 }
@@ -168,7 +228,11 @@ fun CyberAltarDialog(onAccept: () -> Unit, onDismiss: () -> Unit) {
                             onValueChange = { input = it },
                             placeholder = { Text("Y / N", color = Color.Gray) },
                             modifier = Modifier.width(100.dp),
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF00FF9C), unfocusedTextColor = Color.White)
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFF00FF9C),
+                                unfocusedTextColor = Color.White,
+                                focusedTextColor = Color.White
+                            )
                         )
                         Spacer(Modifier.height(16.dp))
                         Button(
@@ -189,7 +253,7 @@ fun CyberAltarDialog(onAccept: () -> Unit, onDismiss: () -> Unit) {
                     }
                     2 -> {
                         Text("WOULD YOU LIKE TO?", color = Color(0xFFFF006E), fontWeight = FontWeight.Bold)
-                        Text("There is a heaven to gain and a hell to pay.", color = Color.White, fontSize = 12.sp)
+                        Text("There is a heaven to gain and a hell to pay.", color = Color.White, fontSize = 12.sp, textAlign = TextAlign.Center)
                         Spacer(Modifier.height(16.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(onClick = { step = 3 }, modifier = Modifier.weight(1f)) { Text("YES") }
@@ -206,18 +270,26 @@ fun CyberAltarDialog(onAccept: () -> Unit, onDismiss: () -> Unit) {
                                 fontSize = 14.sp
                             )
                             Spacer(Modifier.height(16.dp))
-                            Button(onClick = { step = 4 }, modifier = Modifier.fillMaxWidth()) {
-                                Text("AMEN")
+                            Button(
+                                onClick = { step = 4 }, 
+                                modifier = Modifier.fillMaxWidth().clip(CyberButtonShape),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C))
+                            ) {
+                                Text("AMEN", color = Color.Black)
                             }
                         }
                     }
                     4 -> {
                         Text("WELCOME TO THE FAMILY", color = Color(0xFF00FF9C), fontWeight = FontWeight.Black)
                         Spacer(Modifier.height(8.dp))
-                        Text("You are now a new creation. Please find and join a Bible-believing church to grow in your walk.", color = Color.White, fontSize = 14.sp)
+                        Text("You are now a new creation. Please find and join a Bible-believing church to grow in your walk.", color = Color.White, fontSize = 14.sp, textAlign = TextAlign.Center)
                         Spacer(Modifier.height(16.dp))
-                        Button(onClick = onAccept, modifier = Modifier.fillMaxWidth()) {
-                            Text("INITIALIZE HOLY_GHOST ATTRIBUTE")
+                        Button(
+                            onClick = onAccept, 
+                            modifier = Modifier.fillMaxWidth().clip(CyberButtonShape),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF006E))
+                        ) {
+                            Text("INITIALIZE HOLY_GHOST ATTRIBUTE", color = Color.White)
                         }
                     }
                 }
