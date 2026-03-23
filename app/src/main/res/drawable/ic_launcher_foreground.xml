@@ -3,7 +3,36 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Cyber Head Silhouette -->
+    <path
+        android:fillColor="#00FF9C"
+        android:pathData="M54,20 C40,20 30,30 28,45 C27,55 30,65 35,75 L35,85 L73,85 L73,75 C78,65 81,55 80,45 C78,30 68,20 54,20 Z" />
+
+    <!-- Neural Port on the back -->
+    <path
+        android:fillColor="#FF006E"
+        android:pathData="M28,55 L22,55 L22,65 L28,65 Z" />
+
+    <!-- Cyberpunk Glasses/Visor -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M30,42 H78 L80,52 H28 Z" />
+    <!-- Visor Detail (Pink Glow) -->
+    <path
+        android:fillColor="#FF006E"
+        android:pathData="M32,46 H76 V48 H32 Z" />
+
+    <!-- Neon Element Abbreviation 'Ne' -->
+    <group android:translateX="42" android:translateY="55">
+        <path
+            android:fillColor="#000000"
+            android:pathData="M2,0 L2,10 M2,0 L8,0 M2,5 L7,5 M12,0 L12,10 M12,5 L18,5 M12,0 L18,0 M12,10 L18,10" />
+    </group>
+
+    <!-- Up Arrow -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M31,63.92V20.33l19.07,35.58L69.14,20.33V63.92h15.17V10h-21.3L50.14,34.12 37.27,10H15.83V63.92H31z" />
+        android:pathData="M54,25 L48,35 L60,35 Z" />
+
 </vector>

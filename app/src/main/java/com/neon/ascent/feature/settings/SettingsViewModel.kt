@@ -37,7 +37,10 @@ class SettingsViewModel @Inject constructor(
 
     fun resetProfile(onComplete: () -> Unit) {
         viewModelScope.launch {
+            // Reset character data
             userCharacterDao.resetCharacter()
+            // Reset religion shortcut setting
+            settingsRepository.setReligionShortcutEnabled(false)
             onComplete()
         }
     }

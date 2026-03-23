@@ -66,16 +66,17 @@ fun CyberPongScreen(onBack: () -> Unit) {
     fun resetBall() {
         if (canvasSize != IntSize.Zero) {
             ballPos = Offset(canvasSize.width / 2f, canvasSize.height / 2f)
-            val speed = if (isSandevistanEnabled) 1000f else 100f
+            // Re-tuned speeds for a better challenge
+            val speed = if (isSandevistanEnabled) 110f else 35f
             val angle = if (Random.nextBoolean()) 1f else -1f
-            ballVelocity = Offset(speed * angle, (Random.nextFloat() - 0.5f) * speed * 2)
+            ballVelocity = Offset(speed * angle, (Random.nextFloat() - 0.5f) * speed * 1.5f)
         }
     }
 
     LaunchedEffect(canvasSize) {
         if (canvasSize != IntSize.Zero && !gameStarted) {
-            paddleY = canvasSize.height / 2f - 50f
-            aiPaddleY = canvasSize.height / 2f - 50f
+            paddleY = canvasSize.height / 2f - 120f
+            aiPaddleY = canvasSize.height / 2f - 120f
             resetBall()
         }
     }
@@ -93,9 +94,10 @@ fun CyberPongScreen(onBack: () -> Unit) {
                     ballVelocity = Offset(ballVelocity.x, -ballVelocity.y)
                 }
 
-                // AI Paddle Logic
+                // AI Paddle Logic (System)
+                // Center the AI paddle logic better on its size
                 val aiTargetY = ballPos.y - (paddleHeight.value * 2)
-                val aiSpeed = if (isSandevistanEnabled) 500f else 70f
+                val aiSpeed = if (isSandevistanEnabled) 90f else 22f
                 if (aiPaddleY < aiTargetY) aiPaddleY += aiSpeed
                 if (aiPaddleY > aiTargetY) aiPaddleY -= aiSpeed
                 aiPaddleY = aiPaddleY.coerceIn(0f, canvasSize.height - paddleHeight.value * 4)
@@ -105,7 +107,8 @@ fun CyberPongScreen(onBack: () -> Unit) {
                 val paddleBottom = paddleY + paddleHeight.value * 4
                 if (ballPos.x <= 50f + paddleWidth.value && ballPos.y in paddleTop..paddleBottom) {
                     if (ballVelocity.x < 0) {
-                        ballVelocity = Offset(-ballVelocity.x * 1.05f, ballVelocity.y + (Random.nextFloat() - 0.5f) * 10f)
+                        // Reflect and slightly increase speed/add vertical variance
+                        ballVelocity = Offset(-ballVelocity.x * 1.05f, ballVelocity.y + (Random.nextFloat() - 0.5f) * 15f)
                     }
                 } else if (ballPos.x < 0f) {
                     aiScore++
@@ -118,7 +121,7 @@ fun CyberPongScreen(onBack: () -> Unit) {
                 val aiPaddleBottom = aiPaddleY + paddleHeight.value * 4
                 if (ballPos.x >= canvasSize.width - 50f - paddleWidth.value && ballPos.y in aiPaddleTop..aiPaddleBottom) {
                     if (ballVelocity.x > 0) {
-                        ballVelocity = Offset(-ballVelocity.x * 1.05f, ballVelocity.y + (Random.nextFloat() - 0.5f) * 10f)
+                        ballVelocity = Offset(-ballVelocity.x * 1.05f, ballVelocity.y + (Random.nextFloat() - 0.5f) * 15f)
                     }
                 } else if (ballPos.x > canvasSize.width) {
                     score++
@@ -136,7 +139,8 @@ fun CyberPongScreen(onBack: () -> Unit) {
             .onSizeChanged { canvasSize = it }
             .pointerInput(Unit) {
                 detectDragGestures { change, _ ->
-                    paddleY = (change.position.y - 100f).coerceIn(0f, canvasSize.height.toFloat() - 200f)
+                    // Offset paddle touch to feel more natural
+                    paddleY = (change.position.y - 120f).coerceIn(0f, canvasSize.height.toFloat() - 240f)
                 }
             }
     ) {
