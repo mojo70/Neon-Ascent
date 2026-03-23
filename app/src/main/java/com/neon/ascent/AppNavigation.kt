@@ -21,6 +21,7 @@ import com.neon.ascent.feature.charactercreation.CreationViewModel
 import com.neon.ascent.feature.charactercreation.CyberGridBackground
 import com.neon.ascent.feature.dashboard.DashboardScreen
 import com.neon.ascent.feature.dashboard.DashboardViewModel
+import com.neon.ascent.feature.games.CyberPongScreen
 import com.neon.ascent.feature.settings.SettingsScreen
 import com.neon.ascent.feature.settings.DeepNodeScreen
 import com.neon.ascent.feature.loading.LoadingScreen
@@ -105,8 +106,20 @@ fun AppNavigation(
             val subScreen = backStackEntry.arguments?.getString("subScreen") ?: "ROOT"
             DeepNodeScreen(
                 initialSubScreen = subScreen,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onGameSelect = { gameId ->
+                    if (gameId == "PONG") navController.navigate("cyber_pong")
+                },
+                onRebirthSuccess = {
+                    navController.navigate("dashboard") {
+                        popUpTo("deep_node/{subScreen}") { inclusive = true }
+                    }
+                }
             )
+        }
+
+        composable("cyber_pong") {
+            CyberPongScreen(onBack = { navController.popBackStack() })
         }
         
         composable("character_bio") { PlaceholderScreen("CHARACTER BIOGRAPHY", navController::popBackStack) }

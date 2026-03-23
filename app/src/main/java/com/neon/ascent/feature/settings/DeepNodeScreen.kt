@@ -36,6 +36,7 @@ fun DeepNodeScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     initialSubScreen: String = "ROOT",
     onBack: () -> Unit,
+    onGameSelect: (String) -> Unit = {},
     onRebirthSuccess: () -> Unit = {}
 ) {
     var currentSubScreen by remember { mutableStateOf(initialSubScreen) }
@@ -89,6 +90,7 @@ fun DeepNodeScreen(
                     CyberFrame(label = "ENTERTAINMENT_PROTOCOLS") {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text("SELECT_MODULE:", color = Color.White, fontWeight = FontWeight.Bold)
+                            SettingsItem("CYBER_PONG_V1.0", onClick = { onGameSelect("PONG") })
                             SettingsItem("CYBER_CHESS_V1.0", onClick = {})
                             SettingsItem("NET_RUNNER_HACK", onClick = {})
                             SettingsItem("VOID_RACER_ALPHA", onClick = {})
