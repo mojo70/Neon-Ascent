@@ -21,6 +21,7 @@ import com.neon.ascent.feature.charactercreation.CreationViewModel
 import com.neon.ascent.feature.charactercreation.CyberGridBackground
 import com.neon.ascent.feature.dashboard.DashboardScreen
 import com.neon.ascent.feature.dashboard.DashboardViewModel
+import com.neon.ascent.feature.dashboard.HolographicAvatarHub
 import com.neon.ascent.feature.games.CyberPongScreen
 import com.neon.ascent.feature.settings.SettingsScreen
 import com.neon.ascent.feature.settings.DeepNodeScreen
@@ -122,7 +123,12 @@ fun AppNavigation(
             CyberPongScreen(onBack = { navController.popBackStack() })
         }
         
-        composable("character_bio") { PlaceholderScreen("CHARACTER BIOGRAPHY", navController::popBackStack) }
+        composable("character_bio") { 
+            HolographicAvatarHub(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
         composable("attribute_scan") { PlaceholderScreen("ATTRIBUTE SCAN", navController::popBackStack) }
         composable("story") { PlaceholderScreen("YOUR STORY", navController::popBackStack) }
         composable("goals") { PlaceholderScreen("GOAL SETTING", navController::popBackStack) }

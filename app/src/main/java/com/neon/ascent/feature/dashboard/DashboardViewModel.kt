@@ -8,6 +8,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -16,4 +17,12 @@ class DashboardViewModel @Inject constructor(
 ) : ViewModel() {
     val userCharacter: StateFlow<UserCharacter?> = userCharacterDao.getUserCharacter()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    fun updateNetrunnerName(newName: String) {
+        viewModelScope.launch {
+            userCharacter.value?.let {
+                userCharacterDao.updateUserCharacter(it.copy(netrunnerName = newName))
+            }
+        }
+    }
 }

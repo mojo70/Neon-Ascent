@@ -3,6 +3,8 @@ package com.neon.ascent.feature.charactercreation
 import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.ai.client.generativeai.GenerativeModel
+import com.neon.ascent.BuildConfig
 import com.neon.ascent.data.local.UserCharacterDao
 import com.neon.ascent.model.UserCharacter
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,6 +20,11 @@ class CreationViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(UserCharacter(name = "", sex = "", dob = "", units = "", weight = "", somatotype = 5f))
     val uiState: StateFlow<UserCharacter> = _uiState
+
+    private val generativeModel = GenerativeModel(
+        modelName = "gemini-1.5-flash",
+        apiKey = BuildConfig.GEMINI_API_KEY
+    )
 
     fun updateBasicInfo(name: String, sex: String, dob: String, units: String, weight: String, somatotype: Float, ft: String?, inches: String?, cm: String?) {
         _uiState.value = _uiState.value.copy(
@@ -39,11 +46,28 @@ class CreationViewModel @Inject constructor(
             alignment = alignment,
             archetype = archetype
         )
+        generateNetrunnerName()
+    }
+
+    private fun generateNetrunnerName() {
+        viewModelScope.launch {
+            val character = _uiState.value
+            val prompt = "Generate a cool, one-word cyberpunk netrunner alias for a character with these traits: " +
+                    "Archetype: ${character.archetype}, MBTI: ${character.mbti}, Alignment: ${character.alignment}. " +
+                    "Examples: Zero, Glitch, Hex, Vector, Cipher. Return only the name."
+            
+            try {
+                val response = generativeModel.generateContent(prompt)
+                val generatedName = response.text?.trim()?.filter { it.isLetterOrDigit() } ?: "RUNNER_${(1000..9999).random()}"
+                _uiState.value = _uiState.value.copy(netrunnerName = generatedName)
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(netrunnerName = "RUNNER_${(1000..9999).random()}")
+            }
+        }
     }
 
     fun completeCreation(avatar: Bitmap) {
         viewModelScope.launch {
-            // In a real app, we'd save the bitmap to internal storage and store the path
             val character = _uiState.value.copy(
                 isCreationComplete = true,
                 avatarPath = "internal_storage_placeholder" 

@@ -7,6 +7,7 @@ import androidx.room.PrimaryKey
 data class UserCharacter(
     @PrimaryKey val id: Int = 0,
     val name: String,
+    val netrunnerName: String? = null,
     val sex: String,
     val dob: String,
     val units: String,
