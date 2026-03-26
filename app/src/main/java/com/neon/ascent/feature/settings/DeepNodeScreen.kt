@@ -95,7 +95,7 @@ fun DeepNodeScreen(
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text("SELECT_MODULE:", color = Color.White, fontWeight = FontWeight.Bold)
                             SettingsItem("CYBER_PONG_V1.0", onClick = { onGameSelect("PONG") })
-                            SettingsItem("CYBER_CHESS_V1.0", onClick = {})
+                            SettingsItem("CYBER_CHESS_V1.0", onClick = { onGameSelect("CHESS") })
                             SettingsItem("NET_RUNNER_HACK", onClick = {})
                             SettingsItem("VOID_RACER_ALPHA", onClick = {})
                         }

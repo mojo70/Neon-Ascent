@@ -24,6 +24,7 @@ import com.neon.ascent.feature.dashboard.DashboardScreen
 import com.neon.ascent.feature.dashboard.DashboardViewModel
 import com.neon.ascent.feature.dashboard.HolographicAvatarHub
 import com.neon.ascent.feature.games.CyberPongScreen
+import com.neon.ascent.feature.games.CyberChessScreen
 import com.neon.ascent.feature.settings.SettingsScreen
 import com.neon.ascent.feature.settings.DeepNodeScreen
 import com.neon.ascent.feature.loading.LoadingScreen
@@ -130,6 +131,7 @@ fun AppNavigation(
                 onBack = { navController.popBackStack() },
                 onGameSelect = { gameId ->
                     if (gameId == "PONG") navController.navigate("cyber_pong")
+                    if (gameId == "CHESS") navController.navigate("cyber_chess")
                 },
                 onRebirthSuccess = {
                     navController.navigate("main_hub") {
@@ -141,6 +143,10 @@ fun AppNavigation(
 
         composable("cyber_pong") {
             CyberPongScreen(onBack = { navController.popBackStack() })
+        }
+        
+        composable("cyber_chess") {
+            CyberChessScreen(onBack = { navController.popBackStack() })
         }
         
         composable("wallet") {
