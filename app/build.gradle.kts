@@ -12,7 +12,7 @@ plugins {
 
 android {
     namespace = "com.neon.ascent"
-    compileSdk = 34 // Stability reset
+    compileSdk = 36
 
     val localProperties = Properties()
     val localPropertiesFile = rootProject.file("local.properties")
@@ -25,7 +25,7 @@ android {
     defaultConfig {
         applicationId = "com.neon.ascent"
         minSdk = 26
-        targetSdk = 34 // Stability reset
+        targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
 
@@ -104,8 +104,8 @@ dependencies {
     // Security - Crypto for DataStore/SharedPrefs encryption
     implementation("androidx.security:security-crypto-ktx:1.1.0-alpha06")
 
-    // Health Connect - downgraded to support API 34
-    implementation("androidx.health.connect:connect-client:1.1.0-alpha01")
+    // Health Connect
+    implementation("androidx.health.connect:connect-client:1.1.0")
 
     // Hilt
     implementation("com.google.dagger:hilt-android:2.51.1")

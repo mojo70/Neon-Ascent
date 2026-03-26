@@ -56,6 +56,7 @@ fun DashboardScreen(
 ) {
     val userCharacter by viewModel.userCharacter.collectAsState()
     val weatherState by viewModel.weatherState.collectAsState()
+    val healthState by viewModel.healthState.collectAsState()
     val isReligionShortcutEnabled by settingsViewModel.isReligionShortcutEnabled.collectAsState()
     val currentTime = remember { mutableStateOf(LocalDateTime.now()) }
     
@@ -129,12 +130,33 @@ fun DashboardScreen(
                         }
                         NeuralJackIcon(onClick = onSettingsClick)
                         Spacer(Modifier.width(12.dp))
-                        Text(
-                            currentTime.value.format(DateTimeFormatter.ofPattern("HH:mm:ss")),
-                            color = systemColor,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Black
-                        )
+                        
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                currentTime.value.format(DateTimeFormatter.ofPattern("HH:mm:ss")),
+                                color = systemColor,
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Black
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (healthState.isConnected && healthState.heartRate > 0) {
+                                    HeartRatePulse(healthState.heartRate)
+                                    Spacer(Modifier.width(8.dp))
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .background(if (weatherState.isRaining) Color(0xFF00FFFF) else systemColor, CircleShape)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    "${weatherState.temperature}°${weatherState.unitSymbol}",
+                                    color = Color.White.copy(alpha = 0.7f),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
                     Text(
                         currentTime.value.format(DateTimeFormatter.ofPattern("EEE, MMM d, yyyy")),
@@ -208,7 +230,13 @@ fun DashboardScreen(
 
             // Wearable Display
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                MetricCard(label = "STEPS", value = "8,432", subValue = "GOAL: 10K", color = systemColor, modifier = Modifier.weight(1f))
+                MetricCard(
+                    label = "STEPS", 
+                    value = if (healthState.isConnected) healthState.steps.toString() else "8,432", 
+                    subValue = "GOAL: 10K", 
+                    color = systemColor, 
+                    modifier = Modifier.weight(1f)
+                )
                 MetricCard(label = "CALORIES", value = "1,840", subValue = "GOAL: 2.2K", color = systemColor, modifier = Modifier.weight(1f))
             }
 
@@ -230,6 +258,39 @@ fun DashboardScreen(
             
             Spacer(modifier = Modifier.height(40.dp))
         }
+    }
+}
+
+@Composable
+fun HeartRatePulse(bpm: Int) {
+    val infiniteTransition = rememberInfiniteTransition(label = "HeartPulse")
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 60000 / bpm / 2, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "PulseScale"
+    )
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }
+                .background(Color(0xFFFF006E), CircleShape)
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(
+            "$bpm BPM",
+            color = Color.White.copy(alpha = 0.9f),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.ExtraBold
+        )
     }
 }
 
