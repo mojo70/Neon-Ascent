@@ -20,6 +20,7 @@ android {
         localProperties.load(localPropertiesFile.inputStream())
     }
     val geminiApiKey = localProperties.getProperty("gemini.api.key") ?: ""
+    val openWeatherApiKey = localProperties.getProperty("openweather.api.key") ?: ""
 
     defaultConfig {
         applicationId = "com.neon.ascent"
@@ -34,6 +35,7 @@ android {
         }
 
         buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
+        buildConfigField("String", "OPENWEATHER_API_KEY", "\"$openWeatherApiKey\"")
     }
 
     buildTypes {
@@ -74,6 +76,14 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.navigation:navigation-compose:2.7.7")
+
+    // Location
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
+
+    // Networking
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
 
     // Biometric
     implementation("androidx.biometric:biometric-ktx:1.2.0-alpha05")
