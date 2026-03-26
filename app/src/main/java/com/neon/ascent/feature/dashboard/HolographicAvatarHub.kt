@@ -124,8 +124,7 @@ fun HolographicAvatarHub(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         // Energy Bar (Body Battery)
-                        val battery = 65 // Placeholder for Garmin Body Battery
-                        EnergyBar(label = "NEURAL_ENERGY", value = battery / 100f)
+                        EnergyBar(label = "NEURAL_ENERGY", value = healthState.bodyBattery / 100f)
                         
                         Spacer(Modifier.height(8.dp))
                         
@@ -187,14 +186,18 @@ fun HolographicAvatarHub(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                MetricSmall(label = "VO2_MAX", value = "48.2", unit = "mL/kg/min")
-                                MetricSmall(label = "STRESS", value = "24", unit = "LVL")
+                                MetricSmall(label = "VO2_MAX", value = String.format("%.1f", healthState.vo2Max), unit = "mL/kg/min")
+                                MetricSmall(label = "STRESS", value = healthState.stressLevel.toString(), unit = "LVL")
                             }
 
                             Spacer(Modifier.height(12.dp))
                             
                             val stats = when(selectedBodyPart) {
-                                "HEAD" -> "PERCEPTION: ${userCharacter?.perception ?: "??"}\nFOCUS: STABLE\nNEURAL_SYNC: 98%"
+                                "HEAD" -> {
+                                    val rank = userCharacter?.getChessRank() ?: "GHOST_IN_SHELL"
+                                    val title = userCharacter?.getChessTitle() ?: "UNRANKED"
+                                    "PERCEPTION: ${userCharacter?.perception ?: "??"}\nRANK: $rank [$title]\nELO: ${userCharacter?.chessElo ?: 1000}\nNEURAL_SYNC: 98%"
+                                }
                                 "TORSO" -> "ENDURANCE: ${userCharacter?.endurance ?: "??"}\nHEART_RATE: ${healthState.heartRate} BPM\nRESP_RATE: 14"
                                 "ARMS" -> "STRENGTH: ${userCharacter?.strength ?: "??"}\nLOAD_CAP: 85%\nGRIP_PSI: 120"
                                 "LEGS" -> "AGILITY: ${userCharacter?.agility ?: "??"}\nREFLEX: ACTIVATED\nGAIT_SYNC: OK"

@@ -151,4 +151,12 @@ class DashboardViewModel @Inject constructor(
             }
         }
     }
+
+    fun updateChessElo(newElo: Int) {
+        viewModelScope.launch {
+            userCharacter.value?.let {
+                userCharacterDao.updateUserCharacter(it.copy(chessElo = newElo))
+            }
+        }
+    }
 }
