@@ -125,13 +125,29 @@ fun AppNavigation(
         
         composable("character_bio") { 
             HolographicAvatarHub(
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onUpgradeClick = { sector ->
+                    navController.navigate("goals")
+                },
+                onHacksClick = {
+                    navController.navigate("biohacking")
+                },
+                onAttributeScanClick = {
+                    navController.navigate("attribute_scan")
+                },
+                onStoryClick = {
+                    navController.navigate("story")
+                },
+                onGoalSettingClick = {
+                    navController.navigate("goals")
+                }
             )
         }
 
         composable("attribute_scan") { PlaceholderScreen("ATTRIBUTE SCAN", navController::popBackStack) }
         composable("story") { PlaceholderScreen("YOUR STORY", navController::popBackStack) }
         composable("goals") { PlaceholderScreen("GOAL SETTING", navController::popBackStack) }
+        composable("biohacking") { PlaceholderScreen("BIOHACKING INTERFACE", navController::popBackStack) }
     }
 }
 

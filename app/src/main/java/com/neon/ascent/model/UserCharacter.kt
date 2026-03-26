@@ -29,5 +29,6 @@ data class UserCharacter(
     val luck: Int? = null,
     val holyGhost: Int? = null,
     val avatarPath: String? = null,
-    val isCreationComplete: Boolean = false
+    val isCreationComplete: Boolean = false,
+    val neuralLoad: Float = 0.2f // Default starting load
 )

@@ -42,12 +42,13 @@ val CyberButtonShape = GenericShape { size, _ ->
 }
 
 @Composable
-fun GlitchOverlay() {
+fun GlitchOverlay(intensity: Float = 0.05f) {
     var glitchTrigger by remember { mutableStateOf(0) }
     
-    LaunchedEffect(Unit) {
+    LaunchedEffect(intensity) {
         while(true) {
-            delay(Random.nextLong(2000, 5000))
+            val baseDelay = (2000 / (intensity * 10).coerceAtLeast(1f)).toLong()
+            delay(Random.nextLong(baseDelay, baseDelay * 2))
             glitchTrigger++
             delay(Random.nextLong(50, 150))
             glitchTrigger++
@@ -56,7 +57,7 @@ fun GlitchOverlay() {
 
     if (glitchTrigger % 2 != 0) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val count = Random.nextInt(3, 8)
+            val count = (Random.nextInt(3, 8) * (1f + intensity * 5f)).toInt()
             repeat(count) {
                 val y = Random.nextFloat() * size.height
                 val height = Random.nextFloat() * 20f + 2f
@@ -64,9 +65,9 @@ fun GlitchOverlay() {
                 val x = if (Random.nextBoolean()) 0f else size.width - width
                 
                 val color = when(Random.nextInt(3)) {
-                    0 -> Color(0xFF00FF9C).copy(alpha = 0.4f)
-                    1 -> Color(0xFFFF006E).copy(alpha = 0.4f)
-                    else -> Color.White.copy(alpha = 0.3f)
+                    0 -> Color(0xFF00FF9C).copy(alpha = 0.4f + intensity * 0.4f)
+                    1 -> Color(0xFFFF006E).copy(alpha = 0.4f + intensity * 0.4f)
+                    else -> Color.White.copy(alpha = 0.3f + intensity * 0.4f)
                 }
                 
                 drawRect(
@@ -285,8 +286,7 @@ fun CharacterCreationScreen(
             CyberFrame(label = "MORPHOLOGY [SOMATOTYPE]") {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+                    horizontalAlignment = Alignment.CenterHorizontally) {
                     MorphologyIcon(value = somatotype)
                     
                     Spacer(modifier = Modifier.height(8.dp))

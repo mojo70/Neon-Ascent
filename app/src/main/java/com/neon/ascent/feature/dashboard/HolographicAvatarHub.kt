@@ -1,7 +1,10 @@
 package com.neon.ascent.feature.dashboard
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,10 +17,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -28,16 +35,25 @@ import com.neon.ascent.feature.charactercreation.CyberFrame
 import com.neon.ascent.feature.charactercreation.CyberGridBackground
 import com.neon.ascent.feature.charactercreation.GlitchOverlay
 import com.neon.ascent.model.UserCharacter
+import kotlin.math.cos
+import kotlin.math.sin
 
 @Composable
 fun HolographicAvatarHub(
     viewModel: DashboardViewModel = hiltViewModel(),
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onUpgradeClick: (String) -> Unit,
+    onHacksClick: () -> Unit,
+    onAttributeScanClick: () -> Unit,
+    onStoryClick: () -> Unit,
+    onGoalSettingClick: () -> Unit
 ) {
     val userCharacter by viewModel.userCharacter.collectAsState()
     var selectedBodyPart by remember { mutableStateOf<String?>(null) }
     var isEditingName by remember { mutableStateOf(false) }
     var editedName by remember { mutableStateOf("") }
+
+    val neuralLoad = userCharacter?.neuralLoad ?: 0.2f
 
     val systemLogs = remember {
         mutableStateListOf(
@@ -53,7 +69,7 @@ fun HolographicAvatarHub(
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF020202))) {
         CyberGridBackground()
-        GlitchOverlay()
+        GlitchOverlay(intensity = neuralLoad)
 
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             // Header with AI Name
@@ -100,7 +116,7 @@ fun HolographicAvatarHub(
                 // Left Column: Avatar Hologram
                 Box(
                     modifier = Modifier
-                        .weight(1.5f)
+                        .weight(1.2f)
                         .fillMaxHeight()
                         .padding(8.dp),
                     contentAlignment = Alignment.Center
@@ -117,41 +133,77 @@ fun HolographicAvatarHub(
                         .weight(1f)
                         .fillMaxHeight()
                         .padding(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    // HUD Info
                     CyberFrame(label = "BIOMETRIC_HUD") {
-                        Column {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = selectedBodyPart ?: "SELECT_SECTOR",
+                                text = selectedBodyPart ?: "TOTAL_SYNC",
                                 color = Color(0xFFFF006E),
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp
+                                fontSize = 14.sp,
+                                modifier = Modifier.align(Alignment.Start)
                             )
+                            
                             Spacer(Modifier.height(8.dp))
+                            
+                            AttributeRadarChart(
+                                stats = mapOf(
+                                    "STR" to (userCharacter?.strength ?: 0),
+                                    "AGI" to (userCharacter?.agility ?: 0),
+                                    "END" to (userCharacter?.endurance ?: 0),
+                                    "PER" to (userCharacter?.perception ?: 0),
+                                    "CHA" to (userCharacter?.charisma ?: 0),
+                                    "LUC" to (userCharacter?.luck ?: 0)
+                                ),
+                                modifier = Modifier.size(160.dp)
+                            )
+
+                            Spacer(Modifier.height(8.dp))
+                            
                             val stats = when(selectedBodyPart) {
                                 "HEAD" -> "PERCEPTION: ${userCharacter?.perception ?: "??"}\nFOCUS: STABLE"
                                 "TORSO" -> "ENDURANCE: ${userCharacter?.endurance ?: "??"}\nHEART_RATE: 72 BPM"
                                 "ARMS" -> "STRENGTH: ${userCharacter?.strength ?: "??"}\nLOAD_CAP: 85%"
                                 "LEGS" -> "AGILITY: ${userCharacter?.agility ?: "??"}\nREFLEX: ACTIVATED"
-                                else -> "AWAITING_INPUT..."
+                                else -> "SYSTEM_WIDE BIOMETRICS DETECTED"
                             }
-                            Text(stats, color = Color.White, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                            Text(
+                                stats, 
+                                color = Color.White, 
+                                fontSize = 10.sp, 
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.align(Alignment.Start)
+                            )
+                            
+                            if (selectedBodyPart != null) {
+                                Spacer(Modifier.height(12.dp))
+                                Button(
+                                    onClick = { onUpgradeClick(selectedBodyPart!!) },
+                                    modifier = Modifier.fillMaxWidth().height(32.dp).clip(CyberButtonShape),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                                    contentPadding = PaddingValues(0.dp)
+                                ) {
+                                    Text("UPGRADE", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
                         }
                     }
 
-                    CyberFrame(label = "PERKS_AND_EFFECTS") {
-                        Column {
-                            if (userCharacter?.holyGhost != null) {
-                                Text("HOLY_GHOST [LVL ${userCharacter?.holyGhost}]", color = Color(0xFF00FF9C), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                Text("Aura: Active", color = Color.White.copy(alpha = 0.6f), fontSize = 10.sp)
-                            } else {
-                                Text("NO_ACTIVE_PERKS", color = Color.Gray, fontSize = 12.sp)
-                            }
+                    // Primary Navigation Node
+                    CyberFrame(label = "SYSTEM_CONTROLS") {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            DashboardButtonSmall("ATTRIBUTE SCAN", Color(0xFF00FF9C), onAttributeScanClick)
+                            DashboardButtonSmall("YOUR STORY", Color(0xFFFF006E), onStoryClick)
+                            DashboardButtonSmall("GOAL SETTING", Color.White, onGoalSettingClick)
+                            DashboardButtonSmall("BIOHACKS", Color(0xFF00FFFF), onHacksClick)
                         }
                     }
 
+                    // System Logs
                     CyberFrame(label = "SYSTEM_LOGS") {
-                        LazyColumn(modifier = Modifier.height(200.dp)) {
+                        LazyColumn(modifier = Modifier.height(120.dp)) {
                             items(systemLogs) { log ->
                                 Text(
                                     text = log,
@@ -169,9 +221,121 @@ fun HolographicAvatarHub(
 }
 
 @Composable
+fun DashboardButtonSmall(label: String, color: Color, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(36.dp)
+            .clip(CyberButtonShape)
+            .border(1.dp, color, CyberButtonShape),
+        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F0F0F)),
+        contentPadding = PaddingValues(0.dp)
+    ) {
+        Text(label, color = color, fontSize = 10.sp, fontWeight = FontWeight.Black)
+    }
+}
+
+@Composable
+fun AttributeRadarChart(
+    stats: Map<String, Int>,
+    modifier: Modifier = Modifier,
+    maxValue: Int = 10
+) {
+    val labels = listOf("STR", "AGI", "END", "PER", "CHA", "LUC")
+    val values = listOf(
+        stats["STR"] ?: 0,
+        stats["AGI"] ?: 0,
+        stats["END"] ?: 0,
+        stats["PER"] ?: 0,
+        stats["CHA"] ?: 0,
+        stats["LUC"] ?: 0
+    )
+
+    Canvas(modifier = modifier) {
+        val centerX = size.width / 2
+        val centerY = size.height / 2
+        val radius = size.minDimension / 2.5f
+
+        // Draw background hexagons
+        for (i in 1..5) {
+            val currentRadius = radius * (i / 5f)
+            val path = Path()
+            for (j in 0 until 6) {
+                val angle = (j * 60f - 90f) * (Math.PI / 180f).toFloat()
+                val x = centerX + currentRadius * cos(angle)
+                val y = centerY + currentRadius * sin(angle)
+                if (j == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+            path.close()
+            drawPath(
+                path = path,
+                color = Color(0xFF00FF9C).copy(alpha = 0.1f),
+                style = Stroke(width = 1.dp.toPx())
+            )
+        }
+
+        // Draw axes
+        for (i in 0 until 6) {
+            val angle = (i * 60f - 90f) * (Math.PI / 180f).toFloat()
+            val x = centerX + radius * cos(angle)
+            val y = centerY + radius * sin(angle)
+            drawLine(
+                color = Color(0xFF00FF9C).copy(alpha = 0.1f),
+                start = Offset(centerX, centerY),
+                end = Offset(x, y),
+                strokeWidth = 1.dp.toPx()
+            )
+        }
+
+        // Draw data polygon
+        val dataPath = Path()
+        for (i in 0 until 6) {
+            val angle = (i * 60f - 90f) * (Math.PI / 180f).toFloat()
+            val value = values[i].coerceIn(0, maxValue)
+            val currentRadius = radius * (value.toFloat() / maxValue)
+            val x = centerX + currentRadius * cos(angle)
+            val y = centerY + currentRadius * sin(angle)
+            if (i == 0) dataPath.moveTo(x, y) else dataPath.lineTo(x, y)
+        }
+        dataPath.close()
+        drawPath(
+            path = dataPath,
+            color = Color(0xFF00FF9C).copy(alpha = 0.3f)
+        )
+        drawPath(
+            path = dataPath,
+            color = Color(0xFF00FF9C),
+            style = Stroke(width = 2.dp.toPx())
+        )
+        
+        // Draw labels
+        val textPaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.WHITE
+            textSize = 8.sp.toPx()
+            textAlign = android.graphics.Paint.Align.CENTER
+            typeface = android.graphics.Typeface.MONOSPACE
+        }
+        
+        for (i in 0 until 6) {
+            val angle = (i * 60f - 90f) * (Math.PI / 180f).toFloat()
+            val x = centerX + (radius + 12.dp.toPx()) * cos(angle)
+            val y = centerY + (radius + 12.dp.toPx()) * sin(angle)
+            drawContext.canvas.nativeCanvas.drawText(
+                labels[i],
+                x,
+                y + 4.dp.toPx(),
+                textPaint
+            )
+        }
+    }
+}
+
+@Composable
 fun HologramDisplay(character: UserCharacter?, onPartClick: (String) -> Unit) {
     val infiniteTransition = rememberInfiniteTransition(label = "HologramAnim")
     
+    // Scanning line animation
     val scanY by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -193,10 +357,6 @@ fun HologramDisplay(character: UserCharacter?, onPartClick: (String) -> Unit) {
     )
 
     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-        if (character?.holyGhost != null) {
-            HolyGhostAura()
-        }
-
         Canvas(modifier = Modifier
             .fillMaxSize()
             .graphicsLayer(alpha = flickerAlpha)
@@ -225,7 +385,26 @@ fun HologramDisplay(character: UserCharacter?, onPartClick: (String) -> Unit) {
                 .border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.2f), CyberButtonShape),
             contentAlignment = Alignment.Center
         ) {
-            Text("FULL_BODY_HOLOGRAPH", color = Color(0xFF00FF9C).copy(alpha = 0.5f))
+            // Load Bitmap or Pixelated Fallback
+            val context = LocalContext.current
+            val avatarBitmap = remember(character?.avatarPath) {
+                if (character?.avatarPath != null && character.avatarPath != "internal_storage_placeholder") {
+                    try {
+                        BitmapFactory.decodeFile(character.avatarPath)
+                    } catch (e: Exception) { null }
+                } else { null }
+            }
+
+            if (avatarBitmap != null) {
+                Image(
+                    bitmap = avatarBitmap.asImageBitmap(),
+                    contentDescription = "Avatar",
+                    modifier = Modifier.fillMaxSize().alpha(0.7f),
+                    contentScale = ContentScale.Fit
+                )
+            } else {
+                PixelatedSilhouette(modifier = Modifier.fillMaxSize(0.7f))
+            }
             
             Column(modifier = Modifier.fillMaxSize()) {
                 Box(Modifier.weight(1f).fillMaxWidth().clickable { onPartClick("HEAD") })
@@ -237,5 +416,26 @@ fun HologramDisplay(character: UserCharacter?, onPartClick: (String) -> Unit) {
                 Box(Modifier.weight(2f).fillMaxWidth().clickable { onPartClick("LEGS") })
             }
         }
+    }
+}
+
+@Composable
+fun PixelatedSilhouette(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val color = Color(0xFF00FF9C).copy(alpha = 0.3f)
+        val pixelSize = 10.dp.toPx()
+        
+        // Simple pixelated head
+        drawRect(color, Offset(center.x - pixelSize*2, pixelSize*2), Size(pixelSize*4, pixelSize*4))
+        // Neck
+        drawRect(color, Offset(center.x - pixelSize, pixelSize*6), Size(pixelSize*2, pixelSize*2))
+        // Torso
+        drawRect(color, Offset(center.x - pixelSize*4, pixelSize*8), Size(pixelSize*8, pixelSize*12))
+        // Arms
+        drawRect(color, Offset(center.x - pixelSize*6, pixelSize*8), Size(pixelSize*2, pixelSize*10))
+        drawRect(color, Offset(center.x + pixelSize*4, pixelSize*8), Size(pixelSize*2, pixelSize*10))
+        // Legs
+        drawRect(color, Offset(center.x - pixelSize*3, pixelSize*20), Size(pixelSize*2, pixelSize*12))
+        drawRect(color, Offset(center.x + pixelSize, pixelSize*20), Size(pixelSize*2, pixelSize*12))
     }
 }
