@@ -1,6 +1,5 @@
 package com.neon.ascent.feature.dashboard
 
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -18,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -49,6 +49,7 @@ fun HolographicAvatarHub(
     onGoalSettingClick: () -> Unit
 ) {
     val userCharacter by viewModel.userCharacter.collectAsState()
+    val healthState by viewModel.healthState.collectAsState()
     var selectedBodyPart by remember { mutableStateOf<String?>(null) }
     var isEditingName by remember { mutableStateOf(false) }
     var editedName by remember { mutableStateOf("") }
@@ -121,9 +122,19 @@ fun HolographicAvatarHub(
                         .padding(8.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    HologramDisplay(userCharacter) { part ->
-                        selectedBodyPart = part
-                        systemLogs.add(0, "[LOG] SECTOR_ACCESS: $part")
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        // Energy Bar (Body Battery)
+                        val battery = 65 // Placeholder for Garmin Body Battery
+                        EnergyBar(label = "NEURAL_ENERGY", value = battery / 100f)
+                        
+                        Spacer(Modifier.height(8.dp))
+                        
+                        Box(contentAlignment = Alignment.Center) {
+                            HologramDisplay(userCharacter) { part ->
+                                selectedBodyPart = part
+                                systemLogs.add(0, "[LOG] SECTOR_ACCESS: $part")
+                            }
+                        }
                     }
                 }
 
@@ -138,13 +149,22 @@ fun HolographicAvatarHub(
                     // HUD Info
                     CyberFrame(label = "BIOMETRIC_HUD") {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = selectedBodyPart ?: "TOTAL_SYNC",
-                                color = Color(0xFFFF006E),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                                modifier = Modifier.align(Alignment.Start)
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = selectedBodyPart ?: "TOTAL_SYNC",
+                                    color = Color(0xFFFF006E),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
+                                
+                                if (healthState.isConnected) {
+                                    HeartbeatLine(bpm = healthState.heartRate)
+                                }
+                            }
                             
                             Spacer(Modifier.height(8.dp))
                             
@@ -160,14 +180,25 @@ fun HolographicAvatarHub(
                                 modifier = Modifier.size(160.dp)
                             )
 
-                            Spacer(Modifier.height(8.dp))
+                            Spacer(Modifier.height(12.dp))
+                            
+                            // Health Metrics Row
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                MetricSmall(label = "VO2_MAX", value = "48.2", unit = "mL/kg/min")
+                                MetricSmall(label = "STRESS", value = "24", unit = "LVL")
+                            }
+
+                            Spacer(Modifier.height(12.dp))
                             
                             val stats = when(selectedBodyPart) {
-                                "HEAD" -> "PERCEPTION: ${userCharacter?.perception ?: "??"}\nFOCUS: STABLE"
-                                "TORSO" -> "ENDURANCE: ${userCharacter?.endurance ?: "??"}\nHEART_RATE: 72 BPM"
-                                "ARMS" -> "STRENGTH: ${userCharacter?.strength ?: "??"}\nLOAD_CAP: 85%"
-                                "LEGS" -> "AGILITY: ${userCharacter?.agility ?: "??"}\nREFLEX: ACTIVATED"
-                                else -> "SYSTEM_WIDE BIOMETRICS DETECTED"
+                                "HEAD" -> "PERCEPTION: ${userCharacter?.perception ?: "??"}\nFOCUS: STABLE\nNEURAL_SYNC: 98%"
+                                "TORSO" -> "ENDURANCE: ${userCharacter?.endurance ?: "??"}\nHEART_RATE: ${healthState.heartRate} BPM\nRESP_RATE: 14"
+                                "ARMS" -> "STRENGTH: ${userCharacter?.strength ?: "??"}\nLOAD_CAP: 85%\nGRIP_PSI: 120"
+                                "LEGS" -> "AGILITY: ${userCharacter?.agility ?: "??"}\nREFLEX: ACTIVATED\nGAIT_SYNC: OK"
+                                else -> "SYSTEM_WIDE BIOMETRICS DETECTED\nALL_NODES: OPERATIONAL"
                             }
                             Text(
                                 stats, 
@@ -217,6 +248,97 @@ fun HolographicAvatarHub(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun EnergyBar(label: String, value: Float) {
+    Column(modifier = Modifier.width(180.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, color = Color(0xFF00FFFF), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Text("${(value * 100).toInt()}%", color = Color(0xFF00FFFF), fontSize = 10.sp)
+        }
+        Spacer(Modifier.height(4.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(8.dp)
+                .background(Color.Black)
+                .border(1.dp, Color(0xFF00FFFF).copy(alpha = 0.3f))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(value)
+                    .fillMaxHeight()
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(Color(0xFF00FFFF).copy(alpha = 0.5f), Color(0xFF00FFFF))
+                        )
+                    )
+            )
+        }
+    }
+}
+
+@Composable
+fun MetricSmall(label: String, value: String, unit: String) {
+    Column {
+        Text(label, color = Color.Gray, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(value, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Black)
+            Spacer(Modifier.width(2.dp))
+            Text(unit, color = Color(0xFF00FF9C), fontSize = 8.sp)
+        }
+    }
+}
+
+@Composable
+fun HeartbeatLine(bpm: Int) {
+    val infiniteTransition = rememberInfiniteTransition(label = "Heartbeat")
+    val phase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 60000 / bpm.coerceAtLeast(1), easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "Phase"
+    )
+
+    Canvas(modifier = Modifier.size(60.dp, 20.dp)) {
+        val path = Path()
+        val width = size.width
+        val height = size.height
+        val centerY = height / 2
+
+        path.moveTo(0f, centerY)
+        path.lineTo(width * 0.3f, centerY)
+        path.lineTo(width * 0.4f, centerY - height * 0.4f)
+        path.lineTo(width * 0.5f, centerY + height * 0.4f)
+        path.lineTo(width * 0.6f, centerY)
+        path.lineTo(width, centerY)
+
+        drawPath(
+            path = path,
+            color = Color(0xFFFF006E).copy(alpha = 0.2f),
+            style = Stroke(width = 2.dp.toPx())
+        )
+
+        // The "moving" pulse
+        val progress = phase
+        val drawPath = Path()
+        drawPath.moveTo(0f, centerY)
+        if (progress > 0.3f) drawPath.lineTo(width * 0.3f, centerY)
+        if (progress > 0.4f) drawPath.lineTo(width * 0.4f, centerY - height * 0.4f)
+        if (progress > 0.5f) drawPath.lineTo(width * 0.5f, centerY + height * 0.4f)
+        if (progress > 0.6f) drawPath.lineTo(width * 0.6f, centerY)
+        if (progress > 0.9f) drawPath.lineTo(width, centerY)
+
+        drawPath(
+            path = drawPath,
+            color = Color(0xFFFF006E),
+            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
+        )
     }
 }
 

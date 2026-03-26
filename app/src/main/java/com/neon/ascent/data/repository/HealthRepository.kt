@@ -5,6 +5,7 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.records.Vo2MaxRecord
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
@@ -23,11 +24,16 @@ class HealthRepository @Inject constructor(
 
     val permissions = setOf(
         HealthPermission.getReadPermission(StepsRecord::class),
-        HealthPermission.getReadPermission(HeartRateRecord::class)
+        HealthPermission.getReadPermission(HeartRateRecord::class),
+        HealthPermission.getReadPermission(Vo2MaxRecord::class)
     )
 
     suspend fun hasAllPermissions(): Boolean {
-        return healthConnectClient.permissionController.getGrantedPermissions().containsAll(permissions)
+        return try {
+            healthConnectClient.permissionController.getGrantedPermissions().containsAll(permissions)
+        } catch (e: Exception) {
+            false
+        }
     }
 
     suspend fun getTodaySteps(): Long {
@@ -67,6 +73,28 @@ class HealthRepository @Inject constructor(
             response.records.firstOrNull()?.samples?.firstOrNull()?.beatsPerMinute?.toInt() ?: 0
         } catch (e: Exception) {
             0
+        }
+    }
+
+    suspend fun getLatestVo2Max(): Double {
+        if (!hasAllPermissions()) return 0.0
+        
+        val end = Instant.now()
+        val start = end.minus(30, ChronoUnit.DAYS)
+        
+        return try {
+            val response = healthConnectClient.readRecords(
+                ReadRecordsRequest(
+                    recordType = Vo2MaxRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(start, end),
+                    ascendingOrder = false,
+                    pageSize = 1
+                )
+            )
+            // The property name for VO2 max value in the Health Connect SDK 1.1.0 is 'vo2MillilitersPerMinuteKilogram'
+            response.records.firstOrNull()?.vo2MillilitersPerMinuteKilogram ?: 0.0
+        } catch (e: Exception) {
+            0.0
         }
     }
 }

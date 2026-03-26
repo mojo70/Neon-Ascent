@@ -4,6 +4,6 @@ import androidx.health.connect.client.PermissionController
 
 class TempCheck {
     fun check() {
-        val contract = PermissionController.createPermissionResultContract()
+        val contract = PermissionController.createRequestPermissionResultContract()
     }
 }

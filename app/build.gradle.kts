@@ -61,6 +61,8 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/INDEX.LIST"
+            excludes += "/META-INF/io.netty.versions.properties"
         }
     }
 }
@@ -108,8 +110,8 @@ dependencies {
     implementation("androidx.health.connect:connect-client:1.1.0")
 
     // Hilt
-    implementation("com.google.dagger:hilt-android:2.51.1")
-    ksp("com.google.dagger:hilt-android-compiler:2.51.1")
+    implementation("com.google.dagger:hilt-android:2.54")
+    ksp("com.google.dagger:hilt-android-compiler:2.54")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
     // Coil
@@ -128,6 +130,9 @@ dependencies {
 
     // Google AI SDK (Gemini)
     implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
+
+    // Solana Mobile Stack
+    implementation("com.solanamobile:mobile-wallet-adapter-clientlib:2.1.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

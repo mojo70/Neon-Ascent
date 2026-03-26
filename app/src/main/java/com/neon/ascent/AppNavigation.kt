@@ -1,5 +1,6 @@
 package com.neon.ascent
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -26,7 +27,13 @@ import com.neon.ascent.feature.games.CyberPongScreen
 import com.neon.ascent.feature.settings.SettingsScreen
 import com.neon.ascent.feature.settings.DeepNodeScreen
 import com.neon.ascent.feature.loading.LoadingScreen
+import com.neon.ascent.feature.cyberdeck.CyberdeckScreen
+import com.neon.ascent.feature.biohacking.BiohackingScreen
+import com.neon.ascent.feature.wallet.EurodollarWalletScreen
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AppNavigation(
     creationViewModel: CreationViewModel = hiltViewModel(),
@@ -34,18 +41,41 @@ fun AppNavigation(
 ) {
     val navController = rememberNavController()
     val userCharacter by dashboardViewModel.userCharacter.collectAsState()
+    val tickerMessages by dashboardViewModel.tickerMessages.collectAsState()
 
     NavHost(navController = navController, startDestination = "loading") {
         composable("loading") {
             LoadingScreen(
                 onLoadingFinished = {
-                    val target = if (userCharacter?.isCreationComplete == true) "dashboard" else "creation"
+                    val target = if (userCharacter?.isCreationComplete == true) "main_hub" else "creation"
                     navController.navigate(target) {
                         popUpTo("loading") { inclusive = true }
                     }
                 }
             )
         }
+        
+        composable("main_hub") {
+            val pagerState = rememberPagerState(pageCount = { 3 }, initialPage = 1)
+            HorizontalPager(state = pagerState) { page ->
+                when (page) {
+                    0 -> CyberdeckScreen(
+                        onWalletClick = { navController.navigate("wallet") },
+                        tickerMessages = tickerMessages
+                    )
+                    1 -> DashboardScreen(
+                        onAvatarClick = { navController.navigate("character_bio") },
+                        onAttributeSetClick = { navController.navigate("attribute_scan") },
+                        onStoryClick = { navController.navigate("story") },
+                        onGoalSetClick = { navController.navigate("goals") },
+                        onSettingsClick = { navController.navigate("settings") },
+                        onReligionClick = { navController.navigate("deep_node/RELIGION") }
+                    )
+                    2 -> BiohackingScreen(onBack = { /* Handled by pager */ })
+                }
+            }
+        }
+
         composable("creation") {
             CharacterCreationScreen(
                 onInitialize = { name, sex, dob, units, weight, somatotype, ft, inches, cm ->
@@ -69,20 +99,10 @@ fun AppNavigation(
             AvatarCaptureScreen(
                 onComplete = { bitmap ->
                     creationViewModel.completeCreation(bitmap)
-                    navController.navigate("dashboard") {
+                    navController.navigate("main_hub") {
                         popUpTo("creation") { inclusive = true }
                     }
                 }
-            )
-        }
-        composable("dashboard") {
-            DashboardScreen(
-                onAvatarClick = { navController.navigate("character_bio") },
-                onAttributeSetClick = { navController.navigate("attribute_scan") },
-                onStoryClick = { navController.navigate("story") },
-                onGoalSetClick = { navController.navigate("goals") },
-                onSettingsClick = { navController.navigate("settings") },
-                onReligionClick = { navController.navigate("deep_node/RELIGION") }
             )
         }
         
@@ -91,7 +111,7 @@ fun AppNavigation(
                 onBack = { navController.popBackStack() },
                 onResetComplete = {
                     navController.navigate("creation") {
-                        popUpTo("dashboard") { inclusive = true }
+                        popUpTo("main_hub") { inclusive = true }
                     }
                 },
                 onDeepNodeUnlock = {
@@ -112,7 +132,7 @@ fun AppNavigation(
                     if (gameId == "PONG") navController.navigate("cyber_pong")
                 },
                 onRebirthSuccess = {
-                    navController.navigate("dashboard") {
+                    navController.navigate("main_hub") {
                         popUpTo("deep_node/{subScreen}") { inclusive = true }
                     }
                 }
@@ -123,6 +143,10 @@ fun AppNavigation(
             CyberPongScreen(onBack = { navController.popBackStack() })
         }
         
+        composable("wallet") {
+            EurodollarWalletScreen(onBack = { navController.popBackStack() })
+        }
+        
         composable("character_bio") { 
             HolographicAvatarHub(
                 onBack = { navController.popBackStack() },
@@ -130,7 +154,7 @@ fun AppNavigation(
                     navController.navigate("goals")
                 },
                 onHacksClick = {
-                    navController.navigate("biohacking")
+                    // Biohacking is now a main tab, but keeping this for deep linking if needed
                 },
                 onAttributeScanClick = {
                     navController.navigate("attribute_scan")
@@ -147,7 +171,6 @@ fun AppNavigation(
         composable("attribute_scan") { PlaceholderScreen("ATTRIBUTE SCAN", navController::popBackStack) }
         composable("story") { PlaceholderScreen("YOUR STORY", navController::popBackStack) }
         composable("goals") { PlaceholderScreen("GOAL SETTING", navController::popBackStack) }
-        composable("biohacking") { PlaceholderScreen("BIOHACKING INTERFACE", navController::popBackStack) }
     }
 }
 
@@ -164,7 +187,7 @@ fun PlaceholderScreen(title: String, onBack: () -> Unit) {
             Text(title, color = Color(0xFF00FF9C), style = MaterialTheme.typography.headlineMedium)
             Spacer(modifier = Modifier.height(24.dp))
             Button(onClick = onBack) {
-                Text("RETURN TO DASHBOARD")
+                Text("RETURN")
             }
         }
     }

@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -32,6 +33,9 @@ data class WeatherState(
 data class HealthState(
     val steps: Long = 0,
     val heartRate: Int = 0,
+    val vo2Max: Double = 0.0,
+    val bodyBattery: Int = 75, // Default/Simulated
+    val stressLevel: Int = 20, // Default/Simulated
     val isConnected: Boolean = false
 )
 
@@ -51,6 +55,10 @@ class DashboardViewModel @Inject constructor(
     private val _healthState = MutableStateFlow(HealthState())
     val healthState: StateFlow<HealthState> = _healthState.asStateFlow()
 
+    val tickerMessages: StateFlow<List<String>> = combine(userCharacter, _weatherState) { character, weather ->
+        generateTickerMessages(character, weather)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     init {
         // Initial quick local estimate
         updateAtmosphereSimulated()
@@ -58,6 +66,30 @@ class DashboardViewModel @Inject constructor(
         fetchRealWeather()
         // And health data
         refreshHealthData()
+    }
+
+    private fun generateTickerMessages(character: UserCharacter?, weather: WeatherState): List<String> {
+        val messages = mutableListOf<String>()
+        
+        // Character specific
+        character?.let {
+            messages.add("SUBJECT: ${it.name.uppercase()} // ARCHETYPE: ${it.archetype ?: "UNKNOWN"}")
+            messages.add("LEVEL ${it.level} OPERATIVE DETECTED IN SECTOR 7")
+            if (it.mbti != null) messages.add("NEURAL_PATTERN: ${it.mbti} // SYNC_RATIO: 98.4%")
+            if (it.alignment != null) messages.add("MORAL_ALIGNMENT: ${it.alignment.uppercase()}")
+        }
+
+        // Weather/Environment
+        val weatherStatus = if (weather.isRaining) "ACID_RAIN_WARNING" else "ATMOSPHERE_STABLE"
+        messages.add("LOCAL_CONDITIONS: ${weather.temperature}°${weather.unitSymbol} // $weatherStatus")
+        
+        // Simulated Market/Mission data
+        messages.add("MARKET_TICKER: \$SOL +4.2% // \$ETH -1.5% // \$EURODOLLAR STABLE")
+        messages.add("MISSION_LOG: 'NEURAL_BREACH' SUCCESSFUL // REWARD: 5000 ED")
+        messages.add("ALERT: ARASAKA_SECURITY_LEVEL_INCREASED_IN_WATSON")
+        messages.add("STOCK: KANGA_BIOTECH (KBT) UP 12% AFTER NEURAL_LINK_BREAKTHROUGH")
+        
+        return messages
     }
 
     @SuppressLint("MissingPermission")
@@ -81,9 +113,19 @@ class DashboardViewModel @Inject constructor(
             if (hasPermissions) {
                 val steps = healthRepository.getTodaySteps()
                 val hr = healthRepository.getLatestHeartRate()
+                val vo2 = healthRepository.getLatestVo2Max()
+                
+                // For Garmin "Body Battery" and "Stress", we simulate or pull from other sources if available.
+                // Here we keep it somewhat dynamic based on heart rate/time of day for flavor.
+                val simulatedBattery = (80 - (LocalTime.now().hour * 2)).coerceIn(10, 100)
+                val simulatedStress = (hr / 4).coerceIn(5, 95)
+
                 _healthState.value = HealthState(
                     steps = steps,
                     heartRate = hr,
+                    vo2Max = vo2,
+                    bodyBattery = simulatedBattery,
+                    stressLevel = simulatedStress,
                     isConnected = true
                 )
             } else {
