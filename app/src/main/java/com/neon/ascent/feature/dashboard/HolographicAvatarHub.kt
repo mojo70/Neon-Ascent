@@ -17,7 +17,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -210,7 +209,7 @@ fun HolographicAvatarHub(
                     CyberFrame(label = "BIOMETRIC_HUD") {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) {
-                                val stats = when(selectedBodyPart) {
+                                val statsText = when(selectedBodyPart) {
                                     "HEAD" -> {
                                         val rank = userCharacter?.getChessRank() ?: "GHOST_IN_SHELL"
                                         "PERCEPTION: ${userCharacter?.perception ?: "??"}\nRANK: $rank\nELO: ${userCharacter?.chessElo ?: 1000}"
@@ -221,7 +220,7 @@ fun HolographicAvatarHub(
                                     else -> "SYSTEM_WIDE SYNC OK\nALL_NODES: OPERATIONAL"
                                 }
                                 Text(
-                                    stats, 
+                                    statsText, 
                                     color = Color.White, 
                                     fontSize = 10.sp, 
                                     fontFamily = FontFamily.Monospace,
@@ -299,7 +298,6 @@ fun DashboardActionButton(label: String, color: Color, onClick: () -> Unit) {
 
 @Composable
 fun AvatarImage(character: UserCharacter?, modifier: Modifier = Modifier, alpha: Float = 0.7f) {
-    val context = LocalContext.current
     val avatarBitmap = remember(character?.avatarPath) {
         if (character?.avatarPath != null && character.avatarPath != "internal_storage_placeholder") {
             try {
@@ -348,21 +346,22 @@ fun NeuralLoadGauge(load: Float, modifier: Modifier = Modifier) {
 
             // Progress arc with layered neon glow
             val sweepAngle = load * 360f
-            val color = Color(0xFFFF006E)
+            val gaugeColor = Color(0xFFFF006E)
             
             for (i in 0..5) {
-                val glowAlpha = (0.15f - i.toFloat() * 0.02f).coerceAtLeast(0f)
+                val f = i.toFloat()
+                val glowAlpha = (0.15f - f * 0.02f).coerceAtLeast(0f)
                 drawArc(
-                    color = color.copy(alpha = glowAlpha),
+                    color = gaugeColor.copy(alpha = glowAlpha),
                     startAngle = -90f,
                     sweepAngle = sweepAngle,
                     useCenter = false,
-                    style = Stroke(width = strokeWidth + i.toFloat() * 8f, cap = StrokeCap.Round)
+                    style = Stroke(width = strokeWidth + f * 8f, cap = StrokeCap.Round)
                 )
             }
             
             drawArc(
-                color = color,
+                color = gaugeColor,
                 startAngle = -90f,
                 sweepAngle = sweepAngle,
                 useCenter = false,
@@ -372,7 +371,7 @@ fun NeuralLoadGauge(load: Float, modifier: Modifier = Modifier) {
             // Spinning scanning line
             rotate(rotation, center) {
                 drawLine(
-                    brush = Brush.verticalGradient(listOf(Color.Transparent, color.copy(alpha = 0.5f))),
+                    brush = Brush.verticalGradient(listOf(Color.Transparent, gaugeColor.copy(alpha = 0.5f))),
                     start = center,
                     end = Offset(center.x, center.y - radius),
                     strokeWidth = 2.dp.toPx()
@@ -513,7 +512,8 @@ fun AttributeRadarChart(
         val radius = size.minDimension / 2.5f
 
         for (i in 1..5) {
-            val currentRadius = radius * (i / 5f)
+            val f = i.toFloat()
+            val currentRadius = radius * (f / 5f)
             val path = Path()
             for (j in 0 until 6) {
                 val angle = (j * 60f - 90f) * (Math.PI / 180f).toFloat()

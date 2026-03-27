@@ -12,7 +12,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -33,7 +32,7 @@ fun Modifier.neonBorder(
     val widthPx = width.toPx()
 
     // Multiple outer glow layers
-    for (i in 0..5) {
+    for (i in 0 until 6) {
         val f = i.toFloat()
         val alphaVal = (0.15f - f * 0.02f).coerceAtLeast(0f) * glowIntensity
         drawRoundRect(
@@ -199,7 +198,7 @@ fun CyberGridBackground() {
 
 @Composable
 fun GlitchOverlay(intensity: Float = 0.05f) {
-    var glitchTrigger by remember { mutableStateOf(0) }
+    var glitchTrigger by remember { mutableIntStateOf(0) }
     
     LaunchedEffect(intensity) {
         while(true) {
@@ -249,16 +248,17 @@ fun FloatingParticles(intensity: Float = 0.2f) {
         label = "Time"
     )
 
-    Canvas(modifier = Modifier.fillMaxSize().alpha(0.3f)) {
-        for (i in 0 until 20) {
-            val random = Random(i + 42)
-            val xBase = random.nextFloat() * size.width
-            val yBase = random.nextFloat() * size.height
-            val speed = random.nextFloat() * 100f + 50f
+    Canvas(modifier = Modifier.fillMaxSize().alpha((0.2f + intensity * 0.3f).coerceIn(0f, 1f))) {
+        val count = (20 + intensity * 50).toInt()
+        for (i in 0 until count) {
+            val r = Random(i + 42)
+            val xBase = r.nextFloat() * size.width
+            val yBase = r.nextFloat() * size.height
+            val speed = r.nextFloat() * 100f + 50f + intensity * 200f
             
             val x = xBase
             val y = (yBase - time * speed) % size.height
-            val particleSize = random.nextFloat() * 4f + 1f
+            val particleSize = r.nextFloat() * 4f + 1f
             
             drawRect(
                 color = Color(0xFF00FF9C).copy(alpha = 0.4f),
