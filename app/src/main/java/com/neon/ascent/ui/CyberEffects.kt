@@ -18,7 +18,7 @@ import kotlinx.coroutines.delay
 import kotlin.random.Random
 
 /**
- * Reusable neon glow border modifier.
+ * Reusable neon glow border modifier as requested.
  */
 fun Modifier.neonBorder(
     color: Color = Color.Cyan,
@@ -32,13 +32,11 @@ fun Modifier.neonBorder(
     val widthPx = width.toPx()
 
     // Multiple outer glow layers
-    for (i in 0 until 6) {
-        val f = i.toFloat()
-        val alphaVal = (0.15f - f * 0.02f).coerceAtLeast(0f) * glowIntensity
+    for (i in 0..6) {
         drawRoundRect(
-            color = color.copy(alpha = alphaVal),
+            color = color.copy(alpha = (0.25f - i * 0.03f).coerceAtLeast(0f) * glowIntensity),
             cornerRadius = CornerRadius(radiusPx),
-            style = Stroke(width = widthPx + f * 8f)
+            style = Stroke(width = (widthPx + i * 6f))
         )
     }
 
@@ -46,14 +44,14 @@ fun Modifier.neonBorder(
     drawRoundRect(
         color = color,
         cornerRadius = CornerRadius(radiusPx),
-        style = Stroke(width = widthPx)
+        style = Stroke(width = widthPx + 2f)
     )
 
     // Inner highlight
     drawRoundRect(
-        color = Color.White.copy(alpha = 0.3f * glowIntensity),
+        color = Color.White.copy(alpha = 0.5f * glowIntensity),
         cornerRadius = CornerRadius(radiusPx),
-        style = Stroke(width = 1f)
+        style = Stroke(width = 1.5f)
     )
 }
 
@@ -75,23 +73,23 @@ fun PerspectiveGrid(modifier: Modifier = Modifier) {
         val color = Color(0xFF00FF9C).copy(alpha = 0.05f)
         
         val centerX = size.width / 2f
-        val horizonY = -size.height * 0.2f
+        val horizonY = size.height * 0.2f
         
         // Vertical perspective lines
         for (i in -15..15) {
             val f = i.toFloat()
-            val xStart = centerX + f * gridSpacing * 2f
+            val xStart = centerX + f * gridSpacing * 0.5f
             drawLine(
                 color = color,
-                start = Offset(centerX, horizonY),
-                end = Offset(xStart, size.height),
+                start = Offset(xStart, horizonY),
+                end = Offset(centerX + f * gridSpacing * 4f, size.height),
                 strokeWidth = 1f
             )
         }
 
         // Horizontal moving lines
         val movingOffset = offset * gridSpacing
-        var y = movingOffset
+        var y = horizonY + movingOffset
         while (y < size.height) {
             val ratio = ((y - horizonY) / (size.height - horizonY)).coerceIn(0f, 1f)
             drawLine(
@@ -100,7 +98,7 @@ fun PerspectiveGrid(modifier: Modifier = Modifier) {
                 end = Offset(size.width, y),
                 strokeWidth = 1f
             )
-            y += gridSpacing * ratio
+            y += (gridSpacing * ratio * 2f).coerceAtLeast(10f)
         }
     }
 }
@@ -118,12 +116,13 @@ fun StaticNoise(intensity: Float = 0.1f) {
         label = "Seed"
     )
 
-    Canvas(modifier = Modifier.fillMaxSize().alpha((intensity * 0.2f).coerceIn(0f, 1f))) {
+    Canvas(modifier = Modifier.fillMaxSize().alpha((intensity * 0.3f).coerceIn(0f, 1f))) {
         val random = Random((seed * 1000f).toInt())
-        for (i in 0 until 50) {
+        val count = (100 * intensity).toInt().coerceAtLeast(20)
+        repeat(count) {
             val x = random.nextFloat() * size.width
             val y = random.nextFloat() * size.height
-            val w = random.nextFloat() * 100f
+            val w = random.nextFloat() * (50f + intensity * 100f)
             drawRect(
                 color = Color.White.copy(alpha = random.nextFloat() * 0.5f),
                 topLeft = Offset(x, y),
@@ -198,7 +197,7 @@ fun CyberGridBackground() {
 
 @Composable
 fun GlitchOverlay(intensity: Float = 0.05f) {
-    var glitchTrigger by remember { mutableIntStateOf(0) }
+    var glitchTrigger by remember { mutableStateOf(0) }
     
     LaunchedEffect(intensity) {
         while(true) {
@@ -213,7 +212,7 @@ fun GlitchOverlay(intensity: Float = 0.05f) {
     if (glitchTrigger % 2 != 0) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val count = (Random.nextInt(3, 8) * (1f + intensity * 5f)).toInt()
-            for (i in 0 until count) {
+            repeat(count) {
                 val y = Random.nextFloat() * size.height
                 val height = Random.nextFloat() * 20f + 2f
                 val width = size.width * (Random.nextFloat() * 0.5f + 0.2f)
@@ -250,7 +249,7 @@ fun FloatingParticles(intensity: Float = 0.2f) {
 
     Canvas(modifier = Modifier.fillMaxSize().alpha((0.2f + intensity * 0.3f).coerceIn(0f, 1f))) {
         val count = (20 + intensity * 50).toInt()
-        for (i in 0 until count) {
+        repeat(count) { i ->
             val r = Random(i + 42)
             val xBase = r.nextFloat() * size.width
             val yBase = r.nextFloat() * size.height
