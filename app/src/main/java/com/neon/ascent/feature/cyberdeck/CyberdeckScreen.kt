@@ -17,98 +17,115 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neon.ascent.feature.charactercreation.CyberFrame
-import com.neon.ascent.feature.charactercreation.CyberGridBackground
+import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
-val HexagonShape = GenericShape { size, _ ->
-    val radius = size.width / 2f
-    val centerX = size.width / 2f
-    val centerY = size.height / 2f
-    for (i in 0..5) {
-        val angle = (60 * i - 30) * (Math.PI / 180f).toFloat()
-        val x = centerX + radius * cos(angle)
-        val y = centerY + radius * sin(angle)
-        if (i == 0) moveTo(x, y) else lineTo(x, y)
-    }
-    close()
-}
+val CyberpunkColors = darkColorScheme(
+    background = Color(0xFF0A0F0A),     // Deep near-black
+    surface = Color(0xFF121A12),
+    primary = Color(0xFF00FF9F),        // Neon cyan/green
+    secondary = Color(0xFFFF00AA),      // Hot magenta/pink
+    tertiary = Color(0xFF00CCFF)        // Bright cyan
+)
 
 @Composable
 fun CyberdeckScreen(onWalletClick: () -> Unit, tickerMessages: List<String> = emptyList()) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF020202))
-    ) {
-        CyberGridBackground()
-        
-        // Background Haze/Smoke effect
-        HazeEffect()
-
-        Column(
+    MaterialTheme(colorScheme = CyberpunkColors) {
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
+                .background(MaterialTheme.colorScheme.background)
         ) {
-            HeaderSection()
+            // Faint Grid Background
+            GridBackground()
             
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            // Hexagonal Hub Section (Immersive Command Center)
-            Box(
+            // Atmospheric Haze/Fog
+            HazeEffect()
+
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
+                    .fillMaxSize()
+                    .padding(16.dp)
             ) {
-                HexagonalNodeGrid(onWalletClick)
+                HeaderSection()
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                // Hexagonal Hub Section (Immersive Command Center)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    HexagonalNodeGrid(onWalletClick)
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                CyberFrame(label = "CONSOLE_OUTPUT") {
+                    Box(modifier = Modifier.fillMaxWidth().height(140.dp).padding(8.dp)) {
+                        ConsoleOutput()
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(48.dp)) // Space for ticker
             }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            CyberFrame(label = "CONSOLE_OUTPUT") {
-                Column(modifier = Modifier.fillMaxWidth().height(120.dp).padding(8.dp)) {
-                    TerminalLine("> INITIALIZING NEURAL_LINK...", Color(0xFF00FF9C))
-                    TerminalLine("> CONNECTION ESTABLISHED.", Color(0xFF00FF9C))
-                    TerminalLine("> WELCOME BACK, EDGE-RUNNER.", Color.White)
-                    TerminalLine("> 3 NEW MESSAGES FROM 'THE_FIXER'", Color(0xFFFF006E))
-                    TerminalLine("> SOLANA_CHAIN: SYNCED", Color(0xFF00FFFF))
-                    TerminalLine("> SCANNING FOR VULNERABILITIES...", Color(0xFF00FF9C))
+
+            // Ticker Tape at the bottom
+            if (tickerMessages.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height(32.dp)
+                        .background(Color(0xFF0A0A0A).copy(alpha = 0.8f))
+                        .border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.3f))
+                ) {
+                    TickerTape(messages = tickerMessages)
                 }
             }
             
-            Spacer(modifier = Modifier.height(48.dp)) // Space for ticker
+            // Decorative neon borders
+            NeonFrameBorders()
         }
+    }
+}
 
-        // Ticker Tape at the bottom
-        if (tickerMessages.isNotEmpty()) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .height(32.dp)
-                    .background(Color(0xFF0A0A0A).copy(alpha = 0.8f))
-                    .border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.3f))
-            ) {
-                TickerTape(messages = tickerMessages)
-            }
-        }
+@Composable
+fun GridBackground() {
+    Canvas(modifier = Modifier.fillMaxSize().alpha(0.1f)) {
+        val gridSize = 40.dp.toPx()
+        val color = Color(0xFF00FF9F)
         
-        // Decorative neon borders like the image
-        NeonFrameBorders()
+        for (x in 0 until size.width.toInt() step gridSize.toInt()) {
+            drawLine(
+                color = color,
+                start = Offset(x.toFloat(), 0f),
+                end = Offset(x.toFloat(), size.height),
+                strokeWidth = 1f
+            )
+        }
+        for (y in 0 until size.height.toInt() step gridSize.toInt()) {
+            drawLine(
+                color = color,
+                start = Offset(0f, y.toFloat()),
+                end = Offset(size.width, y.toFloat()),
+                strokeWidth = 1f
+            )
+        }
     }
 }
 
@@ -117,26 +134,26 @@ fun HazeEffect() {
     val infiniteTransition = rememberInfiniteTransition(label = "HazeAnim")
     val hazeAlpha by infiniteTransition.animateFloat(
         initialValue = 0.1f,
-        targetValue = 0.3f,
+        targetValue = 0.25f,
         animationSpec = infiniteRepeatable(
-            animation = tween(4000, easing = LinearEasing),
+            animation = tween(5000, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "Alpha"
     )
 
-    Canvas(modifier = Modifier.fillMaxSize().blur(40.dp)) {
+    Canvas(modifier = Modifier.fillMaxSize().blur(60.dp)) {
         drawRect(
             brush = Brush.radialGradient(
-                colors = listOf(Color(0xFF00FFFF).copy(alpha = hazeAlpha), Color.Transparent),
+                colors = listOf(Color(0xFF00CCFF).copy(alpha = hazeAlpha), Color.Transparent),
                 center = center,
-                radius = size.maxDimension / 1.5f
+                radius = size.maxDimension / 1.2f
             )
         )
         drawRect(
             brush = Brush.verticalGradient(
-                colors = listOf(Color.Transparent, Color(0xFFFF006E).copy(alpha = hazeAlpha * 0.5f)),
-                startY = size.height * 0.7f,
+                colors = listOf(Color.Transparent, Color(0xFFFF00AA).copy(alpha = hazeAlpha * 0.4f)),
+                startY = size.height * 0.6f,
                 endY = size.height
             )
         )
@@ -153,179 +170,193 @@ fun HeaderSection() {
         Column {
             Text(
                 "CYBERDECK_TERMINAL",
-                color = Color(0xFF00FF9C),
+                color = Color(0xFF00FF9F),
                 style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Black
+                fontWeight = FontWeight.Black,
+                fontFamily = FontFamily.Monospace,
+                letterSpacing = 2.sp
             )
             Text(
                 "CONNECTED_VIA // NEURAL_GATE_01",
-                color = Color(0xFF00FF9C).copy(alpha = 0.5f),
+                color = Color(0xFF00FF9F).copy(alpha = 0.5f),
                 fontSize = 10.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
             )
         }
         
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(HexagonShape)
-                .background(Color(0xFFFF006E).copy(alpha = 0.1f))
-                .border(1.dp, Color(0xFFFF006E), HexagonShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("SEC", color = Color(0xFFFF006E), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-        }
+        NeonHexagon(
+            label = "SEC",
+            color = Color(0xFFFF00AA),
+            size = 48.dp,
+            fontSize = 10.sp
+        )
     }
 }
 
 @Composable
 fun HexagonalNodeGrid(onWalletClick: () -> Unit) {
-    Box(modifier = Modifier.size(340.dp)) {
-        // Decorative Connecting Lines (Circuit Theme)
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val cyan = Color(0xFF00FFFF).copy(alpha = 0.2f)
-            val magenta = Color(0xFFFF006E).copy(alpha = 0.2f)
-            
-            // Draw circuit lines between node positions
-            drawCircle(cyan, radius = 120.dp.toPx(), center = center, style = Stroke(1.dp.toPx()))
-            
-            // X lines
-            drawLine(magenta, start = Offset(0f, 0f), end = Offset(size.width, size.height), strokeWidth = 1f)
-            drawLine(magenta, start = Offset(size.width, 0f), end = Offset(0f, size.height), strokeWidth = 1f)
-        }
-
+    Box(modifier = Modifier.size(360.dp)) {
         // Center node
-        HexNode(
+        NeonHexagon(
             label = "CORE_OS", 
-            color = Color(0xFF00FFFF), 
-            modifier = Modifier.align(Alignment.Center).size(110.dp),
+            color = Color(0xFF00CCFF), 
+            modifier = Modifier.align(Alignment.Center).size(120.dp),
             isPulse = true
         )
         
-        // Top Node
-        HexNode(
+        // Surrounding Nodes
+        NeonHexagon(
             label = "NETWORK", 
-            color = Color(0xFF00FF9C), 
-            modifier = Modifier.align(Alignment.TopCenter).size(85.dp).offset(y = (-5).dp)
+            color = Color(0xFF00FF9F), 
+            modifier = Modifier.align(Alignment.TopCenter).size(90.dp).offset(y = (-10).dp)
         )
         
-        // Bottom Node
-        HexNode(
+        NeonHexagon(
             label = "DATABASE", 
-            color = Color(0xFF00FFFF), 
-            modifier = Modifier.align(Alignment.BottomCenter).size(85.dp).offset(y = 5.dp)
+            color = Color(0xFF00CCFF), 
+            modifier = Modifier.align(Alignment.BottomCenter).size(90.dp).offset(y = 10.dp)
         )
         
-        // Left Node
-        HexNode(
+        NeonHexagon(
             label = "EXPLOITS", 
-            color = Color(0xFFFF006E), 
-            modifier = Modifier.align(Alignment.CenterStart).size(85.dp).offset(x = (-5).dp)
+            color = Color(0xFFFF00AA), 
+            modifier = Modifier.align(Alignment.CenterStart).size(90.dp).offset(x = (-10).dp)
         )
         
-        // Right Node (Wallet)
-        HexNode(
+        NeonHexagon(
             label = "WALLET", 
-            color = Color(0xFF00FFFF), 
-            modifier = Modifier.align(Alignment.CenterEnd).size(85.dp).offset(x = 5.dp),
+            color = Color(0xFF00CCFF), 
+            modifier = Modifier.align(Alignment.CenterEnd).size(90.dp).offset(x = 10.dp),
             onClick = onWalletClick
-        )
-        
-        // Top Left Accents
-        HexNode(
-            label = "LOGS",
-            color = Color(0xFF00FF9C).copy(alpha = 0.6f),
-            modifier = Modifier.align(Alignment.TopStart).size(60.dp).offset(x = 20.dp, y = 20.dp)
-        )
-        
-        // Top Right Accents
-        HexNode(
-            label = "SYNC",
-            color = Color(0xFF00FF9C).copy(alpha = 0.6f),
-            modifier = Modifier.align(Alignment.TopEnd).size(60.dp).offset(x = (-20).dp, y = 20.dp)
         )
     }
 }
 
 @Composable
-fun HexNode(
-    label: String, 
-    color: Color, 
-    modifier: Modifier = Modifier, 
+fun NeonHexagon(
+    label: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+    size: Dp = 120.dp,
+    fontSize: androidx.compose.ui.unit.TextUnit = 11.sp,
     isPulse: Boolean = false,
     onClick: () -> Unit = {}
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "HexPulse")
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = if (isPulse) 0.9f else 0.6f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "Alpha"
-    )
-    
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = if (isPulse) 1.08f else 1.02f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "Scale"
-    )
+    val glowIntensity by if (isPulse) {
+        infiniteTransition.animateFloat(
+            initialValue = 0.7f,
+            targetValue = 1.1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(2000, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "GlowIntensity"
+        )
+    } else {
+        remember { mutableStateOf(1f) }
+    }
 
     Box(
         modifier = modifier
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .clip(HexagonShape)
-            .background(color.copy(alpha = 0.05f))
-            .border(1.dp, color.copy(alpha = alpha), HexagonShape)
+            .size(size)
             .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
-        // Decorative background patterns inside hex
-        Canvas(modifier = Modifier.fillMaxSize().alpha(0.1f)) {
-            repeat(3) { i ->
-                drawCircle(color, radius = (size.width / 2) * (i + 1) / 3f, style = Stroke(1f))
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val path = createHexagonPath(size.toPx() / 2.2f) // Leave space for glow
+
+            // Layer 1: Strong outer glow (blur simulation via multiple thick strokes)
+            for (i in 0..8) {
+                drawPath(
+                    path = path,
+                    color = color.copy(alpha = (0.15f / (i + 1)) * glowIntensity),
+                    style = Stroke(width = (12f + i * 4f), cap = StrokeCap.Round)
+                )
             }
+
+            // Layer 2: Main bright border
+            drawPath(
+                path = path,
+                color = color,
+                style = Stroke(width = 6f, cap = StrokeCap.Round)
+            )
+
+            // Layer 3: Inner highlight for depth
+            drawPath(
+                path = path,
+                color = Color.White.copy(alpha = 0.4f * glowIntensity),
+                style = Stroke(width = 2f, cap = StrokeCap.Round)
+            )
         }
 
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                label, 
-                color = color, 
-                fontSize = 9.sp, 
-                fontWeight = FontWeight.Black,
-                letterSpacing = 1.5.sp
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Box(modifier = Modifier.size(24.dp, 1.dp).background(color.copy(alpha = alpha)))
-        }
-        
-        // Scanning effect
-        val scanY = infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(3000, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart
-            ),
-            label = "Scan"
+        Text(
+            label,
+            color = Color.White,
+            fontSize = fontSize,
+            fontWeight = FontWeight.Black,
+            fontFamily = FontFamily.Monospace,
+            letterSpacing = 1.sp,
+            modifier = Modifier.alpha(0.9f)
         )
-        
-        Canvas(modifier = Modifier.fillMaxSize().alpha(0.3f)) {
-            val y = size.height * scanY.value
-            drawLine(
-                color = color,
-                start = Offset(0f, y),
-                end = Offset(size.width, y),
-                strokeWidth = 1.dp.toPx()
-            )
+    }
+}
+
+private fun DrawScope.createHexagonPath(radius: Float): Path {
+    val path = Path()
+    val centerX = size.width / 2
+    val centerY = size.height / 2
+    for (i in 0..5) {
+        val angle = (i * 60f) * (PI.toFloat() / 180f) - (PI.toFloat() / 2)
+        val x = centerX + radius * cos(angle)
+        val y = centerY + radius * sin(angle)
+        if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+    }
+    path.close()
+    return path
+}
+
+@Composable
+fun ConsoleOutput() {
+    val lines = listOf(
+        "> INITIALIZING NEURAL_LINK...",
+        "> CONNECTION ESTABLISHED.",
+        "> WELCOME BACK, EDGE-RUNNER.",
+        "> 3 NEW MESSAGES FROM 'THE_FIXER'",
+        "> SOLANA_CHAIN: SYNCED",
+        "> SCANNING FOR VULNERABILITIES..."
+    )
+    
+    val infiniteTransition = rememberInfiniteTransition(label = "Cursor")
+    val cursorVisible by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(500, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "CursorAlpha"
+    )
+
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        items(lines) { line ->
+            TerminalLine(line, Color(0xFF00FF9F))
+        }
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "> ",
+                    color = Color(0xFF00FF9F),
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                Box(
+                    modifier = Modifier
+                        .size(8.dp, 14.dp)
+                        .background(Color(0xFF00FF9F).copy(alpha = cursorVisible))
+                )
+            }
         }
     }
 }
@@ -336,7 +367,7 @@ fun TerminalLine(text: String, color: Color) {
         text,
         color = color,
         fontSize = 11.sp,
-        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+        fontFamily = FontFamily.Monospace,
         modifier = Modifier.padding(bottom = 2.dp)
     )
 }
@@ -344,10 +375,10 @@ fun TerminalLine(text: String, color: Color) {
 @Composable
 fun NeonFrameBorders() {
     Canvas(modifier = Modifier.fillMaxSize()) {
-        val magenta = Color(0xFFFF006E)
-        val cyan = Color(0xFF00FFFF)
+        val magenta = Color(0xFFFF00AA)
+        val cyan = Color(0xFF00CCFF)
         
-        // Left neon bar
+        // Decorative neon bars
         drawLine(
             magenta,
             start = Offset(6.dp.toPx(), 120.dp.toPx()),
@@ -356,26 +387,12 @@ fun NeonFrameBorders() {
             cap = StrokeCap.Round
         )
         
-        // Right neon bar
         drawLine(
             cyan,
             start = Offset(size.width - 6.dp.toPx(), 120.dp.toPx()),
             end = Offset(size.width - 6.dp.toPx(), size.height - 120.dp.toPx()),
             strokeWidth = 3.dp.toPx(),
             cap = StrokeCap.Round
-        )
-        
-        // Decorative top corners
-        val cornerSize = 40.dp.toPx()
-        drawPath(
-            path = Path().apply {
-                moveTo(20.dp.toPx(), 4.dp.toPx())
-                lineTo(20.dp.toPx() + cornerSize, 4.dp.toPx())
-                moveTo(size.width - 20.dp.toPx(), 4.dp.toPx())
-                lineTo(size.width - 20.dp.toPx() - cornerSize, 4.dp.toPx())
-            },
-            color = magenta,
-            style = Stroke(width = 2.dp.toPx())
         )
     }
 }
@@ -408,7 +425,7 @@ fun TickerTape(messages: List<String>) {
     ) {
         Text(
             text = tickerText,
-            color = Color(0xFF00FF9C),
+            color = Color(0xFF00FF9F),
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             maxLines = 1,

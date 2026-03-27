@@ -1,18 +1,15 @@
 package com.neon.ascent.feature.dashboard
 
 import android.graphics.BitmapFactory
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -26,6 +23,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -33,11 +31,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.neon.ascent.feature.charactercreation.CyberButtonShape
-import com.neon.ascent.feature.charactercreation.CyberFrame
-import com.neon.ascent.feature.charactercreation.CyberGridBackground
-import com.neon.ascent.feature.charactercreation.GlitchOverlay
 import com.neon.ascent.model.UserCharacter
+import com.neon.ascent.ui.*
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -53,6 +50,7 @@ fun HolographicAvatarHub(
 ) {
     val userCharacter by viewModel.userCharacter.collectAsState()
     val healthState by viewModel.healthState.collectAsState()
+    val tickerMessages by viewModel.tickerMessages.collectAsState()
     var selectedBodyPart by remember { mutableStateOf<String?>(null) }
     var isEditingName by remember { mutableStateOf(false) }
     var editedName by remember { mutableStateOf("") }
@@ -72,104 +70,164 @@ fun HolographicAvatarHub(
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF020202))) {
-        CyberGridBackground()
+        PerspectiveGrid()
+        Scanlines()
+        StaticNoise(intensity = neuralLoad)
+        Vignette()
+        FloatingParticles(intensity = neuralLoad)
         GlitchOverlay(intensity = neuralLoad)
 
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            // Header with AI Name
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // 1. Top Bar: HUD Header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+                    .neonBorder(Color(0xFF00FF9C).copy(alpha = 0.2f), cornerRadius = 8.dp)
+                    .background(Color.Black.copy(alpha = 0.4f))
+                    .padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF00FF9C))
                 }
                 
-                if (isEditingName) {
-                    OutlinedTextField(
-                        value = editedName,
-                        onValueChange = { editedName = it },
-                        modifier = Modifier.weight(1f),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF00FF9C),
-                            unfocusedBorderColor = Color(0xFF00FF9C).copy(alpha = 0.5f),
-                            focusedTextColor = Color.White
-                        ),
-                        trailingIcon = {
-                            TextButton(onClick = { 
-                                viewModel.updateNetrunnerName(editedName)
-                                isEditingName = false 
-                            }) {
-                                Text("SYNC", color = Color(0xFF00FF9C))
+                // Small Avatar in Top Bar
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .neonBorder(Color(0xFF00FF9C), cornerRadius = 20.dp)
+                ) {
+                    AvatarImage(userCharacter, modifier = Modifier.fillMaxSize(), alpha = 1f)
+                }
+
+                Spacer(Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    if (isEditingName) {
+                        OutlinedTextField(
+                            value = editedName,
+                            onValueChange = { editedName = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFF00FF9C),
+                                unfocusedBorderColor = Color(0xFF00FF9C).copy(alpha = 0.5f),
+                                focusedTextColor = Color.White
+                            ),
+                            textStyle = MaterialTheme.typography.labelLarge.copy(fontFamily = FontFamily.Monospace),
+                            trailingIcon = {
+                                TextButton(onClick = { 
+                                    viewModel.updateNetrunnerName(editedName)
+                                    isEditingName = false 
+                                }) {
+                                    Text("SYNC", color = Color(0xFF00FF9C), fontSize = 10.sp)
+                                }
                             }
-                        }
-                    )
-                } else {
-                    Text(
-                        text = "//${userCharacter?.netrunnerName ?: "GENERATING..."}",
-                        modifier = Modifier.clickable { isEditingName = true }.weight(1f),
-                        style = MaterialTheme.typography.headlineSmall.copy(
-                            color = Color(0xFF00FF9C),
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Black
                         )
+                    } else {
+                        Text(
+                            text = "//${userCharacter?.netrunnerName ?: "RUNNER_UNKNOWN"}",
+                            modifier = Modifier.clickable { isEditingName = true },
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                color = Color(0xFF00FF9C),
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = 2.sp
+                            )
+                        )
+                    }
+                    Text(
+                        text = "LEVEL ${userCharacter?.level ?: 1} OPERATIVE // SEC_ID: 0x${(userCharacter?.id ?: 0).toString(16).uppercase()}",
+                        color = Color(0xFF00FF9C).copy(alpha = 0.6f),
+                        fontSize = 9.sp,
+                        fontFamily = FontFamily.Monospace
                     )
+                }
+                
+                Text(
+                    text = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss")),
+                    color = Color(0xFF00FF9C),
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // 2. Central Area: Load & Avatar
+            Row(modifier = Modifier.weight(1f)) {
+                // Left Column: Load Gauge
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    NeuralLoadGauge(load = neuralLoad, modifier = Modifier.size(200.dp))
+                    
+                    Spacer(Modifier.height(24.dp))
+                    
+                    EnergyBar(label = "NEURAL_ENERGY", value = healthState.bodyBattery / 100f)
+                    
+                    Spacer(Modifier.height(16.dp))
+                    
+                    // Floating holographic ticker
+                    CyberFrame(label = "SYS_ADVICE") {
+                        Text(
+                            text = tickerMessages.firstOrNull() ?: "ALL SYSTEMS OPERATIONAL",
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.padding(4.dp)
+                        )
+                    }
+                }
+
+                Spacer(Modifier.width(16.dp))
+
+                // Right Column: Avatar Hologram
+                Box(
+                    modifier = Modifier
+                        .weight(1.2f)
+                        .fillMaxHeight()
+                        .neonBorder(Color(0xFF00FF9C).copy(alpha = 0.3f), cornerRadius = 12.dp)
+                        .background(Color.Black.copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    HologramDisplay(userCharacter) { part ->
+                        selectedBodyPart = part
+                        systemLogs.add(0, "[LOG] SECTOR_ACCESS: $part")
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Row(modifier = Modifier.fillMaxSize()) {
-                // Left Column: Avatar Hologram
-                Box(
-                    modifier = Modifier
-                        .weight(1.2f)
-                        .fillMaxHeight()
-                        .padding(8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        // Energy Bar (Body Battery)
-                        EnergyBar(label = "NEURAL_ENERGY", value = healthState.bodyBattery / 100f)
-                        
-                        Spacer(Modifier.height(8.dp))
-                        
-                        Box(contentAlignment = Alignment.Center) {
-                            HologramDisplay(userCharacter) { part ->
-                                selectedBodyPart = part
-                                systemLogs.add(0, "[LOG] SECTOR_ACCESS: $part")
-                            }
-                        }
-                    }
-                }
-
-                // Right Column: HUD & Logs
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .padding(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // HUD Info
+            // 3. HUD Stats & Logs Area
+            Row(modifier = Modifier.height(200.dp)) {
+                Column(modifier = Modifier.weight(1.5f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     CyberFrame(label = "BIOMETRIC_HUD") {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = selectedBodyPart ?: "TOTAL_SYNC",
-                                    color = Color(0xFFFF006E),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp
-                                )
-                                
-                                if (healthState.isConnected) {
-                                    HeartbeatLine(bpm = healthState.heartRate)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                val stats = when(selectedBodyPart) {
+                                    "HEAD" -> {
+                                        val rank = userCharacter?.getChessRank() ?: "GHOST_IN_SHELL"
+                                        "PERCEPTION: ${userCharacter?.perception ?: "??"}\nRANK: $rank\nELO: ${userCharacter?.chessElo ?: 1000}"
+                                    }
+                                    "TORSO" -> "ENDURANCE: ${userCharacter?.endurance ?: "??"}\nHEART_RATE: ${healthState.heartRate} BPM"
+                                    "ARMS" -> "STRENGTH: ${userCharacter?.strength ?: "??"}\nLOAD_CAP: 85%"
+                                    "LEGS" -> "AGILITY: ${userCharacter?.agility ?: "??"}\nREFLEX: ACTIVATED"
+                                    else -> "SYSTEM_WIDE SYNC OK\nALL_NODES: OPERATIONAL"
                                 }
+                                Text(
+                                    stats, 
+                                    color = Color.White, 
+                                    fontSize = 10.sp, 
+                                    fontFamily = FontFamily.Monospace,
+                                    lineHeight = 14.sp
+                                )
                             }
-                            
-                            Spacer(Modifier.height(8.dp))
-                            
                             AttributeRadarChart(
                                 stats = mapOf(
                                     "STR" to (userCharacter?.strength ?: 0),
@@ -179,78 +237,37 @@ fun HolographicAvatarHub(
                                     "CHA" to (userCharacter?.charisma ?: 0),
                                     "LUC" to (userCharacter?.luck ?: 0)
                                 ),
-                                modifier = Modifier.size(160.dp)
+                                modifier = Modifier.size(100.dp)
                             )
-
-                            Spacer(Modifier.height(12.dp))
-                            
-                            // Health Metrics Row
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                MetricSmall(label = "VO2_MAX", value = String.format("%.1f", healthState.vo2Max), unit = "mL/kg/min")
-                                MetricSmall(label = "STRESS", value = healthState.stressLevel.toString(), unit = "LVL")
-                            }
-
-                            Spacer(Modifier.height(12.dp))
-                            
-                            val stats = when(selectedBodyPart) {
-                                "HEAD" -> {
-                                    val rank = userCharacter?.getChessRank() ?: "GHOST_IN_SHELL"
-                                    val title = userCharacter?.getChessTitle() ?: "UNRANKED"
-                                    "PERCEPTION: ${userCharacter?.perception ?: "??"}\nRANK: $rank [$title]\nELO: ${userCharacter?.chessElo ?: 1000}\nNEURAL_SYNC: 98%"
-                                }
-                                "TORSO" -> "ENDURANCE: ${userCharacter?.endurance ?: "??"}\nHEART_RATE: ${healthState.heartRate} BPM\nRESP_RATE: 14"
-                                "ARMS" -> "STRENGTH: ${userCharacter?.strength ?: "??"}\nLOAD_CAP: 85%\nGRIP_PSI: 120"
-                                "LEGS" -> "AGILITY: ${userCharacter?.agility ?: "??"}\nREFLEX: ACTIVATED\nGAIT_SYNC: OK"
-                                else -> "SYSTEM_WIDE BIOMETRICS DETECTED\nALL_NODES: OPERATIONAL"
-                            }
-                            Text(
-                                stats, 
-                                color = Color.White, 
-                                fontSize = 10.sp, 
-                                fontFamily = FontFamily.Monospace,
-                                modifier = Modifier.align(Alignment.Start)
-                            )
-                            
-                            if (selectedBodyPart != null) {
-                                Spacer(Modifier.height(12.dp))
-                                Button(
-                                    onClick = { onUpgradeClick(selectedBodyPart!!) },
-                                    modifier = Modifier.fillMaxWidth().height(32.dp).clip(CyberButtonShape),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
-                                    contentPadding = PaddingValues(0.dp)
-                                ) {
-                                    Text("UPGRADE", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
                         }
                     }
-
-                    // Primary Navigation Node
-                    CyberFrame(label = "SYSTEM_CONTROLS") {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            DashboardButtonSmall("ATTRIBUTE SCAN", Color(0xFF00FF9C), onAttributeScanClick)
-                            DashboardButtonSmall("YOUR STORY", Color(0xFFFF006E), onStoryClick)
-                            DashboardButtonSmall("GOAL SETTING", Color.White, onGoalSettingClick)
-                            DashboardButtonSmall("BIOHACKS", Color(0xFF00FFFF), onHacksClick)
-                        }
-                    }
-
-                    // System Logs
+                    
+                    // Small logs area
                     CyberFrame(label = "SYSTEM_LOGS") {
-                        LazyColumn(modifier = Modifier.height(120.dp)) {
-                            items(systemLogs) { log ->
+                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            items(systemLogs.take(3)) { log ->
                                 Text(
-                                    text = log,
+                                    text = "> $log",
                                     color = Color(0xFF00FF9C).copy(alpha = 0.7f),
-                                    fontSize = 10.sp,
+                                    fontSize = 9.sp,
                                     fontFamily = FontFamily.Monospace
                                 )
                             }
                         }
                     }
+                }
+
+                Spacer(Modifier.width(12.dp))
+
+                // 4. Action Buttons
+                Column(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    DashboardActionButton("ATTRIBUTE SCAN", Color(0xFF00FF9C), onAttributeScanClick)
+                    DashboardActionButton("YOUR STORY", Color(0xFFFF006E), onStoryClick)
+                    DashboardActionButton("GOAL SETTING", Color.White, onGoalSettingClick)
+                    DashboardActionButton("BIOHACKS", Color(0xFF00FFFF), onHacksClick)
                 }
             }
         }
@@ -258,19 +275,147 @@ fun HolographicAvatarHub(
 }
 
 @Composable
+fun DashboardActionButton(label: String, color: Color, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(42.dp)
+            .clip(CyberButtonShape)
+            .neonBorder(color, width = 1.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F0F0F).copy(alpha = 0.8f)),
+        contentPadding = PaddingValues(0.dp)
+    ) {
+        Text(
+            label, 
+            color = color, 
+            fontSize = 10.sp, 
+            fontWeight = FontWeight.Black,
+            fontFamily = FontFamily.Monospace,
+            letterSpacing = 1.sp
+        )
+    }
+}
+
+@Composable
+fun AvatarImage(character: UserCharacter?, modifier: Modifier = Modifier, alpha: Float = 0.7f) {
+    val context = LocalContext.current
+    val avatarBitmap = remember(character?.avatarPath) {
+        if (character?.avatarPath != null && character.avatarPath != "internal_storage_placeholder") {
+            try {
+                BitmapFactory.decodeFile(character.avatarPath)
+            } catch (e: Exception) { null }
+        } else { null }
+    }
+
+    if (avatarBitmap != null) {
+        Image(
+            bitmap = avatarBitmap.asImageBitmap(),
+            contentDescription = "Avatar",
+            modifier = modifier.alpha(alpha),
+            contentScale = ContentScale.Crop
+        )
+    } else {
+        PixelatedSilhouette(modifier = modifier.fillMaxSize())
+    }
+}
+
+@Composable
+fun NeuralLoadGauge(load: Float, modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "GaugeAnim")
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = (5000 / (load + 0.1f)).toInt(), easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "Rotation"
+    )
+
+    Box(contentAlignment = Alignment.Center, modifier = modifier) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val strokeWidth = 4.dp.toPx()
+            val center = Offset(size.width / 2, size.height / 2)
+            val radius = (size.minDimension - strokeWidth) / 2
+            
+            // Background track
+            drawCircle(
+                color = Color.White.copy(alpha = 0.05f),
+                radius = radius,
+                style = Stroke(width = strokeWidth)
+            )
+
+            // Progress arc with layered neon glow
+            val sweepAngle = load * 360f
+            val color = Color(0xFFFF006E)
+            
+            for (i in 0..5) {
+                val glowAlpha = (0.15f - i.toFloat() * 0.02f).coerceAtLeast(0f)
+                drawArc(
+                    color = color.copy(alpha = glowAlpha),
+                    startAngle = -90f,
+                    sweepAngle = sweepAngle,
+                    useCenter = false,
+                    style = Stroke(width = strokeWidth + i.toFloat() * 8f, cap = StrokeCap.Round)
+                )
+            }
+            
+            drawArc(
+                color = color,
+                startAngle = -90f,
+                sweepAngle = sweepAngle,
+                useCenter = false,
+                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            )
+
+            // Spinning scanning line
+            rotate(rotation, center) {
+                drawLine(
+                    brush = Brush.verticalGradient(listOf(Color.Transparent, color.copy(alpha = 0.5f))),
+                    start = center,
+                    end = Offset(center.x, center.y - radius),
+                    strokeWidth = 2.dp.toPx()
+                )
+            }
+        }
+        
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                "NEURAL_LOAD",
+                color = Color(0xFFFF006E).copy(alpha = 0.7f),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+            Text(
+                "${(load * 100).toInt()}%",
+                color = Color.White,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Black,
+                fontFamily = FontFamily.Monospace,
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    shadow = Shadow(Color(0xFFFF006E), blurRadius = 10f)
+                )
+            )
+        }
+    }
+}
+
+@Composable
 fun EnergyBar(label: String, value: Float) {
-    Column(modifier = Modifier.width(180.dp)) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, color = Color(0xFF00FFFF), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            Text("${(value * 100).toInt()}%", color = Color(0xFF00FFFF), fontSize = 10.sp)
+            Text(label, color = Color(0xFF00FFFF), fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+            Text("${(value * 100).toInt()}%", color = Color(0xFF00FFFF), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
         }
         Spacer(Modifier.height(4.dp))
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(8.dp)
+                .height(6.dp)
                 .background(Color.Black)
-                .border(1.dp, Color(0xFF00FFFF).copy(alpha = 0.3f))
+                .neonBorder(Color(0xFF00FFFF).copy(alpha = 0.3f), width = 1.dp, cornerRadius = 0.dp)
         ) {
             Box(
                 modifier = Modifier
@@ -289,11 +434,11 @@ fun EnergyBar(label: String, value: Float) {
 @Composable
 fun MetricSmall(label: String, value: String, unit: String) {
     Column {
-        Text(label, color = Color.Gray, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+        Text(label, color = Color.Gray, fontSize = 8.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
         Row(verticalAlignment = Alignment.Bottom) {
-            Text(value, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Black)
+            Text(value, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
             Spacer(Modifier.width(2.dp))
-            Text(unit, color = Color(0xFF00FF9C), fontSize = 8.sp)
+            Text(unit, color = Color(0xFF00FF9C), fontSize = 8.sp, fontFamily = FontFamily.Monospace)
         }
     }
 }
@@ -330,37 +475,19 @@ fun HeartbeatLine(bpm: Int) {
             style = Stroke(width = 2.dp.toPx())
         )
 
-        // The "moving" pulse
-        val progress = phase
         val drawPath = Path()
         drawPath.moveTo(0f, centerY)
-        if (progress > 0.3f) drawPath.lineTo(width * 0.3f, centerY)
-        if (progress > 0.4f) drawPath.lineTo(width * 0.4f, centerY - height * 0.4f)
-        if (progress > 0.5f) drawPath.lineTo(width * 0.5f, centerY + height * 0.4f)
-        if (progress > 0.6f) drawPath.lineTo(width * 0.6f, centerY)
-        if (progress > 0.9f) drawPath.lineTo(width, centerY)
+        if (phase > 0.3f) drawPath.lineTo(width * 0.3f, centerY)
+        if (phase > 0.4f) drawPath.lineTo(width * 0.4f, centerY - height * 0.4f)
+        if (phase > 0.5f) drawPath.lineTo(width * 0.5f, centerY + height * 0.4f)
+        if (phase > 0.6f) drawPath.lineTo(width * 0.6f, centerY)
+        if (phase > 0.9f) drawPath.lineTo(width, centerY)
 
         drawPath(
             path = drawPath,
             color = Color(0xFFFF006E),
             style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
         )
-    }
-}
-
-@Composable
-fun DashboardButtonSmall(label: String, color: Color, onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(36.dp)
-            .clip(CyberButtonShape)
-            .border(1.dp, color, CyberButtonShape),
-        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F0F0F)),
-        contentPadding = PaddingValues(0.dp)
-    ) {
-        Text(label, color = color, fontSize = 10.sp, fontWeight = FontWeight.Black)
     }
 }
 
@@ -381,11 +508,10 @@ fun AttributeRadarChart(
     )
 
     Canvas(modifier = modifier) {
-        val centerX = size.width / 2
-        val centerY = size.height / 2
+        val centerX = size.width / 2f
+        val centerY = size.height / 2f
         val radius = size.minDimension / 2.5f
 
-        // Draw background hexagons
         for (i in 1..5) {
             val currentRadius = radius * (i / 5f)
             val path = Path()
@@ -403,7 +529,6 @@ fun AttributeRadarChart(
             )
         }
 
-        // Draw axes
         for (i in 0 until 6) {
             val angle = (i * 60f - 90f) * (Math.PI / 180f).toFloat()
             val x = centerX + radius * cos(angle)
@@ -416,7 +541,6 @@ fun AttributeRadarChart(
             )
         }
 
-        // Draw data polygon
         val dataPath = Path()
         for (i in 0 until 6) {
             val angle = (i * 60f - 90f) * (Math.PI / 180f).toFloat()
@@ -437,7 +561,6 @@ fun AttributeRadarChart(
             style = Stroke(width = 2.dp.toPx())
         )
         
-        // Draw labels
         val textPaint = android.graphics.Paint().apply {
             color = android.graphics.Color.WHITE
             textSize = 8.sp.toPx()
@@ -462,8 +585,6 @@ fun AttributeRadarChart(
 @Composable
 fun HologramDisplay(character: UserCharacter?, onPartClick: (String) -> Unit) {
     val infiniteTransition = rememberInfiniteTransition(label = "HologramAnim")
-    
-    // Scanning line animation
     val scanY by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -485,13 +606,10 @@ fun HologramDisplay(character: UserCharacter?, onPartClick: (String) -> Unit) {
     )
 
     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-        Canvas(modifier = Modifier
-            .fillMaxSize()
-            .graphicsLayer(alpha = flickerAlpha)
-        ) {
+        Canvas(modifier = Modifier.fillMaxSize().graphicsLayer { alpha = flickerAlpha }) {
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(Color(0xFF00FF9C).copy(alpha = 0.1f), Color.Transparent),
+                    colors = listOf(Color(0xFF00FF9C).copy(alpha = 0.15f), Color.Transparent),
                     center = center,
                     radius = size.minDimension / 1.5f
                 )
@@ -508,31 +626,12 @@ fun HologramDisplay(character: UserCharacter?, onPartClick: (String) -> Unit) {
 
         Box(
             modifier = Modifier
-                .fillMaxHeight(0.8f)
-                .fillMaxWidth()
-                .border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.2f), CyberButtonShape),
+                .fillMaxHeight(0.85f)
+                .fillMaxWidth(0.8f)
+                .neonBorder(Color(0xFF00FF9C).copy(alpha = 0.2f), cornerRadius = 8.dp),
             contentAlignment = Alignment.Center
         ) {
-            // Load Bitmap or Pixelated Fallback
-            val context = LocalContext.current
-            val avatarBitmap = remember(character?.avatarPath) {
-                if (character?.avatarPath != null && character.avatarPath != "internal_storage_placeholder") {
-                    try {
-                        BitmapFactory.decodeFile(character.avatarPath)
-                    } catch (e: Exception) { null }
-                } else { null }
-            }
-
-            if (avatarBitmap != null) {
-                Image(
-                    bitmap = avatarBitmap.asImageBitmap(),
-                    contentDescription = "Avatar",
-                    modifier = Modifier.fillMaxSize().alpha(0.7f),
-                    contentScale = ContentScale.Fit
-                )
-            } else {
-                PixelatedSilhouette(modifier = Modifier.fillMaxSize(0.7f))
-            }
+            AvatarImage(character, modifier = Modifier.fillMaxSize())
             
             Column(modifier = Modifier.fillMaxSize()) {
                 Box(Modifier.weight(1f).fillMaxWidth().clickable { onPartClick("HEAD") })
@@ -553,16 +652,11 @@ fun PixelatedSilhouette(modifier: Modifier = Modifier) {
         val color = Color(0xFF00FF9C).copy(alpha = 0.3f)
         val pixelSize = 10.dp.toPx()
         
-        // Simple pixelated head
         drawRect(color, Offset(center.x - pixelSize*2, pixelSize*2), Size(pixelSize*4, pixelSize*4))
-        // Neck
         drawRect(color, Offset(center.x - pixelSize, pixelSize*6), Size(pixelSize*2, pixelSize*2))
-        // Torso
         drawRect(color, Offset(center.x - pixelSize*4, pixelSize*8), Size(pixelSize*8, pixelSize*12))
-        // Arms
         drawRect(color, Offset(center.x - pixelSize*6, pixelSize*8), Size(pixelSize*2, pixelSize*10))
         drawRect(color, Offset(center.x + pixelSize*4, pixelSize*8), Size(pixelSize*2, pixelSize*10))
-        // Legs
         drawRect(color, Offset(center.x - pixelSize*3, pixelSize*20), Size(pixelSize*2, pixelSize*12))
         drawRect(color, Offset(center.x + pixelSize, pixelSize*20), Size(pixelSize*2, pixelSize*12))
     }
