@@ -20,9 +20,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.layout.ContentScale
@@ -55,6 +58,147 @@ val HexTerminalShape = GenericShape { size, _ ->
     lineTo(gap, size.height)
     lineTo(0f, size.height / 2f)
     close()
+}
+
+@Composable
+fun CyberHelmetIcon(
+    modifier: Modifier = Modifier.size(120.dp),
+    neuralLoad: Float = 0.2f,        // 0.0 to 1.0 — drives glow intensity & effects
+    primaryColor: Color = Color(0xFF00FF9F)  // Neon green/cyan
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "HelmetAnim")
+    val pulse by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.1f + (neuralLoad * 0.1f),
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Pulse"
+    )
+
+    Canvas(modifier = modifier) {
+        val center = Offset(size.width / 2, size.height / 2)
+        val radius = size.minDimension / 2.2f
+
+        // 1. Outer helmet glow layers (the bloom that makes it pop)
+        for (i in 0..10) {
+            val f = i.toFloat()
+            drawCircle(
+                color = primaryColor.copy(alpha = (0.12f - f * 0.01f).coerceAtLeast(0f) * (1f + neuralLoad)),
+                radius = radius + f * 5f,
+                style = Stroke(width = 12f + f * 4f)
+            )
+        }
+
+        // 2. Main helmet shell (rounded + angular shape)
+        val helmetPath = Path().apply {
+            // Top dome
+            moveTo(center.x - radius * 0.75f, center.y - radius * 0.6f)
+            quadraticBezierTo(center.x, center.y - radius * 1.0f, center.x + radius * 0.75f, center.y - radius * 0.6f)
+            
+            // Right side / Ear piece
+            lineTo(center.x + radius * 0.9f, center.y - radius * 0.2f)
+            lineTo(center.x + radius * 0.9f, center.y + radius * 0.3f)
+            
+            // Jawline
+            lineTo(center.x + radius * 0.7f, center.y + radius * 0.8f)
+            quadraticBezierTo(center.x, center.y + radius * 0.95f, center.x - radius * 0.7f, center.y + radius * 0.8f)
+            
+            // Left side / Ear piece
+            lineTo(center.x - radius * 0.9f, center.y + radius * 0.3f)
+            lineTo(center.x - radius * 0.9f, center.y - radius * 0.2f)
+            close()
+        }
+
+        // Base shell
+        drawPath(helmetPath, color = Color(0xFF020806), style = Fill)
+
+        // 3. Helmet outline with strong multi-layered neon
+        for (i in 0..3) {
+            drawPath(
+                path = helmetPath,
+                color = primaryColor.copy(alpha = 0.3f / (i + 1)),
+                style = Stroke(width = 8f + i * 6f)
+            )
+        }
+        drawPath(
+            path = helmetPath,
+            color = primaryColor,
+            style = Stroke(width = 3f)
+        )
+
+        // 4. Visor (Dynamic focus)
+        val visorColor = if (neuralLoad > 0.7f) Color(0xFFFF006E) else Color(0xFF00FFFF)
+        val visorLeft = center.x - radius * 0.65f
+        val visorTop = center.y - radius * 0.3f
+        val visorWidth = radius * 1.3f
+        val visorHeight = radius * 0.4f
+        
+        // Inner visor glow
+        drawRect(
+            color = visorColor.copy(alpha = 0.15f + neuralLoad * 0.2f),
+            topLeft = Offset(visorLeft, visorTop),
+            size = Size(visorWidth, visorHeight),
+            style = Fill
+        )
+
+        // Visor border layers
+        for (i in 0..5) {
+            val f = i.toFloat()
+            drawRect(
+                color = visorColor.copy(alpha = (0.2f - f * 0.03f).coerceAtLeast(0f) * (1f + neuralLoad)),
+                topLeft = Offset(visorLeft - f * 2, visorTop - f * 2),
+                size = Size(visorWidth + f * 4, visorHeight + f * 4),
+                style = Stroke(width = 2f + f * 2f)
+            )
+        }
+        drawRect(
+            color = visorColor, 
+            topLeft = Offset(visorLeft, visorTop), 
+            size = Size(visorWidth, visorHeight), 
+            style = Stroke(width = 2f)
+        )
+
+        // Visor Detail: HUD Scanlines / Data bits
+        val scanlineY = (System.currentTimeMillis() % 2000 / 2000f) * visorHeight
+        drawLine(
+            color = Color.White.copy(alpha = 0.4f * pulse),
+            start = Offset(visorLeft + 5f, visorTop + scanlineY),
+            end = Offset(visorLeft + visorWidth - 5f, visorTop + scanlineY),
+            strokeWidth = 1.5f
+        )
+        
+        // Random data dots on high load
+        if (neuralLoad > 0.5f) {
+            val r = Random(System.currentTimeMillis() / 100)
+            repeat(5) {
+                drawCircle(
+                    color = Color.White.copy(alpha = 0.6f),
+                    radius = 1.5f,
+                    center = Offset(
+                        visorLeft + r.nextFloat() * visorWidth,
+                        visorTop + r.nextFloat() * visorHeight
+                    )
+                )
+            }
+        }
+
+        // 5. Side accent panels
+        drawRoundRect(
+            color = Color(0xFFFF006E).copy(alpha = 0.8f),
+            topLeft = Offset(center.x - radius * 0.95f, center.y),
+            size = Size(radius * 0.2f, radius * 0.3f),
+            cornerRadius = CornerRadius(4f),
+            style = Fill
+        )
+        // Accent glow
+        drawCircle(
+            color = Color(0xFFFF006E).copy(alpha = 0.3f * pulse),
+            radius = radius * 0.15f,
+            center = Offset(center.x - radius * 0.85f, center.y + radius * 0.15f)
+        )
+    }
 }
 
 @Composable
@@ -157,7 +301,7 @@ fun AvatarImage(character: UserCharacter?, modifier: Modifier = Modifier, alpha:
             contentScale = ContentScale.Crop
         )
     } else {
-        PixelatedSilhouette(modifier = modifier)
+        CyberHelmetIcon(modifier = modifier, neuralLoad = character?.neuralLoad ?: 0.2f)
     }
 }
 
