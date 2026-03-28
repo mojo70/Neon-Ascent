@@ -18,11 +18,12 @@ import kotlinx.coroutines.delay
 import kotlin.random.Random
 
 /**
- * Reusable neon glow border modifier as requested.
+ * Reusable neon glow border modifier.
+ * Stack multiple Stroke calls with decreasing alpha and increasing width.
  */
 fun Modifier.neonBorder(
     color: Color = Color.Cyan,
-    width: Dp = 2.dp,
+    width: Dp = 4.dp,
     glowIntensity: Float = 1f,
     cornerRadius: Dp = 12.dp
 ) = this.drawWithContent {
@@ -30,27 +31,32 @@ fun Modifier.neonBorder(
 
     val radiusPx = cornerRadius.toPx()
     val widthPx = width.toPx()
+    val cr = CornerRadius(radiusPx)
 
-    // Multiple outer glow layers
+    // 1. Multiple outer glow layers
     for (i in 0..6) {
-        drawRoundRect(
-            color = color.copy(alpha = (0.25f - i * 0.03f).coerceAtLeast(0f) * glowIntensity),
-            cornerRadius = CornerRadius(radiusPx),
-            style = Stroke(width = (widthPx + i * 6f))
-        )
+        val f = i.toFloat()
+        val alphaVal = ((0.25f - f * 0.03f).coerceAtLeast(0f) * glowIntensity).coerceIn(0f, 1f)
+        if (alphaVal > 0f) {
+            drawRoundRect(
+                color = color.copy(alpha = alphaVal),
+                cornerRadius = cr,
+                style = Stroke(width = widthPx + f * 6f)
+            )
+        }
     }
 
-    // Main bright border
+    // 2. Main bright border
     drawRoundRect(
         color = color,
-        cornerRadius = CornerRadius(radiusPx),
+        cornerRadius = cr,
         style = Stroke(width = widthPx + 2f)
     )
 
-    // Inner highlight
+    // 3. Inner highlight
     drawRoundRect(
-        color = Color.White.copy(alpha = 0.5f * glowIntensity),
-        cornerRadius = CornerRadius(radiusPx),
+        color = Color.White.copy(alpha = (0.5f * glowIntensity).coerceIn(0f, 1f)),
+        cornerRadius = cr,
         style = Stroke(width = 1.5f)
     )
 }
@@ -118,15 +124,28 @@ fun StaticNoise(intensity: Float = 0.1f) {
 
     Canvas(modifier = Modifier.fillMaxSize().alpha((intensity * 0.3f).coerceIn(0f, 1f))) {
         val random = Random((seed * 1000f).toInt())
-        val count = (100 * intensity).toInt().coerceAtLeast(20)
+        
+        // Random dots/short lines
+        val count = (150 * intensity).toInt().coerceAtLeast(30)
         repeat(count) {
             val x = random.nextFloat() * size.width
             val y = random.nextFloat() * size.height
             val w = random.nextFloat() * (50f + intensity * 100f)
             drawRect(
-                color = Color.White.copy(alpha = random.nextFloat() * 0.5f),
+                color = Color.White.copy(alpha = random.nextFloat() * 0.4f),
                 topLeft = Offset(x, y),
                 size = Size(w, 1f)
+            )
+        }
+        
+        // Occasional horizontal bands
+        if (random.nextFloat() < intensity) {
+            val bandY = random.nextFloat() * size.height
+            val bandHeight = random.nextFloat() * 20f + 2f
+            drawRect(
+                color = Color.White.copy(alpha = 0.05f * intensity),
+                topLeft = Offset(0f, bandY),
+                size = Size(size.width, bandHeight)
             )
         }
     }
@@ -137,9 +156,9 @@ fun Vignette(modifier: Modifier = Modifier) {
     Canvas(modifier = modifier.fillMaxSize()) {
         drawRect(
             brush = Brush.radialGradient(
-                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f)),
+                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)),
                 center = center,
-                radius = size.maxDimension / 1.2f
+                radius = size.maxDimension / 1.1f
             )
         )
     }
@@ -158,7 +177,7 @@ fun Scanlines(modifier: Modifier = Modifier) {
         label = "Scroll"
     )
 
-    Canvas(modifier = modifier.fillMaxSize().alpha(0.1f)) {
+    Canvas(modifier = modifier.fillMaxSize().alpha(0.12f)) {
         val lineSpacing = 4.dp.toPx()
         var y = scrollY * lineSpacing
         while (y < size.height) {
@@ -166,7 +185,7 @@ fun Scanlines(modifier: Modifier = Modifier) {
                 color = Color.Black,
                 start = Offset(0f, y),
                 end = Offset(size.width, y),
-                strokeWidth = 1f
+                strokeWidth = 1.5f
             )
             y += lineSpacing
         }
@@ -197,31 +216,31 @@ fun CyberGridBackground() {
 
 @Composable
 fun GlitchOverlay(intensity: Float = 0.05f) {
-    var glitchTrigger by remember { mutableStateOf(0) }
+    var glitchTrigger by remember { mutableIntStateOf(0) }
     
     LaunchedEffect(intensity) {
         while(true) {
-            val baseDelay = (2000 / (intensity * 10f).coerceAtLeast(1f)).toLong()
+            val baseDelay = (2500 / (intensity * 10f).coerceAtLeast(1f)).toLong()
             delay(Random.nextLong(baseDelay, baseDelay * 2))
             glitchTrigger++
-            delay(Random.nextLong(50, 150))
+            delay(Random.nextLong(50, 200))
             glitchTrigger++
         }
     }
 
     if (glitchTrigger % 2 != 0) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val count = (Random.nextInt(3, 8) * (1f + intensity * 5f)).toInt()
+            val count = (Random.nextInt(4, 10) * (1f + intensity * 6f)).toInt()
             repeat(count) {
                 val y = Random.nextFloat() * size.height
-                val height = Random.nextFloat() * 20f + 2f
-                val width = size.width * (Random.nextFloat() * 0.5f + 0.2f)
+                val height = Random.nextFloat() * 30f + 2f
+                val width = size.width * (Random.nextFloat() * 0.6f + 0.2f)
                 val x = if (Random.nextBoolean()) 0f else size.width - width
                 
                 val color = when(Random.nextInt(3)) {
-                    0 -> Color(0xFF00FF9C).copy(alpha = 0.4f + intensity * 0.4f)
-                    1 -> Color(0xFFFF006E).copy(alpha = 0.4f + intensity * 0.4f)
-                    else -> Color.White.copy(alpha = 0.3f + intensity * 0.4f)
+                    0 -> Color(0xFF00FF9C).copy(alpha = 0.5f + intensity * 0.4f)
+                    1 -> Color(0xFFFF006E).copy(alpha = 0.5f + intensity * 0.4f)
+                    else -> Color.White.copy(alpha = 0.4f + intensity * 0.4f)
                 }
                 
                 drawRect(
@@ -247,20 +266,20 @@ fun FloatingParticles(intensity: Float = 0.2f) {
         label = "Time"
     )
 
-    Canvas(modifier = Modifier.fillMaxSize().alpha((0.2f + intensity * 0.3f).coerceIn(0f, 1f))) {
-        val count = (20 + intensity * 50).toInt()
+    Canvas(modifier = Modifier.fillMaxSize().alpha((0.25f + intensity * 0.4f).coerceIn(0f, 1f))) {
+        val count = (25 + intensity * 60).toInt()
         repeat(count) { i ->
             val r = Random(i + 42)
             val xBase = r.nextFloat() * size.width
             val yBase = r.nextFloat() * size.height
-            val speed = r.nextFloat() * 100f + 50f + intensity * 200f
+            val speed = r.nextFloat() * 120f + 40f + intensity * 250f
             
             val x = xBase
             val y = (yBase - time * speed) % size.height
-            val particleSize = r.nextFloat() * 4f + 1f
+            val particleSize = r.nextFloat() * 5f + 1f
             
             drawRect(
-                color = Color(0xFF00FF9C).copy(alpha = 0.4f),
+                color = Color(0xFF00FF9C).copy(alpha = 0.5f),
                 topLeft = Offset(x, if (y < 0) y + size.height else y),
                 size = Size(particleSize, particleSize)
             )
