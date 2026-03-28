@@ -19,9 +19,13 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.googlefonts.Font
+import androidx.compose.ui.text.googlefonts.GoogleFont
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.neon.ascent.R
 import com.neon.ascent.ui.*
 import kotlinx.coroutines.delay
 import kotlin.math.pow
@@ -33,24 +37,73 @@ fun LoadingScreen(onLoadingFinished: () -> Unit) {
     val progress = remember { Animatable(0f) }
     val textMeasurer = rememberTextMeasurer()
     
+    // Google Fonts Setup
+    val provider = remember {
+        GoogleFont.Provider(
+            providerAuthority = "com.google.android.gms.fonts",
+            providerPackage = "com.google.android.gms",
+            certificates = R.array.com_google_android_gms_fonts_certs
+        )
+    }
+
+    val orbitronFont = remember {
+        FontFamily(
+            Font(
+                googleFont = GoogleFont("Orbitron"),
+                fontProvider = provider,
+                weight = FontWeight.Bold,
+                style = FontStyle.Italic
+            )
+        )
+    }
+
+    val monoFont = remember {
+        FontFamily(
+            Font(
+                googleFont = GoogleFont("Share Tech Mono"),
+                fontProvider = provider,
+                weight = FontWeight.Normal
+            )
+        )
+    }
+
     val infiniteTransition = rememberInfiniteTransition(label = "LoadingAtmosphere")
+    
     val pulse by infiniteTransition.animateFloat(
-        initialValue = 0.7f,
-        targetValue = 1.2f,
+        initialValue = 0.8f,
+        targetValue = 1.1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = FastOutSlowInEasing),
+            animation = tween(1500, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "Pulse"
     )
 
+    var flicker by remember { mutableFloatStateOf(1f) }
+    LaunchedEffect(Unit) {
+        while(true) {
+            flicker = if (Random.nextFloat() > 0.95f) 0.7f else 1f
+            delay(Random.nextLong(50, 150))
+        }
+    }
+
     LaunchedEffect(Unit) {
         progress.animateTo(
             targetValue = 1f,
-            animationSpec = tween(4500, easing = LinearOutSlowInEasing)
+            animationSpec = tween(5000, easing = LinearOutSlowInEasing)
         )
         delay(500)
         onLoadingFinished()
+    }
+
+    // Dynamic Status Messages
+    val statusMessage = when {
+        progress.value < 0.2f -> "INITIATING BIOMETRIC HANDSHAKE..."
+        progress.value < 0.4f -> "SYNCHRONIZING CORTEX..."
+        progress.value < 0.6f -> "DECRYPTING NEURAL PATHWAYS..."
+        progress.value < 0.8f -> "UPLOADING GHOST PROTOCOLS..."
+        progress.value < 0.95f -> "STABILIZING LINK INTEGRITY..."
+        else -> "CONNECTION ESTABLISHED [OK]"
     }
 
     Box(
@@ -61,66 +114,93 @@ fun LoadingScreen(onLoadingFinished: () -> Unit) {
     ) {
         // 1. ATMOSPHERIC BACKGROUND
         PerspectiveGrid()
-        val displayLoad = progress.value * 0.8f
+        val displayLoad = (progress.value * 0.6f) + 0.2f
         Scanlines(intensity = displayLoad)
-        StaticNoise(intensity = displayLoad)
+        StaticNoise(intensity = displayLoad * 0.5f)
         Vignette()
         
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val gridColor = Color(0xFF00FF9C).copy(alpha = 0.05f)
+            val step = 40.dp.toPx()
+            var x = 0f
+            while (x < size.width) {
+                drawLine(gridColor, Offset(x, 0f), Offset(x, size.height), 1f)
+                x += step
+            }
+            var y = 0f
+            while (y < size.height) {
+                drawLine(gridColor, Offset(0f, y), Offset(size.width, y), 1f)
+                y += step
+            }
+        }
+
         // 2. VERTICAL NEON TEXT
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val primaryColor = Color(0xFF00FF9C)
-            val secondaryColor = Color(0xFFFF006E)
+            val cyanColor = Color(0xFF00FF9C)
+            val magentaColor = Color(0xFFFF006E)
             
+            // SLIMMER CHARACTERS, INCREASED SPACING, AND ITALIC SLANT
             val textStyle = TextStyle(
-                fontSize = 84.sp,
-                fontWeight = FontWeight.Black,
-                fontFamily = FontFamily.Monospace,
-                letterSpacing = 16.sp
+                fontSize = 52.sp, 
+                fontWeight = FontWeight.Bold,
+                fontFamily = orbitronFont,
+                letterSpacing = 36.sp,
+                fontStyle = FontStyle.Italic
             )
 
-            val layoutTop = textMeasurer.measure("NEON", textStyle.copy(color = primaryColor))
-            val layoutBottom = textMeasurer.measure("ASCENT", textStyle.copy(color = secondaryColor))
+            val layoutTop = textMeasurer.measure("NEON", textStyle.copy(color = cyanColor))
+            val layoutBottom = textMeasurer.measure("ASCENT", textStyle.copy(color = magentaColor))
             
-            val spacingPx = 60.dp.toPx()
-            val totalTextWidth = layoutTop.size.width.toFloat() + spacingPx + layoutBottom.size.width.toFloat()
-            val xPadding = 80.dp.toPx()
+            val spacingPx = 50.dp.toPx()
+            val totalTextWidth = layoutTop.size.width + spacingPx + layoutBottom.size.width
+            val xOffset = 70.dp.toPx()
             val centerY = size.height / 2f
 
             withTransform({
-                // Move to left side with padding, vertically centered
-                translate(left = xPadding, top = centerY)
-                // Rotate to make text vertical (pointing UP)
+                translate(left = xOffset, top = centerY)
                 rotate(-90f, pivot = Offset.Zero)
             }) {
-                // In this local coordinate system, text is drawn along the X-axis (screen UP).
-                // Center the text block horizontally on the screen's vertical center.
                 val startX = -totalTextWidth / 2f
-                val startY = -layoutTop.size.height.toFloat() / 2f
+                val startY = -layoutTop.size.height / 2f
 
-                // Layered Bloom for "NEON"
-                for (i in 0..8) {
+                // --- NEON DRAWING ---
+                for (i in 0..6) {
                     val f = i.toFloat()
                     drawText(
                         textLayoutResult = layoutTop,
-                        color = primaryColor.copy(alpha = (0.15f - f * 0.015f).coerceAtLeast(0f) * pulse),
+                        color = cyanColor.copy(alpha = (0.12f - f * 0.02f).coerceAtLeast(0f) * pulse * flicker),
                         topLeft = Offset(startX, startY),
-                        drawStyle = Stroke(width = 12f + f * 6f)
+                        drawStyle = Stroke(width = 1f + f * 3f)
                     )
                 }
-                drawText(layoutTop, topLeft = Offset(startX, startY))
-                
-                // Layered Bloom for "ASCENT"
-                val secondPartX = startX + layoutTop.size.width.toFloat() + spacingPx
-                for (i in 0..8) {
+                drawText(
+                    textLayoutResult = layoutTop,
+                    color = magentaColor.copy(alpha = 0.05f * pulse),
+                    topLeft = Offset(startX, startY),
+                    drawStyle = Stroke(width = 25f)
+                )
+                drawText(layoutTop, color = Color.White.copy(alpha = 0.95f * flicker), topLeft = Offset(startX, startY))
+                drawText(layoutTop, color = cyanColor.copy(alpha = 0.4f), topLeft = Offset(startX, startY))
+
+                // --- ASCENT DRAWING ---
+                val secondPartX = startX + layoutTop.size.width + spacingPx
+                for (i in 0..6) {
                     val f = i.toFloat()
                     drawText(
                         textLayoutResult = layoutBottom,
-                        color = secondaryColor.copy(alpha = (0.15f - f * 0.015f).coerceAtLeast(0f) * pulse),
+                        color = magentaColor.copy(alpha = (0.12f - f * 0.02f).coerceAtLeast(0f) * pulse * flicker),
                         topLeft = Offset(secondPartX, startY),
-                        drawStyle = Stroke(width = 12f + f * 6f)
+                        drawStyle = Stroke(width = 1f + f * 3f)
                     )
                 }
-                drawText(layoutBottom, topLeft = Offset(secondPartX, startY))
+                drawText(
+                    textLayoutResult = layoutBottom,
+                    color = cyanColor.copy(alpha = 0.05f * pulse),
+                    topLeft = Offset(secondPartX, startY),
+                    drawStyle = Stroke(width = 25f)
+                )
+                drawText(layoutBottom, color = Color.White.copy(alpha = 0.95f * flicker), topLeft = Offset(secondPartX, startY))
+                drawText(layoutBottom, color = magentaColor.copy(alpha = 0.4f), topLeft = Offset(secondPartX, startY))
             }
         }
 
@@ -141,7 +221,6 @@ fun LoadingScreen(onLoadingFinished: () -> Unit) {
                 val portHeight = 50.dp.toPx()
                 val portRect = Rect(center.x - portWidth / 2, portY - portHeight / 2, center.x + portWidth / 2, portY + portHeight / 2)
 
-                // PORT GLOW
                 for (i in 0..6) {
                     val f = i.toFloat()
                     drawRoundRect(
@@ -154,7 +233,6 @@ fun LoadingScreen(onLoadingFinished: () -> Unit) {
                 }
                 drawRoundRect(colorPrimary, portRect.topLeft, portRect.size, CornerRadius(4.dp.toPx()), Stroke(strokeWidth))
 
-                // PLUG MOVEMENT
                 val startY = size.height + 100.dp.toPx()
                 val targetY = portRect.bottom - 10.dp.toPx()
                 val currentPlugY = startY - (startY - targetY) * (progress.value * 1.1f).coerceIn(0f, 1f)
@@ -163,23 +241,19 @@ fun LoadingScreen(onLoadingFinished: () -> Unit) {
                 val plugHeight = 80.dp.toPx()
                 val plugRect = Rect(center.x - plugWidth / 2, currentPlugY, center.x + plugWidth / 2, currentPlugY + plugHeight)
 
-                // CABLE (Dynamic flow)
                 val cablePath = Path().apply {
                     moveTo(center.x, plugRect.bottom)
                     quadraticBezierTo(center.x + 20.dp.toPx() * (1f - progress.value), size.height, center.x, size.height + 200f)
                 }
                 drawPath(cablePath, colorSecondary, style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round))
                 
-                // Cable glow
                 if (progress.value > 0.5f) {
                     drawPath(cablePath, colorSecondary.copy(alpha = 0.3f * pulse), style = Stroke(width = 20.dp.toPx()))
                 }
 
-                // PLUG BODY
                 drawRect(colorSecondary, plugRect.topLeft, plugRect.size, style = Fill)
                 drawRect(Color.White.copy(alpha = 0.4f), plugRect.topLeft, plugRect.size, style = Stroke(width = 2f))
 
-                // CONNECTION BURST
                 if (progress.value > 0.85f) {
                     val burstProgress = (progress.value - 0.85f) / 0.15f
                     drawCircle(
@@ -193,7 +267,6 @@ fun LoadingScreen(onLoadingFinished: () -> Unit) {
                         alpha = (1f - burstProgress).coerceIn(0f, 1f)
                     )
                     
-                    // Particles
                     val r = Random(42)
                     repeat(15) {
                         val angle = r.nextFloat() * 360f
@@ -206,46 +279,60 @@ fun LoadingScreen(onLoadingFinished: () -> Unit) {
             }
         }
 
-        // 4. TYPING STATUS TEXT
-        val fullStatusText = "ESTABLISHING NEURAL LINK... [OK]"
-        val typingCount = (progress.value * fullStatusText.length * 1.5f).toInt().coerceIn(0, fullStatusText.length)
-        val currentStatus = fullStatusText.take(typingCount)
+        // 4. TYPING STATUS TEXT (Share Tech Mono + Terminal Glow + Hacking Logic)
+        val typingCount = (progress.value * statusMessage.length * 1.5f).toInt().coerceIn(0, statusMessage.length)
+        val currentStatus = statusMessage.take(typingCount)
 
         Column(
             modifier = Modifier.fillMaxSize().padding(bottom = 60.dp),
             verticalArrangement = Arrangement.Bottom,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = currentStatus,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    color = if (progress.value > 0.9f) Color(0xFF00FF9C) else Color(0xFFFF006E),
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 2.sp,
-                    shadow = Shadow(
-                        color = (if (progress.value > 0.9f) Color(0xFF00FF9C) else Color(0xFFFF006E)).copy(alpha = 0.5f),
-                        blurRadius = 8f
+            val statusColor = if (progress.value > 0.9f) Color(0xFF00FF9C) else Color(0xFFFF006E)
+            
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = currentStatus,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = statusColor,
+                        fontFamily = monoFont,
+                        fontWeight = FontWeight.Normal,
+                        letterSpacing = 1.sp,
+                        shadow = Shadow(
+                            color = statusColor.copy(alpha = 0.8f),
+                            blurRadius = 8f * pulse
+                        )
                     )
                 )
-            )
+                
+                Spacer(Modifier.width(8.dp))
+                
+                // "Hacking" percentage display
+                Text(
+                    text = "${(progress.value * 100).toInt()}%",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = statusColor.copy(alpha = 0.6f),
+                        fontFamily = monoFont,
+                        fontSize = 10.sp
+                    )
+                )
+            }
             
             Spacer(Modifier.height(16.dp))
             
             // Disguised progress bar
             Box(
                 modifier = Modifier
-                    .width(200.dp)
+                    .width(240.dp)
                     .height(2.dp)
-                    .background(Color.White.copy(alpha = 0.1f))
+                    .background(Color.White.copy(alpha = 0.05f))
             ) {
-                val progressColor = if (progress.value > 0.9f) Color(0xFF00FF9C) else Color(0xFFFF006E)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(progress.value)
                         .fillMaxHeight()
-                        .background(progressColor)
-                        .neonBorder(progressColor, width = 1.dp, cornerRadius = 0.dp)
+                        .background(statusColor)
+                        .neonBorder(statusColor, width = 1.dp, cornerRadius = 0.dp)
                 )
             }
         }
