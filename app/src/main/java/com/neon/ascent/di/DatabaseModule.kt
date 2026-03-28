@@ -3,6 +3,7 @@ package com.neon.ascent.di
 import android.content.Context
 import androidx.room.Room
 import com.neon.ascent.data.local.AppDatabase
+import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.UserCharacterDao
 import dagger.Module
 import dagger.Provides
@@ -34,5 +35,10 @@ object DatabaseModule {
     @Provides
     fun provideUserCharacterDao(database: AppDatabase): UserCharacterDao {
         return database.userCharacterDao()
+    }
+
+    @Provides
+    fun provideBiohackingDao(database: AppDatabase): BiohackingDao {
+        return database.biohackingDao()
     }
 }

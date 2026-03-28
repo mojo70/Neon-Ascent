@@ -62,37 +62,24 @@ fun Modifier.neonBorder(
 
 /**
  * Amplified Glitch Effect Modifier.
- * - Spontaneous: Occasional distinct pops even at 0% load to maintain "cyber" feel.
- * - Reactive: Glitch violence scales exponentially with load.
- * - Stabilizing: Extreme jitter spikes at >80% settle after 10 seconds.
+ * - Reactive: Glitch violence scales exponentially with intensity.
+ * - Silent: Completely stops when intensity is 0.
  */
 fun Modifier.cyberGlitch(
     intensity: Float = 0f
 ) = this.composed {
-    var tick by remember { mutableLongStateOf(0L) }
-    var jitterDecay by remember { mutableFloatStateOf(1f) }
-    
-    // Recovery logic for high-stress spikes: Chaotic jitter settles after 10s
-    LaunchedEffect(intensity > 0.8f) {
-        if (intensity > 0.8f) {
-            jitterDecay = 1f
-            delay(10000) 
-            animate(1f, 0.25f, animationSpec = tween(5000)) { value, _ ->
-                jitterDecay = value
-            }
-        } else {
-            jitterDecay = 1f
-        }
-    }
+    if (intensity <= 0f) return@composed this
 
-    // Tick control: Frequency increases with load
+    var tick by remember { mutableLongStateOf(0L) }
+    
+    // Tick control: Frequency increases with intensity
     LaunchedEffect(intensity) {
         while (true) {
             withFrameNanos { tick = it }
             val frameDelay = when {
-                intensity < 0.25f -> 300L // Low load = crusty, infrequent updates
+                intensity < 0.25f -> 300L 
                 intensity < 0.5f -> 120L
-                else -> 16L // High load = high performance jitter
+                else -> 16L 
             }
             delay(frameDelay)
         }
@@ -101,47 +88,39 @@ fun Modifier.cyberGlitch(
     this.drawWithContent {
         val random = Random(tick)
         
-        // 1. Spontaneous "Soul Pop": 2% chance per tick to glitch regardless of load
-        val isSpontaneous = random.nextFloat() < 0.02f 
-        
-        // 2. Load-based Stress: Probability scales cubed to stay reactive but clean at low load
-        val loadProb = (intensity.pow(3f) * 0.8f * jitterDecay).coerceIn(0f, 0.85f)
-        val isLoadGlitching = random.nextFloat() < loadProb
+        // Load-based Stress: Probability scales cubed
+        val loadProb = (intensity.pow(3f) * 0.9f).coerceIn(0f, 0.95f)
+        val isGlitching = random.nextFloat() < loadProb
 
-        if (!isSpontaneous && !isLoadGlitching) {
+        if (!isGlitching) {
             drawContent()
             return@drawWithContent
         }
 
-        // Calculate visual impact for this frame
-        val visualIntensity = if (isSpontaneous && !isLoadGlitching) {
-            0.15f // Moderate, distinct "flavor" glitch
-        } else {
-            // Load-based glitches scale up quickly
-            (intensity.pow(1.5f) * jitterDecay).coerceAtLeast(0.1f)
-        }
+        // Glitch magnitude
+        val visualIntensity = (intensity.pow(1.5f)).coerceAtLeast(0.05f)
 
         // --- APPLY GLITCH TRANSFORMS ---
-        val shiftX = (random.nextFloat() - 0.5f) * 45f * visualIntensity
-        val shiftY = (random.nextFloat() - 0.5f) * 15f * visualIntensity
+        val shiftX = (random.nextFloat() - 0.5f) * 60f * visualIntensity
+        val shiftY = (random.nextFloat() - 0.5f) * 20f * visualIntensity
 
-        // 1. Cyan/Red splits
+        // 1. Color splits
         withTransform({ translate(left = shiftX, top = shiftY) }) {
             this@drawWithContent.drawContent()
-            drawRect(color = Color.Cyan.copy(alpha = 0.35f * visualIntensity), blendMode = BlendMode.Screen)
+            drawRect(color = Color.Cyan.copy(alpha = 0.4f * visualIntensity), blendMode = BlendMode.Screen)
         }
 
         withTransform({ translate(left = -shiftX, top = -shiftY) }) {
             this@drawWithContent.drawContent()
-            drawRect(color = Color.Magenta.copy(alpha = 0.35f * visualIntensity), blendMode = BlendMode.Screen)
+            drawRect(color = Color.Magenta.copy(alpha = 0.4f * visualIntensity), blendMode = BlendMode.Screen)
         }
 
         // 2. Horizontal Slice Distortion
-        if (random.nextFloat() < visualIntensity * 1.5f) {
-            repeat((2 * visualIntensity + 1).toInt()) {
+        if (random.nextFloat() < visualIntensity * 1.8f) {
+            repeat((3 * visualIntensity + 1).toInt()) {
                 val sliceY = random.nextFloat() * size.height
-                val sliceHeight = random.nextFloat() * 40.dp.toPx()
-                val sliceShift = (random.nextFloat() - 0.5f) * 80f * visualIntensity
+                val sliceHeight = random.nextFloat() * 50.dp.toPx()
+                val sliceShift = (random.nextFloat() - 0.5f) * 100f * visualIntensity
                 
                 withTransform({
                     translate(left = sliceShift)
@@ -153,7 +132,7 @@ fun Modifier.cyberGlitch(
         }
 
         // 3. Overall HUD Jitter
-        val jitterX = (random.nextFloat() - 0.5f) * 6f * visualIntensity
+        val jitterX = (random.nextFloat() - 0.5f) * 8f * visualIntensity
         withTransform({ translate(left = jitterX) }) {
             this@drawWithContent.drawContent()
         }
