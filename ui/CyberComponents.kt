@@ -95,8 +95,8 @@ fun CyberFrame(
 }
 
 @Composable
-fun HudCornerAccents(color: Color) {
-    Canvas(modifier = Modifier.fillMaxSize()) {
+fun HudCornerAccents(color: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.fillMaxSize()) {
         val lineLen = 24.dp.toPx()
         val thickness = 2.dp.toPx()
         
