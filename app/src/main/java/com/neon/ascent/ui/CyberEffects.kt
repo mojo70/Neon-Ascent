@@ -5,6 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
@@ -12,14 +13,15 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import kotlin.math.pow
 import kotlin.random.Random
 
 /**
  * Reusable neon glow border modifier.
- * Stack multiple Stroke calls with decreasing alpha and increasing width.
  */
 fun Modifier.neonBorder(
     color: Color = Color.Cyan,
@@ -33,7 +35,6 @@ fun Modifier.neonBorder(
     val widthPx = width.toPx()
     val cr = CornerRadius(radiusPx)
 
-    // 1. Multiple outer glow layers
     for (i in 0..6) {
         val f = i.toFloat()
         val alphaVal = ((0.25f - f * 0.03f).coerceAtLeast(0f) * glowIntensity).coerceIn(0f, 1f)
@@ -46,19 +47,117 @@ fun Modifier.neonBorder(
         }
     }
 
-    // 2. Main bright border
     drawRoundRect(
         color = color,
         cornerRadius = cr,
         style = Stroke(width = widthPx + 2f)
     )
 
-    // 3. Inner highlight
     drawRoundRect(
         color = Color.White.copy(alpha = (0.5f * glowIntensity).coerceIn(0f, 1f)),
         cornerRadius = cr,
         style = Stroke(width = 1.5f)
     )
+}
+
+/**
+ * Amplified Glitch Effect Modifier.
+ * - Spontaneous: Occasional distinct pops even at 0% load to maintain "cyber" feel.
+ * - Reactive: Glitch violence scales exponentially with load.
+ * - Stabilizing: Extreme jitter spikes at >80% settle after 10 seconds.
+ */
+fun Modifier.cyberGlitch(
+    intensity: Float = 0f
+) = this.composed {
+    var tick by remember { mutableLongStateOf(0L) }
+    var jitterDecay by remember { mutableFloatStateOf(1f) }
+    
+    // Recovery logic for high-stress spikes: Chaotic jitter settles after 10s
+    LaunchedEffect(intensity > 0.8f) {
+        if (intensity > 0.8f) {
+            jitterDecay = 1f
+            delay(10000) 
+            animate(1f, 0.25f, animationSpec = tween(5000)) { value, _ ->
+                jitterDecay = value
+            }
+        } else {
+            jitterDecay = 1f
+        }
+    }
+
+    // Tick control: Frequency increases with load
+    LaunchedEffect(intensity) {
+        while (true) {
+            withFrameNanos { tick = it }
+            val frameDelay = when {
+                intensity < 0.25f -> 300L // Low load = crusty, infrequent updates
+                intensity < 0.5f -> 120L
+                else -> 16L // High load = high performance jitter
+            }
+            delay(frameDelay)
+        }
+    }
+
+    this.drawWithContent {
+        val random = Random(tick)
+        
+        // 1. Spontaneous "Soul Pop": 2% chance per tick to glitch regardless of load
+        val isSpontaneous = random.nextFloat() < 0.02f 
+        
+        // 2. Load-based Stress: Probability scales cubed to stay reactive but clean at low load
+        val loadProb = (intensity.pow(3f) * 0.8f * jitterDecay).coerceIn(0f, 0.85f)
+        val isLoadGlitching = random.nextFloat() < loadProb
+
+        if (!isSpontaneous && !isLoadGlitching) {
+            drawContent()
+            return@drawWithContent
+        }
+
+        // Calculate visual impact for this frame
+        val visualIntensity = if (isSpontaneous && !isLoadGlitching) {
+            0.15f // Moderate, distinct "flavor" glitch
+        } else {
+            // Load-based glitches scale up quickly
+            (intensity.pow(1.5f) * jitterDecay).coerceAtLeast(0.1f)
+        }
+
+        // --- APPLY GLITCH TRANSFORMS ---
+        val shiftX = (random.nextFloat() - 0.5f) * 45f * visualIntensity
+        val shiftY = (random.nextFloat() - 0.5f) * 15f * visualIntensity
+
+        // 1. Cyan/Red splits
+        withTransform({ translate(left = shiftX, top = shiftY) }) {
+            this@drawWithContent.drawContent()
+            drawRect(color = Color.Cyan.copy(alpha = 0.35f * visualIntensity), blendMode = BlendMode.Screen)
+        }
+
+        withTransform({ translate(left = -shiftX, top = -shiftY) }) {
+            this@drawWithContent.drawContent()
+            drawRect(color = Color.Magenta.copy(alpha = 0.35f * visualIntensity), blendMode = BlendMode.Screen)
+        }
+
+        // 2. Horizontal Slice Distortion
+        if (random.nextFloat() < visualIntensity * 1.5f) {
+            repeat((2 * visualIntensity + 1).toInt()) {
+                val sliceY = random.nextFloat() * size.height
+                val sliceHeight = random.nextFloat() * 40.dp.toPx()
+                val sliceShift = (random.nextFloat() - 0.5f) * 80f * visualIntensity
+                
+                withTransform({
+                    translate(left = sliceShift)
+                    clipRect(top = sliceY, bottom = sliceY + sliceHeight)
+                }) {
+                    this@drawWithContent.drawContent()
+                }
+            }
+        }
+
+        // 3. Overall HUD Jitter
+        val jitterX = (random.nextFloat() - 0.5f) * 6f * visualIntensity
+        withTransform({ translate(left = jitterX) }) {
+            this@drawWithContent.drawContent()
+        }
+    }
 }
 
 @Composable
@@ -68,20 +167,19 @@ fun PerspectiveGrid(modifier: Modifier = Modifier) {
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(4000, easing = LinearEasing),
+            animation = tween(12000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "Offset"
     )
 
     Canvas(modifier = modifier.fillMaxSize()) {
-        val gridSpacing = 40.dp.toPx()
-        val color = Color(0xFF00FF9C).copy(alpha = 0.05f)
+        val gridSpacing = 50.dp.toPx()
+        val color = Color(0xFF00FF9C).copy(alpha = 0.015f)
         
         val centerX = size.width / 2f
-        val horizonY = size.height * 0.2f
+        val horizonY = size.height * 0.25f
         
-        // Vertical perspective lines
         for (i in -15..15) {
             val f = i.toFloat()
             val xStart = centerX + f * gridSpacing * 0.5f
@@ -93,60 +191,84 @@ fun PerspectiveGrid(modifier: Modifier = Modifier) {
             )
         }
 
-        // Horizontal moving lines
         val movingOffset = offset * gridSpacing
         var y = horizonY + movingOffset
         while (y < size.height) {
             val ratio = ((y - horizonY) / (size.height - horizonY)).coerceIn(0f, 1f)
             drawLine(
-                color = color.copy(alpha = 0.05f * ratio),
+                color = color.copy(alpha = 0.015f * ratio),
                 start = Offset(0f, y),
                 end = Offset(size.width, y),
                 strokeWidth = 1f
             )
-            y += (gridSpacing * ratio * 2f).coerceAtLeast(10f)
+            y += (gridSpacing * ratio * 2.5f).coerceAtLeast(10f)
         }
     }
 }
 
 @Composable
 fun StaticNoise(intensity: Float = 0.1f) {
-    val infiniteTransition = rememberInfiniteTransition(label = "Static")
-    val seed by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(100, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "Seed"
-    )
+    var tick by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(intensity) {
+        while (true) {
+            withFrameNanos { tick = it }
+            val frameDelay = when {
+                intensity < 0.2f -> 400L 
+                intensity < 0.4f -> 150L
+                else -> 16L
+            }
+            delay(frameDelay)
+        }
+    }
 
-    Canvas(modifier = Modifier.fillMaxSize().alpha((intensity * 0.3f).coerceIn(0f, 1f))) {
-        val random = Random((seed * 1000f).toInt())
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val random = Random(tick)
+        // Baseline noise always present but sparse at low load
+        val dotCount = (1200 * intensity.pow(2.5f)).toInt().coerceAtLeast(8)
+        val opacity = (intensity.pow(2f) * 0.7f).coerceIn(0.02f, 0.9f)
         
-        // Random dots/short lines
-        val count = (150 * intensity).toInt().coerceAtLeast(30)
-        repeat(count) {
+        repeat(dotCount) {
             val x = random.nextFloat() * size.width
             val y = random.nextFloat() * size.height
-            val w = random.nextFloat() * (50f + intensity * 100f)
+            val w = random.nextFloat() * 4.dp.toPx() + 0.5.dp.toPx()
+            
+            val color = when(random.nextInt(12)) {
+                0 -> Color.Cyan
+                1 -> Color.Magenta
+                else -> Color.White.copy(alpha = 0.6f)
+            }
+            
             drawRect(
-                color = Color.White.copy(alpha = random.nextFloat() * 0.4f),
+                color = color,
                 topLeft = Offset(x, y),
-                size = Size(w, 1f)
+                size = Size(w, 1.5f),
+                alpha = random.nextFloat() * opacity
             )
         }
         
-        // Occasional horizontal bands
-        if (random.nextFloat() < intensity) {
-            val bandY = random.nextFloat() * size.height
-            val bandHeight = random.nextFloat() * 20f + 2f
-            drawRect(
-                color = Color.White.copy(alpha = 0.05f * intensity),
-                topLeft = Offset(0f, bandY),
-                size = Size(size.width, bandHeight)
+        // Random background "pop" bands occur rarely even at low load
+        if (random.nextFloat() < 0.015f + (intensity * 0.1f)) {
+             drawRect(
+                color = Color.White,
+                topLeft = Offset(0f, random.nextFloat() * size.height),
+                size = Size(size.width, 2.dp.toPx()),
+                alpha = 0.05f.coerceAtLeast(intensity * 0.1f)
             )
+        }
+
+        // Heavy bands at high stress
+        if (intensity > 0.6f && random.nextFloat() < (intensity - 0.5f) * 1.5f) {
+            repeat(((intensity - 0.5f) * 10).toInt().coerceAtLeast(1)) {
+                val bandY = random.nextFloat() * size.height
+                val bandHeight = random.nextFloat() * 10.dp.toPx() + 1.dp.toPx()
+                val bandAlpha = random.nextFloat() * intensity * 0.2f
+                drawRect(
+                    color = Color.White,
+                    topLeft = Offset(0f, bandY),
+                    size = Size(size.width, bandHeight),
+                    alpha = bandAlpha
+                )
+            }
         }
     }
 }
@@ -156,7 +278,7 @@ fun Vignette(modifier: Modifier = Modifier) {
     Canvas(modifier = modifier.fillMaxSize()) {
         drawRect(
             brush = Brush.radialGradient(
-                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)),
+                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f)),
                 center = center,
                 radius = size.maxDimension / 1.1f
             )
@@ -165,20 +287,29 @@ fun Vignette(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun Scanlines(modifier: Modifier = Modifier) {
+fun Scanlines(modifier: Modifier = Modifier, intensity: Float = 0.1f) {
     val infiniteTransition = rememberInfiniteTransition(label = "Scanlines")
     val scrollY by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(4000, easing = LinearEasing),
+            animation = tween(10000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "Scroll"
     )
+    
+    var flickerAlpha by remember { mutableFloatStateOf(0.02f) }
+    LaunchedEffect(intensity) {
+        while(true) {
+            val baseFlicker = 0.02f + (intensity.pow(3) * 0.5f)
+            flickerAlpha = (baseFlicker + Random.nextFloat() * 0.03f).coerceIn(0.02f, 0.6f)
+            delay(Random.nextLong(60, 300))
+        }
+    }
 
-    Canvas(modifier = modifier.fillMaxSize().alpha(0.12f)) {
-        val lineSpacing = 4.dp.toPx()
+    Canvas(modifier = modifier.fillMaxSize().alpha(flickerAlpha)) {
+        val lineSpacing = 8.dp.toPx()
         var y = scrollY * lineSpacing
         while (y < size.height) {
             drawLine(
@@ -189,23 +320,30 @@ fun Scanlines(modifier: Modifier = Modifier) {
             )
             y += lineSpacing
         }
+        
+        if (intensity > 0.8f && Random.nextFloat() < (intensity - 0.75f)) {
+            drawRect(
+                color = Color.Black,
+                topLeft = Offset(0f, Random.nextFloat() * size.height),
+                size = Size(size.width, 60.dp.toPx()),
+                alpha = (0.15f + intensity * 0.2f).coerceIn(0f, 0.5f)
+            )
+        }
     }
 }
 
 @Composable
 fun CyberGridBackground() {
     Canvas(modifier = Modifier.fillMaxSize()) {
-        val gridSpacing = 30.dp.toPx()
-        val color = Color(0xFF00FF9C).copy(alpha = 0.08f)
+        val gridSpacing = 40.dp.toPx()
+        val color = Color(0xFF00FF9C).copy(alpha = 0.03f)
         
-        // Vertical lines
         var x = 0f
         while (x < size.width) {
             drawLine(color, Offset(x, 0f), Offset(x, size.height), strokeWidth = 1f)
             x += gridSpacing
         }
         
-        // Horizontal lines
         var y = 0f
         while (y < size.height) {
             drawLine(color, Offset(0f, y), Offset(size.width, y), strokeWidth = 1f)
@@ -220,33 +358,41 @@ fun GlitchOverlay(intensity: Float = 0.05f) {
     
     LaunchedEffect(intensity) {
         while(true) {
-            val baseDelay = (2500 / (intensity * 10f).coerceAtLeast(1f)).toLong()
+            // Ambient pops trigger even at low load, but density scales
+            val baseDelay = when {
+                intensity < 0.3f -> 7000L // 7s avg pop at low load
+                intensity < 0.6f -> 3000L
+                else -> 800L
+            }
             delay(Random.nextLong(baseDelay, baseDelay * 2))
             glitchTrigger++
-            delay(Random.nextLong(50, 200))
+            delay(Random.nextLong(30, 80))
             glitchTrigger++
         }
     }
 
     if (glitchTrigger % 2 != 0) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val count = (Random.nextInt(4, 10) * (1f + intensity * 6f)).toInt()
+            val random = Random(intensity.hashCode())
+            val count = (random.nextInt(3, 8) * (intensity.coerceAtLeast(0.15f) * 6f)).toInt().coerceAtLeast(1)
             repeat(count) {
-                val y = Random.nextFloat() * size.height
-                val height = Random.nextFloat() * 30f + 2f
-                val width = size.width * (Random.nextFloat() * 0.6f + 0.2f)
-                val x = if (Random.nextBoolean()) 0f else size.width - width
+                val ry = random.nextFloat() * size.height
+                val rh = random.nextFloat() * 40f + 2f
+                val rw = size.width * (random.nextFloat() * 0.7f + 0.05f)
+                val rx = if (random.nextBoolean()) 0f else size.width - rw
                 
-                val color = when(Random.nextInt(3)) {
-                    0 -> Color(0xFF00FF9C).copy(alpha = 0.5f + intensity * 0.4f)
-                    1 -> Color(0xFFFF006E).copy(alpha = 0.5f + intensity * 0.4f)
-                    else -> Color.White.copy(alpha = 0.4f + intensity * 0.4f)
+                val color = when(random.nextInt(4)) {
+                    0 -> Color(0xFF00FF9C)
+                    1 -> Color(0xFFFF006E)
+                    2 -> Color(0xFF00FFFF)
+                    else -> Color.White
                 }
                 
                 drawRect(
                     color = color,
-                    topLeft = Offset(x, y),
-                    size = Size(width, height)
+                    topLeft = Offset(rx, ry),
+                    size = Size(rw, rh),
+                    alpha = 0.35f
                 )
             }
         }
@@ -260,28 +406,29 @@ fun FloatingParticles(intensity: Float = 0.2f) {
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(10000, easing = LinearEasing),
+            animation = tween(25000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "Time"
     )
 
-    Canvas(modifier = Modifier.fillMaxSize().alpha((0.25f + intensity * 0.4f).coerceIn(0f, 1f))) {
-        val count = (25 + intensity * 60).toInt()
+    Canvas(modifier = Modifier.fillMaxSize().alpha((0.1f + intensity * 0.2f).coerceIn(0f, 1f))) {
+        val count = (15 + intensity * 60).toInt()
         repeat(count) { i ->
             val r = Random(i + 42)
             val xBase = r.nextFloat() * size.width
             val yBase = r.nextFloat() * size.height
-            val speed = r.nextFloat() * 120f + 40f + intensity * 250f
+            val speed = r.nextFloat() * 80f + 20f + intensity * 300f
             
             val x = xBase
             val y = (yBase - time * speed) % size.height
-            val particleSize = r.nextFloat() * 5f + 1f
+            val particleSize = r.nextFloat() * 6f + 1f
             
             drawRect(
-                color = Color(0xFF00FF9C).copy(alpha = 0.5f),
+                color = Color(0xFF00FF9C),
                 topLeft = Offset(x, if (y < 0) y + size.height else y),
-                size = Size(particleSize, particleSize)
+                size = Size(particleSize, particleSize),
+                alpha = 0.25f
             )
         }
     }

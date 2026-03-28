@@ -63,6 +63,19 @@ fun DashboardScreen(
         label = "SystemColor"
     )
 
+    var glitchTrigger by remember { mutableIntStateOf(0) }
+    
+    val triggerGlitch = {
+        glitchTrigger++
+    }
+
+    LaunchedEffect(glitchTrigger) {
+        if (glitchTrigger > 0) {
+            kotlinx.coroutines.delay(150)
+            // Logic to handle glitch reset if needed, but GlitchOverlay usually handles it
+        }
+    }
+
     LaunchedEffect(Unit) {
         while(true) {
             kotlinx.coroutines.delay(1000)
@@ -71,10 +84,10 @@ fun DashboardScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF010101))) {
-        // --- 1. ATMOSPHERIC HUD LAYERS ---
+        // --- 1. ATMOSPHERIC HUD LAYERS (Reactive to Neural Load) ---
         PerspectiveGrid()
-        Scanlines()
-        StaticNoise(intensity = displayLoad * 0.4f)
+        Scanlines(intensity = displayLoad)
+        StaticNoise(intensity = displayLoad)
         Vignette()
         FloatingParticles(intensity = displayLoad)
         
@@ -82,7 +95,17 @@ fun DashboardScreen(
             NightCityGlow()
         }
         
-        GlitchOverlay(intensity = displayLoad * 0.2f)
+        // Pass a manual boost to intensity when glitchTrigger changes
+        val activeGlitchIntensity = if (glitchTrigger > 0) (displayLoad + 0.4f).coerceAtMost(1f) else displayLoad
+        GlitchOverlay(intensity = activeGlitchIntensity)
+
+        // Reset glitch effect after a short burst
+        if (glitchTrigger > 0) {
+            LaunchedEffect(glitchTrigger) {
+                kotlinx.coroutines.delay(200)
+                glitchTrigger = 0
+            }
+        }
 
         if (weatherState.isRaining) {
             AcidRainOverlay()
@@ -102,7 +125,7 @@ fun DashboardScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
-                // Avatar Window with Holy Ghost Aura and Neon Border
+                // Avatar Window with Glitch Effect on high load
                 Box(contentAlignment = Alignment.Center) {
                     if (userCharacter?.holyGhost != null) {
                         HolyGhostAura()
@@ -112,6 +135,7 @@ fun DashboardScreen(
                         modifier = Modifier
                             .size(90.dp)
                             .clip(CyberButtonShape)
+                            .cyberGlitch(intensity = if (neuralLoad > 0.8f) 0.3f else 0f)
                             .neonBorder(systemColor, width = 2.dp, cornerRadius = 12.dp)
                             .background(Color.Black.copy(alpha = 0.6f))
                             .clickable { onAvatarClick() },
@@ -147,7 +171,8 @@ fun DashboardScreen(
                                     fontWeight = FontWeight.Black,
                                     fontFamily = FontFamily.Monospace,
                                     shadow = Shadow(color = systemColor.copy(alpha = 0.6f), blurRadius = 10f)
-                                )
+                                ),
+                                modifier = Modifier.cyberGlitch(intensity = if (neuralLoad > 0.9f) 0.2f else 0f)
                             )
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 if (healthState.isConnected && healthState.heartRate > 0) {
@@ -268,11 +293,12 @@ fun DashboardScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // --- 4. HOLOGRAPHIC QUOTE PANEL ---
+            // --- 4. HOLOGRAPHIC QUOTE PANEL (With Noticeable Glitch at high load) ---
             CyberFrame(
                 label = "SYSTEM_ADVICE // V.01", 
                 accentColor = Color(0xFF00FFFF),
-                borderColor = Color(0xFF00FFFF).copy(alpha = 0.6f)
+                borderColor = Color(0xFF00FFFF).copy(alpha = 0.6f),
+                modifier = Modifier.cyberGlitch(intensity = if (neuralLoad > 0.7f) neuralLoad * 0.5f else 0f)
             ) {
                 Text(
                     text = "\"THE SKY ABOVE THE PORT WAS THE COLOR OF TELEVISION, TUNED TO A DEAD CHANNEL.\"",
@@ -320,9 +346,18 @@ fun DashboardScreen(
                         letterSpacing = 1.sp
                     )
                     
-                    CyberActionButton("ATTRIBUTE SCAN", Color(0xFF00FF9C), onClick = onAttributeSetClick)
-                    CyberActionButton("YOUR STORY", Color(0xFFFF006E), onClick = onStoryClick)
-                    CyberActionButton("GOAL SETTING", Color.White, onClick = onGoalSetClick)
+                    CyberActionButton("ATTRIBUTE SCAN", Color(0xFF00FF9C), onClick = { 
+                        triggerGlitch()
+                        onAttributeSetClick() 
+                    })
+                    CyberActionButton("YOUR STORY", Color(0xFFFF006E), onClick = { 
+                        triggerGlitch()
+                        onStoryClick() 
+                    })
+                    CyberActionButton("GOAL SETTING", Color.White, onClick = { 
+                        triggerGlitch()
+                        onGoalSetClick() 
+                    })
                 }
             }
             

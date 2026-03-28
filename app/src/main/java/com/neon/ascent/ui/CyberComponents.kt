@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
@@ -31,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neon.ascent.model.UserCharacter
+import kotlin.random.Random
 
 val CyberButtonShape = GenericShape { size, _ ->
     moveTo(0f, 12f)
@@ -41,6 +43,17 @@ val CyberButtonShape = GenericShape { size, _ ->
     lineTo(size.width - 12f, size.height)
     lineTo(24f, size.height)
     lineTo(0f, size.height - 24f)
+    close()
+}
+
+val HexTerminalShape = GenericShape { size, _ ->
+    val gap = 14f
+    moveTo(gap, 0f)
+    lineTo(size.width - gap, 0f)
+    lineTo(size.width, size.height / 2f)
+    lineTo(size.width - gap, size.height)
+    lineTo(gap, size.height)
+    lineTo(0f, size.height / 2f)
     close()
 }
 
@@ -244,32 +257,73 @@ fun NeuralLoadGauge(load: Float, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun CyberActionButton(label: String, color: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun CyberActionButton(
+    label: String, 
+    color: Color, 
+    modifier: Modifier = Modifier, 
+    onClick: () -> Unit
+) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
+    
     val glowIntensity by animateFloatAsState(
-        targetValue = if (isPressed) 0.5f else 1f,
+        targetValue = if (isPressed) 0.3f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "GlowIntensity"
     )
+    
+    val staticRipple by animateFloatAsState(
+        targetValue = if (isPressed) 1f else 0f,
+        animationSpec = tween(150),
+        label = "StaticRipple"
+    )
 
-    Button(
-        onClick = onClick,
-        interactionSource = interactionSource,
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(52.dp)
-            .clip(CyberButtonShape)
-            .neonBorder(color, width = 2.dp, glowIntensity = glowIntensity),
-        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F0F0F).copy(alpha = 0.8f)),
-        contentPadding = PaddingValues(0.dp)
+            .height(56.dp)
+            .clip(HexTerminalShape)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+            .background(Color(0xFF080808).copy(alpha = 0.9f))
+            .neonBorder(
+                color = color, 
+                width = 2.dp, 
+                glowIntensity = glowIntensity,
+                cornerRadius = 0.dp // HexTerminalShape handles shape
+            )
+            .drawBehind {
+                if (staticRipple > 0f) {
+                    val random = Random(System.nanoTime())
+                    repeat(10) {
+                        val y = random.nextFloat() * size.height
+                        drawLine(
+                            color = color.copy(alpha = 0.2f * staticRipple),
+                            start = Offset(0f, y),
+                            end = Offset(size.width, y),
+                            strokeWidth = 1.dp.toPx()
+                        )
+                    }
+                }
+            },
+        contentAlignment = Alignment.Center
     ) {
         Text(
             text = label, 
-            color = color, 
-            fontSize = 13.sp,
+            color = if (isPressed) color.copy(alpha = 0.7f) else color, 
+            fontSize = 14.sp,
             fontWeight = FontWeight.Black, 
             fontFamily = FontFamily.Monospace,
-            letterSpacing = 2.sp
+            letterSpacing = 3.sp,
+            style = TextStyle(
+                shadow = Shadow(
+                    color = color.copy(alpha = 0.5f * glowIntensity),
+                    blurRadius = 10f * glowIntensity
+                )
+            )
         )
     }
 }
