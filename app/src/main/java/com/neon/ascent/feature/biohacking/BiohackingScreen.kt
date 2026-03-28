@@ -3,6 +3,7 @@ package com.neon.ascent.feature.biohacking
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,7 +15,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -40,6 +46,7 @@ fun BiohackingScreen(
         name = "PROTAGONIST", sex = "NON_BINARY", dob = "2077", units = "METRIC", weight = "75", somatotype = 0.5f
     )
 
+    var selectedSector by remember { mutableStateOf("CORE_CHASSIS") }
     var scanProgress by remember { mutableFloatStateOf(0f) }
     var isGenerating by remember { mutableStateOf(false) }
     var showReport by remember { mutableStateOf(false) }
@@ -125,7 +132,31 @@ fun BiohackingScreen(
             
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Main intake sections
+            // Hero: Full Body Holographic Selector
+            CyberFrame(label = "HOLOGRAPHIC_SELECTOR", borderColor = neonCyan) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(400.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    FullBodyHologram(
+                        character = displayChar,
+                        neuralLoad = displayChar.neuralLoad,
+                        selectedSector = selectedSector,
+                        onSectorSelected = { selectedSector = it },
+                        modifier = Modifier.fillMaxSize(0.9f)
+                    )
+                    
+                    SectorLabel("COGNITION", Alignment.TopEnd, selectedSector == "CRANIAL_NODE", neonCyan, neonMagenta)
+                    SectorLabel("ENDOCRINE", Alignment.CenterStart, selectedSector == "CORE_CHASSIS", neonCyan, neonMagenta)
+                    SectorLabel("RECOVERY", Alignment.BottomEnd, selectedSector == "MOTOR_EXTREMITIES", neonCyan, neonMagenta)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Baselines Section
             ExpandableBioSection("BASELINES_&_DEMOGRAPHICS", neonCyan) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -142,7 +173,54 @@ fun BiohackingScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            // Lifestyle Stack
+            ExpandableBioSection("LIFESTYLE_STACK", neonCyan) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    BioSliderField("ENERGY_SCORE", uiState.energyScore.toFloat(), 1f..10f, neonCyan) {
+                        viewModel.updateData { d -> d.copy(energyScore = it.toInt()) }
+                    }
+                    BioSliderField("MOOD_SCORE", uiState.moodScore.toFloat(), 1f..10f, neonCyan) {
+                        viewModel.updateData { d -> d.copy(moodScore = it.toInt()) }
+                    }
+                    BioSliderField("FOCUS_SCORE", uiState.focusScore.toFloat(), 1f..10f, neonCyan) {
+                        viewModel.updateData { d -> d.copy(focusScore = it.toInt()) }
+                    }
+                    BioSliderField("SLEEP_DURATION (HRS)", uiState.sleepHours ?: 7f, 4f..12f, neonCyan) {
+                        viewModel.updateData { d -> d.copy(sleepHours = it) }
+                    }
+                    BioSliderField("STRESS_LEVEL", uiState.stressLevel.toFloat(), 1f..10f, neonCyan) {
+                        viewModel.updateData { d -> d.copy(stressLevel = it.toInt()) }
+                    }
+                    BioInputField("SUPPLEMENT_STACK", uiState.supplements ?: "CREATINE, VIT_D, ASHWAGANDHA", neonCyan)
+                    BioInputField("DIET_TYPE", uiState.dietType ?: "KETO_OMAD", neonCyan)
+                }
+            }
+
+            // Goals & Constraints
+            ExpandableBioSection("GOALS_&_CONSTRAINTS", neonCyan) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    BioInputField("PRIMARY_OBJECTIVE", uiState.primaryObjective ?: "LONGEVITY", neonCyan)
+                    BioInputField("CONTRAINDICATIONS", uiState.contraindications ?: "NONE_DETECTED", neonCyan)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = uiState.pregnancyFlag,
+                            onCheckedChange = { viewModel.updateData { d -> d.copy(pregnancyFlag = it) } },
+                            colors = CheckboxDefaults.colors(checkedColor = neonMagenta)
+                        )
+                        Text("PREGNANCY_FLAG", color = neonMagenta, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Lab & Genetic Uploads
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                UploadCard("LAB_RESULTS_PDF", Modifier.weight(1f), neonCyan)
+                UploadCard("GENETIC_RAW_DATA", Modifier.weight(1f), neonMagenta)
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
 
             CyberActionButton(
                 label = "INITIATE AI_DEEP_SCAN",
@@ -158,7 +236,7 @@ fun BiohackingScreen(
                 }
             }
             
-            // Effectiveness Logger Overlay/Panel
+            // Effectiveness Logger Panel
             if (showEffectivenessLogger) {
                 Spacer(modifier = Modifier.height(32.dp))
                 EffectivenessLoggerPanel(
@@ -205,6 +283,109 @@ fun BiohackingScreen(
             }
         }
     }
+}
+
+@Composable
+fun FullBodyHologram(
+    character: UserCharacter?,
+    neuralLoad: Float,
+    selectedSector: String,
+    onSectorSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "HoloPulse")
+    val pulse by infiniteTransition.animateFloat(
+        initialValue = 0.5f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Pulse"
+    )
+
+    Box(modifier = modifier.pointerInput(Unit) {
+        detectTapGestures { offset ->
+            val yPercent = offset.y / size.height
+            when {
+                yPercent < 0.25f -> onSectorSelected("CRANIAL_NODE")
+                yPercent < 0.65f -> onSectorSelected("CORE_CHASSIS")
+                else -> onSectorSelected("MOTOR_EXTREMITIES")
+            }
+        }
+    }) {
+        AvatarImage(
+            character = character,
+            modifier = Modifier.fillMaxSize().alpha(0.6f),
+            alpha = 0.6f
+        )
+
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val cyan = Color(0xFF00F5FF)
+            val magenta = Color(0xFFFF0088)
+            val w = size.width
+            val h = size.height
+            
+            // Interactive Sector Highlighting
+            when (selectedSector) {
+                "CRANIAL_NODE" -> {
+                    drawCircle(
+                        color = magenta.copy(alpha = 0.4f * pulse),
+                        center = Offset(w * 0.5f, h * 0.12f),
+                        radius = w * 0.2f,
+                        style = Stroke(width = 2.dp.toPx())
+                    )
+                }
+                "CORE_CHASSIS" -> {
+                    drawRect(
+                        color = magenta.copy(alpha = 0.3f * pulse),
+                        topLeft = Offset(w * 0.25f, h * 0.25f),
+                        size = Size(w * 0.5f, h * 0.35f),
+                        style = Stroke(width = 2.dp.toPx())
+                    )
+                }
+                "MOTOR_EXTREMITIES" -> {
+                    drawLine(
+                        color = magenta.copy(alpha = 0.5f * pulse),
+                        start = Offset(w * 0.2f, h * 0.8f),
+                        end = Offset(w * 0.8f, h * 0.8f),
+                        strokeWidth = 4.dp.toPx()
+                    )
+                }
+            }
+
+            // Scanlines / Data Particles
+            repeat(12) { i ->
+                val lineY = (h * 0.05f) + (i * h * 0.08f)
+                drawLine(
+                    color = cyan.copy(alpha = 0.1f),
+                    start = Offset(0f, lineY),
+                    end = Offset(w, lineY),
+                    strokeWidth = 1f
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun BoxScope.SectorLabel(label: String, alignment: Alignment, isSelected: Boolean, cyan: Color, magenta: Color) {
+    val alpha by animateFloatAsState(if (isSelected) 1f else 0.3f, label = "Alpha")
+    val color by animateColorAsState(if (isSelected) magenta else cyan, label = "Color")
+    
+    Text(
+        text = label,
+        color = color,
+        fontSize = 10.sp,
+        fontWeight = FontWeight.Black,
+        fontFamily = FontFamily.Monospace,
+        modifier = Modifier
+            .align(alignment)
+            .padding(12.dp)
+            .alpha(alpha)
+            .border(1.dp, color.copy(alpha = 0.5f), RoundedCornerShape(2.dp))
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+    )
 }
 
 @Composable

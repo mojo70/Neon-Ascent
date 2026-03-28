@@ -1,9 +1,7 @@
 package com.neon.ascent.feature.dashboard
 
-import android.graphics.BitmapFactory
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -21,15 +19,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -376,129 +370,6 @@ fun DashboardActionButton(label: String, color: Color, onClick: () -> Unit) {
 }
 
 @Composable
-fun AvatarImage(character: UserCharacter?, modifier: Modifier = Modifier, alpha: Float = 0.7f) {
-    val context = LocalContext.current
-    val avatarBitmap = remember(character?.avatarPath) {
-        if (character?.avatarPath != null && character.avatarPath != "internal_storage_placeholder") {
-            try {
-                BitmapFactory.decodeFile(character.avatarPath)
-            } catch (e: Exception) { null }
-        } else { null }
-    }
-
-    if (avatarBitmap != null) {
-        Image(
-            bitmap = avatarBitmap.asImageBitmap(),
-            contentDescription = "Avatar",
-            modifier = modifier.alpha(alpha),
-            contentScale = ContentScale.Crop
-        )
-    } else {
-        PixelatedSilhouette(modifier = modifier.fillMaxSize())
-    }
-}
-
-@Composable
-fun NeuralLoadGauge(load: Float, modifier: Modifier = Modifier) {
-    val infiniteTransition = rememberInfiniteTransition(label = "GaugeAnim")
-    
-    // Pulse scale based on load
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1f + (load * 0.05f),
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = (1000 / (load + 0.5f).coerceAtLeast(0.1f)).toInt(), easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "Pulse"
-    )
-
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = (5000 / (load + 0.1f)).toInt(), easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "Rotation"
-    )
-
-    Box(contentAlignment = Alignment.Center, modifier = modifier.graphicsLayer {
-        scaleX = pulseScale
-        scaleY = pulseScale
-    }) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokeWidth = 5.dp.toPx()
-            val center = Offset(size.width / 2, size.height / 2)
-            val radius = (size.minDimension - strokeWidth) / 2
-            
-            // Background track
-            drawCircle(
-                color = Color.White.copy(alpha = 0.05f),
-                radius = radius,
-                style = Stroke(width = strokeWidth)
-            )
-
-            // Layered Progress Arc with dynamic intensity
-            val sweepAngle = load * 360f
-            val gaugeColor = if (load > 0.8f) Color(0xFFFF0000) else Color(0xFFFF006E)
-            val glowIntensity = 0.5f + (load * 0.5f)
-            
-            for (i in 0..6) {
-                val f = i.toFloat()
-                val glowAlpha = (0.25f - f * 0.03f).coerceAtLeast(0f) * glowIntensity
-                drawArc(
-                    color = gaugeColor.copy(alpha = glowAlpha),
-                    startAngle = -90f,
-                    sweepAngle = sweepAngle,
-                    useCenter = false,
-                    style = Stroke(width = strokeWidth + f * (10f + load * 5f), cap = StrokeCap.Round)
-                )
-            }
-            
-            drawArc(
-                color = gaugeColor,
-                startAngle = -90f,
-                sweepAngle = sweepAngle,
-                useCenter = false,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-            )
-
-            // Spinning scanning line
-            rotate(rotation, center) {
-                drawLine(
-                    brush = Brush.verticalGradient(listOf(Color.Transparent, gaugeColor.copy(alpha = 0.6f))),
-                    start = center,
-                    end = Offset(center.x, center.y - radius),
-                    strokeWidth = 3.dp.toPx()
-                )
-            }
-        }
-        
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                "NEURAL_LOAD",
-                color = if (load > 0.8f) Color.Red else Color(0xFFFF006E).copy(alpha = 0.8f),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
-                letterSpacing = 1.sp
-            )
-            Text(
-                "${(load * 100).toInt()}%",
-                color = Color.White,
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Black,
-                fontFamily = FontFamily.Monospace,
-                style = TextStyle(
-                    shadow = Shadow(if (load > 0.8f) Color.Red else Color(0xFFFF006E), blurRadius = 15f * load)
-                )
-            )
-        }
-    }
-}
-
-@Composable
 fun EnergyBar(label: String, value: Float) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -524,66 +395,6 @@ fun EnergyBar(label: String, value: Float) {
                     )
             )
         }
-    }
-}
-
-@Composable
-fun MetricSmall(label: String, value: String, unit: String) {
-    Column {
-        Text(label, color = Color.Gray, fontSize = 8.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(value, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
-            Spacer(Modifier.width(2.dp))
-            Text(unit, color = Color(0xFF00FF9C), fontSize = 8.sp, fontFamily = FontFamily.Monospace)
-        }
-    }
-}
-
-@Composable
-fun HeartbeatLine(bpm: Int) {
-    val infiniteTransition = rememberInfiniteTransition(label = "Heartbeat")
-    val phase by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 60000 / bpm.coerceAtLeast(1), easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "Phase"
-    )
-
-    Canvas(modifier = Modifier.size(60.dp, 20.dp)) {
-        val path = Path()
-        val width = size.width
-        val height = size.height
-        val centerY = height / 2
-
-        path.moveTo(0f, centerY)
-        path.lineTo(width * 0.3f, centerY)
-        path.lineTo(width * 0.4f, centerY - height * 0.4f)
-        path.lineTo(width * 0.5f, centerY + height * 0.4f)
-        path.lineTo(width * 0.6f, centerY)
-        path.lineTo(width, centerY)
-
-        drawPath(
-            path = path,
-            color = Color(0xFFFF006E).copy(alpha = 0.2f),
-            style = Stroke(width = 2.dp.toPx())
-        )
-
-        val drawPath = Path()
-        drawPath.moveTo(0f, centerY)
-        if (phase > 0.3f) drawPath.lineTo(width * 0.3f, centerY)
-        if (phase > 0.4f) drawPath.lineTo(width * 0.4f, centerY - height * 0.4f)
-        if (phase > 0.5f) drawPath.lineTo(width * 0.5f, centerY + height * 0.4f)
-        if (phase > 0.6f) drawPath.lineTo(width * 0.6f, centerY)
-        if (phase > 0.9f) drawPath.lineTo(width, centerY)
-
-        drawPath(
-            path = drawPath,
-            color = Color(0xFFFF006E),
-            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
-        )
     }
 }
 
@@ -740,21 +551,5 @@ fun HologramDisplay(character: UserCharacter?, onPartClick: (String) -> Unit) {
                 Box(Modifier.weight(2f).fillMaxWidth().clickable { onPartClick("LEGS") })
             }
         }
-    }
-}
-
-@Composable
-fun PixelatedSilhouette(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val color = Color(0xFF00FF9C).copy(alpha = 0.3f)
-        val pixelSize = 10.dp.toPx()
-        
-        drawRect(color, Offset(center.x - pixelSize*2, pixelSize*2), Size(pixelSize*4, pixelSize*4))
-        drawRect(color, Offset(center.x - pixelSize, pixelSize*6), Size(pixelSize*2, pixelSize*2))
-        drawRect(color, Offset(center.x - pixelSize*4, pixelSize*8), Size(pixelSize*8, pixelSize*12))
-        drawRect(color, Offset(center.x - pixelSize*6, pixelSize*8), Size(pixelSize*2, pixelSize*10))
-        drawRect(color, Offset(center.x + pixelSize*4, pixelSize*8), Size(pixelSize*2, pixelSize*10))
-        drawRect(color, Offset(center.x - pixelSize*3, pixelSize*20), Size(pixelSize*2, pixelSize*12))
-        drawRect(color, Offset(center.x + pixelSize, pixelSize*20), Size(pixelSize*2, pixelSize*12))
     }
 }

@@ -6,17 +6,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.Priority
+import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.UserCharacterDao
 import com.neon.ascent.data.repository.HealthRepository
 import com.neon.ascent.data.repository.WeatherRepository
+import com.neon.ascent.model.BiohackingData
 import com.neon.ascent.model.UserCharacter
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.time.LocalTime
@@ -36,17 +33,22 @@ data class HealthState(
     val vo2Max: Double = 0.0,
     val bodyBattery: Int = 75, // Default/Simulated
     val stressLevel: Int = 20, // Default/Simulated
-    val isConnected: Boolean = false
+    val isConnected: Boolean = false,
+    val lastSyncTimestamp: Long? = null
 )
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val userCharacterDao: UserCharacterDao,
+    private val biohackingDao: BiohackingDao,
     private val weatherRepository: WeatherRepository,
     private val healthRepository: HealthRepository,
     private val fusedLocationClient: FusedLocationProviderClient
 ) : ViewModel() {
     val userCharacter: StateFlow<UserCharacter?> = userCharacterDao.getUserCharacter()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val biohackingData: StateFlow<BiohackingData?> = biohackingDao.getBiohackingData(0)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private val _weatherState = MutableStateFlow(WeatherState())
@@ -126,8 +128,23 @@ class DashboardViewModel @Inject constructor(
                     vo2Max = vo2,
                     bodyBattery = simulatedBattery,
                     stressLevel = simulatedStress,
-                    isConnected = true
+                    isConnected = true,
+                    lastSyncTimestamp = System.currentTimeMillis()
                 )
+                
+                // Also update persistent biohacking data
+                biohackingData.value?.let { current ->
+                    biohackingDao.insertOrUpdate(current.copy(
+                        isWearableSynced = true,
+                        lastSyncTimestamp = System.currentTimeMillis()
+                    ))
+                } ?: run {
+                    biohackingDao.insertOrUpdate(BiohackingData(
+                        userId = 0,
+                        isWearableSynced = true,
+                        lastSyncTimestamp = System.currentTimeMillis()
+                    ))
+                }
             } else {
                 _healthState.value = HealthState(isConnected = false)
             }
