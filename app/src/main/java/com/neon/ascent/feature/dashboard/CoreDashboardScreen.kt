@@ -1,9 +1,9 @@
 package com.neon.ascent.feature.dashboard
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,7 +23,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.neon.ascent.model.Saying
 import com.neon.ascent.ui.CyberFrame
 import com.neon.ascent.ui.Scanlines
 
@@ -32,7 +31,7 @@ fun CoreDashboardScreen(
     onBack: () -> Unit,
     viewModel: CoreDashboardViewModel = hiltViewModel()
 ) {
-    var activeTab by remember { mutableStateOf(0) }
+    var activeTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("AI_CORE", "DATABANK", "ECONOMY", "LOGS")
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
