@@ -84,6 +84,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val biometricLockEnabled by viewModel.isBiometricLockEnabled.collectAsState()
+    val localAiOnly by viewModel.isLocalAiOnly.collectAsState()
     val biometricAuthManager = remember { BiometricAuthManager(context) }
     
     var showResetDialog by remember { mutableStateOf(false) }
@@ -241,6 +242,15 @@ fun SettingsScreen(
                     ToggleSetting("RAIN NOISE", false, onCheckedChange = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) })
                     ToggleSetting("ICE ALERTS", true, onCheckedChange = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) })
                     ToggleSetting("RUNNER BOUNTIES", true, onCheckedChange = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) })
+                    
+                    ToggleSetting(
+                        label = "LOCAL AI CORE ONLY", 
+                        checked = localAiOnly,
+                        onCheckedChange = { 
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            viewModel.setLocalAiOnly(it)
+                        }
+                    )
                 }
             }
 

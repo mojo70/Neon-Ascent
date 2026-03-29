@@ -17,7 +17,8 @@ import javax.inject.Inject
 class BiohackingViewModel @Inject constructor(
     private val biohackingDao: BiohackingDao,
     private val userCharacterDao: UserCharacterDao,
-    private val healthRepository: HealthRepository
+    private val healthRepository: HealthRepository,
+    private val aiProvider: AiProvider
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BiohackingData())
@@ -28,6 +29,12 @@ class BiohackingViewModel @Inject constructor(
 
     private val _logs = MutableStateFlow<List<BioProtocolLog>>(emptyList())
     val logs: StateFlow<List<BioProtocolLog>> = _logs.asStateFlow()
+
+    private val _isNeuralCoreThinking = MutableStateFlow(false)
+    val isNeuralCoreThinking: StateFlow<Boolean> = _isNeuralCoreThinking.asStateFlow()
+
+    private val _latestReport = MutableStateFlow<String?>(null)
+    val latestReport: StateFlow<String?> = _latestReport.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -52,6 +59,32 @@ class BiohackingViewModel @Inject constructor(
         _uiState.value = newData
         viewModelScope.launch {
             biohackingDao.insertOrUpdate(newData)
+        }
+    }
+
+    fun initiateLocalScan(sector: String) {
+        if (!_uiState.value.enableOnDeviceNeuralCore) return
+        
+        _isNeuralCoreThinking.value = true
+        viewModelScope.launch {
+            val char = _character.value
+            val data = _uiState.value
+            
+            val prompt = """
+                SYSTEM_SCAN_REQUEST: Sector $sector
+                USER_PROFILE: ${char?.archetype} / ${char?.mbti}
+                BIOMETRICS: Energy=${data.energyScore}, Mood=${data.moodScore}, Focus=${data.focusScore}
+                OBJECTIVE: Generate a high-impact cyberpunk biohacking protocol for this sector. 
+                FORMAT: Concise, technical, neon-noir style. Max 100 words.
+            """.trimIndent()
+            
+            // Biohacking scan uses AiProvider with forceLocal = true to never fail over to Cloud
+            val result = aiProvider.generateContent(prompt, forceLocal = true)
+            _latestReport.value = result
+            _isNeuralCoreThinking.value = false
+            
+            // Persist report
+            updateData { it.copy(latestReportJson = result, reportTimestamp = System.currentTimeMillis()) }
         }
     }
 

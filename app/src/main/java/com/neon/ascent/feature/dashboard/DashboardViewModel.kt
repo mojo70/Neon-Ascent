@@ -10,6 +10,7 @@ import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.UserCharacterDao
 import com.neon.ascent.data.repository.HealthRepository
 import com.neon.ascent.data.repository.WeatherRepository
+import com.neon.ascent.feature.biohacking.AiProvider
 import com.neon.ascent.model.BiohackingData
 import com.neon.ascent.model.UserCharacter
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -43,7 +44,8 @@ class DashboardViewModel @Inject constructor(
     private val biohackingDao: BiohackingDao,
     private val weatherRepository: WeatherRepository,
     private val healthRepository: HealthRepository,
-    private val fusedLocationClient: FusedLocationProviderClient
+    private val fusedLocationClient: FusedLocationProviderClient,
+    private val aiProvider: AiProvider
 ) : ViewModel() {
     val userCharacter: StateFlow<UserCharacter?> = userCharacterDao.getUserCharacter()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -57,6 +59,9 @@ class DashboardViewModel @Inject constructor(
     private val _healthState = MutableStateFlow(HealthState())
     val healthState: StateFlow<HealthState> = _healthState.asStateFlow()
 
+    private val _systemAdvice = MutableStateFlow("NEURAL_LINK_ESTABLISHED. SCANNING_SYSTEM...")
+    val systemAdvice: StateFlow<String> = _systemAdvice.asStateFlow()
+
     val tickerMessages: StateFlow<List<String>> = combine(userCharacter, _weatherState) { character, weather ->
         generateTickerMessages(character, weather)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -68,6 +73,8 @@ class DashboardViewModel @Inject constructor(
         fetchRealWeather()
         // And health data
         refreshHealthData()
+        // Generate initial AI advice
+        generateSystemAdvice()
     }
 
     private fun generateTickerMessages(character: UserCharacter?, weather: WeatherState): List<String> {
@@ -92,6 +99,20 @@ class DashboardViewModel @Inject constructor(
         messages.add("STOCK: KANGA_BIOTECH (KBT) UP 12% AFTER NEURAL_LINK_BREAKTHROUGH")
         
         return messages
+    }
+
+    private fun generateSystemAdvice() {
+        viewModelScope.launch {
+            val prompt = """
+                Act as a cyberpunk system AI. Based on the following data, give one short, punchy advice sentence (max 15 words) for the user.
+                Steps: ${healthState.value.steps}
+                Heart Rate: ${healthState.value.heartRate}
+                Weather: ${if (weatherState.value.isRaining) "Acid Rain" else "Clear"}
+                Archetype: ${userCharacter.value?.archetype ?: "Unknown"}
+            """.trimIndent()
+            
+            _systemAdvice.value = aiProvider.generateContent(prompt)
+        }
     }
 
     @SuppressLint("MissingPermission")

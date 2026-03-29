@@ -25,10 +25,10 @@ object DatabaseModule {
         return Room.databaseBuilder(
             context,
             AppDatabase::class.java,
-            "neon_ascent_v2_secure.db"
+            "neon_ascent_v3_secure.db" // Incremented DB name to force fresh start
         )
         .openHelperFactory(factory)
-        .fallbackToDestructiveMigration() // Allow destructive migration during dev
+        .fallbackToDestructiveMigration()
         .build()
     }
 

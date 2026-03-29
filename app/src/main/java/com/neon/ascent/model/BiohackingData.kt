@@ -36,14 +36,15 @@ data class BiohackingData(
     val labResultsPath: String? = null,
     val geneticDataPath: String? = null,
     
-    // Consent & Privacy (New)
+    // Consent & Privacy
     val hasConsentedToDataProcessing: Boolean = false,
     val consentAnonymizedUpload: Boolean = false,
     val consentWearableSync: Boolean = false,
     val consentGeneticData: Boolean = false,
     val hasCompletedPrivacyOnboarding: Boolean = false,
+    val enableOnDeviceNeuralCore: Boolean = false, // Toggle for Gemini Nano
     
-    // AI Report (New - Simplified storage for now)
+    // AI Report
     val latestReportJson: String? = null,
     val reportTimestamp: Long? = null
 )

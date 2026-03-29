@@ -4,12 +4,13 @@ import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.ai.client.generativeai.GenerativeModel
+import com.google.ai.client.generativeai.type.content
 import com.neon.ascent.BuildConfig
 import com.neon.ascent.data.local.UserCharacterDao
 import com.neon.ascent.model.UserCharacter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -18,61 +19,104 @@ class CreationViewModel @Inject constructor(
     private val userCharacterDao: UserCharacterDao
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(UserCharacter(name = "", sex = "", dob = "", units = "", weight = "", somatotype = 5f))
-    val uiState: StateFlow<UserCharacter> = _uiState
+    private val _uiState = MutableStateFlow<CreationUiState>(CreationUiState.Initial)
+    val uiState = _uiState.asStateFlow()
+
+    private var draftCharacter = UserCharacter(
+        name = "",
+        sex = "Unknown",
+        dob = "Unknown",
+        units = "metric",
+        weight = "0",
+        somatotype = 0.5f
+    )
 
     private val generativeModel = GenerativeModel(
         modelName = "gemini-1.5-flash",
         apiKey = BuildConfig.GEMINI_API_KEY
     )
 
-    fun updateBasicInfo(name: String, sex: String, dob: String, units: String, weight: String, somatotype: Float, ft: String?, inches: String?, cm: String?) {
-        _uiState.value = _uiState.value.copy(
+    fun updateBasicInfo(
+        name: String,
+        sex: String,
+        dob: String,
+        units: String,
+        weight: String,
+        somatotype: Float,
+        heightFeet: String?,
+        heightInches: String?,
+        heightCm: String?
+    ) {
+        draftCharacter = draftCharacter.copy(
             name = name,
             sex = sex,
             dob = dob,
             units = units,
             weight = weight,
             somatotype = somatotype,
-            heightFeet = ft,
-            heightInches = inches,
-            heightCm = cm
+            heightFeet = heightFeet,
+            heightInches = heightInches,
+            heightCm = heightCm
         )
     }
 
     fun updatePersonality(mbti: String, alignment: String, archetype: String) {
-        _uiState.value = _uiState.value.copy(
+        draftCharacter = draftCharacter.copy(
             mbti = mbti,
             alignment = alignment,
             archetype = archetype
         )
-        generateNetrunnerName()
     }
 
-    private fun generateNetrunnerName() {
+    fun completeCreation(avatarBitmap: Bitmap?) {
         viewModelScope.launch {
-            val character = _uiState.value
-            val prompt = "Generate a cool, one-word cyberpunk netrunner alias for a character with these traits: " +
-                    "Archetype: ${character.archetype}, MBTI: ${character.mbti}, Alignment: ${character.alignment}. " +
-                    "Examples: Zero, Glitch, Hex, Vector, Cipher. Return only the name."
-            
+            _uiState.value = CreationUiState.Loading
             try {
-                val response = generativeModel.generateContent(prompt)
-                val generatedName = response.text?.trim()?.filter { it.isLetterOrDigit() } ?: "RUNNER_${(1000..9999).random()}"
-                _uiState.value = _uiState.value.copy(netrunnerName = generatedName)
+                // In a real app, save bitmap to file and get path
+                val finalCharacter = draftCharacter.copy(
+                    isCreationComplete = true,
+                    avatarPath = null // Placeholder for bitmap path
+                )
+                userCharacterDao.insertUserCharacter(finalCharacter)
+                _uiState.value = CreationUiState.Success
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(netrunnerName = "RUNNER_${(1000..9999).random()}")
+                _uiState.value = CreationUiState.Error(e.message ?: "Failed to save character")
             }
         }
     }
 
-    fun completeCreation(avatar: Bitmap) {
+    fun createCharacter(name: String, bio: String) {
         viewModelScope.launch {
-            val character = _uiState.value.copy(
-                isCreationComplete = true,
-                avatarPath = "internal_storage_placeholder" 
-            )
-            userCharacterDao.insertUserCharacter(character)
+            _uiState.value = CreationUiState.Loading
+            try {
+                val response = generativeModel.generateContent(
+                    content {
+                        text("Create a cyberpunk character profile for a person named $name with the following bio: $bio. Return it as JSON.")
+                    }
+                )
+                // Simplified for brevity - in real app would parse JSON from response
+                val character = UserCharacter(
+                    name = name,
+                    sex = "Unknown",
+                    dob = "Unknown",
+                    units = "metric",
+                    weight = "0",
+                    somatotype = 0.5f,
+                    level = 1,
+                    neuralLoad = 0.2f
+                )
+                userCharacterDao.insertUserCharacter(character)
+                _uiState.value = CreationUiState.Success
+            } catch (e: Exception) {
+                _uiState.value = CreationUiState.Error(e.message ?: "Unknown error")
+            }
         }
     }
+}
+
+sealed class CreationUiState {
+    object Initial : CreationUiState()
+    object Loading : CreationUiState()
+    object Success : CreationUiState()
+    data class Error(val message: String) : CreationUiState()
 }

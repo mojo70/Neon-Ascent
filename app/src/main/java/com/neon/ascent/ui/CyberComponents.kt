@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,6 +35,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neon.ascent.R
@@ -204,6 +208,30 @@ fun CyberHelmetIcon(
 }
 
 @Composable
+fun HeartRatePulse(heartRate: Int) {
+    val infiniteTransition = rememberInfiniteTransition(label = "HeartRate")
+    val duration = (60000 / heartRate.coerceAtLeast(40)).toInt()
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(duration / 2, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Scale"
+    )
+
+    Icon(
+        imageVector = Icons.Default.Favorite,
+        contentDescription = "Heart Rate",
+        tint = Color(0xFFFF006E),
+        modifier = Modifier
+            .size(16.dp)
+            .graphicsLayer(scaleX = scale, scaleY = scale)
+    )
+}
+
+@Composable
 fun CyberFrame(
     label: String,
     modifier: Modifier = Modifier,
@@ -286,7 +314,13 @@ fun PixelatedSilhouette(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun AvatarImage(character: UserCharacter?, modifier: Modifier = Modifier, alpha: Float = 1f) {
+fun AvatarImage(
+    character: UserCharacter?, 
+    modifier: Modifier = Modifier, 
+    alpha: Float = 1f,
+    contentScale: ContentScale = ContentScale.Crop,
+    alignment: Alignment = Alignment.Center
+) {
     val avatarBitmap = remember(character?.avatarPath) {
         if (character?.avatarPath != null && character.avatarPath != "internal_storage_placeholder") {
             try {
@@ -300,7 +334,8 @@ fun AvatarImage(character: UserCharacter?, modifier: Modifier = Modifier, alpha:
             bitmap = avatarBitmap.asImageBitmap(),
             contentDescription = "Avatar",
             modifier = modifier.alpha(alpha),
-            contentScale = ContentScale.Fit
+            contentScale = contentScale,
+            alignment = alignment
         )
     } else {
         // Use the provided holographic body image as the fallback
@@ -308,7 +343,8 @@ fun AvatarImage(character: UserCharacter?, modifier: Modifier = Modifier, alpha:
             painter = painterResource(id = R.drawable.full_body_hologram),
             contentDescription = "Holographic Avatar",
             modifier = modifier.alpha(alpha),
-            contentScale = ContentScale.Fit
+            contentScale = contentScale,
+            alignment = alignment
         )
     }
 }
@@ -515,4 +551,121 @@ fun CyberMetricCard(label: String, value: String, subValue: String, color: Color
             )
         }
     }
+}
+
+@Composable
+fun GlitchText(
+    text: String,
+    modifier: Modifier = Modifier,
+    color: Color = Color(0xFF00FF9C),
+    fontSize: TextUnit = 14.sp,
+    fontWeight: FontWeight = FontWeight.Bold
+) {
+    var glitchState by remember { mutableStateOf(false) }
+    val infiniteTransition = rememberInfiniteTransition(label = "GlitchText")
+    
+    val trigger by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "Trigger"
+    )
+
+    LaunchedEffect(trigger) {
+        if (Random.nextFloat() > 0.8f) {
+            glitchState = true
+            kotlinx.coroutines.delay(100)
+            glitchState = false
+        }
+    }
+
+    Box(modifier = modifier) {
+        if (glitchState) {
+            Text(
+                text = text,
+                color = Color.Magenta.copy(alpha = 0.5f),
+                fontSize = fontSize,
+                fontWeight = fontWeight,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.offset(x = 2.dp)
+            )
+            Text(
+                text = text,
+                color = Color.Cyan.copy(alpha = 0.5f),
+                fontSize = fontSize,
+                fontWeight = fontWeight,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.offset(x = (-2).dp)
+            )
+        }
+        Text(
+            text = text,
+            color = color,
+            fontSize = fontSize,
+            fontWeight = fontWeight,
+            fontFamily = FontFamily.Monospace
+        )
+    }
+}
+
+@Composable
+fun CyberCrossIcon(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    IconButton(onClick = onClick, modifier = modifier) {
+        Canvas(modifier = Modifier.size(24.dp)) {
+            val color = Color(0xFF00FF9C)
+            val strokeWidth = 2.dp.toPx()
+            
+            // Draw a cyberpunk cross
+            drawLine(color, Offset(size.width / 2, 0f), Offset(size.width / 2, size.height), strokeWidth)
+            drawLine(color, Offset(0f, size.height * 0.35f), Offset(size.width, size.height * 0.35f), strokeWidth)
+        }
+    }
+}
+
+@Composable
+fun NeuralJackIcon(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    IconButton(onClick = onClick, modifier = modifier) {
+        Canvas(modifier = Modifier.size(24.dp)) {
+            val color = Color(0xFFFF006E)
+            drawCircle(color, radius = size.width / 4, style = Stroke(width = 2.dp.toPx()))
+            drawCircle(color, radius = size.width / 8, style = Fill)
+        }
+    }
+}
+
+@Composable
+fun HolyGhostAura(modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "Aura")
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.1f,
+        targetValue = 0.4f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Alpha"
+    )
+
+    Box(
+        modifier = modifier
+            .size(100.dp)
+            .background(
+                Brush.radialGradient(
+                    listOf(Color.White.copy(alpha = alpha), Color.Transparent)
+                )
+            )
+    )
+}
+
+@Composable
+fun NightCityGlow(modifier: Modifier = Modifier) {
+    // Simple mock for NightCityGlow
+}
+
+@Composable
+fun AcidRainOverlay(modifier: Modifier = Modifier) {
+    // Simple mock for AcidRainOverlay
 }

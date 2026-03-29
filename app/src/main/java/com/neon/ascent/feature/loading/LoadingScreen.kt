@@ -21,54 +21,25 @@ import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.googlefonts.Font
-import androidx.compose.ui.text.googlefonts.GoogleFont
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.neon.ascent.R
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.neon.ascent.feature.biohacking.AiType
 import com.neon.ascent.ui.*
 import kotlinx.coroutines.delay
-import kotlin.math.pow
 import kotlin.random.Random
 
 @OptIn(ExperimentalTextApi::class)
 @Composable
-fun LoadingScreen(onLoadingFinished: () -> Unit) {
+fun LoadingScreen(
+    onLoadingFinished: () -> Unit,
+    viewModel: LoadingViewModel = hiltViewModel()
+) {
     val progress = remember { Animatable(0f) }
     val textMeasurer = rememberTextMeasurer()
-    
-    // Google Fonts Setup
-    val provider = remember {
-        GoogleFont.Provider(
-            providerAuthority = "com.google.android.gms.fonts",
-            providerPackage = "com.google.android.gms",
-            certificates = R.array.com_google_android_gms_fonts_certs
-        )
-    }
-
-    val orbitronFont = remember {
-        FontFamily(
-            Font(
-                googleFont = GoogleFont("Orbitron"),
-                fontProvider = provider,
-                weight = FontWeight.Bold,
-                style = FontStyle.Italic
-            )
-        )
-    }
-
-    val monoFont = remember {
-        FontFamily(
-            Font(
-                googleFont = GoogleFont("Share Tech Mono"),
-                fontProvider = provider,
-                weight = FontWeight.Normal
-            )
-        )
-    }
+    val aiType by viewModel.activeAiType.collectAsState()
 
     val infiniteTransition = rememberInfiniteTransition(label = "LoadingAtmosphere")
-    
     val pulse by infiniteTransition.animateFloat(
         initialValue = 0.8f,
         targetValue = 1.1f,
@@ -88,22 +59,29 @@ fun LoadingScreen(onLoadingFinished: () -> Unit) {
     }
 
     LaunchedEffect(Unit) {
-        progress.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(5000, easing = LinearOutSlowInEasing)
-        )
+        // Step 1: Initialize AI
+        progress.animateTo(0.2f, tween(800, easing = LinearOutSlowInEasing))
+        viewModel.initializeAi()
+        
+        // Step 2: More loading
+        progress.animateTo(0.7f, tween(1500, easing = LinearOutSlowInEasing))
+        
+        // Finalize
+        progress.animateTo(1.0f, tween(1200, easing = LinearOutSlowInEasing))
         delay(500)
         onLoadingFinished()
     }
 
-    // Dynamic Status Messages
-    val statusMessage = when {
-        progress.value < 0.2f -> "INITIATING BIOMETRIC HANDSHAKE..."
-        progress.value < 0.4f -> "SYNCHRONIZING CORTEX..."
-        progress.value < 0.6f -> "DECRYPTING NEURAL PATHWAYS..."
-        progress.value < 0.8f -> "UPLOADING GHOST PROTOCOLS..."
-        progress.value < 0.95f -> "STABILIZING LINK INTEGRITY..."
-        else -> "CONNECTION ESTABLISHED [OK]"
+    val statusText = when {
+        progress.value < 0.2f -> "SCANNING_NEURAL_HARDWARE..."
+        progress.value < 0.5f -> {
+            if (aiType == AiType.LOCAL) "LOCAL_AI_CORE_READY (GEMINI_NANO)" 
+            else if (aiType == AiType.CLOUD) "CLOUD_LINK_ESTABLISHED (GEMINI_FLASH)" 
+            else "CHECKING_AI_CAPABILITIES..."
+        }
+        progress.value < 0.8f -> "SYNCING_BIOMETRIC_DATA..."
+        progress.value < 0.95f -> "STABILIZING_NEURAL_LINK..."
+        else -> "NEURAL_LINK_COMPLETE [OK]"
     }
 
     Box(
@@ -114,36 +92,20 @@ fun LoadingScreen(onLoadingFinished: () -> Unit) {
     ) {
         // 1. ATMOSPHERIC BACKGROUND
         PerspectiveGrid()
-        val displayLoad = (progress.value * 0.6f) + 0.2f
+        val displayLoad = progress.value * 0.8f
         Scanlines(intensity = displayLoad)
         StaticNoise(intensity = displayLoad * 0.5f)
         Vignette()
         
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val gridColor = Color(0xFF00FF9C).copy(alpha = 0.05f)
-            val step = 40.dp.toPx()
-            var x = 0f
-            while (x < size.width) {
-                drawLine(gridColor, Offset(x, 0f), Offset(x, size.height), 1f)
-                x += step
-            }
-            var y = 0f
-            while (y < size.height) {
-                drawLine(gridColor, Offset(0f, y), Offset(size.width, y), 1f)
-                y += step
-            }
-        }
-
         // 2. VERTICAL NEON TEXT
         Canvas(modifier = Modifier.fillMaxSize()) {
             val cyanColor = Color(0xFF00FF9C)
             val magentaColor = Color(0xFFFF006E)
             
-            // SLIMMER CHARACTERS, INCREASED SPACING, AND ITALIC SLANT
             val textStyle = TextStyle(
                 fontSize = 52.sp, 
                 fontWeight = FontWeight.Bold,
-                fontFamily = orbitronFont,
+                fontFamily = FontFamily.Monospace, // Fallback as we don't have the google fonts here
                 letterSpacing = 36.sp,
                 fontStyle = FontStyle.Italic
             )
@@ -279,9 +241,9 @@ fun LoadingScreen(onLoadingFinished: () -> Unit) {
             }
         }
 
-        // 4. TYPING STATUS TEXT (Share Tech Mono + Terminal Glow + Hacking Logic)
-        val typingCount = (progress.value * statusMessage.length * 1.5f).toInt().coerceIn(0, statusMessage.length)
-        val currentStatus = statusMessage.take(typingCount)
+        // 4. TYPING STATUS TEXT
+        val typingCount = (progress.value * statusText.length * 1.5f).toInt().coerceIn(0, statusText.length)
+        val currentStatus = statusText.take(typingCount)
 
         Column(
             modifier = Modifier.fillMaxSize().padding(bottom = 60.dp),
@@ -295,7 +257,7 @@ fun LoadingScreen(onLoadingFinished: () -> Unit) {
                     text = currentStatus,
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = statusColor,
-                        fontFamily = monoFont,
+                        fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Normal,
                         letterSpacing = 1.sp,
                         shadow = Shadow(
@@ -307,12 +269,11 @@ fun LoadingScreen(onLoadingFinished: () -> Unit) {
                 
                 Spacer(Modifier.width(8.dp))
                 
-                // "Hacking" percentage display
                 Text(
                     text = "${(progress.value * 100).toInt()}%",
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = statusColor.copy(alpha = 0.6f),
-                        fontFamily = monoFont,
+                        fontFamily = FontFamily.Monospace,
                         fontSize = 10.sp
                     )
                 )

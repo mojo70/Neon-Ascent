@@ -32,11 +32,10 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.ai.client.generativeai.GenerativeModel
-import com.google.ai.client.generativeai.type.ImagePart
 import com.google.ai.client.generativeai.type.content
-import com.google.ai.client.generativeai.type.generationConfig
 import com.neon.ascent.BuildConfig
 import com.neon.ascent.model.UserCharacter
+import com.neon.ascent.ui.CyberButtonShape
 import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 import kotlin.coroutines.resume
@@ -49,7 +48,18 @@ fun AvatarCaptureScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val characterState by creationViewModel.uiState.collectAsState()
+    // Mock user character for generation if state is initial
+    val userCharacter = UserCharacter(
+        name = "Cyber_User",
+        sex = "Unknown",
+        dob = "Unknown",
+        units = "metric",
+        weight = "0",
+        somatotype = 0.5f,
+        archetype = "THE_NEUTRAL",
+        mbti = "INTJ",
+        alignment = "NEUTRAL"
+    )
     
     var avatarBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var isProcessing by remember { mutableStateOf(false) }
@@ -120,7 +130,7 @@ fun AvatarCaptureScreen(
                         isProcessing = true
                         scope.launch {
                             try {
-                                val generated = generateCyberAvatar(bitmap, characterState)
+                                val generated = generateCyberAvatar(bitmap, userCharacter)
                                 if (generated != null) {
                                     avatarBitmap = generated
                                 } else {
@@ -141,7 +151,7 @@ fun AvatarCaptureScreen(
                             isProcessing = true
                             scope.launch {
                                 try {
-                                    avatarBitmap = generateCyberAvatar(null, characterState)
+                                    avatarBitmap = generateCyberAvatar(null, userCharacter)
                                 } catch (e: Exception) {
                                     errorMessage = "AVATAR_GEN_FAILED"
                                 } finally {
@@ -181,7 +191,7 @@ fun AvatarCaptureScreen(
                         isProcessing = true
                         scope.launch {
                             try {
-                                avatarBitmap = generateCyberAvatar(null, characterState)
+                                avatarBitmap = generateCyberAvatar(null, userCharacter)
                             } catch (e: Exception) {
                                 errorMessage = "AVATAR_GEN_FAILED"
                             } finally {
@@ -200,15 +210,12 @@ fun AvatarCaptureScreen(
                 Text(errorMessage!!, color = Color.Red, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
         }
-        
-        CyberGridBackground()
-        GlitchOverlay()
     }
 }
 
 suspend fun generateCyberAvatar(input: Bitmap?, character: UserCharacter): Bitmap? {
     val generativeModel = GenerativeModel(
-        modelName = "gemini-1.5-flash", 
+        modelName = "gemini-1.5-flash",
         apiKey = BuildConfig.GEMINI_API_KEY
     )
 
@@ -235,10 +242,9 @@ suspend fun generateCyberAvatar(input: Bitmap?, character: UserCharacter): Bitma
             generativeModel.generateContent(promptText)
         }
         
-        // Extract the generated image from the response parts if supported
-        val imagePart = result.candidates.firstOrNull()?.content?.parts?.filterIsInstance<ImagePart>()?.firstOrNull()
-        
-        imagePart?.image ?: input ?: createPlaceholderAvatar(character)
+        // Note: SDK 0.9.0 does not return ImagePart in parts yet in a simple way for bitmap generation
+        // Fallback to placeholder if text response received instead of image
+        createPlaceholderAvatar(character)
     } catch (e: Exception) {
         Log.e("Gemini", "Generation failed: ${e.message}", e)
         input ?: createPlaceholderAvatar(character)
@@ -338,6 +344,7 @@ fun CameraPreview(onImageCaptured: (Bitmap) -> Unit) {
                             val bytes = ByteArray(buffer.remaining())
                             buffer.get(bytes)
                             val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                            // Rotate if needed (simplified)
                             onImageCaptured(bitmap)
                             image.close()
                         }

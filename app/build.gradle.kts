@@ -1,41 +1,40 @@
-import com.android.build.api.dsl.ApplicationExtension
 import java.util.Properties
+import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
     id("androidx.room")
+    id("org.jetbrains.kotlin.plugin.compose")
+}
+
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        load(FileInputStream(localPropertiesFile))
+    }
 }
 
 android {
     namespace = "com.neon.ascent"
-    compileSdk = 36
-
-    val localProperties = Properties()
-    val localPropertiesFile = rootProject.file("local.properties")
-    if (localPropertiesFile.exists()) {
-        localProperties.load(localPropertiesFile.inputStream())
-    }
-    val geminiApiKey = localProperties.getProperty("gemini.api.key") ?: ""
-    val openWeatherApiKey = localProperties.getProperty("openweather.api.key") ?: ""
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.neon.ascent"
-        minSdk = 26
-        targetSdk = 36
+        minSdk = 31
+        targetSdk = 35
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        vectorDrawables {
-            useSupportLibrary = true
-        }
+        
+        val weatherKey = localProperties.getProperty("openweather.api.key") ?: "YOUR_OPENWEATHER_API_KEY"
+        val geminiKey = localProperties.getProperty("gemini.api.key") ?: "YOUR_GEMINI_API_KEY"
 
-        buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
-        buildConfigField("String", "OPENWEATHER_API_KEY", "\"$openWeatherApiKey\"")
+        buildConfigField("String", "OPENWEATHER_API_KEY", "\"$weatherKey\"")
+        buildConfigField("String", "GEMINI_API_KEY", "\"$geminiKey\"")
     }
 
     buildTypes {
@@ -48,75 +47,86 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
     kotlinOptions {
-        jvmTarget = "17"
+        jvmTarget = "11"
     }
     buildFeatures {
         compose = true
         buildConfig = true
     }
-    packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-            excludes += "/META-INF/INDEX.LIST"
-            excludes += "/META-INF/io.netty.versions.properties"
-        }
-    }
+}
+
+room {
+    schemaDirectory("$projectDir/schemas")
 }
 
 dependencies {
-    implementation("androidx.core:core-ktx:1.13.1")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.2")
-    implementation("androidx.activity:activity-compose:1.9.0")
-    implementation(platform("androidx.compose:compose-bom:2024.06.00"))
+    // Core
+    implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("androidx.activity:activity-compose:1.10.0")
+
+    // Material Components (required for XML themes)
+    implementation("com.google.android.material:material:1.12.0")
+
+    // Compose
+    val composeBom = platform("androidx.compose:compose-bom:2025.01.01")
+    implementation(composeBom)
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
-    implementation("com.google.android.material:material:1.12.0")
-    implementation("androidx.navigation:navigation-compose:2.7.7")
-    implementation("androidx.compose.ui:ui-text-google-fonts")
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.navigation:navigation-compose:2.8.5")
 
-    // Location
-    implementation("com.google.android.gms:play-services-location:21.3.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
-
-    // Networking
-    implementation("com.squareup.retrofit2:retrofit:2.11.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
-
-    // Biometric
-    implementation("androidx.biometric:biometric-ktx:1.2.0-alpha05")
-
-    // DataStore for settings
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    // Hilt
+    implementation("com.google.dagger:hilt-android:2.54")
+    ksp("com.google.dagger:hilt-compiler:2.54")
+    implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
     // Room
     val roomVersion = "2.6.1"
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
     ksp("androidx.room:room-compiler:$roomVersion")
-    
+
     // SQLCipher for Room encryption
     implementation("net.zetetic:android-database-sqlcipher:4.5.4")
     implementation("androidx.sqlite:sqlite-ktx:2.4.0")
 
-    // Security - Crypto for DataStore/SharedPrefs encryption
-    implementation("androidx.security:security-crypto-ktx:1.1.0-alpha06")
-
-    // Health Connect
-    implementation("androidx.health.connect:connect-client:1.1.0")
-
-    // Hilt
-    implementation("com.google.dagger:hilt-android:2.54")
-    ksp("com.google.dagger:hilt-android-compiler:2.54")
-    implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
+    // Retrofit/OkHttp
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     // Coil
-    implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("io.coil-kt:coil-compose:2.7.0")
+
+    // Health Connect
+    implementation("androidx.health.connect:connect-client:1.1.0-alpha11")
+
+    // DataStore & Security
+    implementation("androidx.datastore:datastore-preferences:1.1.2")
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
+    // Biometrics
+    implementation("androidx.biometric:biometric:1.2.0-alpha05")
+
+    // Location & Play Services
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
+
+    // Testing
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+    androidTestImplementation(platform("androidx.compose:compose-bom:2025.01.01"))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-tooling")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     // CameraX
     val cameraxVersion = "1.3.4"
@@ -129,16 +139,16 @@ dependencies {
     // Guava (Required for CameraX ListenableFuture)
     implementation("com.google.guava:guava:33.2.1-android")
 
-    // Google AI SDK (Gemini)
+    // AI Core (Experimental Local Gemini Nano)
+    // Updated to latest experimental version for improved stability
+    implementation("com.google.ai.edge.aicore:aicore:0.0.1-exp02")
+    
+    // Google AI SDK (Cloud-based Gemini)
     implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
 
-    // Solana Mobile Stack
-    implementation("com.solanamobile:mobile-wallet-adapter-clientlib:2.1.0")
+    // Text Recognition
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
 
-    debugImplementation("androidx.compose.ui:ui-tooling")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
-}
-
-room {
-    schemaDirectory("$projectDir/schemas")
+    // ObjectBox (Vector DB)
+    implementation("io.objectbox:objectbox-android:4.0.0")
 }

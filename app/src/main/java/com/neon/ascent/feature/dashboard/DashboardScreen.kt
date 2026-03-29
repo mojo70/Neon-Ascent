@@ -8,6 +8,8 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,16 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -35,7 +29,6 @@ import com.neon.ascent.feature.settings.SettingsViewModel
 import com.neon.ascent.ui.*
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import kotlin.random.Random
 
 @Composable
 fun DashboardScreen(
@@ -51,11 +44,12 @@ fun DashboardScreen(
     val userCharacter by viewModel.userCharacter.collectAsState()
     val weatherState by viewModel.weatherState.collectAsState()
     val healthState by viewModel.healthState.collectAsState()
+    val biohackingData by viewModel.biohackingData.collectAsState()
+    val systemAdvice by viewModel.systemAdvice.collectAsState()
     val isReligionShortcutEnabled by settingsViewModel.isReligionShortcutEnabled.collectAsState()
     val currentTime = remember { mutableStateOf(LocalDateTime.now()) }
     
     val neuralLoad = userCharacter?.neuralLoad ?: 0.2f
-    val displayLoad = neuralLoad
     
     val systemColor by animateColorAsState(
         targetValue = if (neuralLoad > 0.7f) Color(0xFFFF006E) else Color(0xFF00FF9C),
@@ -69,13 +63,6 @@ fun DashboardScreen(
         glitchTrigger++
     }
 
-    LaunchedEffect(glitchTrigger) {
-        if (glitchTrigger > 0) {
-            kotlinx.coroutines.delay(150)
-            // Logic to handle glitch reset if needed, but GlitchOverlay usually handles it
-        }
-    }
-
     LaunchedEffect(Unit) {
         while(true) {
             kotlinx.coroutines.delay(1000)
@@ -84,22 +71,19 @@ fun DashboardScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF010101))) {
-        // --- 1. ATMOSPHERIC HUD LAYERS (Reactive to Neural Load) ---
         PerspectiveGrid()
-        Scanlines(intensity = displayLoad)
-        StaticNoise(intensity = displayLoad)
+        Scanlines(intensity = neuralLoad)
+        StaticNoise(intensity = neuralLoad)
         Vignette()
-        FloatingParticles(intensity = displayLoad)
+        FloatingParticles(intensity = neuralLoad)
         
         if (weatherState.isNight) {
             NightCityGlow()
         }
         
-        // Pass a manual boost to intensity when glitchTrigger changes
-        val activeGlitchIntensity = if (glitchTrigger > 0) (displayLoad + 0.4f).coerceAtMost(1f) else displayLoad
+        val activeGlitchIntensity = if (glitchTrigger > 0) (neuralLoad + 0.4f).coerceAtMost(1f) else neuralLoad
         GlitchOverlay(intensity = activeGlitchIntensity)
 
-        // Reset glitch effect after a short burst
         if (glitchTrigger > 0) {
             LaunchedEffect(glitchTrigger) {
                 kotlinx.coroutines.delay(200)
@@ -119,13 +103,12 @@ fun DashboardScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            // --- 2. TOP HUD BAR ---
+            // --- TOP HUD BAR ---
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
-                // Avatar Window with Glitch Effect on high load
                 Box(contentAlignment = Alignment.Center) {
                     if (userCharacter?.holyGhost != null) {
                         HolyGhostAura()
@@ -141,7 +124,24 @@ fun DashboardScreen(
                             .clickable { onAvatarClick() },
                         contentAlignment = Alignment.Center
                     ) {
-                        AvatarImage(userCharacter, modifier = Modifier.fillMaxSize(), alpha = 1f)
+                        Box(
+                            modifier = Modifier.fillMaxSize().clip(RectangleShape),
+                            contentAlignment = Alignment.TopCenter
+                        ) {
+                            AvatarImage(
+                                character = userCharacter, 
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .graphicsLayer(
+                                        scaleX = 4.5f,
+                                        scaleY = 4.5f,
+                                        translationY = 80f 
+                                    ),
+                                alpha = 1f,
+                                contentScale = ContentScale.FillWidth,
+                                alignment = Alignment.TopCenter
+                            )
+                        }
                         
                         Text(
                             text = "SYNC", 
@@ -149,7 +149,8 @@ fun DashboardScreen(
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Black
-                            )
+                            ),
+                            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp)
                         )
                     }
                 }
@@ -214,7 +215,6 @@ fun DashboardScreen(
                             letterSpacing = 1.sp
                         )
                     )
-                    // Mini Progress Bar
                     Box(
                         modifier = Modifier
                             .width(100.dp)
@@ -234,7 +234,6 @@ fun DashboardScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // --- 3. CENTRAL STATUS HUB ---
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -245,8 +244,7 @@ fun DashboardScreen(
                 Row(
                     modifier = Modifier.padding(16.dp),
                     horizontalArrangement = Arrangement.spacedBy(24.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                    verticalAlignment = Alignment.CenterVertically) {
                     NeuralLoadGauge(
                         load = neuralLoad,
                         modifier = Modifier.size(110.dp)
@@ -254,7 +252,7 @@ fun DashboardScreen(
                     
                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
-                            text = "NEURAL_LINK_INTEGRITY",
+                            text = if (biohackingData?.enableOnDeviceNeuralCore == true) "NEURAL_CORE_UTILIZATION" else "NEURAL_LINK_INTEGRITY",
                             color = systemColor,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
@@ -271,7 +269,6 @@ fun DashboardScreen(
                             )
                         )
                         
-                        // Detailed Load Bar with Glow
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -293,7 +290,6 @@ fun DashboardScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // --- 4. HOLOGRAPHIC QUOTE PANEL (With Noticeable Glitch at high load) ---
             CyberFrame(
                 label = "SYSTEM_ADVICE // V.01", 
                 accentColor = Color(0xFF00FFFF),
@@ -301,7 +297,7 @@ fun DashboardScreen(
                 modifier = Modifier.cyberGlitch(intensity = if (neuralLoad > 0.7f) neuralLoad * 0.5f else 0f)
             ) {
                 Text(
-                    text = "\"THE SKY ABOVE THE PORT WAS THE COLOR OF TELEVISION, TUNED TO A DEAD CHANNEL.\"",
+                    text = "\"$systemAdvice\"",
                     color = Color.White,
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.Bold,
@@ -315,7 +311,6 @@ fun DashboardScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- 5. WEARABLE METRICS ---
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 CyberMetricCard(
                     label = "STEPS", 
@@ -335,7 +330,6 @@ fun DashboardScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- 6. BOTTOM ACTION GROUP ---
             CyberFrame(label = "CORE_SYNC", borderColor = systemColor) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
@@ -360,238 +354,6 @@ fun DashboardScreen(
                     })
                 }
             }
-            
-            Spacer(modifier = Modifier.height(40.dp))
-        }
-    }
-}
-
-@Composable
-fun HeartRatePulse(bpm: Int) {
-    val infiniteTransition = rememberInfiniteTransition(label = "HeartPulse")
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.4f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 60000 / bpm / 2, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "PulseScale"
-    )
-
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            modifier = Modifier
-                .size(8.dp)
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                }
-                .background(Color(0xFFFF006E), CircleShape)
-                .neonBorder(Color(0xFFFF006E), width = 1.dp, glowIntensity = 1f, cornerRadius = 4.dp)
-        )
-        Spacer(Modifier.width(6.dp))
-        Text(
-            text = "$bpm BPM",
-            color = Color.White.copy(alpha = 0.9f),
-            style = MaterialTheme.typography.labelSmall.copy(
-                fontWeight = FontWeight.ExtraBold,
-                fontFamily = FontFamily.Monospace
-            )
-        )
-    }
-}
-
-@Composable
-fun AcidRainOverlay() {
-    val rainDrops = remember { List(15) { Random.nextFloat() to Random.nextFloat() } }
-    val infiniteTransition = rememberInfiniteTransition(label = "RainAnim")
-    
-    val rainY by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2500, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "RainY"
-    )
-
-    Canvas(modifier = Modifier.fillMaxSize().alpha(0.3f)) {
-        rainDrops.forEach { (xMult, yOffset) ->
-            val x = xMult * size.width
-            val baseY = ((rainY + yOffset) % 1f) * size.height
-            
-            // Trail
-            drawLine(
-                color = Color(0xFF00FF9C).copy(alpha = 0.2f),
-                start = Offset(x, baseY - 40.dp.toPx()),
-                end = Offset(x, baseY),
-                strokeWidth = 1.dp.toPx()
-            )
-            // Droplet
-            drawCircle(
-                color = Color(0xFF00FF9C),
-                radius = 1.2.dp.toPx(),
-                center = Offset(x, baseY)
-            )
-        }
-    }
-}
-
-@Composable
-fun NightCityGlow() {
-    val infiniteTransition = rememberInfiniteTransition(label = "CityGlow")
-    val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.05f,
-        targetValue = 0.2f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(5000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "Glow"
-    )
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawRect(
-                brush = Brush.verticalGradient(
-                    colors = listOf(Color.Transparent, Color(0xFF1A0033).copy(alpha = glowAlpha)),
-                    startY = size.height * 0.6f,
-                    endY = size.height
-                )
-            )
-        }
-    }
-}
-
-@Composable
-fun HolyGhostAura() {
-    val infiniteTransition = rememberInfiniteTransition(label = "AuraScale")
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.5f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "Scale"
-    )
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.1f,
-        targetValue = 0.3f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2500, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "Alpha"
-    )
-
-    Box(
-        modifier = Modifier
-            .size(90.dp)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(Color.White, Color.Transparent),
-                    center = Offset.Unspecified,
-                    radius = 180f
-                ),
-                alpha = alpha
-            )
-    )
-}
-
-@Composable
-fun CyberCrossIcon(onClick: () -> Unit) {
-    val haptic = LocalHapticFeedback.current
-    Box(
-        modifier = Modifier
-            .size(32.dp)
-            .clickable {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                onClick()
-            },
-        contentAlignment = Alignment.Center
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val color = Color(0xFF00FF9C)
-            val strokeWidth = 2.dp.toPx()
-            
-            // Vertical bar
-            drawLine(
-                color = color,
-                start = Offset(center.x, 4.dp.toPx()),
-                end = Offset(center.x, size.height - 4.dp.toPx()),
-                strokeWidth = strokeWidth
-            )
-            // Horizontal bar
-            drawLine(
-                color = color,
-                start = Offset(4.dp.toPx(), center.y - 4.dp.toPx()),
-                end = Offset(size.width - 4.dp.toPx(), center.y - 4.dp.toPx()),
-                strokeWidth = strokeWidth
-            )
-        }
-    }
-}
-
-@Composable
-fun NeuralJackIcon(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val haptic = LocalHapticFeedback.current
-    val infiniteTransition = rememberInfiniteTransition(label = "JackPulse")
-    
-    val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "Alpha"
-    )
-
-    Box(
-        modifier = modifier
-            .size(48.dp)
-            .clickable {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                onClick()
-            },
-        contentAlignment = Alignment.Center
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokeWidth = 2.dp.toPx()
-            val colorPrimary = Color(0xFF00FF9C)
-            val colorSecondary = Color(0xFFFF006E)
-            
-            drawCircle(
-                color = colorPrimary.copy(alpha = pulseAlpha),
-                radius = size.width / 2.6f,
-                style = Stroke(width = strokeWidth)
-            )
-            
-            for (i in 0 until 8) {
-                val angle = (i * 45f) * (Math.PI / 180f).toFloat()
-                val start = Offset(
-                    center.x + (size.width / 2.6f) * kotlin.math.cos(angle),
-                    center.y + (size.width / 2.6f) * kotlin.math.sin(angle)
-                )
-                val end = Offset(
-                    center.x + (size.width / 2.1f) * kotlin.math.cos(angle),
-                    center.y + (size.width / 2.1f) * kotlin.math.sin(angle)
-                )
-                drawLine(colorPrimary, start, end, strokeWidth = strokeWidth)
-            }
-            
-            drawRect(
-                color = colorSecondary,
-                topLeft = Offset(center.x - 4.dp.toPx(), center.y - 6.dp.toPx()),
-                size = Size(8.dp.toPx(), 12.dp.toPx())
-            )
         }
     }
 }

@@ -21,8 +21,10 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -41,6 +43,7 @@ fun BiohackingScreen(
     val uiState by viewModel.uiState.collectAsState()
     val characterState by viewModel.character.collectAsState()
     val logs by viewModel.logs.collectAsState()
+    val isNeuralCoreThinking by viewModel.isNeuralCoreThinking.collectAsState()
     
     val displayChar = characterState ?: UserCharacter(
         name = "PROTAGONIST", sex = "NON_BINARY", dob = "2077", units = "METRIC", weight = "75", somatotype = 0.5f
@@ -48,7 +51,6 @@ fun BiohackingScreen(
 
     var selectedSector by remember { mutableStateOf("CORE_CHASSIS") }
     var scanProgress by remember { mutableFloatStateOf(0f) }
-    var isGenerating by remember { mutableStateOf(false) }
     var showReport by remember { mutableStateOf(false) }
     var showEffectivenessLogger by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
@@ -57,19 +59,15 @@ fun BiohackingScreen(
     val neonMagenta = Color(0xFFFF0088)
     val voidBg = Color(0xFF0A0F14)
 
-    LaunchedEffect(isGenerating) {
-        if (isGenerating) {
-            try {
-                animate(0f, 1f, animationSpec = tween(1500, easing = LinearOutSlowInEasing)) { value, _ ->
-                    scanProgress = value
-                }
-                showReport = true
-                animate(1f, 0f, animationSpec = tween(500)) { value, _ ->
-                    scanProgress = value
-                }
-            } finally {
-                scanProgress = 0f
-                isGenerating = false
+    LaunchedEffect(isNeuralCoreThinking) {
+        if (isNeuralCoreThinking) {
+            animate(0f, 1f, animationSpec = tween(2000, easing = LinearOutSlowInEasing)) { value, _ ->
+                scanProgress = value
+            }
+        } else if (scanProgress > 0f) {
+            showReport = true
+            animate(1f, 0f, animationSpec = tween(500)) { value, _ ->
+                scanProgress = value
             }
         }
     }
@@ -77,11 +75,12 @@ fun BiohackingScreen(
     // Privacy Onboarding Overlay
     if (!uiState.hasCompletedPrivacyOnboarding) {
         PrivacyOnboarding(
-            onComplete = { anon, wearable, genetic ->
+            onComplete = { anon, wearable, genetic, neuralCore ->
                 viewModel.updateData { it.copy(
                     consentAnonymizedUpload = anon,
                     consentWearableSync = wearable,
                     consentGeneticData = genetic,
+                    enableOnDeviceNeuralCore = neuralCore,
                     hasCompletedPrivacyOnboarding = true,
                     hasConsentedToDataProcessing = true
                 ) }
@@ -120,14 +119,32 @@ fun BiohackingScreen(
                         fontWeight = FontWeight.Black,
                         fontFamily = FontFamily.Monospace
                     )
-                    Text(
-                        "COLLECTIVE_NET: ${if (uiState.consentAnonymizedUpload) "SYNC_ON" else "OFFLINE"}",
-                        color = (if (uiState.consentAnonymizedUpload) neonCyan else neonMagenta).copy(alpha = 0.6f),
-                        fontSize = 9.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "COLLECTIVE_NET: ${if (uiState.consentAnonymizedUpload) "SYNC_ON" else "OFFLINE"}",
+                            color = (if (uiState.consentAnonymizedUpload) neonCyan else neonMagenta).copy(alpha = 0.6f),
+                            fontSize = 9.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        if (uiState.enableOnDeviceNeuralCore) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "SYNAPSE_STATUS: LOCAL // NO NETWORK",
+                                color = neonCyan,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier
+                                    .background(neonCyan.copy(alpha = 0.1f))
+                                    .padding(horizontal = 4.dp)
+                            )
+                        }
+                    }
                 }
-                NeuralLoadGauge(load = displayChar.neuralLoad, modifier = Modifier.size(64.dp))
+                NeuralLoadGauge(
+                    load = if (isNeuralCoreThinking) 0.9f else displayChar.neuralLoad, 
+                    modifier = Modifier.size(64.dp)
+                )
             }
             
             Spacer(modifier = Modifier.height(24.dp))
@@ -144,8 +161,14 @@ fun BiohackingScreen(
                         character = displayChar,
                         neuralLoad = displayChar.neuralLoad,
                         selectedSector = selectedSector,
-                        onSectorSelected = { selectedSector = it },
-                        modifier = Modifier.fillMaxSize(0.9f)
+                        onSectorSelected = { 
+                            selectedSector = it
+                            if (uiState.enableOnDeviceNeuralCore) {
+                                viewModel.initiateLocalScan(it)
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize(0.9f),
+                        highlightColor = if (isNeuralCoreThinking) neonMagenta else neonCyan
                     )
                     
                     SectorLabel("COGNITION", Alignment.TopEnd, selectedSector == "CRANIAL_NODE", neonCyan, neonMagenta)
@@ -223,15 +246,19 @@ fun BiohackingScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             CyberActionButton(
-                label = "INITIATE AI_DEEP_SCAN",
+                label = if (uiState.enableOnDeviceNeuralCore) "INITIATE NEURAL_CORE_SCAN" else "INITIATE AI_DEEP_SCAN",
                 color = neonCyan,
-                onClick = { if (!isGenerating) isGenerating = true }
+                onClick = { viewModel.initiateLocalScan(selectedSector) }
             )
 
             // Dynamic Report Section
             if (showReport) {
                 Spacer(modifier = Modifier.height(32.dp))
-                ProtocolReport(neonMagenta, neonCyan) {
+                ProtocolReport(
+                    report = viewModel.latestReport.collectAsState().value,
+                    magenta = neonMagenta, 
+                    cyan = neonCyan
+                ) {
                     showEffectivenessLogger = true
                 }
             }
@@ -269,7 +296,44 @@ fun BiohackingScreen(
             Spacer(modifier = Modifier.height(64.dp))
         }
 
-        if (scanProgress > 0f) {
+        // Thinking Animation
+        if (isNeuralCoreThinking) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.8f))
+                    .zIndex(20f),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    GlitchText(
+                        text = "NEURAL_CORE THINKING...",
+                        color = neonCyan,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    LinearProgressIndicator(
+                        progress = { scanProgress },
+                        modifier = Modifier
+                            .width(240.dp)
+                            .height(2.dp),
+                        color = neonCyan,
+                        trackColor = neonCyan.copy(alpha = 0.1f),
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "UPLINKING_LOCAL_SYNAPSE",
+                        color = neonMagenta,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.alpha(pulseAlpha())
+                    )
+                }
+            }
+        }
+
+        if (scanProgress > 0f && !isNeuralCoreThinking) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 drawCircle(
                     brush = Brush.radialGradient(
@@ -286,12 +350,27 @@ fun BiohackingScreen(
 }
 
 @Composable
+private fun pulseAlpha(): Float {
+    val infiniteTransition = rememberInfiniteTransition(label = "Pulse")
+    return infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(500, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Alpha"
+    ).value
+}
+
+@Composable
 fun FullBodyHologram(
     character: UserCharacter?,
     neuralLoad: Float,
     selectedSector: String,
     onSectorSelected: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    highlightColor: Color = Color(0xFF00F5FF)
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "HoloPulse")
     val pulse by infiniteTransition.animateFloat(
@@ -321,7 +400,6 @@ fun FullBodyHologram(
         )
 
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val cyan = Color(0xFF00F5FF)
             val magenta = Color(0xFFFF0088)
             val w = size.width
             val h = size.height
@@ -330,7 +408,7 @@ fun FullBodyHologram(
             when (selectedSector) {
                 "CRANIAL_NODE" -> {
                     drawCircle(
-                        color = magenta.copy(alpha = 0.4f * pulse),
+                        color = highlightColor.copy(alpha = 0.4f * pulse),
                         center = Offset(w * 0.5f, h * 0.12f),
                         radius = w * 0.2f,
                         style = Stroke(width = 2.dp.toPx())
@@ -338,7 +416,7 @@ fun FullBodyHologram(
                 }
                 "CORE_CHASSIS" -> {
                     drawRect(
-                        color = magenta.copy(alpha = 0.3f * pulse),
+                        color = highlightColor.copy(alpha = 0.3f * pulse),
                         topLeft = Offset(w * 0.25f, h * 0.25f),
                         size = Size(w * 0.5f, h * 0.35f),
                         style = Stroke(width = 2.dp.toPx())
@@ -346,7 +424,7 @@ fun FullBodyHologram(
                 }
                 "MOTOR_EXTREMITIES" -> {
                     drawLine(
-                        color = magenta.copy(alpha = 0.5f * pulse),
+                        color = highlightColor.copy(alpha = 0.5f * pulse),
                         start = Offset(w * 0.2f, h * 0.8f),
                         end = Offset(w * 0.8f, h * 0.8f),
                         strokeWidth = 4.dp.toPx()
@@ -358,7 +436,7 @@ fun FullBodyHologram(
             repeat(12) { i ->
                 val lineY = (h * 0.05f) + (i * h * 0.08f)
                 drawLine(
-                    color = cyan.copy(alpha = 0.1f),
+                    color = highlightColor.copy(alpha = 0.1f),
                     start = Offset(0f, lineY),
                     end = Offset(w, lineY),
                     strokeWidth = 1f
@@ -390,16 +468,17 @@ fun BoxScope.SectorLabel(label: String, alignment: Alignment, isSelected: Boolea
 
 @Composable
 fun PrivacyOnboarding(
-    onComplete: (anon: Boolean, wearable: Boolean, genetic: Boolean) -> Unit,
+    onComplete: (anon: Boolean, wearable: Boolean, genetic: Boolean, neuralCore: Boolean) -> Unit,
     neonCyan: Color,
     neonMagenta: Color
 ) {
     var anon by remember { mutableStateOf(false) }
     var wearable by remember { mutableStateOf(false) }
     var genetic by remember { mutableStateOf(false) }
+    var neuralCore by remember { mutableStateOf(true) }
 
     Box(
-        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.95f)).zIndex(10f).padding(24.dp),
+        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.95f)).zIndex(30f).padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
         CyberFrame(label = "PRIVACY_ENCRYPTION_INIT", borderColor = neonCyan) {
@@ -415,10 +494,31 @@ fun PrivacyOnboarding(
                 PrivacyToggle("Wearable Auto-Sync", wearable, neonCyan) { wearable = it }
                 PrivacyToggle("Genetic Data Personalization", genetic, neonMagenta) { genetic = it }
                 
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, neonCyan.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                        .background(neonCyan.copy(alpha = 0.05f))
+                        .padding(8.dp)
+                ) {
+                    Column {
+                        PrivacyToggle("Enable ON-DEVICE NEURAL_CORE", neuralCore, neonCyan) { neuralCore = it }
+                        Text(
+                            "(100% private, zero data leaves device)",
+                            color = neonCyan.copy(alpha = 0.7f),
+                            fontSize = 9.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.padding(start = 32.dp)
+                        )
+                    }
+                }
+                
                 Spacer(Modifier.height(8.dp))
                 
                 CyberActionButton("CONFIRM_PROTOCOLS", neonCyan) {
-                    onComplete(anon, wearable, genetic)
+                    onComplete(anon, wearable, genetic, neuralCore)
                 }
             }
         }
@@ -438,14 +538,24 @@ fun PrivacyToggle(label: String, checked: Boolean, color: Color, onCheckedChange
 }
 
 @Composable
-fun ProtocolReport(magenta: Color, cyan: Color, onLogClick: () -> Unit) {
+fun ProtocolReport(report: String?, magenta: Color, cyan: Color, onLogClick: () -> Unit) {
     CyberFrame(label = "AI_GENERATED_PROTOCOL", borderColor = magenta, accentColor = cyan) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            ReportCard("Nootropic: Bromantane + Tyrosine", "100mg / 500mg", "Dopamine synthesis up-regulation.", magenta, cyan)
+            if (report == null) {
+                Text("ANALYZING_SYNAPTIC_INPUTS...", color = Color.Gray, fontSize = 12.sp)
+            } else {
+                Text(
+                    report,
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
             
             Box(Modifier.fillMaxWidth().background(magenta.copy(alpha = 0.1f)).padding(8.dp)) {
                 Text(
-                    "SAFETY_WARNING: Do not combine with SSRIs. Consult physician if heart rate exceeds 110bpm at rest.",
+                    "SAFETY_WARNING: CORE_GENERATED_ADVICE. VALIDATE WITH SYSTEM_MEDIC.",
                     color = magenta,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold

@@ -13,6 +13,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // ML Kit GenAI Early Access Repository
+        maven { url = uri("https://dl.google.com/dl/android/maven2/") }
     }
 }
 

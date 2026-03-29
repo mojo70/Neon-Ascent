@@ -23,6 +23,9 @@ class SettingsViewModel @Inject constructor(
     val isReligionShortcutEnabled: StateFlow<Boolean> = settingsRepository.isReligionShortcutEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    val isLocalAiOnly: StateFlow<Boolean> = settingsRepository.isLocalAiOnly
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     fun setBiometricLockEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setBiometricLockEnabled(enabled)
@@ -35,12 +38,19 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setLocalAiOnly(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setLocalAiOnly(enabled)
+        }
+    }
+
     fun resetProfile(onComplete: () -> Unit) {
         viewModelScope.launch {
             // Reset character data
             userCharacterDao.resetCharacter()
-            // Reset religion shortcut setting
+            // Reset settings
             settingsRepository.setReligionShortcutEnabled(false)
+            settingsRepository.setLocalAiOnly(false)
             onComplete()
         }
     }
