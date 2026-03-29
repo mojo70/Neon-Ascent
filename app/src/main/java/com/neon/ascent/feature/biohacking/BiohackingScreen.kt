@@ -33,6 +33,9 @@ import com.neon.ascent.model.BioProtocolLog
 import com.neon.ascent.model.BiohackingData
 import com.neon.ascent.model.UserCharacter
 import com.neon.ascent.ui.*
+import java.time.LocalDate
+import java.time.Period
+import java.time.format.DateTimeFormatter
 import java.util.*
 
 @Composable
@@ -46,7 +49,7 @@ fun BiohackingScreen(
     val isNeuralCoreThinking by viewModel.isNeuralCoreThinking.collectAsState()
     
     val displayChar = characterState ?: UserCharacter(
-        name = "PROTAGONIST", sex = "NON_BINARY", dob = "2077", units = "METRIC", weight = "75", somatotype = 0.5f
+        name = "PROTAGONIST", sex = "NON_BINARY", dob = "2077.01.01", units = "METRIC", weight = "75", somatotype = 0.5f
     )
 
     var selectedSector by remember { mutableStateOf("CORE_CHASSIS") }
@@ -183,7 +186,7 @@ fun BiohackingScreen(
             ExpandableBioSection("BASELINES_&_DEMOGRAPHICS", neonCyan) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        BioReadOnlyField("AGE", "28", Modifier.weight(1f), neonCyan)
+                        BioReadOnlyField("AGE", calculateAge(displayChar.dob), Modifier.weight(1f), neonCyan)
                         BioReadOnlyField("SEX", displayChar.sex, Modifier.weight(1f), neonCyan)
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -346,6 +349,17 @@ fun BiohackingScreen(
                 )
             }
         }
+    }
+}
+
+fun calculateAge(dob: String): String {
+    return try {
+        val formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd")
+        val birthDate = LocalDate.parse(dob, formatter)
+        val currentDate = LocalDate.now()
+        Period.between(birthDate, currentDate).years.toString()
+    } catch (e: Exception) {
+        "ERR"
     }
 }
 

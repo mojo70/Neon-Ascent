@@ -21,7 +21,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neon.ascent.ui.theme.NeonAscentTheme
@@ -151,7 +153,7 @@ fun CharacterCreationScreen(
 ) {
     var name by remember { mutableStateOf("") }
     var sex by remember { mutableStateOf("") }
-    var dob by remember { mutableStateOf("") }
+    var dobValue by remember { mutableStateOf(TextFieldValue("")) }
     var units by remember { mutableStateOf("Imperial") }
     
     var heightFeet by remember { mutableStateOf("") }
@@ -251,10 +253,43 @@ fun CharacterCreationScreen(
             }
 
             CyberFrame(label = "TEMPORAL MARK [ORIGIN]") {
-                CyberInputTransparent(
-                    value = dob,
-                    onValueChange = { dob = it },
-                    placeholder = "YYYY.MM.DD"
+                TextField(
+                    value = dobValue,
+                    onValueChange = { newValue ->
+                        val digits = newValue.text.filter { it.isDigit() }
+                        if (digits.length <= 8) {
+                            val formatted = StringBuilder()
+                            for (i in digits.indices) {
+                                formatted.append(digits[i])
+                                if ((i == 3 || i == 5) && i != digits.lastIndex) {
+                                    formatted.append(".")
+                                }
+                            }
+                            val newText = formatted.toString()
+                            
+                            // Calculate new cursor position
+                            var cursorPosition = newText.length
+                            if (newValue.selection.start < newValue.text.length) {
+                                // Logic for internal editing if needed, but for now simple append is fine
+                            }
+                            
+                            dobValue = TextFieldValue(
+                                text = newText,
+                                selection = TextRange(newText.length)
+                            )
+                        }
+                    },
+                    placeholder = { Text("YYYY.MM.DD", color = Color.White.copy(alpha = 0.15f)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color(0xFF080808),
+                        unfocusedContainerColor = Color(0xFF050505),
+                        focusedIndicatorColor = Color(0xFFFF006E),
+                        unfocusedIndicatorColor = Color(0xFF00FF9C).copy(alpha = 0.3f),
+                        cursorColor = Color(0xFFFF006E),
+                        focusedTextColor = Color.White
+                    ),
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(letterSpacing = 1.sp)
                 )
             }
 
@@ -318,7 +353,7 @@ fun CharacterCreationScreen(
             // Complex Submit Button
             Button(
                 onClick = { 
-                    onCreationFinished(name, sex, dob, units, weight, somatotype, heightFeet, heightInches, heightCm)
+                    onCreationFinished(name, sex, dobValue.text, units, weight, somatotype, heightFeet, heightInches, heightCm)
                 },
                 modifier = Modifier
                     .fillMaxWidth()

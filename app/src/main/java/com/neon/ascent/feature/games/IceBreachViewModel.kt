@@ -76,47 +76,23 @@ class IceBreachViewModel @Inject constructor(
         val grid = MutableList(16) { hexChars.random().toString() + hexChars.random().toString() }
         val iceLevel = userCharacter.value?.iceLevel ?: 1
         
-        // Logic-based pattern generation
-        val seqLength = (2 + iceLevel / 4).coerceAtMost(4)
-        val targetIndices = mutableListOf<Int>()
+        val targetSequences = mutableListOf<List<String>>()
+        val lengths = listOf(2, 3, (3 + iceLevel / 5).coerceAtMost(4))
         
-        var currentIdx = Random.nextInt(4) 
-        var isSearchingRow = true 
-        val usedIndices = mutableSetOf<Int>()
-
-        repeat(seqLength) {
-            targetIndices.add(currentIdx)
-            usedIndices.add(currentIdx)
-            
-            val row = currentIdx / 4
-            val col = currentIdx % 4
-            
-            val nextPossible = if (isSearchingRow) {
-                (0 until 4).map { it * 4 + col }.filter { it !in usedIndices }
-            } else {
-                (row * 4 until (row + 1) * 4).filter { it !in usedIndices }
-            }
-            
-            if (nextPossible.isNotEmpty()) {
-                currentIdx = nextPossible.random()
-                isSearchingRow = !isSearchingRow
-            } else {
-                val remaining = (0 until 16).filter { it !in usedIndices }
-                if (remaining.isNotEmpty()) currentIdx = remaining.random()
-            }
+        lengths.forEach { len ->
+            val path = generateValidPath(grid, len)
+            targetSequences.add(path.map { grid[it] })
         }
-        
-        val targetSequence = targetIndices.map { grid[it] }
 
-        val baseBuffer = (seqLength + 2).coerceAtMost(8) 
+        val maxLen = lengths.maxOrNull() ?: 2
+        val baseBuffer = (maxLen + 2).coerceAtMost(8) 
         val bonusBuffer = if (iceLevel < 5) 1 else 0 
 
-        // Initial countdown time based on difficulty
-        val baseTime = (20 - (iceLevel * 0.5)).coerceAtLeast(10.0).toInt()
+        val baseTime = (25 - (iceLevel * 0.5)).coerceAtLeast(10.0).toInt()
 
         _uiState.value = IceBreachUiState.Phase2(
             grid = grid,
-            targetSequence = targetSequence,
+            targetSequences = targetSequences,
             selectedIndices = emptyList(),
             bufferSize = baseBuffer + bonusBuffer,
             isRowSelection = true,
@@ -126,29 +102,60 @@ class IceBreachViewModel @Inject constructor(
         )
     }
 
+    private fun generateValidPath(grid: List<String>, length: Int): List<Int> {
+        val path = mutableListOf<Int>()
+        var currentIdx = Random.nextInt(4) 
+        var isSearchingRow = true 
+        val usedIndices = mutableSetOf<Int>()
+
+        repeat(length) {
+            path.add(currentIdx)
+            usedIndices.add(currentIdx)
+            val row = currentIdx / 4
+            val col = currentIdx % 4
+            val nextPossible = if (isSearchingRow) {
+                (0 until 4).map { it * 4 + col }.filter { it !in usedIndices }
+            } else {
+                (row * 4 until (row + 1) * 4).filter { it !in usedIndices }
+            }
+            if (nextPossible.isNotEmpty()) {
+                currentIdx = nextPossible.random()
+                isSearchingRow = !isSearchingRow
+            } else {
+                val remaining = (0 until 16).filter { it !in usedIndices }
+                if (remaining.isNotEmpty()) currentIdx = remaining.random()
+            }
+        }
+        return path
+    }
+
     fun selectNode(index: Int) {
         val current = _uiState.value
         if (current is IceBreachUiState.Phase2) {
             if (current.selectedIndices.contains(index)) return
             
             audioPlayer.playKeyClick()
-            
-            // Start timer on first move
-            if (!current.isTimerStarted) {
-                startTimer()
-            }
+            if (!current.isTimerStarted) startTimer()
 
             val newSelected = current.selectedIndices + index
             val selectedCodes = newSelected.map { current.grid[it] }
             
-            if (isSequenceMatched(selectedCodes, current.targetSequence)) {
+            val completedCount = current.targetSequences.count { isSequenceMatched(selectedCodes, it) }
+            val allCompleted = completedCount == current.targetSequences.size
+            
+            if (allCompleted) {
                 timerJob?.cancel()
                 audioPlayer.playPhaseSuccess()
                 startPhase3()
             } else if (newSelected.size >= current.bufferSize) {
                 timerJob?.cancel()
-                audioPlayer.playPhaseFail()
-                _uiState.value = IceBreachUiState.Failed("BUFFER_OVERFLOW: UPLOAD_FAILED")
+                if (completedCount > 0) {
+                    audioPlayer.playPhaseSuccess()
+                    startPhase3()
+                } else {
+                    audioPlayer.playPhaseFail()
+                    _uiState.value = IceBreachUiState.Failed("BUFFER_OVERFLOW: UPLOAD_FAILED")
+                }
             } else {
                 _uiState.value = current.copy(
                     selectedIndices = newSelected,
@@ -169,8 +176,16 @@ class IceBreachViewModel @Inject constructor(
                 if (current is IceBreachUiState.Phase2) {
                     val newTime = current.remainingTime - 1
                     if (newTime <= 0) {
-                        audioPlayer.playPhaseFail()
-                        _uiState.value = IceBreachUiState.Failed("TRACE_DETECTED: CONNECTION_TERMINATED")
+                        val selectedCodes = current.selectedIndices.map { current.grid[it] }
+                        val completedAny = current.targetSequences.any { isSequenceMatched(selectedCodes, it) }
+                        
+                        if (completedAny) {
+                            audioPlayer.playPhaseSuccess()
+                            startPhase3()
+                        } else {
+                            audioPlayer.playPhaseFail()
+                            _uiState.value = IceBreachUiState.Failed("TRACE_DETECTED: CONNECTION_TERMINATED")
+                        }
                         break
                     } else {
                         _uiState.value = current.copy(remainingTime = newTime)
@@ -219,7 +234,6 @@ class IceBreachViewModel @Inject constructor(
     fun submitPhase3(input: String) {
         val current = _uiState.value
         if (current is IceBreachUiState.Phase3) {
-            // Trim to avoid whitespace issues and use exact comparison
             if (input.trim() == current.phrase.trim()) {
                 audioPlayer.playSuccess()
                 completeBreach()
@@ -232,32 +246,29 @@ class IceBreachViewModel @Inject constructor(
 
     private fun completeBreach() {
         viewModelScope.launch {
-            // Ensure character data is loaded
+            // Get character info. Try StateFlow first, then DB fetch.
             val char = userCharacter.value ?: userCharacterDao.getUserCharacter().first()
-            if (char == null) return@launch
+            val iceLevel = char?.iceLevel ?: 1
+            
+            val xpReward = if (iceLevel < 6) 50 + iceLevel * 10 else 75 + iceLevel * 15
+            var eddiesReward = if (iceLevel < 6) 0 else (iceLevel * 15).coerceAtMost(300)
+            
+            if (char?.hasBreachedBefore == false) {
+                eddiesReward += 100
+            }
 
-            val iceLevel = char.iceLevel
-            
-            val rewards = if (iceLevel < 6) {
-                val xp = 50 + iceLevel * 10
-                Pair(xp, 0)
-            } else {
-                val xp = 75 + iceLevel * 15
-                val eddies = (iceLevel * 15).coerceAtMost(300)
-                Pair(xp, eddies)
+            // Update UI state IMMEDIATELY so the user sees the success screen
+            _uiState.value = IceBreachUiState.Success(xp = xpReward, eddies = eddiesReward)
+
+            // Persist rewards in the background
+            char?.let {
+                userCharacterDao.updateExperience(it.experience + xpReward)
+                userCharacterDao.updateEddies(it.eddies + eddiesReward)
+                userCharacterDao.updateIceLevel(iceLevel + 1)
+                if (!it.hasBreachedBefore) {
+                    userCharacterDao.setHasBreached()
+                }
             }
-            
-            var finalEddies = rewards.second
-            if (!char.hasBreachedBefore) {
-                finalEddies += 100
-                userCharacterDao.setHasBreached()
-            }
-            
-            userCharacterDao.updateExperience(char.experience + rewards.first)
-            userCharacterDao.updateEddies(char.eddies + finalEddies)
-            userCharacterDao.updateIceLevel(iceLevel + 1)
-            
-            _uiState.value = IceBreachUiState.Success(xp = rewards.first, eddies = finalEddies)
         }
     }
 

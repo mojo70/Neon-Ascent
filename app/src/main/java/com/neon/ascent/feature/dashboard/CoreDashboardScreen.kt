@@ -195,7 +195,8 @@ fun LabeledSlider(label: String, value: Float, range: ClosedFloatingPointRange<F
     Column {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(label, color = Color.White, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
-            Text("%.2f$suffix".format(value), color = Color(0xFF00FF9C), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+            // Fix: Append suffix after formatting to avoid % conversion issues
+            Text("%.2f".format(value) + suffix, color = Color(0xFF00FF9C), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
         }
         Slider(
             value = value,

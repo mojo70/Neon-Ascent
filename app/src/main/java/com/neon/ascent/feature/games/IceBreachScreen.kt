@@ -150,16 +150,30 @@ fun Phase2Screen(state: IceBreachUiState.Phase2, viewModel: IceBreachViewModel) 
         
         Spacer(Modifier.height(16.dp))
         
-        // Code Sequence to match
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            state.targetSequence.forEach { code ->
-                Text(
-                    code,
-                    color = Color(0xFF00FF9C),
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 18.sp,
-                    modifier = Modifier.border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.5f)).padding(4.dp)
-                )
+        // Code Sequences to match
+        Column(horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            state.targetSequences.forEachIndexed { index, sequence ->
+                val isCompleted = isSequenceCompleted(state.selectedIndices.map { state.grid[it] }, sequence)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("V${index + 1}:", color = Color.White.copy(alpha = 0.5f), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        sequence.forEach { code ->
+                            Text(
+                                code,
+                                color = if (isCompleted) Color(0xFF00FF9C) else Color(0xFF00FF9C).copy(alpha = 0.7f),
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 14.sp,
+                                modifier = Modifier
+                                    .border(1.dp, if (isCompleted) Color(0xFF00FF9C) else Color(0xFF00FF9C).copy(alpha = 0.3f))
+                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                                    .background(if (isCompleted) Color(0xFF00FF9C).copy(alpha = 0.1f) else Color.Transparent)
+                            )
+                        }
+                    }
+                    if (isCompleted) {
+                        Text("MATCHED", color = Color(0xFF00FF9C), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         }
         
@@ -195,7 +209,7 @@ fun Phase2Screen(state: IceBreachUiState.Phase2, viewModel: IceBreachViewModel) 
                         val isSelected = state.selectedIndices.contains(index)
                         
                         val isSelectable = if (activeIdx == null) {
-                            r == 0 // Initial selection usually from first row
+                            r == 0 
                         } else {
                             if (state.isRowSelection) r == activeRow else c == activeCol
                         }
@@ -244,6 +258,14 @@ fun Phase2Screen(state: IceBreachUiState.Phase2, viewModel: IceBreachViewModel) 
             Text("RESET MATRIX", color = Color.Red.copy(alpha = 0.5f), fontSize = 10.sp)
         }
     }
+}
+
+private fun isSequenceCompleted(selected: List<String>, target: List<String>): Boolean {
+    if (target.isEmpty()) return true
+    for (i in 0..selected.size - target.size) {
+        if (selected.subList(i, i + target.size) == target) return true
+    }
+    return false
 }
 
 @Composable
@@ -448,7 +470,7 @@ sealed class IceBreachUiState {
     data class Phase1(val targetFreq: Float, val currentFreq: Float) : IceBreachUiState()
     data class Phase2(
         val grid: List<String>, 
-        val targetSequence: List<String>, 
+        val targetSequences: List<List<String>>,
         val selectedIndices: List<Int>,
         val bufferSize: Int,
         val isRowSelection: Boolean,

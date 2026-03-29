@@ -47,38 +47,53 @@ class CreationViewModel @Inject constructor(
         heightInches: String?,
         heightCm: String?
     ) {
-        draftCharacter = draftCharacter.copy(
-            name = name,
-            sex = sex,
-            dob = dob,
-            units = units,
-            weight = weight,
-            somatotype = somatotype,
-            heightFeet = heightFeet,
-            heightInches = heightInches,
-            heightCm = heightCm
-        )
+        viewModelScope.launch {
+            val finalCharacter = draftCharacter.copy(
+                name = name,
+                sex = sex,
+                dob = dob,
+                units = units,
+                weight = weight,
+                somatotype = somatotype,
+                heightFeet = heightFeet,
+                heightInches = heightInches,
+                heightCm = heightCm,
+                isCreationComplete = true // Mark as complete when basic info is submitted
+            )
+            userCharacterDao.insertUserCharacter(finalCharacter)
+            _uiState.value = CreationUiState.Success
+        }
     }
 
     fun updatePersonality(mbti: String, alignment: String, archetype: String) {
-        draftCharacter = draftCharacter.copy(
-            mbti = mbti,
-            alignment = alignment,
-            archetype = archetype
-        )
+        viewModelScope.launch {
+            userCharacterDao.getUserCharacter().collect { char ->
+                char?.let {
+                    val updated = it.copy(
+                        mbti = mbti,
+                        alignment = alignment,
+                        archetype = archetype
+                    )
+                    userCharacterDao.insertUserCharacter(updated)
+                }
+            }
+        }
     }
 
     fun completeCreation(avatarBitmap: Bitmap?) {
         viewModelScope.launch {
             _uiState.value = CreationUiState.Loading
             try {
-                // In a real app, save bitmap to file and get path
-                val finalCharacter = draftCharacter.copy(
-                    isCreationComplete = true,
-                    avatarPath = null // Placeholder for bitmap path
-                )
-                userCharacterDao.insertUserCharacter(finalCharacter)
-                _uiState.value = CreationUiState.Success
+                userCharacterDao.getUserCharacter().collect { char ->
+                    char?.let {
+                        val finalCharacter = it.copy(
+                            isCreationComplete = true,
+                            avatarPath = null 
+                        )
+                        userCharacterDao.insertUserCharacter(finalCharacter)
+                        _uiState.value = CreationUiState.Success
+                    }
+                }
             } catch (e: Exception) {
                 _uiState.value = CreationUiState.Error(e.message ?: "Failed to save character")
             }
@@ -94,7 +109,6 @@ class CreationViewModel @Inject constructor(
                         text("Create a cyberpunk character profile for a person named $name with the following bio: $bio. Return it as JSON.")
                     }
                 )
-                // Simplified for brevity - in real app would parse JSON from response
                 val character = UserCharacter(
                     name = name,
                     sex = "Unknown",
@@ -103,7 +117,8 @@ class CreationViewModel @Inject constructor(
                     weight = "0",
                     somatotype = 0.5f,
                     level = 1,
-                    neuralLoad = 0.2f
+                    neuralLoad = 0.2f,
+                    isCreationComplete = true
                 )
                 userCharacterDao.insertUserCharacter(character)
                 _uiState.value = CreationUiState.Success
