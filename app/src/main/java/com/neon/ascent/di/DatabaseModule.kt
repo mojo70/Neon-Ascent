@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.neon.ascent.data.local.AppDatabase
 import com.neon.ascent.data.local.BiohackingDao
+import com.neon.ascent.data.local.JournalDao
 import com.neon.ascent.data.local.SayingsDao
 import com.neon.ascent.data.local.UserCharacterDao
 import dagger.Module
@@ -46,5 +47,10 @@ object DatabaseModule {
     @Provides
     fun provideSayingsDao(database: AppDatabase): SayingsDao {
         return database.sayingsDao()
+    }
+
+    @Provides
+    fun provideJournalDao(database: AppDatabase): JournalDao {
+        return database.journalDao()
     }
 }

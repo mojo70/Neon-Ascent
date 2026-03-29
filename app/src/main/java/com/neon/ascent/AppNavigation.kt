@@ -1,40 +1,28 @@
 package com.neon.ascent
 
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
-import com.neon.ascent.feature.charactercreation.CharacterCreationScreen
-import com.neon.ascent.feature.charactercreation.NeuralScanScreen
+import com.neon.ascent.feature.biohacking.BiohackingScreen
 import com.neon.ascent.feature.charactercreation.AvatarCaptureScreen
+import com.neon.ascent.feature.charactercreation.CharacterCreationScreen
 import com.neon.ascent.feature.charactercreation.CreationViewModel
-import com.neon.ascent.feature.charactercreation.CyberGridBackground
+import com.neon.ascent.feature.charactercreation.NeuralScanScreen
+import com.neon.ascent.feature.cyberdeck.CyberdeckScreen
 import com.neon.ascent.feature.dashboard.DashboardScreen
 import com.neon.ascent.feature.dashboard.DashboardViewModel
-import com.neon.ascent.feature.dashboard.HolographicAvatarHub
-import com.neon.ascent.feature.games.CyberPongScreen
-import com.neon.ascent.feature.games.CyberChessScreen
-import com.neon.ascent.feature.settings.SettingsScreen
-import com.neon.ascent.feature.settings.DeepNodeScreen
+import com.neon.ascent.feature.journal.JournalScreen
 import com.neon.ascent.feature.loading.LoadingScreen
-import com.neon.ascent.feature.cyberdeck.CyberdeckScreen
-import com.neon.ascent.feature.biohacking.BiohackingScreen
+import com.neon.ascent.feature.settings.DeepNodeScreen
+import com.neon.ascent.feature.settings.SettingsScreen
 import com.neon.ascent.feature.wallet.EurodollarWalletScreen
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AppNavigation(
     creationViewModel: CreationViewModel = hiltViewModel(),
@@ -62,6 +50,7 @@ fun AppNavigation(
                 when (page) {
                     0 -> CyberdeckScreen(
                         onWalletClick = { navController.navigate("wallet") },
+                        onDatabaseClick = { navController.navigate("journal") },
                         tickerMessages = tickerMessages
                     )
                     1 -> DashboardScreen(
@@ -77,42 +66,35 @@ fun AppNavigation(
             }
         }
 
+        composable("journal") {
+            JournalScreen(onBack = { navController.popBackStack() })
+        }
+
         composable("creation") {
             CharacterCreationScreen(
-                onInitialize = { name, sex, dob, units, weight, somatotype, ft, inches, cm ->
-                    creationViewModel.updateBasicInfo(name, sex, dob, units, weight, somatotype, ft, inches, cm)
-                    navController.navigate("neural_scan")
-                }
-            )
-        }
-        composable("neural_scan") {
-            NeuralScanScreen(
-                onComplete = { answers ->
-                    val mbti = deriveMbti(answers)
-                    val alignment = deriveAlignment(answers)
-                    val archetype = deriveArchetype(mbti, alignment).first
-                    creationViewModel.updatePersonality(mbti, alignment, archetype)
-                    navController.navigate("avatar_capture")
-                }
-            )
-        }
-        composable("avatar_capture") {
-            AvatarCaptureScreen(
-                onComplete = { bitmap ->
-                    creationViewModel.completeCreation(bitmap)
+                onCreationFinished = { name, sex, dob, units, weight, somatotype, hFeet, hInches, hCm ->
+                    creationViewModel.updateBasicInfo(name, sex, dob, units, weight, somatotype, hFeet, hInches, hCm)
                     navController.navigate("main_hub") {
                         popUpTo("creation") { inclusive = true }
                     }
                 }
             )
         }
-        
+
+        composable("attribute_scan") {
+            NeuralScanScreen(onComplete = { navController.popBackStack() })
+        }
+
+        composable("wallet") {
+            EurodollarWalletScreen(onBack = { navController.popBackStack() })
+        }
+
         composable("settings") {
             SettingsScreen(
                 onBack = { navController.popBackStack() },
                 onResetComplete = {
-                    navController.navigate("creation") {
-                        popUpTo("main_hub") { inclusive = true }
+                    navController.navigate("loading") {
+                        popUpTo(0) { inclusive = true }
                     }
                 },
                 onDeepNodeUnlock = {
@@ -121,117 +103,13 @@ fun AppNavigation(
             )
         }
 
-        composable(
-            route = "deep_node/{subScreen}",
-            arguments = listOf(navArgument("subScreen") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val subScreen = backStackEntry.arguments?.getString("subScreen") ?: "ROOT"
-            DeepNodeScreen(
-                initialSubScreen = subScreen,
-                onBack = { navController.popBackStack() },
-                onGameSelect = { gameId ->
-                    if (gameId == "PONG") navController.navigate("cyber_pong")
-                    if (gameId == "CHESS") navController.navigate("cyber_chess")
-                },
-                onRebirthSuccess = {
-                    navController.navigate("main_hub") {
-                        popUpTo("deep_node/{subScreen}") { inclusive = true }
-                    }
-                }
-            )
+        composable("deep_node/{nodeType}") { backStackEntry ->
+            val nodeType = backStackEntry.arguments?.getString("nodeType") ?: "RELIGION"
+            DeepNodeScreen(initialSubScreen = nodeType, onBack = { navController.popBackStack() })
         }
 
-        composable("cyber_pong") {
-            CyberPongScreen(onBack = { navController.popBackStack() })
+        composable("character_bio") {
+            AvatarCaptureScreen(onComplete = { navController.popBackStack() })
         }
-        
-        composable("cyber_chess") {
-            CyberChessScreen(onBack = { navController.popBackStack() })
-        }
-        
-        composable("wallet") {
-            EurodollarWalletScreen(onBack = { navController.popBackStack() })
-        }
-        
-        composable("character_bio") { 
-            HolographicAvatarHub(
-                onBack = { navController.popBackStack() },
-                onUpgradeClick = { sector ->
-                    navController.navigate("goals")
-                },
-                onHacksClick = {
-                    // Biohacking is now a main tab, but keeping this for deep linking if needed
-                },
-                onAttributeScanClick = {
-                    navController.navigate("attribute_scan")
-                },
-                onStoryClick = {
-                    navController.navigate("story")
-                },
-                onGoalSettingClick = {
-                    navController.navigate("goals")
-                }
-            )
-        }
-
-        composable("attribute_scan") { PlaceholderScreen("ATTRIBUTE SCAN", navController::popBackStack) }
-        composable("story") { PlaceholderScreen("YOUR STORY", navController::popBackStack) }
-        composable("goals") { PlaceholderScreen("GOAL SETTING", navController::popBackStack) }
-    }
-}
-
-@Composable
-fun PlaceholderScreen(title: String, onBack: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black),
-        contentAlignment = Alignment.Center
-    ) {
-        CyberGridBackground()
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(title, color = Color(0xFF00FF9C), style = MaterialTheme.typography.headlineMedium)
-            Spacer(modifier = Modifier.height(24.dp))
-            Button(onClick = onBack) {
-                Text("RETURN")
-            }
-        }
-    }
-}
-
-private fun deriveMbti(answers: Map<String, String>): String {
-    val energy = if (answers["ENERGY_SOURCE"]?.contains("SOLO") == true) "I" else "E"
-    val info = if (answers["INPUT_METHOD"]?.contains("SENSORY") == true) "S" else "N"
-    val decision = if (answers["LOGIC_GATE"]?.contains("CYBER") == true) "T" else "F"
-    val structure = if (answers["SYSTEM_EXECUTION"]?.contains("STRICT") == true) "J" else "P"
-    return "$energy$info$decision$structure"
-}
-
-private fun deriveAlignment(answers: Map<String, String>): String {
-    val alignmentLaw = when {
-        answers["OPERATIONAL_CODE"]?.contains("FOLLOW") == true -> "Lawful"
-        answers["OPERATIONAL_CODE"]?.contains("BREAK") == true -> "Chaotic"
-        else -> "Neutral"
-    }
-    val alignmentMorality = when {
-        answers["MORAL_COMPASS"]?.contains("RESCUE") == true -> "Good"
-        answers["MORAL_COMPASS"]?.contains("EXPLOIT") == true -> "Evil"
-        else -> "Neutral"
-    }
-    return if (alignmentLaw == "Neutral" && alignmentMorality == "Neutral") "True Neutral" else "$alignmentLaw $alignmentMorality"
-}
-
-private fun deriveArchetype(mbti: String, alignment: String): Pair<String, String> {
-    return when {
-        mbti.startsWith("INF") && alignment.contains("Good") -> 
-            "THE IDEALIST" to "Driven by strong values and a desire to help others."
-        mbti.startsWith("INT") -> 
-            "THE STRATEGIST" to "Analytical and goal-oriented."
-        mbti.contains("ENF") && alignment.contains("Chaotic") -> 
-            "THE ADVOCATE" to "Enthusiastic and inspiring."
-        mbti.contains("IST") -> 
-            "THE PRAGMATIST" to "Observant and adaptable."
-        else -> 
-            "THE EDGE-RUNNER" to "A versatile survivalist."
     }
 }

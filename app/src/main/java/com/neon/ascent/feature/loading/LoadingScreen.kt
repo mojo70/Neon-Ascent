@@ -1,9 +1,15 @@
 package com.neon.ascent.feature.loading
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -21,6 +27,7 @@ import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -38,6 +45,8 @@ fun LoadingScreen(
     val progress = remember { Animatable(0f) }
     val textMeasurer = rememberTextMeasurer()
     val aiType by viewModel.activeAiType.collectAsState()
+    val saying by viewModel.randomSaying.collectAsState()
+    val isSaved by viewModel.isSaved.collectAsState()
 
     val infiniteTransition = rememberInfiniteTransition(label = "LoadingAtmosphere")
     val pulse by infiniteTransition.animateFloat(
@@ -64,11 +73,11 @@ fun LoadingScreen(
         viewModel.initializeAi()
         
         // Step 2: More loading
-        progress.animateTo(0.7f, tween(1500, easing = LinearOutSlowInEasing))
+        progress.animateTo(0.6f, tween(2500, easing = LinearOutSlowInEasing))
         
         // Finalize
-        progress.animateTo(1.0f, tween(1200, easing = LinearOutSlowInEasing))
-        delay(500)
+        progress.animateTo(1.0f, tween(1500, easing = LinearOutSlowInEasing))
+        delay(1000)
         onLoadingFinished()
     }
 
@@ -105,7 +114,7 @@ fun LoadingScreen(
             val textStyle = TextStyle(
                 fontSize = 52.sp, 
                 fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace, // Fallback as we don't have the google fonts here
+                fontFamily = FontFamily.Monospace,
                 letterSpacing = 36.sp,
                 fontStyle = FontStyle.Italic
             )
@@ -241,7 +250,50 @@ fun LoadingScreen(
             }
         }
 
-        // 4. TYPING STATUS TEXT
+        // 4. RANDOM SAYING & JOURNAL SAVING
+        AnimatedVisibility(
+            visible = progress.value > 0.3f,
+            enter = fadeIn(tween(1000)),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.Center).padding(horizontal = 40.dp)
+        ) {
+            saying?.let { s ->
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "\"${s.text}\"",
+                        color = Color(0xFF00CCFF),
+                        fontSize = 18.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontStyle = FontStyle.Italic,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 26.sp
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "— ${s.category.uppercase()}",
+                        color = Color.Gray,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    
+                    Spacer(Modifier.height(24.dp))
+                    
+                    if (!isSaved) {
+                        Button(
+                            onClick = { viewModel.saveToJournal() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                            modifier = Modifier.border(1.dp, Color(0xFF00FFAA))
+                        ) {
+                            Text("💾 SAVE_TO_JOURNAL", color = Color(0xFF00FFAA), fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+                        }
+                    } else {
+                        Text("ENTRY_SAVED // [OK]", color = Color(0xFF00FF9C), fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+
+        // 5. TYPING STATUS TEXT
         val typingCount = (progress.value * statusText.length * 1.5f).toInt().coerceIn(0, statusText.length)
         val currentStatus = statusText.take(typingCount)
 

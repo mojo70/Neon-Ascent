@@ -36,6 +36,7 @@ import kotlin.random.Random
 @Composable
 fun CyberdeckScreen(
     onWalletClick: () -> Unit,
+    onDatabaseClick: () -> Unit,
     tickerMessages: List<String> = emptyList(),
     viewModel: CyberdeckViewModel = hiltViewModel()
 ) {
@@ -101,7 +102,7 @@ fun CyberdeckScreen(
                 }
 
                 // 4. Hexagon Cores (Enhanced 3D Neon)
-                CoreLayout(onWalletClick, aiType)
+                CoreLayout(onWalletClick, onDatabaseClick, aiType)
             }
 
             // 5. Live Console
@@ -243,14 +244,14 @@ private fun SecCoreWithIce() {
             },
             color = Color(0xFFFF0088),
             fontSize = 11.sp,
-            fontWeight = FontWeight.Black,
+            fontWeight = FontWeight.Bold,
             fontFamily = FontFamily.Monospace
         )
     }
 }
 
 @Composable
-private fun CoreLayout(onWalletClick: () -> Unit, aiType: AiType) {
+private fun CoreLayout(onWalletClick: () -> Unit, onDatabaseClick: () -> Unit, aiType: AiType) {
     Box(Modifier.fillMaxSize()) {
         // NETWORK
         HexCore("NETWORK",  Color(0xFF00FF99), Modifier.align(Alignment.TopCenter).padding(top = 80.dp))
@@ -278,7 +279,7 @@ private fun CoreLayout(onWalletClick: () -> Unit, aiType: AiType) {
         // WALLET
         HexCore("WALLET",   Color(0xFF00CCFF), Modifier.align(Alignment.CenterEnd).padding(end = 32.dp, bottom = 40.dp), onClick = onWalletClick)
         // DATABASE
-        HexCore("DATABASE", Color(0xFF00CCFF), Modifier.align(Alignment.BottomCenter).padding(bottom = 120.dp))
+        HexCore("DATABASE", Color(0xFF00CCFF), Modifier.align(Alignment.BottomCenter).padding(bottom = 120.dp), onClick = onDatabaseClick)
     }
 }
 
