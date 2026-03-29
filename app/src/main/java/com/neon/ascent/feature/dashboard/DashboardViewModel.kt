@@ -7,11 +7,13 @@ import androidx.lifecycle.viewModelScope
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.Priority
 import com.neon.ascent.data.local.BiohackingDao
+import com.neon.ascent.data.local.SayingsDao
 import com.neon.ascent.data.local.UserCharacterDao
 import com.neon.ascent.data.repository.HealthRepository
 import com.neon.ascent.data.repository.WeatherRepository
 import com.neon.ascent.feature.biohacking.AiProvider
 import com.neon.ascent.model.BiohackingData
+import com.neon.ascent.model.Saying
 import com.neon.ascent.model.UserCharacter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -20,6 +22,7 @@ import kotlinx.coroutines.tasks.await
 import java.time.LocalTime
 import java.util.Locale
 import javax.inject.Inject
+import kotlin.random.Random
 
 data class WeatherState(
     val isRaining: Boolean = false,
@@ -42,6 +45,7 @@ data class HealthState(
 class DashboardViewModel @Inject constructor(
     private val userCharacterDao: UserCharacterDao,
     private val biohackingDao: BiohackingDao,
+    private val sayingsDao: SayingsDao,
     private val weatherRepository: WeatherRepository,
     private val healthRepository: HealthRepository,
     private val fusedLocationClient: FusedLocationProviderClient,
@@ -67,37 +71,53 @@ class DashboardViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
-        // Initial quick local estimate
+        seedSayingsIfEmpty()
         updateAtmosphereSimulated()
-        // Then attempt real weather sync
         fetchRealWeather()
-        // And health data
         refreshHealthData()
-        // Generate initial AI advice
         generateSystemAdvice()
+    }
+
+    private fun seedSayingsIfEmpty() {
+        viewModelScope.launch {
+            val count = sayingsDao.getAllSayings().first().size
+            if (count == 0) {
+                val initialSayings = listOf(
+                    Saying("s1", "In Night City's neon haze, know thyself before the corps rewrite your code.", "Self & Identity", 85),
+                    Saying("s2", "The unexamined implant is not worth jacking in.", "Self & Identity", 92),
+                    Saying("s3", "Chrome your body, but guard the analog heart.", "Self & Identity", 78),
+                    Saying("s4", "I know that I know nothing—except how to ghost this ICE.", "Self & Identity", 88),
+                    Saying("s5", "The reflection in your Kiroshi eyes holds more truth than the ad-screens.", "Self & Identity", 81),
+                    Saying("c1", "The corpo gods demand sacrifice; the street offers redemption in rain.", "Corporate Shadows", 90),
+                    Saying("c2", "Megacorps build towers; the wise build bridges in the net.", "Corporate Shadows", 82),
+                    Saying("d1", "Neon enlightenment: see the light, then hack the source.", "Digital Enlightenment", 93),
+                    Saying("d2", "The matrix is a cave; the wise unplug to see the forms.", "Digital Enlightenment", 95),
+                    Saying("sw1", "Break on through the firewall, where the real shadows play.", "Street Wisdom", 84),
+                    Saying("sw5", "Morrison howls from the beyond: the future's uncertain, but the end is always near—in pixels.", "Street Wisdom", 90),
+                    Saying("sm1", "What does it profit a man to gain the whole net, yet forfeit his ghost?", "Soul in the Machine", 94),
+                    Saying("r1", "Love your fellow choom as yourself, but always run a trace.", "Rebellion & Freedom", 75),
+                    Saying("t1", "The sky above the port was the color of television, tuned to a dead channel.", "Truth & Illusion", 98),
+                    Saying("np1", "In the sprawl, every runner is a parable waiting to be decrypted.", "Neon Parables", 73)
+                )
+                sayingsDao.insertSayings(initialSayings)
+            }
+        }
     }
 
     private fun generateTickerMessages(character: UserCharacter?, weather: WeatherState): List<String> {
         val messages = mutableListOf<String>()
-        
-        // Character specific
         character?.let {
             messages.add("SUBJECT: ${it.name.uppercase()} // ARCHETYPE: ${it.archetype ?: "UNKNOWN"}")
             messages.add("LEVEL ${it.level} OPERATIVE DETECTED IN SECTOR 7")
             if (it.mbti != null) messages.add("NEURAL_PATTERN: ${it.mbti} // SYNC_RATIO: 98.4%")
             if (it.alignment != null) messages.add("MORAL_ALIGNMENT: ${it.alignment.uppercase()}")
         }
-
-        // Weather/Environment
         val weatherStatus = if (weather.isRaining) "ACID_RAIN_WARNING" else "ATMOSPHERE_STABLE"
         messages.add("LOCAL_CONDITIONS: ${weather.temperature}°${weather.unitSymbol} // $weatherStatus")
-        
-        // Simulated Market/Mission data
         messages.add("MARKET_TICKER: \$SOL +4.2% // \$ETH -1.5% // \$EURODOLLAR STABLE")
         messages.add("MISSION_LOG: 'NEURAL_BREACH' SUCCESSFUL // REWARD: 5000 ED")
         messages.add("ALERT: ARASAKA_SECURITY_LEVEL_INCREASED_IN_WATSON")
         messages.add("STOCK: KANGA_BIOTECH (KBT) UP 12% AFTER NEURAL_LINK_BREAKTHROUGH")
-        
         return messages
     }
 
@@ -111,7 +131,31 @@ class DashboardViewModel @Inject constructor(
                 Archetype: ${userCharacter.value?.archetype ?: "Unknown"}
             """.trimIndent()
             
-            _systemAdvice.value = aiProvider.generateContent(prompt)
+            val result = aiProvider.generateContent(prompt)
+            if (result.startsWith("ERROR:")) {
+                _systemAdvice.value = getRandomSayingFromDb()
+            } else {
+                _systemAdvice.value = result
+            }
+        }
+    }
+
+    private suspend fun getRandomSayingFromDb(): String {
+        val sayings = sayingsDao.getAllSayings().first()
+        return if (sayings.isNotEmpty()) {
+            val total = sayings.sumOf { it.engagementScore }
+            var rand = Random.nextInt(total + 1)
+            var selected = sayings.first().text
+            for (saying in sayings) {
+                rand -= saying.engagementScore
+                if (rand <= 0) {
+                    selected = saying.text
+                    break
+                }
+            }
+            selected
+        } else {
+            "NEURAL_LINK_STABLE // STAY_VIGILANT"
         }
     }
 
@@ -124,9 +168,7 @@ class DashboardViewModel @Inject constructor(
                     val realWeather = weatherRepository.getWeatherData(it.latitude, it.longitude)
                     _weatherState.value = realWeather
                 }
-            } catch (e: Exception) {
-                // If anything fails, we stay with the simulated or default state
-            }
+            } catch (e: Exception) { }
         }
     }
 
@@ -137,9 +179,6 @@ class DashboardViewModel @Inject constructor(
                 val steps = healthRepository.getTodaySteps()
                 val hr = healthRepository.getLatestHeartRate()
                 val vo2 = healthRepository.getLatestVo2Max()
-                
-                // For Garmin "Body Battery" and "Stress", we simulate or pull from other sources if available.
-                // Here we keep it somewhat dynamic based on heart rate/time of day for flavor.
                 val simulatedBattery = (80 - (LocalTime.now().hour * 2)).coerceIn(10, 100)
                 val simulatedStress = (hr / 4).coerceIn(5, 95)
 
@@ -153,7 +192,6 @@ class DashboardViewModel @Inject constructor(
                     lastSyncTimestamp = System.currentTimeMillis()
                 )
                 
-                // Also update persistent biohacking data
                 biohackingData.value?.let { current ->
                     biohackingDao.insertOrUpdate(current.copy(
                         isWearableSynced = true,

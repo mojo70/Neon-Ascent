@@ -24,14 +24,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.neon.ascent.feature.biohacking.AiType
 import com.neon.ascent.feature.charactercreation.CyberFrame
 import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.random.Random
 
 @Composable
-fun CyberdeckScreen(onWalletClick: () -> Unit, tickerMessages: List<String> = emptyList()) {
+fun CyberdeckScreen(
+    onWalletClick: () -> Unit,
+    tickerMessages: List<String> = emptyList(),
+    viewModel: CyberdeckViewModel = hiltViewModel()
+) {
+    val aiType by viewModel.aiType.collectAsState()
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulsePhase by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -93,7 +101,7 @@ fun CyberdeckScreen(onWalletClick: () -> Unit, tickerMessages: List<String> = em
                 }
 
                 // 4. Hexagon Cores (Enhanced 3D Neon)
-                CoreLayout(onWalletClick)
+                CoreLayout(onWalletClick, aiType)
             }
 
             // 5. Live Console
@@ -242,14 +250,31 @@ private fun SecCoreWithIce() {
 }
 
 @Composable
-private fun CoreLayout(onWalletClick: () -> Unit) {
+private fun CoreLayout(onWalletClick: () -> Unit, aiType: AiType) {
     Box(Modifier.fillMaxSize()) {
         // NETWORK
         HexCore("NETWORK",  Color(0xFF00FF99), Modifier.align(Alignment.TopCenter).padding(top = 80.dp))
         // EXPLOITS
         HexCore("EXPLOITS", Color(0xFFFF0088), Modifier.align(Alignment.CenterStart).padding(start = 32.dp, bottom = 40.dp))
-        // CORE_OS
-        HexCore("CORE_OS",  Color(0xFF00CCFF), Modifier.align(Alignment.Center).padding(bottom = 40.dp))
+        
+        // CORE_OS / AI Status
+        val coreLabel = when (aiType) {
+            AiType.LOCAL -> "LOCAL AI"
+            AiType.CLOUD -> "CLOUD AI"
+            AiType.NONE -> "OFFLINE"
+        }
+        val coreColor = when (aiType) {
+            AiType.LOCAL -> Color(0xFFFFFF00)
+            AiType.CLOUD -> Color(0xFF00CCFF)
+            AiType.NONE -> Color.Red
+        }
+        HexCore(
+            label = coreLabel,
+            color = coreColor,
+            modifier = Modifier.align(Alignment.Center).padding(bottom = 40.dp),
+            aiType = aiType
+        )
+
         // WALLET
         HexCore("WALLET",   Color(0xFF00CCFF), Modifier.align(Alignment.CenterEnd).padding(end = 32.dp, bottom = 40.dp), onClick = onWalletClick)
         // DATABASE
@@ -258,7 +283,44 @@ private fun CoreLayout(onWalletClick: () -> Unit) {
 }
 
 @Composable
-private fun HexCore(label: String, color: Color, modifier: Modifier, onClick: () -> Unit = {}) {
+private fun HexCore(label: String, color: Color, modifier: Modifier, aiType: AiType? = null, onClick: () -> Unit = {}) {
+    val infiniteTransition = rememberInfiniteTransition(label = "HexEffect")
+    
+    // Local AI Swirl
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "SwirlRotation"
+    )
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "PulseAlpha"
+    )
+
+    // Offline Glitch
+    var glitchOffset by remember { mutableStateOf(Offset.Zero) }
+    if (aiType == AiType.NONE) {
+        LaunchedEffect(Unit) {
+            while (true) {
+                delay(Random.nextLong(50, 250))
+                glitchOffset = if (Random.nextFloat() > 0.85f) {
+                    Offset(Random.nextFloat() * 6 - 3, Random.nextFloat() * 4 - 2)
+                } else {
+                    Offset.Zero
+                }
+            }
+        }
+    }
+
     Box(
         modifier = modifier
             .size(110.dp)
@@ -281,16 +343,48 @@ private fun HexCore(label: String, color: Color, modifier: Modifier, onClick: ()
                 style = Fill
             )
             
-            // Enhanced Neon Hexagon Border (Applied to the hexagon path itself)
+            // Local AI Swirling Feature
+            if (aiType == AiType.LOCAL) {
+                rotate(rotation) {
+                    drawArc(
+                        color = Color(0xFFFFFF00).copy(alpha = pulseAlpha),
+                        startAngle = 0f,
+                        sweepAngle = 120f,
+                        useCenter = false,
+                        style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round),
+                        topLeft = Offset(center.x - radius * 1.25f, center.y - radius * 1.25f),
+                        size = Size(radius * 2.5f, radius * 2.5f)
+                    )
+                    drawArc(
+                        color = Color(0xFFFFFF00).copy(alpha = pulseAlpha),
+                        startAngle = 180f,
+                        sweepAngle = 120f,
+                        useCenter = false,
+                        style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round),
+                        topLeft = Offset(center.x - radius * 1.25f, center.y - radius * 1.25f),
+                        size = Size(radius * 2.5f, radius * 2.5f)
+                    )
+                }
+            }
+
+            // Enhanced Neon Hexagon Border
             drawNeonHexagon(center, radius, color)
         }
         Text(
             text = label,
-            modifier = Modifier.align(Alignment.Center),
-            color = Color.White,
+            modifier = Modifier
+                .align(Alignment.Center)
+                .offset(glitchOffset.x.dp, glitchOffset.y.dp)
+                .graphicsLayer {
+                    if (aiType == AiType.NONE) {
+                        alpha = if (Random.nextFloat() > 0.92f) 0.4f else 1f
+                    }
+                },
+            color = if (aiType == AiType.NONE) Color.Red else Color.White,
             fontSize = 12.sp,
             fontFamily = FontFamily.Monospace,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            fontWeight = if (aiType != null) FontWeight.Bold else FontWeight.Normal
         )
     }
 }

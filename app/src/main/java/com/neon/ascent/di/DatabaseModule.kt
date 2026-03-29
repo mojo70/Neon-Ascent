@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.neon.ascent.data.local.AppDatabase
 import com.neon.ascent.data.local.BiohackingDao
+import com.neon.ascent.data.local.SayingsDao
 import com.neon.ascent.data.local.UserCharacterDao
 import dagger.Module
 import dagger.Provides
@@ -25,7 +26,7 @@ object DatabaseModule {
         return Room.databaseBuilder(
             context,
             AppDatabase::class.java,
-            "neon_ascent_v3_secure.db" // Incremented DB name to force fresh start
+            "neon_ascent_v3_secure.db" 
         )
         .openHelperFactory(factory)
         .fallbackToDestructiveMigration()
@@ -40,5 +41,10 @@ object DatabaseModule {
     @Provides
     fun provideBiohackingDao(database: AppDatabase): BiohackingDao {
         return database.biohackingDao()
+    }
+
+    @Provides
+    fun provideSayingsDao(database: AppDatabase): SayingsDao {
+        return database.sayingsDao()
     }
 }
