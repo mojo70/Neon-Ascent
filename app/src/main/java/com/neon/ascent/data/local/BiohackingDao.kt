@@ -18,4 +18,7 @@ interface BiohackingDao {
 
     @Query("SELECT * FROM bio_protocol_logs WHERE userId = :userId ORDER BY timestamp DESC")
     fun getProtocolLogs(userId: Int): Flow<List<BioProtocolLog>>
+
+    @Query("SELECT * FROM bio_protocol_logs ORDER BY timestamp DESC")
+    fun getAllProtocolLogs(): Flow<List<BioProtocolLog>>
 }

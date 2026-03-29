@@ -60,5 +60,6 @@ data class BioProtocolLog(
     val focusScore: Int,
     val sideEffects: String? = null,
     val notes: String? = null,
-    val protocolId: String // Links to a specific AI generation
+    val protocolId: String, // Links to a specific AI generation
+    val isWorking: Boolean? = null // null = unrated, true = working, false = not working
 )

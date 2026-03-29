@@ -24,6 +24,7 @@ data class UserCharacter(
     val iceLevel: Int = 1,
     val eddies: Int = 0,
     val hasBreachedBefore: Boolean = false,
+    val isSystemDatabaseUnlocked: Boolean = false,
     val walletConnected: Boolean = false,
     val strength: Int? = null,
     val perception: Int? = null,
