@@ -9,9 +9,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.text.font.FontFamily
@@ -40,12 +43,15 @@ fun CyberdeckScreen(onWalletClick: () -> Unit, tickerMessages: List<String> = em
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF05080A))
+            .background(Color(0xFF020508)) // Darker for high contrast neon
     ) {
-        // 1. Grid Background (Restored)
+        // 1. Grid Background
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawGrid()
         }
+
+        // 2. Ambient Haze
+        AtmosphericHaze()
 
         Column(modifier = Modifier.fillMaxSize()) {
             TopStatusBar()
@@ -62,39 +68,32 @@ fun CyberdeckScreen(onWalletClick: () -> Unit, tickerMessages: List<String> = em
                     createCircuitPaths(w, h)
                 }
 
-                // 2. Triple Base Wires + Traffic Pulses
+                // 3. Triple Base Wires + Traffic Pulse
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     paths.forEach { (path, color) ->
-                        // Draw three parallel wires for each path
                         val offsets = listOf(-5f, 0f, 5f)
                         offsets.forEachIndexed { index, offset ->
                             withTransform({
                                 translate(left = offset, top = offset)
                             }) {
-                                // Faint static wire
                                 drawPath(
                                     path = path,
-                                    color = color.copy(alpha = 0.1f),
+                                    color = color.copy(alpha = 0.15f),
                                     style = Stroke(width = 1.5f)
                                 )
-                                // Glowing traffic pulses - staggered for a "data stream" look
-                                val staggeredPhase = (pulsePhase + index * 0.15f) % 1f
-                                drawTrafficPulse(
-                                    path = path, 
-                                    color = color, 
-                                    phase = staggeredPhase,
-                                    width = if (index == 1) 3f else 2f
-                                )
+                                if (index == 1) {
+                                    drawTrafficPulse(path, color, pulsePhase, width = 3.5f)
+                                }
                             }
                         }
                     }
                 }
 
-                // 3. Hexagon Cores
+                // 4. Hexagon Cores (Enhanced 3D Neon)
                 CoreLayout(onWalletClick)
             }
 
-            // 4. Live Console (Blinking cursor restored)
+            // 5. Live Console
             CyberFrame(label = "CONSOLE_OUTPUT") {
                 Box(modifier = Modifier.fillMaxWidth().height(160.dp).padding(8.dp)) {
                     LiveConsole()
@@ -105,6 +104,37 @@ fun CyberdeckScreen(onWalletClick: () -> Unit, tickerMessages: List<String> = em
         // Decorative accents
         Box(Modifier.width(4.dp).fillMaxHeight().background(Color(0xFFFF0088)).align(Alignment.CenterStart))
         Box(Modifier.width(4.dp).fillMaxHeight().background(Color(0xFF00CCFF)).align(Alignment.CenterEnd))
+    }
+}
+
+@Composable
+fun AtmosphericHaze() {
+    val infiniteTransition = rememberInfiniteTransition(label = "Haze")
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.1f,
+        targetValue = 0.3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(5000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Alpha"
+    )
+
+    Canvas(modifier = Modifier.fillMaxSize().blur(80.dp)) {
+        drawCircle(
+            brush = Brush.radialGradient(
+                listOf(Color(0xFF00CCFF).copy(alpha = alpha), Color.Transparent),
+                center = center,
+                radius = size.maxDimension / 1.5f
+            )
+        )
+        drawRect(
+            brush = Brush.verticalGradient(
+                listOf(Color.Transparent, Color(0xFFFF0088).copy(alpha = alpha * 0.5f)),
+                startY = size.height * 0.6f,
+                endY = size.height
+            )
+        )
     }
 }
 
@@ -123,7 +153,11 @@ private fun TopStatusBar() {
         // SEC Hex
         Box(modifier = Modifier.size(48.dp)) {
             Canvas(Modifier.fillMaxSize()) {
-                drawHexagon(Offset(size.width / 2, size.height / 2), size.width * 0.45f, Color(0xFFFF0088), 3f)
+                drawNeonHexagon(
+                    center = Offset(size.width / 2, size.height / 2),
+                    radius = size.width * 0.45f,
+                    color = Color(0xFFFF0088)
+                )
             }
             Text("SEC", Modifier.align(Alignment.Center), color = Color(0xFFFF0088), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
         }
@@ -133,22 +167,45 @@ private fun TopStatusBar() {
 @Composable
 private fun CoreLayout(onWalletClick: () -> Unit) {
     Box(Modifier.fillMaxSize()) {
+        // NETWORK
         HexCore("NETWORK",  Color(0xFF00FF99), Modifier.align(Alignment.TopCenter).padding(top = 80.dp))
+        // EXPLOITS
         HexCore("EXPLOITS", Color(0xFFFF0088), Modifier.align(Alignment.CenterStart).padding(start = 32.dp, bottom = 40.dp))
+        // CORE_OS
         HexCore("CORE_OS",  Color(0xFF00CCFF), Modifier.align(Alignment.Center).padding(bottom = 40.dp))
+        // WALLET
         HexCore("WALLET",   Color(0xFF00CCFF), Modifier.align(Alignment.CenterEnd).padding(end = 32.dp, bottom = 40.dp), onClick = onWalletClick)
+        // DATABASE
         HexCore("DATABASE", Color(0xFF00CCFF), Modifier.align(Alignment.BottomCenter).padding(bottom = 120.dp))
     }
 }
 
 @Composable
 private fun HexCore(label: String, color: Color, modifier: Modifier, onClick: () -> Unit = {}) {
-    Box(modifier = modifier.size(110.dp).clickable { onClick() }) {
+    Box(
+        modifier = modifier
+            .size(110.dp)
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
         Canvas(Modifier.fillMaxSize()) {
             val center = Offset(size.width / 2, size.height / 2)
             val radius = size.width * 0.46f
-            drawHexagon(center, radius, color.copy(alpha = 0.2f), 12f)
-            drawHexagon(center, radius, color, 4f)
+            val path = createHexagonPath(center, radius)
+            
+            // 3D Inner Shading
+            drawPath(
+                path = path,
+                brush = Brush.linearGradient(
+                    listOf(color.copy(alpha = 0.15f), Color.Transparent, color.copy(alpha = 0.05f)),
+                    start = Offset(0f, 0f),
+                    end = Offset(size.width, size.height)
+                ),
+                style = Fill
+            )
+            
+            // Enhanced Neon Hexagon Border (Applied to the hexagon path itself)
+            drawNeonHexagon(center, radius, color)
         }
         Text(
             text = label,
@@ -246,8 +303,8 @@ private fun DrawScope.drawGrid() {
     for (y in 0..size.height.toInt() step step.toInt()) drawLine(color, Offset(0f, y.toFloat()), Offset(size.width, y.toFloat()), 1f)
 }
 
-private fun DrawScope.drawHexagon(center: Offset, radius: Float, color: Color, strokeWidth: Float) {
-    val path = Path().apply {
+private fun createHexagonPath(center: Offset, radius: Float): Path {
+    return Path().apply {
         for (i in 0..5) {
             val angle = i * 60f * (PI.toFloat() / 180f) - (PI.toFloat() / 2)
             val x = center.x + radius * cos(angle)
@@ -256,5 +313,31 @@ private fun DrawScope.drawHexagon(center: Offset, radius: Float, color: Color, s
         }
         close()
     }
-    drawPath(path, color, style = Stroke(strokeWidth))
+}
+
+private fun DrawScope.drawNeonHexagon(center: Offset, radius: Float, color: Color) {
+    val path = createHexagonPath(center, radius)
+    
+    // Outer glow layers (halo effect on the hexagon path)
+    for (i in 0..8) {
+        val f = i.toFloat()
+        val alphaVal = (0.15f - f * 0.015f).coerceAtLeast(0f)
+        if (alphaVal > 0f) {
+            drawPath(
+                path = path,
+                color = color.copy(alpha = alphaVal),
+                style = Stroke(width = 4f + f * 8f, cap = StrokeCap.Round)
+            )
+        }
+    }
+
+    // Main sharp neon highlight
+    drawPath(path, color, style = Stroke(width = 4f, cap = StrokeCap.Round))
+    
+    // Inner white highlight for depth and "etched light" feel
+    drawPath(
+        path = path,
+        color = Color.White.copy(alpha = 0.5f),
+        style = Stroke(width = 1.5f, cap = StrokeCap.Round)
+    )
 }
