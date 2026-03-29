@@ -12,12 +12,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -150,17 +153,91 @@ private fun TopStatusBar() {
             Text("CONNECTED_VIA // NEURAL_GATE_01", color = Color(0xFF00FFAA).copy(alpha = 0.6f), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
         }
 
-        // SEC Hex
-        Box(modifier = Modifier.size(48.dp)) {
-            Canvas(Modifier.fillMaxSize()) {
-                drawNeonHexagon(
-                    center = Offset(size.width / 2, size.height / 2),
-                    radius = size.width * 0.45f,
-                    color = Color(0xFFFF0088)
+        // SEC Hex with ICE effect
+        SecCoreWithIce()
+    }
+}
+
+@Composable
+private fun SecCoreWithIce() {
+    val infiniteTransition = rememberInfiniteTransition(label = "SecIce")
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(10000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "Rotation"
+    )
+    val pulse by infiniteTransition.animateFloat(
+        initialValue = 0.95f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Pulse"
+    )
+
+    Box(modifier = Modifier.size(64.dp), contentAlignment = Alignment.Center) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val center = Offset(size.width / 2, size.height / 2)
+            val baseRadius = size.width * 0.32f
+            val iceColor = Color(0xFFFF0088)
+
+            // ICE Protective Barriers (Rotating Rings)
+            rotate(rotation) {
+                drawArc(
+                    color = iceColor.copy(alpha = 0.3f),
+                    startAngle = 0f,
+                    sweepAngle = 90f,
+                    useCenter = false,
+                    style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Butt),
+                    topLeft = Offset(center.x - baseRadius * 1.4f, center.y - baseRadius * 1.4f),
+                    size = Size(baseRadius * 2.8f, baseRadius * 2.8f)
+                )
+                drawArc(
+                    color = iceColor.copy(alpha = 0.3f),
+                    startAngle = 180f,
+                    sweepAngle = 90f,
+                    useCenter = false,
+                    style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Butt),
+                    topLeft = Offset(center.x - baseRadius * 1.4f, center.y - baseRadius * 1.4f),
+                    size = Size(baseRadius * 2.8f, baseRadius * 2.8f)
                 )
             }
-            Text("SEC", Modifier.align(Alignment.Center), color = Color(0xFFFF0088), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+
+            rotate(-rotation * 0.7f) {
+                drawArc(
+                    color = iceColor.copy(alpha = 0.2f),
+                    startAngle = 45f,
+                    sweepAngle = 120f,
+                    useCenter = false,
+                    style = Stroke(width = 1.dp.toPx(), cap = StrokeCap.Round, pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 10f))),
+                    topLeft = Offset(center.x - baseRadius * 1.7f, center.y - baseRadius * 1.7f),
+                    size = Size(baseRadius * 3.4f, baseRadius * 3.4f)
+                )
+            }
+
+            // Main Core Hexagon
+            drawNeonHexagon(
+                center = center,
+                radius = baseRadius * pulse,
+                color = iceColor
+            )
         }
+        Text(
+            text = "SEC",
+            modifier = Modifier.align(Alignment.Center).graphicsLayer {
+                scaleX = pulse
+                scaleY = pulse
+            },
+            color = Color(0xFFFF0088),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Black,
+            fontFamily = FontFamily.Monospace
+        )
     }
 }
 
