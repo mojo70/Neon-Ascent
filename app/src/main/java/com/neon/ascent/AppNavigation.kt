@@ -18,6 +18,7 @@ import com.neon.ascent.feature.cyberdeck.CyberdeckScreen
 import com.neon.ascent.feature.dashboard.DashboardScreen
 import com.neon.ascent.feature.dashboard.DashboardViewModel
 import com.neon.ascent.feature.dashboard.CoreDashboardScreen
+import com.neon.ascent.feature.dashboard.HolographicAvatarHub
 import com.neon.ascent.feature.games.IceBreachScreen
 import com.neon.ascent.feature.games.BlackIceBreachScreen
 import com.neon.ascent.feature.journal.JournalScreen
@@ -62,7 +63,7 @@ fun AppNavigation(
                         tickerMessages = tickerMessages
                     )
                     1 -> DashboardScreen(
-                        onAvatarClick = { navController.navigate("character_bio") },
+                        onAvatarClick = { navController.navigate("holographic_hub") },
                         onAttributeSetClick = { navController.navigate("attribute_scan") },
                         onStoryClick = { navController.navigate("story") },
                         onGoalSetClick = { navController.navigate("goals") },
@@ -72,6 +73,17 @@ fun AppNavigation(
                     2 -> BiohackingScreen(onBack = { /* Handled by pager */ })
                 }
             }
+        }
+
+        composable("holographic_hub") {
+            HolographicAvatarHub(
+                onBack = { navController.popBackStack() },
+                onUpgradeClick = { /* TODO: Implement upgrades */ },
+                onHacksClick = { /* TODO: Navigate to biohacking page in pager */ },
+                onAttributeScanClick = { navController.navigate("attribute_scan") },
+                onStoryClick = { navController.navigate("story") },
+                onGoalSettingClick = { navController.navigate("goals") }
+            )
         }
 
         composable("ice_breach") {
@@ -108,6 +120,15 @@ fun AppNavigation(
             CharacterCreationScreen(
                 onCreationFinished = { name, sex, dob, units, weight, somatotype, hFeet, hInches, hCm ->
                     creationViewModel.updateBasicInfo(name, sex, dob, units, weight, somatotype, hFeet, hInches, hCm)
+                    navController.navigate("avatar_capture")
+                }
+            )
+        }
+
+        composable("avatar_capture") {
+            AvatarCaptureScreen(
+                onComplete = { bitmap ->
+                    creationViewModel.completeCreation(bitmap)
                     navController.navigate("main_hub") {
                         popUpTo("creation") { inclusive = true }
                     }
