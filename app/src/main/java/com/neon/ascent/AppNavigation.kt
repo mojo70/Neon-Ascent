@@ -22,6 +22,7 @@ import com.neon.ascent.feature.dashboard.HolographicAvatarHub
 import com.neon.ascent.feature.games.IceBreachScreen
 import com.neon.ascent.feature.games.BlackIceBreachScreen
 import com.neon.ascent.feature.journal.JournalScreen
+import com.neon.ascent.feature.journal.JournalViewModel
 import com.neon.ascent.feature.loading.LoadingScreen
 import com.neon.ascent.feature.settings.DeepNodeScreen
 import com.neon.ascent.feature.settings.SettingsScreen
@@ -57,8 +58,7 @@ fun AppNavigation(
                         onWalletClick = { navController.navigate("wallet") },
                         onDatabaseClick = { navController.navigate("journal") },
                         onIceBreachClick = { 
-                            val gameType = if (Random.nextBoolean()) "ice_breach" else "black_ice"
-                            navController.navigate(gameType)
+                            navController.navigate("ice_breach")
                         },
                         tickerMessages = tickerMessages
                     )
@@ -89,20 +89,18 @@ fun AppNavigation(
         composable("ice_breach") {
             IceBreachScreen(
                 onBreachSuccess = {
-                    navController.navigate("core_dashboard") {
-                        popUpTo("ice_breach") { inclusive = true }
-                    }
+                    navController.popBackStack()
                 },
                 onCancel = { navController.popBackStack() }
             )
         }
 
-        composable("black_ice") {
+        composable("system_breach") {
+            val journalViewModel: JournalViewModel = hiltViewModel()
             BlackIceBreachScreen(
                 onBreachSuccess = {
-                    navController.navigate("core_dashboard") {
-                        popUpTo("black_ice") { inclusive = true }
-                    }
+                    journalViewModel.setSystemDatabaseHacked(true)
+                    navController.popBackStack()
                 },
                 onCancel = { navController.popBackStack() }
             )
@@ -113,7 +111,10 @@ fun AppNavigation(
         }
 
         composable("journal") {
-            JournalScreen(onBack = { navController.popBackStack() })
+            JournalScreen(
+                onBack = { navController.popBackStack() },
+                onHackingRequired = { navController.navigate("system_breach") }
+            )
         }
 
         composable("creation") {

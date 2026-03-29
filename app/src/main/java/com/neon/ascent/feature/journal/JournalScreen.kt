@@ -30,6 +30,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.model.*
 import com.neon.ascent.ui.CyberFrame
 import com.neon.ascent.ui.Scanlines
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -79,7 +80,7 @@ fun JournalScreen(
                 if (activeTab == 0) {
                     PersonalDatabaseContent(viewModel)
                 } else {
-                    SystemDatabaseContent(isHacked, onHackingRequired)
+                    SystemDatabaseContent(isHacked, onHackingRequired, viewModel)
                 }
             }
         }
@@ -113,8 +114,6 @@ fun PersonalDatabaseContent(viewModel: JournalViewModel) {
     val quests by viewModel.quests.collectAsState()
     val dailyTasks by viewModel.dailyTasks.collectAsState()
     
-    var expandedSection by remember { mutableStateOf<String?>(null) }
-
     LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         // 1. Daily Tasks (Priority)
         item {
@@ -163,7 +162,10 @@ fun PersonalDatabaseContent(viewModel: JournalViewModel) {
 }
 
 @Composable
-fun SystemDatabaseContent(isHacked: Boolean, onHackingRequired: () -> Unit) {
+fun SystemDatabaseContent(isHacked: Boolean, onHackingRequired: () -> Unit, viewModel: JournalViewModel) {
+    val shards by viewModel.shards.collectAsState()
+    val memories by viewModel.memories.collectAsState()
+
     if (!isHacked) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -188,16 +190,103 @@ fun SystemDatabaseContent(isHacked: Boolean, onHackingRequired: () -> Unit) {
             }
         }
     } else {
-        // Hacked system content
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            item { SectionHeader("ENCRYPTED_SHARDS", "LORE_DROPS") }
+            if (shards.isEmpty()) {
+                item { EmptyDataPlaceholder("NO_SHARDS_FOUND") }
+            } else {
+                items(shards) { shard ->
+                    ShardItem(shard) { viewModel.decryptShard(shard) }
+                }
+            }
+
+            item { SectionHeader("CORRUPTED_MEMORIES", "NEURAL_FRAGMENTS") }
+            if (memories.isEmpty()) {
+                item { EmptyDataPlaceholder("NO_MEMORIES_RECOVERED") }
+            } else {
+                items(memories) { memory ->
+                    MemoryItem(memory)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ShardItem(shard: DataShard, onDecrypt: () -> Unit) {
+    var isDecrypting by remember { mutableStateOf(false) }
+    var progress by remember { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(isDecrypting) {
+        if (isDecrypting) {
+            val startTime = System.currentTimeMillis()
+            val duration = shard.decryptionTimeMillis
+            while (progress < 1f) {
+                progress = ((System.currentTimeMillis() - startTime).toFloat() / duration).coerceIn(0f, 1f)
+                delay(32)
+            }
+            isDecrypting = false
+            onDecrypt()
+        }
+    }
+
+    CyberFrame(
+        label = if (shard.isDecrypted) "DECRYPTED_DATA" else "ENCRYPTED_SHARD",
+        borderColor = if (shard.isDecrypted) Color(0xFF00FFAA) else Color(0xFFFFCC00)
+    ) {
         Column {
-            Text("SYSTEM_ARCHIVE_ACCESS: GRANTED", color = Color(0xFF00FFAA), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
-            Spacer(Modifier.height(16.dp))
-            // Placeholder for system data
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(listOf("ARASAKA_PERSONNEL_FILES", "NIGHT_CITY_INFRASTRUCTURE", "BIOTEC_LEAKS_2077")) { file ->
-                    CyberFrame(label = "FILE_NODE") {
-                        Text(file, color = Color.White, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
+            Text(shard.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
+            Spacer(Modifier.height(8.dp))
+            if (shard.isDecrypted) {
+                Text(shard.content, color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+            } else {
+                if (isDecrypting) {
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier.fillMaxWidth().height(4.dp),
+                        color = Color(0xFF00FFAA),
+                        trackColor = Color.Gray.copy(alpha = 0.2f)
+                    )
+                    Text("DECRYPTING...", color = Color(0xFF00FFAA), fontSize = 10.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.padding(top = 4.dp))
+                } else {
+                    Button(
+                        onClick = { isDecrypting = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                        modifier = Modifier.fillMaxWidth().border(1.dp, Color(0xFFFFCC00))
+                    ) {
+                        Text("START_DECRYPTION", color = Color(0xFFFFCC00), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MemoryItem(memory: MemoryFragment) {
+    val isUnlocked = memory.isUnlocked // In a real app, check user stats here
+    
+    CyberFrame(
+        label = if (isUnlocked) "MEMORY_RECOVERED" else "CORRUPTED_SECTOR",
+        borderColor = if (isUnlocked) Color(0xFF00CCFF) else Color.Red.copy(alpha = 0.5f)
+    ) {
+        Column {
+            Text(memory.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
+            Spacer(Modifier.height(8.dp))
+            if (isUnlocked) {
+                Text(memory.decryptedContent, color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+            } else {
+                Text(memory.corruptedContent, color = Color.Red.copy(alpha = 0.4f), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = Color.Red, modifier = Modifier.size(12.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        "REQUIRES: ${memory.requiredStat} >= ${memory.requiredStatValue}",
+                        color = Color.Red,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
                 }
             }
         }

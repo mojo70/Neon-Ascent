@@ -5,7 +5,10 @@ import androidx.room.Room
 import com.neon.ascent.data.local.AppDatabase
 import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.JournalDao
+import com.neon.ascent.data.local.LoreDao
+import com.neon.ascent.data.local.QuestDao
 import com.neon.ascent.data.local.SayingsDao
+import com.neon.ascent.data.local.TaskDao
 import com.neon.ascent.data.local.UserCharacterDao
 import dagger.Module
 import dagger.Provides
@@ -52,5 +55,20 @@ object DatabaseModule {
     @Provides
     fun provideJournalDao(database: AppDatabase): JournalDao {
         return database.journalDao()
+    }
+
+    @Provides
+    fun provideQuestDao(database: AppDatabase): QuestDao {
+        return database.questDao()
+    }
+
+    @Provides
+    fun provideTaskDao(database: AppDatabase): TaskDao {
+        return database.taskDao()
+    }
+
+    @Provides
+    fun provideLoreDao(database: AppDatabase): LoreDao {
+        return database.loreDao()
     }
 }

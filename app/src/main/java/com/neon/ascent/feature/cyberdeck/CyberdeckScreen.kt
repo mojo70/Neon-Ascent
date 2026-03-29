@@ -53,6 +53,11 @@ fun CyberdeckScreen(
         label = "PulsePhase"
     )
 
+    // Sync external ticker messages to the ViewModel's combined feed
+    LaunchedEffect(tickerMessages) {
+        viewModel.setExternalFeeds(tickerMessages)
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -107,9 +112,9 @@ fun CyberdeckScreen(
             }
 
             // 5. Live Console
-            CyberFrame(label = "CONSOLE_OUTPUT") {
+            CyberFrame(label = "CYBERDECK_TERMINAL_FEED") {
                 Box(modifier = Modifier.fillMaxWidth().height(160.dp).padding(8.dp)) {
-                    LiveConsole()
+                    LiveConsole(viewModel)
                 }
             }
         }
@@ -392,30 +397,9 @@ private fun HexCore(label: String, color: Color, modifier: Modifier, aiType: AiT
 }
 
 @Composable
-private fun LiveConsole() {
-    val allLogs = listOf(
-        "> INITIALIZING NEURAL_LINK...",
-        "> SYNCING DATA_STREAM...",
-        "> CONNECTION ESTABLISHED.",
-        "> TARGET ACQUIRED: NEURAL_GATE_01",
-        "> SCANNING FOR VULNERABILITIES...",
-        "> BYPASSING FIREWALL...",
-        "> ACCESS GRANTED.",
-        "> SOLANA_CHAIN: SYNCED",
-        "> 3 NEW MESSAGES FROM 'THE_FIXER'",
-        "> UPLINK STABLE.",
-        "> WAITING FOR COMMAND..."
-    )
-    val lines = remember { mutableStateListOf<String>() }
+private fun LiveConsole(viewModel: CyberdeckViewModel) {
+    val combinedFeeds by viewModel.combinedFeeds.collectAsState()
     
-    LaunchedEffect(Unit) {
-        for (log in allLogs) {
-            lines.add(log)
-            delay(1200)
-            if (lines.size > 7) lines.removeAt(0)
-        }
-    }
-
     val infiniteTransition = rememberInfiniteTransition(label = "cursor")
     val cursorAlpha by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -428,8 +412,21 @@ private fun LiveConsole() {
     )
 
     Column(modifier = Modifier.fillMaxSize()) {
-        lines.forEach { line ->
-            Text(line, color = Color(0xFF00FF99), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+        combinedFeeds.reversed().forEach { line ->
+            val color = when {
+                line.contains("[CRITICAL]") -> Color.Red
+                line.contains("[MEDIUM]") -> Color(0xFFFFCC00)
+                line.contains("SUBJECT:") -> Color(0xFF00CCFF)
+                line.contains("LOCAL_CONDITIONS:") -> Color(0xFFFFFF00)
+                else -> Color(0xFF00FF99)
+            }
+            Text(
+                line,
+                color = color, 
+                fontSize = 10.sp, 
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.padding(vertical = 2.dp)
+            )
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("> ", color = Color(0xFF00FF99), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
