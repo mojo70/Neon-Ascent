@@ -7,6 +7,8 @@ import com.neon.ascent.data.local.UserCharacterDao
 import com.neon.ascent.model.UserCharacter
 import com.neon.ascent.util.SynthAudioPlayer
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +31,8 @@ class IceBreachViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow<IceBreachUiState>(IceBreachUiState.Initializing)
     val uiState: StateFlow<IceBreachUiState> = _uiState.asStateFlow()
+
+    private var timerJob: Job? = null
 
     init {
         startBreach()
@@ -67,41 +71,58 @@ class IceBreachViewModel @Inject constructor(
     }
 
     private fun startPhase2() {
+        timerJob?.cancel()
         val hexChars = "0123456789ABCDEF"
-        val grid = List(16) { hexChars.random().toString() + hexChars.random().toString() }
+        val grid = MutableList(16) { hexChars.random().toString() + hexChars.random().toString() }
         val iceLevel = userCharacter.value?.iceLevel ?: 1
         
+        // Logic-based pattern generation
         val seqLength = (2 + iceLevel / 4).coerceAtMost(4)
-        val targetSequence = mutableListOf<String>()
-        val sequenceIndices = mutableListOf<Int>()
-        var tempIdx = Random.nextInt(4) 
-        var tempIsRow = true 
-        val used = mutableSetOf<Int>()
+        val targetIndices = mutableListOf<Int>()
         
+        var currentIdx = Random.nextInt(4) 
+        var isSearchingRow = true 
+        val usedIndices = mutableSetOf<Int>()
+
         repeat(seqLength) {
-            sequenceIndices.add(tempIdx)
-            used.add(tempIdx)
-            val row = tempIdx / 4
-            val col = tempIdx % 4
-            val nextPossible = if (tempIsRow) {
-                (0 until 4).map { it * 4 + col }.filter { it !in used }
+            targetIndices.add(currentIdx)
+            usedIndices.add(currentIdx)
+            
+            val row = currentIdx / 4
+            val col = currentIdx % 4
+            
+            val nextPossible = if (isSearchingRow) {
+                (0 until 4).map { it * 4 + col }.filter { it !in usedIndices }
             } else {
-                (row * 4 until (row + 1) * 4).filter { it !in used }
+                (row * 4 until (row + 1) * 4).filter { it !in usedIndices }
             }
+            
             if (nextPossible.isNotEmpty()) {
-                tempIdx = nextPossible.random()
-                tempIsRow = !tempIsRow
+                currentIdx = nextPossible.random()
+                isSearchingRow = !isSearchingRow
+            } else {
+                val remaining = (0 until 16).filter { it !in usedIndices }
+                if (remaining.isNotEmpty()) currentIdx = remaining.random()
             }
         }
-        targetSequence.addAll(sequenceIndices.map { grid[it] })
+        
+        val targetSequence = targetIndices.map { grid[it] }
+
+        val baseBuffer = (seqLength + 2).coerceAtMost(8) 
+        val bonusBuffer = if (iceLevel < 5) 1 else 0 
+
+        // Initial countdown time based on difficulty
+        val baseTime = (20 - (iceLevel * 0.5)).coerceAtLeast(10.0).toInt()
 
         _uiState.value = IceBreachUiState.Phase2(
             grid = grid,
             targetSequence = targetSequence,
             selectedIndices = emptyList(),
-            bufferSize = (seqLength + 1).coerceAtMost(6),
+            bufferSize = baseBuffer + bonusBuffer,
             isRowSelection = true,
-            activeIndex = null
+            activeIndex = null,
+            remainingTime = baseTime,
+            isTimerStarted = false
         )
     }
 
@@ -111,21 +132,52 @@ class IceBreachViewModel @Inject constructor(
             if (current.selectedIndices.contains(index)) return
             
             audioPlayer.playKeyClick()
+            
+            // Start timer on first move
+            if (!current.isTimerStarted) {
+                startTimer()
+            }
+
             val newSelected = current.selectedIndices + index
             val selectedCodes = newSelected.map { current.grid[it] }
             
             if (isSequenceMatched(selectedCodes, current.targetSequence)) {
+                timerJob?.cancel()
                 audioPlayer.playPhaseSuccess()
                 startPhase3()
             } else if (newSelected.size >= current.bufferSize) {
+                timerJob?.cancel()
                 audioPlayer.playPhaseFail()
                 _uiState.value = IceBreachUiState.Failed("BUFFER_OVERFLOW: UPLOAD_FAILED")
             } else {
                 _uiState.value = current.copy(
                     selectedIndices = newSelected,
                     isRowSelection = !current.isRowSelection,
-                    activeIndex = index
+                    activeIndex = index,
+                    isTimerStarted = true
                 )
+            }
+        }
+    }
+
+    private fun startTimer() {
+        timerJob?.cancel()
+        timerJob = viewModelScope.launch {
+            while (true) {
+                delay(1000)
+                val current = _uiState.value
+                if (current is IceBreachUiState.Phase2) {
+                    val newTime = current.remainingTime - 1
+                    if (newTime <= 0) {
+                        audioPlayer.playPhaseFail()
+                        _uiState.value = IceBreachUiState.Failed("TRACE_DETECTED: CONNECTION_TERMINATED")
+                        break
+                    } else {
+                        _uiState.value = current.copy(remainingTime = newTime)
+                    }
+                } else {
+                    break
+                }
             }
         }
     }
@@ -142,7 +194,6 @@ class IceBreachViewModel @Inject constructor(
         return false
     }
 
-    // Keep legacy methods for transient compatibility
     fun toggleNode(index: Int) { selectNode(index) }
     fun submitPhase2() { resetPhase2() }
 
@@ -168,7 +219,8 @@ class IceBreachViewModel @Inject constructor(
     fun submitPhase3(input: String) {
         val current = _uiState.value
         if (current is IceBreachUiState.Phase3) {
-            if (input.equals(current.phrase, ignoreCase = true)) {
+            // Trim to avoid whitespace issues and use exact comparison
+            if (input.trim() == current.phrase.trim()) {
                 audioPlayer.playSuccess()
                 completeBreach()
             } else {
@@ -180,7 +232,10 @@ class IceBreachViewModel @Inject constructor(
 
     private fun completeBreach() {
         viewModelScope.launch {
-            val char = userCharacter.value ?: return@launch
+            // Ensure character data is loaded
+            val char = userCharacter.value ?: userCharacterDao.getUserCharacter().first()
+            if (char == null) return@launch
+
             val iceLevel = char.iceLevel
             
             val rewards = if (iceLevel < 6) {
@@ -215,5 +270,10 @@ class IceBreachViewModel @Inject constructor(
                 completeBreach()
             }
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        timerJob?.cancel()
     }
 }

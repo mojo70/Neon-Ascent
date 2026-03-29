@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
@@ -129,7 +130,24 @@ fun Phase1Screen(state: IceBreachUiState.Phase1, viewModel: IceBreachViewModel) 
 @Composable
 fun Phase2Screen(state: IceBreachUiState.Phase2, viewModel: IceBreachViewModel) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("PHASE 2: NODAL BYPASS", color = Color.White, fontWeight = FontWeight.Bold)
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("PHASE 2: NODAL BYPASS", color = Color.White, fontWeight = FontWeight.Bold)
+            
+            // Countdown Timer UI
+            Text(
+                "TRACE: ${state.remainingTime}s",
+                color = if (state.remainingTime < 5) Color.Red else Color(0xFFFFCC00),
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                modifier = Modifier.border(1.dp, if (state.remainingTime < 5) Color.Red else Color(0xFFFFCC00)).padding(horizontal = 8.dp, vertical = 2.dp)
+            )
+        }
+        
         Spacer(Modifier.height(16.dp))
         
         // Code Sequence to match
@@ -276,17 +294,81 @@ fun Phase3Screen(state: IceBreachUiState.Phase3, viewModel: IceBreachViewModel) 
 
 @Composable
 fun SuccessScreen(state: IceBreachUiState.Success, onBreachSuccess: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("ICE BROKEN", color = Color(0xFF00FF9C), fontSize = 32.sp, fontWeight = FontWeight.Black)
-        Spacer(Modifier.height(16.dp))
-        Text("XP REWARD: +${state.xp}", color = Color.White)
-        Text("EDDIES EARNED: €${state.eddies}", color = Color(0xFFFFCC00))
-        Spacer(Modifier.height(32.dp))
-        Button(
-            onClick = onBreachSuccess,
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C))
-        ) {
-            Text("ENTER CORE DASHBOARD", color = Color.Black)
+    var showRewards by remember { mutableStateOf(false) }
+    
+    LaunchedEffect(Unit) {
+        delay(2000) // Glitch duration
+        showRewards = true
+        delay(2500) // Time to see rewards
+        onBreachSuccess()
+    }
+
+    if (!showRewards) {
+        CyberSuccessEffect()
+    } else {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("ICE BROKEN", color = Color(0xFF00FF9C), fontSize = 32.sp, fontWeight = FontWeight.Black)
+            Spacer(Modifier.height(16.dp))
+            Text("XP REWARD: +${state.xp}", color = Color.White)
+            Text("EDDIES EARNED: €${state.eddies}", color = Color(0xFFFFCC00))
+            Spacer(Modifier.height(32.dp))
+            Text(
+                "REDIRECTING TO CORE_OS...",
+                color = Color(0xFF00FF9C).copy(alpha = 0.5f),
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+    }
+}
+
+@Composable
+fun CyberSuccessEffect() {
+    val infiniteTransition = rememberInfiniteTransition()
+    val scanlineOffset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(200, easing = LinearEasing))
+    )
+
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+        val glitchIntensity = 10
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                "ACCESS GRANTED",
+                color = Color(0xFF00FF9C),
+                fontSize = 40.sp,
+                fontWeight = FontWeight.ExtraBold,
+                fontFamily = FontFamily.Monospace
+            )
+            Text(
+                "DECRYPTING CORE DATA...",
+                color = Color(0xFF00FF9C).copy(alpha = 0.7f),
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+        
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val glitchLineY = (scanlineOffset * size.height)
+            drawLine(
+                color = Color(0xFF00FF9C).copy(alpha = 0.3f),
+                start = Offset(0f, glitchLineY),
+                end = Offset(size.width, glitchLineY),
+                strokeWidth = 4f
+            )
+            
+            repeat(glitchIntensity) {
+                val x = Random.nextFloat() * size.width
+                val y = Random.nextFloat() * size.height
+                val w = Random.nextFloat() * 100f
+                val h = 2f
+                drawRect(
+                    color = Color(0xFF00FF9C).copy(alpha = 0.5f),
+                    topLeft = Offset(x, y),
+                    size = Size(w, h)
+                )
+            }
         }
     }
 }
@@ -370,7 +452,9 @@ sealed class IceBreachUiState {
         val selectedIndices: List<Int>,
         val bufferSize: Int,
         val isRowSelection: Boolean,
-        val activeIndex: Int?
+        val activeIndex: Int?,
+        val remainingTime: Int,
+        val isTimerStarted: Boolean
     ) : IceBreachUiState()
     data class Phase3(val phrase: String, val options: List<String>) : IceBreachUiState()
     data class Success(val xp: Int, val eddies: Int) : IceBreachUiState()
