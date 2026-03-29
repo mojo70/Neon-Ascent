@@ -128,13 +128,46 @@ fun Phase1Screen(state: IceBreachUiState.Phase1, viewModel: IceBreachViewModel) 
 
 @Composable
 fun Phase2Screen(state: IceBreachUiState.Phase2, viewModel: IceBreachViewModel) {
-    // Implement a simple pattern match or hex grid selection
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("PHASE 2: NODAL BYPASS", color = Color.White, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(16.dp))
+        
+        // Code Sequence to match
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            state.targetSequence.forEach { code ->
+                Text(
+                    code,
+                    color = Color(0xFF00FF9C),
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 18.sp,
+                    modifier = Modifier.border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.5f)).padding(4.dp)
+                )
+            }
+        }
+        
+        Spacer(Modifier.height(16.dp))
+        
+        // Buffer display
+        Row(modifier = Modifier.height(40.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("BUFFER [", color = Color.White, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+            repeat(state.bufferSize) { i ->
+                val code = state.selectedIndices.getOrNull(i)?.let { state.grid[it] } ?: "__"
+                Text(
+                    " $code ",
+                    color = if (code == "__") Color.Gray else Color(0xFFFF006E),
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+            Text("]", color = Color.White, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+        }
+
+        Spacer(Modifier.height(24.dp))
         
         val grid = state.grid
-        val target = state.targetIndices
+        val activeIdx = state.activeIndex
+        val activeRow = activeIdx?.let { it / 4 }
+        val activeCol = activeIdx?.let { it % 4 }
         
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             for (r in 0 until 4) {
@@ -142,17 +175,42 @@ fun Phase2Screen(state: IceBreachUiState.Phase2, viewModel: IceBreachViewModel) 
                     for (c in 0 until 4) {
                         val index = r * 4 + c
                         val isSelected = state.selectedIndices.contains(index)
-                        val isTarget = target.contains(index)
+                        
+                        val isSelectable = if (activeIdx == null) {
+                            r == 0 // Initial selection usually from first row
+                        } else {
+                            if (state.isRowSelection) r == activeRow else c == activeCol
+                        }
                         
                         Box(
                             modifier = Modifier
                                 .size(50.dp)
-                                .border(1.dp, if (isSelected) Color(0xFFFF006E) else Color(0xFF00FF9C).copy(alpha = 0.3f))
-                                .background(if (isSelected) Color(0xFFFF006E).copy(alpha = 0.2f) else Color.Transparent)
-                                .clickable { viewModel.toggleNode(index) },
+                                .border(
+                                    1.dp, 
+                                    when {
+                                        isSelected -> Color(0xFFFF006E)
+                                        isSelectable -> Color(0xFF00FF9C)
+                                        else -> Color(0xFF00FF9C).copy(alpha = 0.1f)
+                                    }
+                                )
+                                .background(
+                                    when {
+                                        isSelected -> Color(0xFFFF006E).copy(alpha = 0.4f)
+                                        isSelectable -> Color(0xFF00FF9C).copy(alpha = 0.1f)
+                                        else -> Color.Transparent
+                                    }
+                                )
+                                .clickable(enabled = isSelectable && !isSelected) { 
+                                    viewModel.selectNode(index) 
+                                },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(grid[index], color = Color(0xFF00FF9C), fontSize = 12.sp)
+                            Text(
+                                grid[index], 
+                                color = if (isSelectable || isSelected) Color(0xFF00FF9C) else Color(0xFF00FF9C).copy(alpha = 0.2f), 
+                                fontSize = 14.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
                         }
                     }
                 }
@@ -161,54 +219,57 @@ fun Phase2Screen(state: IceBreachUiState.Phase2, viewModel: IceBreachViewModel) 
         
         Spacer(Modifier.height(24.dp))
         Button(
-            onClick = { viewModel.submitPhase2() },
+            onClick = { viewModel.resetPhase2() },
             colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-            modifier = Modifier.border(1.dp, Color(0xFF00FF9C), RoundedCornerShape(4.dp))
+            modifier = Modifier.border(1.dp, Color.Red.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
         ) {
-            Text("BYPASS NODES", color = Color(0xFF00FF9C))
+            Text("RESET MATRIX", color = Color.Red.copy(alpha = 0.5f), fontSize = 10.sp)
         }
     }
 }
 
 @Composable
 fun Phase3Screen(state: IceBreachUiState.Phase3, viewModel: IceBreachViewModel) {
-    var text by remember { mutableStateOf("") }
-    
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
         Text("PHASE 3: SEMANTIC OVERRIDE", color = Color.White, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(16.dp))
         Text(
-            state.phrase.uppercase(),
+            "SELECT DECRYPTION KEY",
             color = Color(0xFF00FF9C),
             textAlign = TextAlign.Center,
             fontFamily = FontFamily.Monospace,
-            fontSize = 18.sp,
-            modifier = Modifier.padding(8.dp).border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.5f)).padding(16.dp)
+            fontSize = 12.sp,
+            modifier = Modifier.padding(bottom = 24.dp)
         )
-        Spacer(Modifier.height(24.dp))
         
-        BasicTextField(
-            value = text,
-            onValueChange = { 
-                text = it
-                if (it.equals(state.phrase, ignoreCase = true)) {
-                    viewModel.submitPhase3(it)
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            state.options.forEach { option ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                        .background(Color.White.copy(alpha = 0.05f))
+                        .clickable { viewModel.submitPhase3(option) }
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        option.uppercase(),
+                        color = Color(0xFFFF006E),
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center
+                    )
                 }
-            },
-            textStyle = TextStyle(color = Color(0xFFFF006E), fontFamily = FontFamily.Monospace, fontSize = 20.sp, textAlign = TextAlign.Center),
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White.copy(alpha = 0.05f))
-                .padding(16.dp),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            cursorBrush = SolidColor(Color(0xFFFF006E))
-        )
+            }
+        }
         
+        Spacer(Modifier.height(32.dp))
         Text(
-            "REPLICATE ENCRYPTION KEY",
-            color = Color.White.copy(alpha = 0.4f),
+            "HINT: ${state.phrase.uppercase().take(8)}...",
+            color = Color.White.copy(alpha = 0.3f),
             fontSize = 10.sp,
-            modifier = Modifier.padding(top = 8.dp)
+            fontFamily = FontFamily.Monospace
         )
     }
 }
@@ -303,8 +364,15 @@ fun BreachBackground() {
 sealed class IceBreachUiState {
     object Initializing : IceBreachUiState()
     data class Phase1(val targetFreq: Float, val currentFreq: Float) : IceBreachUiState()
-    data class Phase2(val grid: List<String>, val targetIndices: Set<Int>, val selectedIndices: Set<Int>) : IceBreachUiState()
-    data class Phase3(val phrase: String) : IceBreachUiState()
+    data class Phase2(
+        val grid: List<String>, 
+        val targetSequence: List<String>, 
+        val selectedIndices: List<Int>,
+        val bufferSize: Int,
+        val isRowSelection: Boolean,
+        val activeIndex: Int?
+    ) : IceBreachUiState()
+    data class Phase3(val phrase: String, val options: List<String>) : IceBreachUiState()
     data class Success(val xp: Int, val eddies: Int) : IceBreachUiState()
     data class Failed(val reason: String) : IceBreachUiState()
 }

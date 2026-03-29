@@ -70,54 +70,98 @@ class IceBreachViewModel @Inject constructor(
         val hexChars = "0123456789ABCDEF"
         val grid = List(16) { hexChars.random().toString() + hexChars.random().toString() }
         val iceLevel = userCharacter.value?.iceLevel ?: 1
-        val targetCount = (2 + iceLevel / 3).coerceAtMost(8)
-        val targetIndices = (0 until 16).shuffled().take(targetCount).toSet()
         
+        val seqLength = (2 + iceLevel / 4).coerceAtMost(4)
+        val targetSequence = mutableListOf<String>()
+        val sequenceIndices = mutableListOf<Int>()
+        var tempIdx = Random.nextInt(4) 
+        var tempIsRow = true 
+        val used = mutableSetOf<Int>()
+        
+        repeat(seqLength) {
+            sequenceIndices.add(tempIdx)
+            used.add(tempIdx)
+            val row = tempIdx / 4
+            val col = tempIdx % 4
+            val nextPossible = if (tempIsRow) {
+                (0 until 4).map { it * 4 + col }.filter { it !in used }
+            } else {
+                (row * 4 until (row + 1) * 4).filter { it !in used }
+            }
+            if (nextPossible.isNotEmpty()) {
+                tempIdx = nextPossible.random()
+                tempIsRow = !tempIsRow
+            }
+        }
+        targetSequence.addAll(sequenceIndices.map { grid[it] })
+
         _uiState.value = IceBreachUiState.Phase2(
             grid = grid,
-            targetIndices = targetIndices,
-            selectedIndices = emptySet()
+            targetSequence = targetSequence,
+            selectedIndices = emptyList(),
+            bufferSize = (seqLength + 1).coerceAtMost(6),
+            isRowSelection = true,
+            activeIndex = null
         )
     }
 
-    fun toggleNode(index: Int) {
+    fun selectNode(index: Int) {
         val current = _uiState.value
         if (current is IceBreachUiState.Phase2) {
+            if (current.selectedIndices.contains(index)) return
+            
             audioPlayer.playKeyClick()
-            val newSelected = if (current.selectedIndices.contains(index)) {
-                current.selectedIndices - index
+            val newSelected = current.selectedIndices + index
+            val selectedCodes = newSelected.map { current.grid[it] }
+            
+            if (isSequenceMatched(selectedCodes, current.targetSequence)) {
+                audioPlayer.playPhaseSuccess()
+                startPhase3()
+            } else if (newSelected.size >= current.bufferSize) {
+                audioPlayer.playPhaseFail()
+                _uiState.value = IceBreachUiState.Failed("BUFFER_OVERFLOW: UPLOAD_FAILED")
             } else {
-                current.selectedIndices + index
+                _uiState.value = current.copy(
+                    selectedIndices = newSelected,
+                    isRowSelection = !current.isRowSelection,
+                    activeIndex = index
+                )
             }
-            _uiState.value = current.copy(selectedIndices = newSelected)
         }
     }
 
-    fun submitPhase2() {
-        val current = _uiState.value
-        if (current is IceBreachUiState.Phase2) {
-            if (current.selectedIndices == current.targetIndices) {
-                audioPlayer.playPhaseSuccess()
-                startPhase3()
-            } else {
-                audioPlayer.playPhaseFail()
-                _uiState.value = IceBreachUiState.Failed("NODE_SEQUENCE_ERROR: TRACE_DETECTED")
-            }
-        }
+    fun resetPhase2() {
+        startPhase2()
     }
+
+    private fun isSequenceMatched(selected: List<String>, target: List<String>): Boolean {
+        if (target.isEmpty()) return true
+        for (i in 0..selected.size - target.size) {
+            if (selected.subList(i, i + target.size) == target) return true
+        }
+        return false
+    }
+
+    // Keep legacy methods for transient compatibility
+    fun toggleNode(index: Int) { selectNode(index) }
+    fun submitPhase2() { resetPhase2() }
 
     private fun startPhase3() {
         viewModelScope.launch {
             val categories = listOf("Street Wisdom", "Truth & Illusion")
             val category = categories.random()
-            val sayings = sayingsDao.getSayingsByCategory(category)
-            val phrase = if (sayings.isNotEmpty()) {
-                val words = sayings.random().text.split(" ").take(4)
-                words.joinToString(" ")
+            val allSayingsInCategory = sayingsDao.getSayingsByCategory(category)
+            
+            if (allSayingsInCategory.size >= 4) {
+                val shuffled = allSayingsInCategory.shuffled()
+                val targetSaying = shuffled[0]
+                val options = shuffled.take(4).map { it.text }.shuffled()
+                _uiState.value = IceBreachUiState.Phase3(phrase = targetSaying.text, options = options)
             } else {
-                "NEON ASCENT CORE PROTOCOL"
+                val defaultPhrase = "NEON ASCENT CORE PROTOCOL"
+                val defaultOptions = listOf(defaultPhrase, "SYSTEM OVERRIDE INITIATED", "ENCRYPTION KEY EXPIRED", "SIGNAL TERMINATED").shuffled()
+                _uiState.value = IceBreachUiState.Phase3(phrase = defaultPhrase, options = defaultOptions)
             }
-            _uiState.value = IceBreachUiState.Phase3(phrase = phrase)
         }
     }
 
@@ -127,6 +171,9 @@ class IceBreachViewModel @Inject constructor(
             if (input.equals(current.phrase, ignoreCase = true)) {
                 audioPlayer.playSuccess()
                 completeBreach()
+            } else {
+                audioPlayer.playPhaseFail()
+                _uiState.value = IceBreachUiState.Failed("SEMANTIC_ERROR: INCORRECT_KEY")
             }
         }
     }
