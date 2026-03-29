@@ -14,6 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -137,23 +139,81 @@ fun BlackIcePhase2(state: IceBreachUiState.Phase2, viewModel: IceBreachViewModel
 
 @Composable
 fun MatrixRainBackground() {
-    val infiniteTransition = rememberInfiniteTransition()
-    val offset by infiniteTransition.animateFloat(
+    val matrixChars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜｦﾝ"
+    val columnCount = 25
+    val fontSize = 16.sp
+    val density = LocalDensity.current
+    val fontSizePx = with(density) { fontSize.toPx() }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "MatrixRain")
+    
+    // We'll create multiple "drops" for each column to make it look more like a rain of characters
+    val columns = remember {
+        List(columnCount) { index ->
+            MatrixColumn(
+                xPercent = index.toFloat() / columnCount,
+                speed = Random.nextFloat() * 0.02f + 0.01f,
+                delay = Random.nextInt(0, 5000)
+            )
+        }
+    }
+
+    val time by infiniteTransition.animateFloat(
         initialValue = 0f,
-        targetValue = 1000f,
-        animationSpec = infiniteRepeatable(tween(10000, easing = LinearEasing))
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(10000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "Time"
     )
 
-    Canvas(Modifier.fillMaxSize()) {
-        val color = Color(0xFF00FF9C).copy(alpha = 0.1f)
-        val chars = "0123456789ABCDEFHIJKLMNOPQRSTUVWXYZ"
-        // Simulate rain with drawing text or just lines for performance
-        for (i in 0..20) {
-            val x = (size.width / 20) * i
-            val yStart = (offset + (i * 100)) % size.height
-            drawLine(color, Offset(x, yStart), Offset(x, yStart + 200f), strokeWidth = 2f)
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val paint = android.graphics.Paint().apply {
+            color = android.graphics.Color.parseColor("#00FF9C")
+            this.textSize = fontSizePx
+            typeface = android.graphics.Typeface.MONOSPACE
+            isAntiAlias = true
+        }
+
+        columns.forEach { col ->
+            val x = size.width * col.xPercent
+            // Calculate current y position based on time and col speed/delay
+            val totalDistance = size.height + 1000f // Extra distance to reset
+            val currentY = ((time * 10000 * col.speed * 50) + col.delay) % totalDistance
+            
+            // Draw a trail of characters
+            val trailLength = 15
+            for (i in 0 until trailLength) {
+                val charY = currentY - (i * fontSizePx)
+                if (charY < 0 || charY > size.height) continue
+
+                // Fade out the trail
+                val alpha = (1f - (i.toFloat() / trailLength)).coerceIn(0f, 1f)
+                
+                // Variable glow: top character is bright white-green, others fade to dark green
+                val charColor = if (i == 0) {
+                    android.graphics.Color.argb((alpha * 255).toInt(), 200, 255, 230) // Bright head
+                } else {
+                    android.graphics.Color.argb((alpha * 255).toInt(), 0, 255, 156) // Green trail
+                }
+                
+                paint.color = charColor
+                
+                // Add glow effect for the head
+                if (i == 0) {
+                    paint.setShadowLayer(10f, 0f, 0f, charColor)
+                } else {
+                    paint.setShadowLayer(0f, 0f, 0f, 0)
+                }
+
+                val randomChar = matrixChars[Random.nextInt(matrixChars.length)].toString()
+                drawContext.canvas.nativeCanvas.drawText(randomChar, x, charY, paint)
+            }
         }
     }
 }
+
+data class MatrixColumn(val xPercent: Float, val speed: Float, val delay: Int)
 
 data class FallingNode(val id: Int, val x: Float, val y: Float, val speed: Float)
