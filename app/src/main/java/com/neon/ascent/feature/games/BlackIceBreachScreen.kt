@@ -1,12 +1,15 @@
 package com.neon.ascent.feature.games
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -44,6 +47,23 @@ fun BlackIceBreachScreen(
     ) {
         // Matrix Rain Background
         MatrixRainBackground()
+
+        // Abort Button
+        if (uiState !is IceBreachUiState.Success && uiState !is IceBreachUiState.Failed) {
+            Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.TopStart) {
+                OutlinedButton(
+                    onClick = onCancel,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
+                    border = BorderStroke(1.dp, Color.Red.copy(alpha = 0.5f)),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = "Abort", modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("ABORT", fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                }
+            }
+        }
 
         when (val state = uiState) {
             is IceBreachUiState.Initializing -> {

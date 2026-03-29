@@ -89,7 +89,9 @@ fun AppNavigation(
         composable("ice_breach") {
             IceBreachScreen(
                 onBreachSuccess = {
-                    navController.popBackStack()
+                    navController.navigate("core_dashboard") {
+                        popUpTo("ice_breach") { inclusive = true }
+                    }
                 },
                 onCancel = { navController.popBackStack() }
             )
