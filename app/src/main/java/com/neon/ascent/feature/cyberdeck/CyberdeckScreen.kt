@@ -37,6 +37,7 @@ import kotlin.random.Random
 fun CyberdeckScreen(
     onWalletClick: () -> Unit,
     onDatabaseClick: () -> Unit,
+    onIceBreachClick: () -> Unit,
     tickerMessages: List<String> = emptyList(),
     viewModel: CyberdeckViewModel = hiltViewModel()
 ) {
@@ -66,7 +67,7 @@ fun CyberdeckScreen(
         AtmosphericHaze()
 
         Column(modifier = Modifier.fillMaxSize()) {
-            TopStatusBar()
+            TopStatusBar(onIceBreachClick)
 
             BoxWithConstraints(
                 modifier = Modifier
@@ -151,7 +152,7 @@ fun AtmosphericHaze() {
 }
 
 @Composable
-private fun TopStatusBar() {
+private fun TopStatusBar(onIceBreachClick: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -163,12 +164,12 @@ private fun TopStatusBar() {
         }
 
         // SEC Hex with ICE effect
-        SecCoreWithIce()
+        SecCoreWithIce(onClick = onIceBreachClick)
     }
 }
 
 @Composable
-private fun SecCoreWithIce() {
+private fun SecCoreWithIce(onClick: () -> Unit) {
     val infiniteTransition = rememberInfiniteTransition(label = "SecIce")
     val rotation by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -189,7 +190,7 @@ private fun SecCoreWithIce() {
         label = "Pulse"
     )
 
-    Box(modifier = Modifier.size(64.dp), contentAlignment = Alignment.Center) {
+    Box(modifier = Modifier.size(64.dp).clickable { onClick() }, contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val center = Offset(size.width / 2, size.height / 2)
             val baseRadius = size.width * 0.32f

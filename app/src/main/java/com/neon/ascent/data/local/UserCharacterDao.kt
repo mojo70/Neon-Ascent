@@ -20,4 +20,16 @@ interface UserCharacterDao {
 
     @Query("UPDATE user_character SET holyGhost = :level WHERE id = 0")
     suspend fun updateHolyGhost(level: Int)
+
+    @Query("UPDATE user_character SET eddies = :eddies WHERE id = 0")
+    suspend fun updateEddies(eddies: Int)
+
+    @Query("UPDATE user_character SET experience = :xp WHERE id = 0")
+    suspend fun updateExperience(xp: Long)
+
+    @Query("UPDATE user_character SET iceLevel = :iceLevel WHERE id = 0")
+    suspend fun updateIceLevel(iceLevel: Int)
+
+    @Query("UPDATE user_character SET hasBreachedBefore = 1 WHERE id = 0")
+    suspend fun setHasBreached()
 }

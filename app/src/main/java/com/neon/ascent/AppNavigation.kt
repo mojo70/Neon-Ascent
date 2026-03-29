@@ -17,6 +17,8 @@ import com.neon.ascent.feature.charactercreation.NeuralScanScreen
 import com.neon.ascent.feature.cyberdeck.CyberdeckScreen
 import com.neon.ascent.feature.dashboard.DashboardScreen
 import com.neon.ascent.feature.dashboard.DashboardViewModel
+import com.neon.ascent.feature.dashboard.CoreDashboardScreen
+import com.neon.ascent.feature.games.IceBreachScreen
 import com.neon.ascent.feature.journal.JournalScreen
 import com.neon.ascent.feature.loading.LoadingScreen
 import com.neon.ascent.feature.settings.DeepNodeScreen
@@ -51,6 +53,7 @@ fun AppNavigation(
                     0 -> CyberdeckScreen(
                         onWalletClick = { navController.navigate("wallet") },
                         onDatabaseClick = { navController.navigate("journal") },
+                        onIceBreachClick = { navController.navigate("ice_breach") },
                         tickerMessages = tickerMessages
                     )
                     1 -> DashboardScreen(
@@ -64,6 +67,21 @@ fun AppNavigation(
                     2 -> BiohackingScreen(onBack = { /* Handled by pager */ })
                 }
             }
+        }
+
+        composable("ice_breach") {
+            IceBreachScreen(
+                onBreachSuccess = {
+                    navController.navigate("core_dashboard") {
+                        popUpTo("ice_breach") { inclusive = true }
+                    }
+                },
+                onCancel = { navController.popBackStack() }
+            )
+        }
+
+        composable("core_dashboard") {
+            CoreDashboardScreen(onBack = { navController.popBackStack() })
         }
 
         composable("journal") {

@@ -7,6 +7,7 @@ import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -26,14 +27,24 @@ class SettingsRepository @Inject constructor(
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
     )
 
-    private val _isBiometricLockEnabled = MutableStateFlow(getBiometricLockEnabled())
-    val isBiometricLockEnabled: StateFlow<Boolean> = _isBiometricLockEnabled
+    private val _isBiometricLockEnabled = MutableStateFlow(sharedPreferences.getBoolean("biometric_lock", false))
+    val isBiometricLockEnabled: StateFlow<Boolean> = _isBiometricLockEnabled.asStateFlow()
 
-    private val _isReligionShortcutEnabled = MutableStateFlow(getReligionShortcutEnabled())
-    val isReligionShortcutEnabled: StateFlow<Boolean> = _isReligionShortcutEnabled
+    private val _isReligionShortcutEnabled = MutableStateFlow(sharedPreferences.getBoolean("religion_shortcut", false))
+    val isReligionShortcutEnabled: StateFlow<Boolean> = _isReligionShortcutEnabled.asStateFlow()
 
-    private val _isLocalAiOnly = MutableStateFlow(getLocalAiOnly())
-    val isLocalAiOnly: StateFlow<Boolean> = _isLocalAiOnly
+    private val _isLocalAiOnly = MutableStateFlow(sharedPreferences.getBoolean("local_ai_only", false))
+    val isLocalAiOnly: StateFlow<Boolean> = _isLocalAiOnly.asStateFlow()
+
+    // AI Parameters
+    private val _nanoTemperature = MutableStateFlow(sharedPreferences.getFloat("nano_temp", 0.7f))
+    val nanoTemperature = _nanoTemperature.asStateFlow()
+
+    private val _cloudFallbackThreshold = MutableStateFlow(sharedPreferences.getFloat("cloud_fallback", 20f))
+    val cloudFallbackThreshold = _cloudFallbackThreshold.asStateFlow()
+
+    private val _philosophySeed = MutableStateFlow(sharedPreferences.getString("philosophy_seed", "PLATO") ?: "PLATO")
+    val philosophySeed = _philosophySeed.asStateFlow()
 
     fun setBiometricLockEnabled(enabled: Boolean) {
         sharedPreferences.edit().putBoolean("biometric_lock", enabled).apply()
@@ -50,15 +61,18 @@ class SettingsRepository @Inject constructor(
         _isLocalAiOnly.value = enabled
     }
 
-    private fun getBiometricLockEnabled(): Boolean {
-        return sharedPreferences.getBoolean("biometric_lock", false)
+    fun setNanoTemperature(temp: Float) {
+        sharedPreferences.edit().putFloat("nano_temp", temp).apply()
+        _nanoTemperature.value = temp
     }
 
-    private fun getReligionShortcutEnabled(): Boolean {
-        return sharedPreferences.getBoolean("religion_shortcut", false)
+    fun setCloudFallbackThreshold(threshold: Float) {
+        sharedPreferences.edit().putFloat("cloud_fallback", threshold).apply()
+        _cloudFallbackThreshold.value = threshold
     }
 
-    private fun getLocalAiOnly(): Boolean {
-        return sharedPreferences.getBoolean("local_ai_only", false)
+    fun setPhilosophySeed(seed: String) {
+        sharedPreferences.edit().putString("philosophy_seed", seed).apply()
+        _philosophySeed.value = seed
     }
 }
