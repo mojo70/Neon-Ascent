@@ -33,6 +33,6 @@ interface UserCharacterDao {
     @Query("UPDATE user_character SET hasBreachedBefore = 1 WHERE id = 0")
     suspend fun setHasBreached()
 
-    @Query("UPDATE user_character SET isSystemDatabaseUnlocked = 1 WHERE id = 0")
-    suspend fun unlockSystemDatabase()
+    @Query("UPDATE user_character SET isSystemDatabaseUnlocked = :unlocked WHERE id = 0")
+    suspend fun setSystemDatabaseUnlocked(unlocked: Boolean)
 }

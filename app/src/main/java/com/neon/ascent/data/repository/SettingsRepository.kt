@@ -46,6 +46,9 @@ class SettingsRepository @Inject constructor(
     private val _philosophySeed = MutableStateFlow(sharedPreferences.getString("philosophy_seed", "PLATO") ?: "PLATO")
     val philosophySeed = _philosophySeed.asStateFlow()
 
+    private val _isNetrunnerMode = MutableStateFlow(sharedPreferences.getBoolean("netrunner_mode", false))
+    val isNetrunnerMode: StateFlow<Boolean> = _isNetrunnerMode.asStateFlow()
+
     fun setBiometricLockEnabled(enabled: Boolean) {
         sharedPreferences.edit().putBoolean("biometric_lock", enabled).apply()
         _isBiometricLockEnabled.value = enabled
@@ -74,5 +77,10 @@ class SettingsRepository @Inject constructor(
     fun setPhilosophySeed(seed: String) {
         sharedPreferences.edit().putString("philosophy_seed", seed).apply()
         _philosophySeed.value = seed
+    }
+
+    fun setNetrunnerMode(enabled: Boolean) {
+        sharedPreferences.edit().putBoolean("netrunner_mode", enabled).apply()
+        _isNetrunnerMode.value = enabled
     }
 }

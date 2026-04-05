@@ -6,9 +6,11 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.neon.ascent.feature.biohacking.BiohackingScreen
 import com.neon.ascent.feature.charactercreation.AvatarCaptureScreen
 import com.neon.ascent.feature.charactercreation.CharacterCreationScreen
@@ -58,7 +60,10 @@ fun AppNavigation(
                         onWalletClick = { navController.navigate("wallet") },
                         onDatabaseClick = { navController.navigate("journal") },
                         onIceBreachClick = { 
-                            navController.navigate("ice_breach")
+                            navController.navigate("ice_breach/ROOT")
+                        },
+                        onCoreClick = {
+                            navController.navigate("core_dashboard")
                         },
                         tickerMessages = tickerMessages
                     )
@@ -86,11 +91,27 @@ fun AppNavigation(
             )
         }
 
-        composable("ice_breach") {
+        composable(
+            route = "ice_breach/{context}",
+            arguments = listOf(navArgument("context") { type = NavType.StringType; defaultValue = "ROOT" })
+        ) { backStackEntry ->
+            val context = backStackEntry.arguments?.getString("context") ?: "ROOT"
             IceBreachScreen(
                 onBreachSuccess = {
-                    navController.navigate("core_dashboard") {
-                        popUpTo("ice_breach") { inclusive = true }
+                    if (context == "ROOT") {
+                        // Check if we came from dashboard or cyberdeck
+                        val prevRoute = navController.previousBackStackEntry?.destination?.route
+                        if (prevRoute?.contains("core_dashboard") == true) {
+                            navController.popBackStack()
+                        } else {
+                            navController.navigate("core_dashboard") {
+                                popUpTo("ice_breach/$context") { inclusive = true }
+                            }
+                        }
+                    } else {
+                        // Set result and pop back to dashboard
+                        navController.previousBackStackEntry?.savedStateHandle?.set("unlocked_section", context)
+                        navController.popBackStack()
                     }
                 },
                 onCancel = { navController.popBackStack() }
@@ -108,8 +129,16 @@ fun AppNavigation(
             )
         }
 
-        composable("core_dashboard") {
-            CoreDashboardScreen(onBack = { navController.popBackStack() })
+        composable("core_dashboard") { backStackEntry ->
+            val unlockedSection = backStackEntry.savedStateHandle.get<String>("unlocked_section")
+            CoreDashboardScreen(
+                onBack = { navController.popBackStack() },
+                onTriggerHack = { context -> navController.navigate("ice_breach/$context") },
+                unlockedSectionFromResult = unlockedSection,
+                onUnlockConsumed = {
+                    backStackEntry.savedStateHandle.remove<String>("unlocked_section")
+                }
+            )
         }
 
         composable("journal") {

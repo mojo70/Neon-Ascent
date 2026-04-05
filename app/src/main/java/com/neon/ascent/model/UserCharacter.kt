@@ -23,6 +23,7 @@ data class UserCharacter(
     val experience: Long = 0,
     val iceLevel: Int = 1,
     val eddies: Int = 0,
+    val secureEddies: Int = 0, // Money in the secure Solana wallet
     val hasBreachedBefore: Boolean = false,
     val isSystemDatabaseUnlocked: Boolean = false,
     val walletConnected: Boolean = false,

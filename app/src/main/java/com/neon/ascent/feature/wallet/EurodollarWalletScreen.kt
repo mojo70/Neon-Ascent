@@ -12,19 +12,24 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.feature.charactercreation.CyberButtonShape
 import com.neon.ascent.feature.charactercreation.CyberFrame
 import com.neon.ascent.feature.charactercreation.CyberGridBackground
+import com.neon.ascent.feature.dashboard.DashboardViewModel
 
 @Composable
-fun EurodollarWalletScreen(onBack: () -> Unit) {
-    var walletAddress by remember { mutableStateOf("NOT_CONNECTED") }
-    var balance by remember { mutableStateOf(0.0) }
+fun EurodollarWalletScreen(
+    onBack: () -> Unit,
+    viewModel: DashboardViewModel = hiltViewModel()
+) {
+    val char by viewModel.userCharacter.collectAsState()
+    val walletAddress = if (char?.walletConnected == true) "0x742d35Cc6634C0532925a3b844Bc454e4438f44e" else "NOT_CONNECTED"
+    val secureBalance = char?.secureEddies ?: 0
 
     Box(
         modifier = Modifier
@@ -58,9 +63,9 @@ fun EurodollarWalletScreen(onBack: () -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("TOTAL BALANCE", color = Color.Gray, fontSize = 12.sp)
+                    Text("SECURE BALANCE", color = Color.Gray, fontSize = 12.sp)
                     Text(
-                        "€$ ${String.format("%.2f", balance)} ED",
+                        "€$ $secureBalance.00 ED",
                         color = Color.White,
                         fontSize = 36.sp,
                         fontWeight = FontWeight.Black
@@ -81,11 +86,11 @@ fun EurodollarWalletScreen(onBack: () -> Unit) {
             // Action Buttons
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Button(
-                    onClick = { /* Connect Wallet */ },
+                    onClick = { /* TODO: Connect Wallet Logic */ },
                     modifier = Modifier.weight(1f).height(50.dp).clip(CyberButtonShape).border(1.dp, Color(0xFF00FF9C), CyberButtonShape),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0A0A0A))
                 ) {
-                    Text("CONNECT", color = Color(0xFF00FF9C), fontWeight = FontWeight.Bold)
+                    Text(if (char?.walletConnected == true) "DISCONNECT" else "CONNECT", color = Color(0xFF00FF9C), fontWeight = FontWeight.Bold)
                 }
                 
                 Button(
@@ -102,10 +107,9 @@ fun EurodollarWalletScreen(onBack: () -> Unit) {
             // Transaction History
             CyberFrame(label = "TRANSACTION_LEDGER") {
                 val transactions = listOf(
+                    Transaction("VAULT_TRANSFER", "+$secureBalance.00", "SUCCESS"),
                     Transaction("FIXER_PAYOUT", "+500.00", "SUCCESS"),
                     Transaction("AMMO_RESUPPLY", "-120.50", "SUCCESS"),
-                    Transaction("NEURAL_UPGRADE", "-2500.00", "SUCCESS"),
-                    Transaction("MISSION_REWARD", "+1200.00", "SUCCESS")
                 )
                 
                 LazyColumn(modifier = Modifier.height(200.dp)) {

@@ -38,6 +38,7 @@ fun CyberdeckScreen(
     onWalletClick: () -> Unit,
     onDatabaseClick: () -> Unit,
     onIceBreachClick: () -> Unit,
+    onCoreClick: () -> Unit,
     tickerMessages: List<String> = emptyList(),
     viewModel: CyberdeckViewModel = hiltViewModel()
 ) {
@@ -108,7 +109,7 @@ fun CyberdeckScreen(
                 }
 
                 // 4. Hexagon Cores (Enhanced 3D Neon)
-                CoreLayout(onWalletClick, onDatabaseClick, aiType)
+                CoreLayout(onWalletClick, onDatabaseClick, onCoreClick, aiType)
             }
 
             // 5. Live Console
@@ -257,7 +258,7 @@ private fun SecCoreWithIce(onClick: () -> Unit) {
 }
 
 @Composable
-private fun CoreLayout(onWalletClick: () -> Unit, onDatabaseClick: () -> Unit, aiType: AiType) {
+private fun CoreLayout(onWalletClick: () -> Unit, onDatabaseClick: () -> Unit, onCoreClick: () -> Unit, aiType: AiType) {
     Box(Modifier.fillMaxSize()) {
         // NETWORK
         HexCore("NETWORK",  Color(0xFF00FF99), Modifier.align(Alignment.TopCenter).padding(top = 80.dp))
@@ -279,7 +280,8 @@ private fun CoreLayout(onWalletClick: () -> Unit, onDatabaseClick: () -> Unit, a
             label = coreLabel,
             color = coreColor,
             modifier = Modifier.align(Alignment.Center).padding(bottom = 40.dp),
-            aiType = aiType
+            aiType = aiType,
+            onClick = onCoreClick
         )
 
         // WALLET

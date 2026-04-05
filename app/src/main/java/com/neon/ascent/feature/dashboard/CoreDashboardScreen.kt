@@ -1,5 +1,6 @@
 package com.neon.ascent.feature.dashboard
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -8,20 +9,29 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.ui.CyberFrame
 import com.neon.ascent.ui.Scanlines
@@ -29,10 +39,31 @@ import com.neon.ascent.ui.Scanlines
 @Composable
 fun CoreDashboardScreen(
     onBack: () -> Unit,
-    viewModel: CoreDashboardViewModel = hiltViewModel()
+    onTriggerHack: (String) -> Unit,
+    viewModel: CoreDashboardViewModel = hiltViewModel(),
+    unlockedSectionFromResult: String? = null,
+    onUnlockConsumed: () -> Unit = {}
 ) {
     var activeTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("AI_CORE", "DATABANK", "ECONOMY", "LOGS")
+    val tabs = listOf("VAULT", "LOGS", "AI_CORE", "DATABANK")
+    val userCharacter by viewModel.userCharacter.collectAsState()
+    val isRooted = userCharacter?.isSystemDatabaseUnlocked == true
+    
+    val aiSessionUnlocked by viewModel.aiCoreSessionUnlocked.collectAsState()
+    val dataSessionUnlocked by viewModel.databankSessionUnlocked.collectAsState()
+
+    // Handle session unlock from navigation result
+    LaunchedEffect(unlockedSectionFromResult) {
+        unlockedSectionFromResult?.let { section ->
+            viewModel.sessionUnlock(section)
+            // Automatically switch to the tab that was just unlocked
+            val index = tabs.indexOf(section)
+            if (index != -1) {
+                activeTab = index
+            }
+            onUnlockConsumed()
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         Scanlines()
@@ -45,14 +76,14 @@ fun CoreDashboardScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "CORE_OS_DASHBOARD v2.0",
+                    "LOCAL_AI_CORE v3.0",
                     color = Color(0xFF00FF9C),
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp
                 )
                 Text(
-                    "EXIT",
+                    "DISCONNECT",
                     color = Color.Red,
                     modifier = Modifier.clickable { onBack() },
                     fontFamily = FontFamily.Monospace,
@@ -77,7 +108,7 @@ fun CoreDashboardScreen(
                         Text(
                             title,
                             color = if (activeTab == index) Color(0xFF00FF9C) else Color.Gray,
-                            fontSize = 10.sp,
+                            fontSize = 9.sp,
                             fontFamily = FontFamily.Monospace
                         )
                     }
@@ -88,14 +119,289 @@ fun CoreDashboardScreen(
 
             // Content Area
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                when (activeTab) {
-                    0 -> AiParametersPanel(viewModel)
-                    1 -> DatabankManager(viewModel)
-                    2 -> EconomyHub(viewModel)
-                    3 -> DiagnosticsLogs()
+                val currentTabName = tabs[activeTab]
+                
+                when (currentTabName) {
+                    "VAULT" -> VaultHub(viewModel)
+                    "LOGS" -> DiagnosticsLogs(viewModel)
+                    "AI_CORE" -> {
+                        if (!isRooted) {
+                            BlackIceOverlay { onTriggerHack("ROOT") }
+                        } else if (!aiSessionUnlocked) {
+                            LightIceOverlay(
+                                section = "AI_CORE",
+                                onQuickHack = { viewModel.quickUnlock("AI_CORE") },
+                                onManualHack = { onTriggerHack("AI_CORE") }
+                            )
+                        } else {
+                            AiParametersPanel(viewModel)
+                        }
+                    }
+                    "DATABANK" -> {
+                        if (!isRooted) {
+                            BlackIceOverlay { onTriggerHack("ROOT") }
+                        } else if (!dataSessionUnlocked) {
+                            LightIceOverlay(
+                                section = "DATABANK",
+                                onQuickHack = { viewModel.quickUnlock("DATABANK") },
+                                onManualHack = { onTriggerHack("DATABANK") }
+                            )
+                        } else {
+                            DatabankManager(viewModel)
+                        }
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun BlackIceOverlay(onTriggerHack: () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxSize().border(2.dp, Color.Red.copy(alpha = 0.5f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
+            Icon(Icons.Default.Lock, contentDescription = null, tint = Color.Red, modifier = Modifier.size(64.dp))
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "BLACK_ICE_DETECTED",
+                color = Color.Red,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 20.sp
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Access restricted. Arasaka-grade ICE detected. Root breach protocol required for decryption.",
+                color = Color.White.copy(alpha = 0.7f),
+                textAlign = TextAlign.Center,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace
+            )
+            Spacer(Modifier.height(24.dp))
+            Button(
+                onClick = onTriggerHack,
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+            ) {
+                Text("INITIATE ROOT BREACH", color = Color.Black, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+fun LightIceOverlay(section: String, onQuickHack: () -> Unit, onManualHack: () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxSize().border(1.dp, Color(0xFF00CCFF).copy(alpha = 0.5f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
+            Icon(Icons.Default.Security, contentDescription = null, tint = Color(0xFF00CCFF), modifier = Modifier.size(48.dp))
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "LIGHT_ICE_ACTIVE",
+                color = Color(0xFF00CCFF),
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 18.sp
+            )
+            Text(
+                "Section: $section",
+                color = Color.Gray,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace
+            )
+            Spacer(Modifier.height(24.dp))
+            Button(
+                onClick = onManualHack,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00CCFF))
+            ) {
+                Text("BREACH NODE", color = Color.Black)
+            }
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = onQuickHack,
+                modifier = Modifier.fillMaxWidth(),
+                border = BorderStroke(1.dp, Color(0xFF00FF9C))
+            ) {
+                Text("QUICKHACK (20 ED)", color = Color(0xFF00FF9C))
+            }
+        }
+    }
+}
+
+@Composable
+fun VaultHub(viewModel: CoreDashboardViewModel) {
+    val char by viewModel.userCharacter.collectAsState()
+    val isNetrunnerOn by viewModel.isNetrunnerMode.collectAsState()
+    var showTransferDialog by remember { mutableStateOf(false) }
+    
+    if (showTransferDialog) {
+        TransferToSecureDialog(
+            maxAmount = char?.eddies ?: 0,
+            onDismiss = { showTransferDialog = false },
+            onConfirm = { amount ->
+                viewModel.transferToSecure(amount)
+                showTransferDialog = false
+            }
+        )
+    }
+
+    Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        // NETRUNNER TOGGLE
+        CyberFrame(label = "SYSTEM_STATE") {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        Text("NETRUNNER MODE", color = if (isNetrunnerOn) Color.Red else Color.Gray, fontWeight = FontWeight.Bold)
+                        Text("Exposes kernel to subnet", color = Color.Gray, fontSize = 10.sp)
+                    }
+                    Switch(
+                        checked = isNetrunnerOn, 
+                        onCheckedChange = { viewModel.toggleNetrunnerMode(it) },
+                        colors = SwitchDefaults.colors(checkedThumbColor = Color.Red, checkedTrackColor = Color.Red.copy(alpha = 0.3f))
+                    )
+                }
+                if (isNetrunnerOn) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = Color.Red, modifier = Modifier.size(12.dp))
+                        Text("RISK LEVEL: CRITICAL - HIGH TRACE PROBABILITY", color = Color.Red, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                    }
+                }
+            }
+        }
+
+        // XP & EDDIES
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            CyberFrame(label = "XP", modifier = Modifier.weight(1f)) {
+                Column {
+                    Text("LVL ${char?.level ?: 1}", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    LinearProgressIndicator(
+                        progress = { (char?.experience?.toFloat() ?: 0f) / 5000f },
+                        modifier = Modifier.fillMaxWidth().height(4.dp),
+                        color = Color(0xFF00FF9C),
+                        trackColor = Color.Gray.copy(alpha = 0.2f),
+                    )
+                }
+            }
+            CyberFrame(label = "VAULT", modifier = Modifier.weight(1.5f)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        Text("€${char?.eddies ?: 0}", color = Color(0xFFFFCC00), fontSize = 18.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
+                        Text(if (char?.walletConnected == true) "SOLANA: LINKED" else "UNLINKED", color = Color.Gray, fontSize = 9.sp)
+                    }
+                    if (char?.walletConnected == true) {
+                        IconButton(onClick = { showTransferDialog = true }, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Default.Shield, contentDescription = "Transfer to Secure", tint = Color(0xFF00FF9C), modifier = Modifier.size(20.dp))
+                        }
+                    }
+                }
+            }
+        }
+
+        // ICE CONFIG
+        val alpha = if (isNetrunnerOn) 1f else 0.3f
+        CyberFrame(label = "ICE_CONFIG", modifier = Modifier.alpha(alpha)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                IceOption("WHITE_NOISE_PULSE", "Standard defensive layer", true, isNetrunnerOn)
+                IceOption("SYNAPTIC_FEEDBACK", "Counter-hack payload", false, isNetrunnerOn)
+                IceOption("GHOST_PROTOCOL", "Reduces trace speed", false, isNetrunnerOn)
+            }
+        }
+
+        // DEAD DROP
+        CyberFrame(label = "DEAD_DROP_MESSAGES", modifier = Modifier.alpha(alpha)) {
+            Column {
+                var message by remember { mutableStateOf("") }
+                BasicTextField(
+                    value = message,
+                    onValueChange = { if (it.length <= 140) message = it },
+                    enabled = isNetrunnerOn,
+                    textStyle = TextStyle(color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 11.sp),
+                    modifier = Modifier.fillMaxWidth().height(60.dp).background(Color.White.copy(alpha = 0.05f)).padding(8.dp),
+                    decorationBox = { innerTextField ->
+                        if (message.isEmpty()) Text("Leave graffiti for other runners...", color = Color.Gray, fontSize = 11.sp)
+                        innerTextField()
+                    }
+                )
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("${message.length}/140", color = Color.Gray, fontSize = 9.sp)
+                    Text("UPLOAD", color = if (isNetrunnerOn) Color(0xFF00FF9C) else Color.Gray, fontSize = 10.sp, modifier = Modifier.clickable(enabled = isNetrunnerOn) {})
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TransferToSecureDialog(maxAmount: Int, onDismiss: () -> Unit, onConfirm: (Int) -> Unit) {
+    var amountText by remember { mutableStateOf("") }
+    val amount = amountText.toIntOrNull() ?: 0
+    val isValid = amount in 1..maxAmount
+
+    Dialog(onDismissRequest = onDismiss) {
+        CyberFrame(label = "SECURE_TRANSFER_PROTOCOL") {
+            Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Transfer Eddies to Solana Secure Wallet?", color = Color.White, fontSize = 14.sp, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(16.dp))
+                Text("AVAILABLE: €$maxAmount", color = Color.Gray, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                Spacer(Modifier.height(8.dp))
+                BasicTextField(
+                    value = amountText,
+                    onValueChange = { if (it.all { char -> char.isDigit() }) amountText = it },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    textStyle = TextStyle(color = Color(0xFFFFCC00), fontFamily = FontFamily.Monospace, fontSize = 18.sp, textAlign = TextAlign.Center),
+                    cursorBrush = SolidColor(Color(0xFF00FF9C)),
+                    modifier = Modifier.fillMaxWidth().background(Color.White.copy(alpha = 0.05f)).padding(12.dp),
+                    decorationBox = { innerTextField ->
+                        if (amountText.isEmpty()) Text("ENTER_AMOUNT", color = Color.Gray.copy(alpha = 0.5f), modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, fontSize = 14.sp)
+                        innerTextField()
+                    }
+                )
+                Spacer(Modifier.height(24.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
+                    ) {
+                        Text("CANCEL", color = Color.White, fontSize = 10.sp)
+                    }
+                    Button(
+                        onClick = { onConfirm(amount) },
+                        enabled = isValid,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C))
+                    ) {
+                        Text("TRANSFER", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun IceOption(name: String, desc: String, enabled: Boolean, systemActive: Boolean) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text(name, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text(desc, color = Color.Gray, fontSize = 9.sp)
+        }
+        Checkbox(
+            checked = enabled, 
+            onCheckedChange = {}, 
+            enabled = systemActive,
+            colors = CheckboxDefaults.colors(checkedColor = Color(0xFF00FF9C), uncheckedColor = Color.Gray)
+        )
     }
 }
 
@@ -195,7 +501,6 @@ fun LabeledSlider(label: String, value: Float, range: ClosedFloatingPointRange<F
     Column {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(label, color = Color.White, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
-            // Fix: Append suffix after formatting to avoid % conversion issues
             Text("%.2f".format(value) + suffix, color = Color(0xFF00FF9C), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
         }
         Slider(
@@ -273,63 +578,51 @@ fun DatabankManager(viewModel: CoreDashboardViewModel) {
 }
 
 @Composable
-fun EconomyHub(viewModel: CoreDashboardViewModel) {
-    val char by viewModel.userCharacter.collectAsState()
-    
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        CyberFrame(label = "XP_PROGRESSION") {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Box(modifier = Modifier.size(60.dp).border(2.dp, Color(0xFF00FF9C), RoundedCornerShape(30.dp)), contentAlignment = Alignment.Center) {
-                    Text("${char?.level ?: 1}", color = Color.White, fontWeight = FontWeight.Bold)
-                }
-                Column {
-                    Text("LEVEL ${char?.level ?: 1} OPERATIVE", color = Color.White, fontSize = 14.sp)
-                    Text("XP: ${char?.experience ?: 0} / 5000", color = Color.Gray, fontSize = 10.sp)
-                }
-            }
-        }
-        
-        CyberFrame(label = "CURRENCY_RESERVES") {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("€${char?.eddies ?: 0}", color = Color(0xFFFFCC00), fontSize = 32.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Black)
-                    if (char?.walletConnected == true) {
-                        Text("(Solana ✓)", color = Color(0xFF00FF9C), fontSize = 10.sp)
-                    } else {
-                        Button(onClick = {}, colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)) {
-                            Text("CONNECT PHANTOM", fontSize = 10.sp)
-                        }
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-                Button(onClick = {}, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C))) {
-                    Text("CLAIM REWARDS", color = Color.Black)
-                }
-            }
-        }
+fun DiagnosticsLogs(viewModel: CoreDashboardViewModel) {
+    val hackHistory by viewModel.hackHistory.collectAsState()
+    val isNetrunnerOn by viewModel.isNetrunnerMode.collectAsState()
 
-        CyberFrame(label = "QUICK_HACK_CONFIG") {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                Text("AUTO-GHOST ICE (COST: 20 ED)", color = Color.White, fontSize = 12.sp)
-                Switch(checked = true, onCheckedChange = {}, colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF00FF9C)))
-            }
-        }
-    }
-}
-
-@Composable
-fun DiagnosticsLogs() {
-    val logs = listOf(
+    val systemLogs = listOf(
         "Nano: 4.2 tokens/sec | Cloud latency: 180ms",
         "Memory Load: 42% | Temperature: 38°C",
         "Neural Link: Stable (98.4%)",
-        "Connection: Encrypted (AES-256)",
         "Uptime: 04:22:15"
     )
-    CyberFrame(label = "SYSTEM_DIAGNOSTICS") {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            logs.forEach { log ->
-                Text("> $log", color = Color(0xFF00FF9C), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+    
+    Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        CyberFrame(label = "SYSTEM_DIAGNOSTICS") {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                systemLogs.forEach { log ->
+                    Text("> $log", color = Color(0xFF00FF9C), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                }
+            }
+        }
+
+        CyberFrame(label = "HACK_HISTORY_L60M") {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (hackHistory.isEmpty()) {
+                    Text("NO RECENT ACTIVITY", color = Color.Gray, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                } else {
+                    hackHistory.forEach { event ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, if (isNetrunnerOn) Color.Red.copy(alpha = 0.3f) else Color.Gray.copy(alpha = 0.1f))
+                                .clickable(enabled = isNetrunnerOn) { viewModel.claimBounty(event) }
+                                .padding(8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(event.type, color = if (isNetrunnerOn) Color.Red else Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text(event.details, color = Color.Gray, fontSize = 9.sp)
+                            }
+                            if (isNetrunnerOn) {
+                                Text("CLAIM €${event.bounty}", color = Color(0xFFFFCC00), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
             }
         }
     }

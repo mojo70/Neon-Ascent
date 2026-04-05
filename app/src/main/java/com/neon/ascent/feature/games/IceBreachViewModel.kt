@@ -8,6 +8,7 @@ import com.neon.ascent.model.UserCharacter
 import com.neon.ascent.util.SynthAudioPlayer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -16,8 +17,27 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import kotlin.random.Random
+
+sealed class IceBreachUiState {
+    object Initializing : IceBreachUiState()
+    data class Phase1(val targetFreq: Float, val currentFreq: Float) : IceBreachUiState()
+    data class Phase2(
+        val grid: List<String>,
+        val targetSequences: List<List<String>>,
+        val selectedIndices: List<Int>,
+        val bufferSize: Int,
+        val isRowSelection: Boolean,
+        val activeIndex: Int?,
+        val remainingTime: Int,
+        val isTimerStarted: Boolean
+    ) : IceBreachUiState()
+    data class Phase3(val phrase: String, val options: List<String>) : IceBreachUiState()
+    data class Success(val xp: Int, val eddies: Int) : IceBreachUiState()
+    data class Failed(val reason: String) : IceBreachUiState()
+}
 
 @HiltViewModel
 class IceBreachViewModel @Inject constructor(
@@ -246,7 +266,6 @@ class IceBreachViewModel @Inject constructor(
 
     private fun completeBreach() {
         viewModelScope.launch {
-            // Get character info. Try StateFlow first, then DB fetch.
             val char = userCharacter.value ?: userCharacterDao.getUserCharacter().first()
             val iceLevel = char?.iceLevel ?: 1
             
@@ -257,16 +276,20 @@ class IceBreachViewModel @Inject constructor(
                 eddiesReward += 100
             }
 
-            // Update UI state IMMEDIATELY so the user sees the success screen
+            // Immediately set UI success state
             _uiState.value = IceBreachUiState.Success(xp = xpReward, eddies = eddiesReward)
 
-            // Persist rewards in the background
-            char?.let {
-                userCharacterDao.updateExperience(it.experience + xpReward)
-                userCharacterDao.updateEddies(it.eddies + eddiesReward)
-                userCharacterDao.updateIceLevel(iceLevel + 1)
-                if (!it.hasBreachedBefore) {
-                    userCharacterDao.setHasBreached()
+            // Persist the changes using a single robust update call
+            withContext(NonCancellable) {
+                char?.let {
+                    val updatedChar = it.copy(
+                        experience = it.experience + xpReward,
+                        eddies = it.eddies + eddiesReward,
+                        iceLevel = iceLevel + 1,
+                        isSystemDatabaseUnlocked = true, // ROOT THE SYSTEM
+                        hasBreachedBefore = true
+                    )
+                    userCharacterDao.updateUserCharacter(updatedChar)
                 }
             }
         }
@@ -277,7 +300,15 @@ class IceBreachViewModel @Inject constructor(
             val char = userCharacter.value ?: return@launch
             if (char.eddies >= 20) {
                 audioPlayer.playGlitch()
-                userCharacterDao.updateEddies(char.eddies - 20)
+                // Deduct eddies and set rooted state in one go
+                withContext(NonCancellable) {
+                    val updatedChar = char.copy(
+                        eddies = char.eddies - 20,
+                        isSystemDatabaseUnlocked = true,
+                        hasBreachedBefore = true
+                    )
+                    userCharacterDao.updateUserCharacter(updatedChar)
+                }
                 completeBreach()
             }
         }
