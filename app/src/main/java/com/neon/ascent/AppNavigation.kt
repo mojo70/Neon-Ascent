@@ -1,10 +1,13 @@
 package com.neon.ascent
 
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -29,6 +32,7 @@ import com.neon.ascent.feature.loading.LoadingScreen
 import com.neon.ascent.feature.settings.DeepNodeScreen
 import com.neon.ascent.feature.settings.SettingsScreen
 import com.neon.ascent.feature.wallet.EurodollarWalletScreen
+import com.neon.ascent.ui.cyberGlitch
 import kotlin.random.Random
 
 @Composable
@@ -40,7 +44,12 @@ fun AppNavigation(
     val userCharacter by dashboardViewModel.userCharacter.collectAsState()
     val tickerMessages by dashboardViewModel.tickerMessages.collectAsState()
 
-    NavHost(navController = navController, startDestination = "loading") {
+    NavHost(
+        navController = navController, 
+        startDestination = "loading",
+        enterTransition = { fadeIn(animationSpec = tween(300)) },
+        exitTransition = { fadeOut(animationSpec = tween(300)) }
+    ) {
         composable("loading") {
             LoadingScreen(
                 onLoadingFinished = {
@@ -129,16 +138,37 @@ fun AppNavigation(
             )
         }
 
-        composable("core_dashboard") { backStackEntry ->
+        composable(
+            route = "core_dashboard",
+            enterTransition = {
+                slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(400, easing = LinearEasing)) +
+                        fadeIn(animationSpec = tween(400))
+            },
+            exitTransition = {
+                slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(400, easing = LinearEasing)) +
+                        fadeOut(animationSpec = tween(400))
+            }
+        ) { backStackEntry ->
             val unlockedSection = backStackEntry.savedStateHandle.get<String>("unlocked_section")
-            CoreDashboardScreen(
-                onBack = { navController.popBackStack() },
-                onTriggerHack = { context -> navController.navigate("ice_breach/$context") },
-                unlockedSectionFromResult = unlockedSection,
-                onUnlockConsumed = {
-                    backStackEntry.savedStateHandle.remove<String>("unlocked_section")
+            
+            // Custom glitch transition effect
+            var glitchIntensity by remember { mutableFloatStateOf(1f) }
+            LaunchedEffect(Unit) {
+                animate(1f, 0f, animationSpec = tween(600, easing = LinearOutSlowInEasing)) { value, _ ->
+                    glitchIntensity = value
                 }
-            )
+            }
+
+            Box(modifier = Modifier.fillMaxSize().cyberGlitch(glitchIntensity)) {
+                CoreDashboardScreen(
+                    onBack = { navController.popBackStack() },
+                    onTriggerHack = { context -> navController.navigate("ice_breach/$context") },
+                    unlockedSectionFromResult = unlockedSection,
+                    onUnlockConsumed = {
+                        backStackEntry.savedStateHandle.remove<String>("unlocked_section")
+                    }
+                )
+            }
         }
 
         composable("journal") {

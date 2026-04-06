@@ -49,6 +49,9 @@ class SettingsRepository @Inject constructor(
     private val _isNetrunnerMode = MutableStateFlow(sharedPreferences.getBoolean("netrunner_mode", false))
     val isNetrunnerMode: StateFlow<Boolean> = _isNetrunnerMode.asStateFlow()
 
+    private val _isFirstAiCoreEntry = MutableStateFlow(sharedPreferences.getBoolean("first_ai_core_entry", true))
+    val isFirstAiCoreEntry: StateFlow<Boolean> = _isFirstAiCoreEntry.asStateFlow()
+
     fun setBiometricLockEnabled(enabled: Boolean) {
         sharedPreferences.edit().putBoolean("biometric_lock", enabled).apply()
         _isBiometricLockEnabled.value = enabled
@@ -82,5 +85,10 @@ class SettingsRepository @Inject constructor(
     fun setNetrunnerMode(enabled: Boolean) {
         sharedPreferences.edit().putBoolean("netrunner_mode", enabled).apply()
         _isNetrunnerMode.value = enabled
+    }
+
+    fun setFirstAiCoreEntry(isFirst: Boolean) {
+        sharedPreferences.edit().putBoolean("first_ai_core_entry", isFirst).apply()
+        _isFirstAiCoreEntry.value = isFirst
     }
 }

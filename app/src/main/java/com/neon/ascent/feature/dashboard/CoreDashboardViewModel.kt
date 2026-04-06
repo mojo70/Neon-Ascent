@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.random.Random
 
 @HiltViewModel
 class CoreDashboardViewModel @Inject constructor(
@@ -64,11 +65,37 @@ class CoreDashboardViewModel @Inject constructor(
     private val REGEN_TIME_MS = 3 * 60 * 1000L // 3 minutes
 
     init {
+        checkFirstEntry()
         generateDummyLogs()
     }
 
+    private fun checkFirstEntry() {
+        viewModelScope.launch {
+            if (settingsRepository.isFirstAiCoreEntry.value) {
+                // Fetch random saying from "Soul in the Machine"
+                val soulSayings = sayingsDao.getSayingsByCategory("Soul in the Machine")
+                val randomSaying = if (soulSayings.isNotEmpty()) {
+                    soulSayings[Random.nextInt(soulSayings.size)].text
+                } else {
+                    "Ghost in the shell detected."
+                }
+
+                val welcomeLog = HackEvent(
+                    type = "WELCOME_INITIALIZATION",
+                    details = "Neural Core Online. Fragment found: \"$randomSaying\"",
+                    timestamp = System.currentTimeMillis(),
+                    bounty = 0
+                )
+                
+                _hackHistory.value = listOf(welcomeLog) + _hackHistory.value
+                settingsRepository.setFirstAiCoreEntry(false)
+            }
+        }
+    }
+
     private fun generateDummyLogs() {
-        _hackHistory.value = listOf(
+        val existing = _hackHistory.value
+        _hackHistory.value = existing + listOf(
             HackEvent("CORE_ACCESS_ATTEMPT", "IP: 192.168.1.42", System.currentTimeMillis() - 15 * 60000, 50),
             HackEvent("PACKET_SNIFF_DETECTED", "PORT: 8080", System.currentTimeMillis() - 45 * 60000, 120),
             HackEvent("MALWARE_INJECTION", "TRACED: NightCity_Subnet", System.currentTimeMillis() - 75 * 60000, 300)
