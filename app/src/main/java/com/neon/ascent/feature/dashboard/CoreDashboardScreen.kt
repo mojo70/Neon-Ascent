@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.neon.ascent.model.Saying
 import com.neon.ascent.ui.CyberFrame
 import com.neon.ascent.ui.Scanlines
 
@@ -592,8 +593,16 @@ fun DatabankManager(viewModel: CoreDashboardViewModel) {
                             fontFamily = FontFamily.Monospace,
                             modifier = Modifier.weight(1f)
                         )
-                        IconButton(onClick = { viewModel.deleteSaying(saying) }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+                        if (saying.category == "Custom") {
+                            IconButton(onClick = { viewModel.deleteSaying(saying) }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+                            }
+                        } else {
+                            Switch(
+                                checked = saying.isEnabled,
+                                onCheckedChange = { viewModel.toggleSayingEnabled(saying) },
+                                colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF00FF9C), checkedTrackColor = Color(0xFF00FF9C).copy(alpha = 0.3f))
+                            )
                         }
                     }
                 }

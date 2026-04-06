@@ -8,5 +8,6 @@ data class Saying(
     @PrimaryKey val id: String,
     val text: String,
     val category: String,
-    val engagementScore: Int
+    val engagementScore: Int,
+    val isEnabled: Boolean = true
 )

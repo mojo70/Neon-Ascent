@@ -87,15 +87,23 @@ class CoreDashboardViewModel @Inject constructor(
         }
     }
 
+    fun toggleSayingEnabled(saying: Saying) {
+        viewModelScope.launch {
+            sayingsDao.insertSaying(saying.copy(isEnabled = !saying.isEnabled))
+        }
+    }
+
     fun deleteSaying(saying: Saying) {
         viewModelScope.launch {
-            sayingsDao.deleteSaying(saying)
+            if (saying.category == "Custom") {
+                sayingsDao.deleteSaying(saying)
+            }
         }
     }
 
     fun seedNano() {
         viewModelScope.launch {
-            val sayings = allSayings.value.take(10).joinToString("\n") { it.text }
+            val sayings = allSayings.value.filter { it.isEnabled }.take(10).joinToString("\n") { it.text }
             val entries = journalDao.getAllEntries().first().take(3).joinToString("\n") { it.text }
             val seed = philosophySeed.value
             
