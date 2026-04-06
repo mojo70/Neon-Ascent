@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -36,8 +37,10 @@ import java.util.*
 
 @Composable
 fun JournalScreen(
-    onBack: () -> Unit,
-    onHackingRequired: () -> Unit,
+    onEntryClick: (JournalEntry) -> Unit,
+    onStoryClick: () -> Unit,
+    onBack: () -> Unit = {},
+    onHackingRequired: () -> Unit = {},
     viewModel: JournalViewModel = hiltViewModel()
 ) {
     var activeTab by remember { mutableIntStateOf(0) }
@@ -78,10 +81,64 @@ fun JournalScreen(
             // Content Area
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 if (activeTab == 0) {
-                    PersonalDatabaseContent(viewModel)
+                    PersonalDatabaseContent(viewModel, onEntryClick)
                 } else {
                     SystemDatabaseContent(isHacked, onHackingRequired, viewModel)
                 }
+            }
+            
+            if (activeTab == 1) {
+                Button(
+                    onClick = onStoryClick,
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                    border = BorderStroke(1.dp, Color(0xFF00FFAA))
+                ) {
+                    Text("FULL_ARCHIVE_VIEW", color = Color(0xFF00FFAA), fontFamily = FontFamily.Monospace)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun StoryScreen(
+    onBack: () -> Unit,
+    onHackingRequired: () -> Unit = {},
+    viewModel: JournalViewModel = hiltViewModel()
+) {
+    val isHacked by viewModel.isSystemDatabaseHacked.collectAsState()
+
+    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF020508))) {
+        Scanlines()
+        
+        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF00FFAA))
+                }
+                Text(
+                    "SYSTEM_ARCHIVE",
+                    color = Color(0xFF00FFAA),
+                    fontSize = 20.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center
+                )
+                Spacer(Modifier.width(48.dp))
+            }
+
+            Spacer(Modifier.height(24.dp))
+
+            // Content Area
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                SystemDatabaseContent(isHacked, onHackingRequired, viewModel)
             }
         }
     }
@@ -108,7 +165,7 @@ fun DatabaseTab(label: String, isSelected: Boolean, modifier: Modifier = Modifie
 }
 
 @Composable
-fun PersonalDatabaseContent(viewModel: JournalViewModel) {
+fun PersonalDatabaseContent(viewModel: JournalViewModel, onEntryClick: (JournalEntry) -> Unit) {
     val entries by viewModel.entries.collectAsState()
     val protocols by viewModel.bioProtocolLogs.collectAsState()
     val quests by viewModel.quests.collectAsState()
@@ -131,7 +188,7 @@ fun PersonalDatabaseContent(viewModel: JournalViewModel) {
             item { EmptyDataPlaceholder("NO_ENTRIES_FOUND") }
         } else {
             items(entries.take(3)) { entry ->
-                JournalEntryMiniItem(entry)
+                JournalEntryMiniItem(entry) { onEntryClick(entry) }
             }
         }
 
@@ -404,11 +461,12 @@ fun QuestItem(quest: Quest, viewModel: JournalViewModel) {
 }
 
 @Composable
-fun JournalEntryMiniItem(entry: JournalEntry) {
+fun JournalEntryMiniItem(entry: JournalEntry, onClick: () -> Unit) {
     val dateFormat = remember { SimpleDateFormat("yyyy.MM.dd", Locale.US) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable { onClick() }
             .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {

@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Matrix
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -48,17 +47,16 @@ fun AvatarCaptureScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    // Mock user character for generation if state is initial
-    val userCharacter = UserCharacter(
-        name = "Cyber_User",
+    
+    val userCharacterFromDb by creationViewModel.userCharacter.collectAsState()
+    val character = userCharacterFromDb ?: UserCharacter(
+        name = "RUNNER",
         sex = "Unknown",
         dob = "Unknown",
         units = "metric",
         weight = "0",
         somatotype = 0.5f,
-        archetype = "THE_NEUTRAL",
-        mbti = "INTJ",
-        alignment = "NEUTRAL"
+        archetype = "THE EDGE-RUNNER"
     )
     
     var avatarBitmap by remember { mutableStateOf<Bitmap?>(null) }
@@ -120,7 +118,7 @@ fun AvatarCaptureScreen(
                 CircularProgressIndicator(color = Color(0xFF00FF9C))
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("GENERATING CYBERNETIC AVATAR...", color = Color(0xFF00FF9C), letterSpacing = 2.sp)
-                Text("UPLINKING TO NANO_BANANA_CORE", color = Color(0xFFFF006E), fontSize = 10.sp)
+                Text("UPLINKING TO NANO_CORE", color = Color(0xFFFF006E), fontSize = 10.sp)
             }
         } else {
             // Camera View
@@ -130,7 +128,7 @@ fun AvatarCaptureScreen(
                         isProcessing = true
                         scope.launch {
                             try {
-                                val generated = generateCyberAvatar(bitmap, userCharacter)
+                                val generated = generateCyberAvatar(bitmap, character)
                                 if (generated != null) {
                                     avatarBitmap = generated
                                 } else {
@@ -151,7 +149,7 @@ fun AvatarCaptureScreen(
                             isProcessing = true
                             scope.launch {
                                 try {
-                                    avatarBitmap = generateCyberAvatar(null, userCharacter)
+                                    avatarBitmap = generateCyberAvatar(null, character)
                                 } catch (e: Exception) {
                                     errorMessage = "AVATAR_GEN_FAILED"
                                 } finally {
@@ -191,7 +189,7 @@ fun AvatarCaptureScreen(
                         isProcessing = true
                         scope.launch {
                             try {
-                                avatarBitmap = generateCyberAvatar(null, userCharacter)
+                                avatarBitmap = generateCyberAvatar(null, character)
                             } catch (e: Exception) {
                                 errorMessage = "AVATAR_GEN_FAILED"
                             } finally {
@@ -273,16 +271,34 @@ private fun createPlaceholderAvatar(character: UserCharacter): Bitmap {
     
     val path = android.graphics.Path()
     when (character.archetype) {
-        "THE STRATEGIST" -> { // Sharp angles
+        "THE STRATEGIST" -> { // Sharp angles, diamond-like
             path.moveTo(size*0.3f, size*0.3f)
             path.lineTo(size*0.7f, size*0.3f)
-            path.lineTo(size*0.8f, size*0.6f)
+            path.lineTo(size*0.85f, size*0.55f)
             path.lineTo(size*0.5f, size*0.9f)
-            path.lineTo(size*0.2f, size*0.6f)
+            path.lineTo(size*0.15f, size*0.55f)
             path.close()
         }
-        else -> { // Standard bio-mask
+        "THE IDEALIST" -> { // More organic but structured
             path.addCircle(size/2f, size/2f, size/3f, android.graphics.Path.Direction.CW)
+            path.moveTo(size*0.2f, size*0.5f)
+            path.lineTo(size*0.8f, size*0.5f)
+        }
+        "THE ADVOCATE" -> { // Dynamic, triangular top
+            path.moveTo(size*0.5f, size*0.2f)
+            path.lineTo(size*0.8f, size*0.4f)
+            path.lineTo(size*0.7f, size*0.85f)
+            path.lineTo(size*0.3f, size*0.85f)
+            path.lineTo(size*0.2f, size*0.4f)
+            path.close()
+        }
+        "THE PRAGMATIST" -> { // Solid, square-ish
+            path.addRoundRect(size*0.25f, size*0.25f, size*0.75f, size*0.85f, 40f, 40f, android.graphics.Path.Direction.CW)
+        }
+        else -> { // THE EDGE-RUNNER or default: standard bio-mask
+            path.addCircle(size/2f, size/2f, size/3.2f, android.graphics.Path.Direction.CW)
+            path.moveTo(size*0.5f, size*0.1f)
+            path.lineTo(size*0.5f, size*0.9f)
         }
     }
     canvas.drawPath(path, paint)
@@ -344,7 +360,6 @@ fun CameraPreview(onImageCaptured: (Bitmap) -> Unit) {
                             val bytes = ByteArray(buffer.remaining())
                             buffer.get(bytes)
                             val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                            // Rotate if needed (simplified)
                             onImageCaptured(bitmap)
                             image.close()
                         }

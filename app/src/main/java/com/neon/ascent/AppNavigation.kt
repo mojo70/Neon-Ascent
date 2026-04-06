@@ -19,6 +19,7 @@ import com.neon.ascent.feature.charactercreation.AvatarCaptureScreen
 import com.neon.ascent.feature.charactercreation.CharacterCreationScreen
 import com.neon.ascent.feature.charactercreation.CreationViewModel
 import com.neon.ascent.feature.charactercreation.NeuralScanScreen
+import com.neon.ascent.feature.charactercreation.deriveArchetype
 import com.neon.ascent.feature.cyberdeck.CyberdeckScreen
 import com.neon.ascent.feature.dashboard.DashboardScreen
 import com.neon.ascent.feature.dashboard.DashboardViewModel
@@ -28,6 +29,7 @@ import com.neon.ascent.feature.games.IceBreachScreen
 import com.neon.ascent.feature.games.BlackIceBreachScreen
 import com.neon.ascent.feature.journal.JournalScreen
 import com.neon.ascent.feature.journal.JournalViewModel
+import com.neon.ascent.feature.journal.StoryScreen
 import com.neon.ascent.feature.loading.LoadingScreen
 import com.neon.ascent.feature.settings.DeepNodeScreen
 import com.neon.ascent.feature.settings.SettingsScreen
@@ -173,6 +175,15 @@ fun AppNavigation(
 
         composable("journal") {
             JournalScreen(
+                onEntryClick = { /* TODO: Navigate to entry detail */ },
+                onStoryClick = { navController.navigate("story") },
+                onBack = { navController.popBackStack() },
+                onHackingRequired = { navController.navigate("system_breach") }
+            )
+        }
+
+        composable("story") {
+            StoryScreen(
                 onBack = { navController.popBackStack() },
                 onHackingRequired = { navController.navigate("system_breach") }
             )
@@ -209,7 +220,8 @@ fun AppNavigation(
                     }
                     val alignment = if (alignmentLaw == "Neutral" && alignmentMorality == "Neutral") "True Neutral" else "$alignmentLaw $alignmentMorality"
 
-                    creationViewModel.updatePersonality(mbti, alignment, "THE EDGE-RUNNER") // Default archetype for now, logic is in screen
+                    val (archetype, _) = deriveArchetype(mbti, alignment)
+                    creationViewModel.updatePersonality(mbti, alignment, archetype)
                     navController.navigate("avatar_capture")
                 }
             )

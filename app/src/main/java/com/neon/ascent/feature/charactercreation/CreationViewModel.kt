@@ -1,7 +1,8 @@
 package com.neon.ascent.feature.charactercreation
 
+import android.app.Application
 import android.graphics.Bitmap
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
@@ -10,17 +11,27 @@ import com.neon.ascent.data.local.UserCharacterDao
 import com.neon.ascent.model.UserCharacter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
 import javax.inject.Inject
 
 @HiltViewModel
 class CreationViewModel @Inject constructor(
-    private val userCharacterDao: UserCharacterDao
-) : ViewModel() {
+    private val userCharacterDao: UserCharacterDao,
+    application: Application
+) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow<CreationUiState>(CreationUiState.Initial)
     val uiState = _uiState.asStateFlow()
+
+    val userCharacter: StateFlow<UserCharacter?> = userCharacterDao.getUserCharacter()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private var draftCharacter = UserCharacter(
         name = "",
@@ -57,8 +68,7 @@ class CreationViewModel @Inject constructor(
                 somatotype = somatotype,
                 heightFeet = heightFeet,
                 heightInches = heightInches,
-                heightCm = heightCm,
-                isCreationComplete = true // Mark as complete when basic info is submitted
+                heightCm = heightCm
             )
             userCharacterDao.insertUserCharacter(finalCharacter)
             _uiState.value = CreationUiState.Success
@@ -67,15 +77,14 @@ class CreationViewModel @Inject constructor(
 
     fun updatePersonality(mbti: String, alignment: String, archetype: String) {
         viewModelScope.launch {
-            userCharacterDao.getUserCharacter().collect { char ->
-                char?.let {
-                    val updated = it.copy(
-                        mbti = mbti,
-                        alignment = alignment,
-                        archetype = archetype
-                    )
-                    userCharacterDao.insertUserCharacter(updated)
-                }
+            val char = userCharacterDao.getUserCharacter().first()
+            char?.let {
+                val updated = it.copy(
+                    mbti = mbti,
+                    alignment = alignment,
+                    archetype = archetype
+                )
+                userCharacterDao.insertUserCharacter(updated)
             }
         }
     }
@@ -84,15 +93,23 @@ class CreationViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = CreationUiState.Loading
             try {
-                userCharacterDao.getUserCharacter().collect { char ->
-                    char?.let {
-                        val finalCharacter = it.copy(
-                            isCreationComplete = true,
-                            avatarPath = null 
-                        )
-                        userCharacterDao.insertUserCharacter(finalCharacter)
-                        _uiState.value = CreationUiState.Success
+                val char = userCharacterDao.getUserCharacter().first()
+                char?.let {
+                    var savedPath: String? = null
+                    if (avatarBitmap != null) {
+                        val file = File(getApplication<Application>().filesDir, "avatar_${System.currentTimeMillis()}.png")
+                        FileOutputStream(file).use { out ->
+                            avatarBitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                        }
+                        savedPath = file.absolutePath
                     }
+
+                    val finalCharacter = it.copy(
+                        isCreationComplete = true,
+                        avatarPath = savedPath ?: it.avatarPath
+                    )
+                    userCharacterDao.insertUserCharacter(finalCharacter)
+                    _uiState.value = CreationUiState.Success
                 }
             } catch (e: Exception) {
                 _uiState.value = CreationUiState.Error(e.message ?: "Failed to save character")

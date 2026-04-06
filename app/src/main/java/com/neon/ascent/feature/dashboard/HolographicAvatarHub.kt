@@ -153,7 +153,7 @@ fun HolographicAvatarHub(
                             )
                         }
                         Text(
-                            text = "LEVEL ${userCharacter?.level ?: 1} OPERATIVE // SEC_ID: 0x${(userCharacter?.id ?: 0).toString(16).uppercase()}",
+                            text = "LEVEL ${userCharacter?.level ?: 1} ${userCharacter?.archetype ?: "OPERATIVE"} // SEC_ID: 0x${(userCharacter?.id ?: 0).toString(16).uppercase()}",
                             color = Color(0xFF00FF9C).copy(alpha = 0.6f),
                             fontSize = 9.sp,
                             fontFamily = FontFamily.Monospace
@@ -215,6 +215,15 @@ fun HolographicAvatarHub(
                             systemLogs.add(0, "[LOG] SECTOR_ACCESS: $part")
                             glitchBurstIntensity = 0.3f
                         }
+                        
+                        // Archetype Label
+                        Text(
+                            text = userCharacter?.archetype ?: "UNKNOWN_ARCHETYPE",
+                            color = Color(0xFF00FF9C).copy(alpha = 0.5f),
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.align(Alignment.TopStart).padding(8.dp)
+                        )
                     }
                     
                     Spacer(Modifier.height(8.dp))
@@ -259,7 +268,7 @@ fun HolographicAvatarHub(
                                     "TORSO" -> "ENDURANCE: ${userCharacter?.endurance ?: "??"}\nHEART_RATE: ${healthState.heartRate} BPM"
                                     "ARMS" -> "STRENGTH: ${userCharacter?.strength ?: "??"}\nLOAD_CAP: 85%"
                                     "LEGS" -> "AGILITY: ${userCharacter?.agility ?: "??"}\nREFLEX: ACTIVATED"
-                                    else -> "SYSTEM SYNC: OPTIMAL\nALL NODES: OPERATIONAL"
+                                    else -> "ARCHETYPE: ${userCharacter?.archetype ?: "UNKNOWN"}\nSYSTEM SYNC: OPTIMAL"
                                 }
                                 Text(
                                     statsText, 
@@ -531,7 +540,7 @@ fun SnapshotPreviewDialog(character: UserCharacter?, viewModel: DashboardViewMod
                     )
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        text = "@${character?.netrunnerName ?: "RUNNER"} // NEON_ASCENT",
+                        text = "@${character?.netrunnerName ?: "RUNNER"} // ${character?.archetype ?: "OPERATIVE"} // NEON_ASCENT",
                         color = Color(0xFF00FF9C),
                         fontSize = 8.sp,
                         fontFamily = FontFamily.Monospace,
