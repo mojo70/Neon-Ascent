@@ -59,6 +59,9 @@ class CoreDashboardViewModel @Inject constructor(
     private val _databankIceRegen = MutableStateFlow(0f)
     val databankIceRegen = _databankIceRegen.asStateFlow()
 
+    private val _firstEntryMessage = MutableStateFlow<String?>(null)
+    val firstEntryMessage = _firstEntryMessage.asStateFlow()
+
     private var aiCoreRegenJob: Job? = null
     private var databankRegenJob: Job? = null
 
@@ -71,6 +74,21 @@ class CoreDashboardViewModel @Inject constructor(
 
     private fun checkFirstEntry() {
         viewModelScope.launch {
+            // Seeding if empty (in case Dashboard screen wasn't visited yet)
+            val count = sayingsDao.getAllSayings().first().size
+            if (count == 0) {
+                val initialSayings = listOf(
+                    Saying("s1", "In Night City's neon haze, know thyself before the corps rewrite your code.", "Self & Identity", 85),
+                    Saying("s2", "The unexamined implant is not worth jacking in.", "Self & Identity", 92),
+                    Saying("s3", "Chrome your body, but guard the analog heart.", "Self & Identity", 78),
+                    Saying("sm1", "What does it profit a man to gain the whole net, yet forfeit his ghost?", "Soul in the Machine", 94),
+                    Saying("sm2", "The ghost is the spark; the chrome is the cage.", "Soul in the Machine", 88)
+                )
+                sayingsDao.insertSayings(initialSayings)
+            }
+
+            delay(300) // Brief pause to allow UI to settle
+
             if (settingsRepository.isFirstAiCoreEntry.value) {
                 // Fetch random saying from "Soul in the Machine"
                 val soulSayings = sayingsDao.getSayingsByCategory("Soul in the Machine")
@@ -80,17 +98,25 @@ class CoreDashboardViewModel @Inject constructor(
                     "Ghost in the shell detected."
                 }
 
+                val messageText = "Neural Core Online. Fragment found: \"$randomSaying\""
+                
                 val welcomeLog = HackEvent(
                     type = "WELCOME_INITIALIZATION",
-                    details = "Neural Core Online. Fragment found: \"$randomSaying\"",
+                    details = messageText,
                     timestamp = System.currentTimeMillis(),
                     bounty = 0
                 )
                 
                 _hackHistory.value = listOf(welcomeLog) + _hackHistory.value
+                _firstEntryMessage.value = messageText
+                
                 settingsRepository.setFirstAiCoreEntry(false)
             }
         }
+    }
+
+    fun dismissFirstEntryMessage() {
+        _firstEntryMessage.value = null
     }
 
     private fun generateDummyLogs() {

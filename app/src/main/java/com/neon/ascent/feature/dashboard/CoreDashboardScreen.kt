@@ -1,6 +1,9 @@
 package com.neon.ascent.feature.dashboard
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -19,6 +22,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -63,6 +67,8 @@ fun CoreDashboardScreen(
 
     val aiRegen by viewModel.aiCoreIceRegen.collectAsState()
     val dataRegen by viewModel.databankIceRegen.collectAsState()
+
+    val firstEntryMsg by viewModel.firstEntryMessage.collectAsState()
 
     // Handle session unlock from navigation result
     LaunchedEffect(unlockedSectionFromResult) {
@@ -197,6 +203,37 @@ fun CoreDashboardScreen(
                 }
             }
         }
+
+        // Overlay for first entry message
+        AnimatedVisibility(
+            visible = firstEntryMsg != null,
+            enter = slideInVertically(initialOffsetY = { it / 2 }),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.Center).padding(32.dp)
+        ) {
+            firstEntryMsg?.let { msg ->
+                CyberFrame(label = "INITIAL_BOOT_LOG") {
+                    Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = msg,
+                            color = Color(0xFF00FF9C),
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 14.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(Modifier.height(24.dp))
+                        Button(
+                            onClick = { viewModel.dismissFirstEntryMessage() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C).copy(alpha = 0.2f)),
+                            border = BorderStroke(1.dp, Color(0xFF00FF9C)),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text("ACKNOWLEDGE", color = Color(0xFF00FF9C), fontSize = 10.sp)
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -238,7 +275,7 @@ fun BlackIceOverlay() {
             Spacer(Modifier.height(24.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "Secured by AI Sec Core",
+                    "Secured by Sec Core",
                     color = Color.Red.copy(alpha = 0.8f),
                     fontFamily = FontFamily.Monospace,
                     fontSize = 14.sp
