@@ -10,6 +10,7 @@ import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.SayingsDao
 import com.neon.ascent.data.local.UserCharacterDao
 import com.neon.ascent.data.repository.HealthRepository
+import com.neon.ascent.data.repository.SettingsRepository
 import com.neon.ascent.data.repository.WeatherRepository
 import com.neon.ascent.feature.biohacking.AiProvider
 import com.neon.ascent.model.BiohackingData
@@ -48,6 +49,7 @@ class DashboardViewModel @Inject constructor(
     private val sayingsDao: SayingsDao,
     private val weatherRepository: WeatherRepository,
     private val healthRepository: HealthRepository,
+    private val settingsRepository: SettingsRepository,
     private val fusedLocationClient: FusedLocationProviderClient,
     private val aiProvider: AiProvider
 ) : ViewModel() {
@@ -75,6 +77,12 @@ class DashboardViewModel @Inject constructor(
     val tickerMessages: StateFlow<List<String>> = combine(userCharacter, _weatherState) { character, weather ->
         generateTickerMessages(character, weather)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val isNetrunnerMode: StateFlow<Boolean> = settingsRepository.isNetrunnerMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val isReligionShortcutEnabled: StateFlow<Boolean> = settingsRepository.isReligionShortcutEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     init {
         seedSayingsIfEmpty()

@@ -1,12 +1,8 @@
 package com.neon.ascent.feature.dashboard
 
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,7 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,22 +18,30 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.*
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.neon.ascent.feature.charactercreation.CyberButtonShape
+import com.neon.ascent.feature.charactercreation.CyberFrame
+import com.neon.ascent.feature.charactercreation.GlitchOverlay
 import com.neon.ascent.model.UserCharacter
 import com.neon.ascent.ui.*
 import kotlinx.coroutines.delay
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
-import kotlin.random.Random
 
 @Composable
 fun HolographicAvatarHub(
@@ -52,6 +56,9 @@ fun HolographicAvatarHub(
     val userCharacter by viewModel.userCharacter.collectAsState()
     val healthState by viewModel.healthState.collectAsState()
     val tickerMessages by viewModel.tickerMessages.collectAsState()
+    val isNetrunnerMode by viewModel.isNetrunnerMode.collectAsState()
+    val isReligionEnabled by viewModel.isReligionShortcutEnabled.collectAsState()
+
     var selectedBodyPart by remember { mutableStateOf<String?>(null) }
     var isEditingName by remember { mutableStateOf(false) }
     var editedName by remember { mutableStateOf("") }
@@ -80,6 +87,18 @@ fun HolographicAvatarHub(
     LaunchedEffect(userCharacter?.netrunnerName) {
         editedName = userCharacter?.netrunnerName ?: "RUNNER_UNKNOWN"
     }
+
+    // Dynamic Title Logic
+    // Neuromancer triggers ONLY if Holy Ghost is active AND Netrunner Mode is active AND Religion Overlay is enabled
+    val isNeuromancer = userCharacter?.holyGhost == 1 && isNetrunnerMode && isReligionEnabled
+    val runnerTitle = when {
+        isNeuromancer -> "NEUROMANCER"
+        isNetrunnerMode -> "NETRUNNER"
+        else -> userCharacter?.archetype ?: "OPERATIVE"
+    }
+
+    val titleColor = if (isNeuromancer) Color(0xFFFF006E) else Color(0xFF00FF9C).copy(alpha = 0.6f)
+    val titleFontWeight = if (isNeuromancer) FontWeight.ExtraBold else FontWeight.Normal
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF020202))) {
         PerspectiveGrid()
@@ -153,10 +172,11 @@ fun HolographicAvatarHub(
                             )
                         }
                         Text(
-                            text = "LEVEL ${userCharacter?.level ?: 1} ${userCharacter?.archetype ?: "OPERATIVE"} // SEC_ID: 0x${(userCharacter?.id ?: 0).toString(16).uppercase()}",
-                            color = Color(0xFF00FF9C).copy(alpha = 0.6f),
+                            text = "LEVEL ${userCharacter?.level ?: 1} $runnerTitle // SEC_ID: 0x${(userCharacter?.id ?: 0).toString(16).uppercase()}",
+                            color = titleColor,
                             fontSize = 9.sp,
-                            fontFamily = FontFamily.Monospace
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = titleFontWeight
                         )
                     }
                     
@@ -218,10 +238,11 @@ fun HolographicAvatarHub(
                         
                         // Archetype Label
                         Text(
-                            text = userCharacter?.archetype ?: "UNKNOWN_ARCHETYPE",
-                            color = Color(0xFF00FF9C).copy(alpha = 0.5f),
+                            text = runnerTitle,
+                            color = titleColor.copy(alpha = 0.8f),
                             fontSize = 10.sp,
                             fontFamily = FontFamily.Monospace,
+                            fontWeight = titleFontWeight,
                             modifier = Modifier.align(Alignment.TopStart).padding(8.dp)
                         )
                     }
@@ -268,7 +289,7 @@ fun HolographicAvatarHub(
                                     "TORSO" -> "ENDURANCE: ${userCharacter?.endurance ?: "??"}\nHEART_RATE: ${healthState.heartRate} BPM"
                                     "ARMS" -> "STRENGTH: ${userCharacter?.strength ?: "??"}\nLOAD_CAP: 85%"
                                     "LEGS" -> "AGILITY: ${userCharacter?.agility ?: "??"}\nREFLEX: ACTIVATED"
-                                    else -> "ARCHETYPE: ${userCharacter?.archetype ?: "UNKNOWN"}\nSYSTEM SYNC: OPTIMAL"
+                                    else -> "STATUS: ONLINE\nTITLE: $runnerTitle\nSYSTEM SYNC: OPTIMAL"
                                 }
                                 Text(
                                     statsText, 
@@ -353,6 +374,31 @@ fun HolographicAvatarHub(
 }
 
 @Composable
+fun EnergyBar(label: String, value: Float) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, color = Color(0xFF00FF9C), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+            Text("${(value * 100).toInt()}%", color = Color.White, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+        }
+        Spacer(Modifier.height(4.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(12.dp)
+                .background(Color.Black)
+                .border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.3f))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(value)
+                    .fillMaxHeight()
+                    .background(Brush.horizontalGradient(listOf(Color(0xFF00FF9C).copy(alpha = 0.5f), Color(0xFF00FF9C))))
+            )
+        }
+    }
+}
+
+@Composable
 fun MemorySlotsDisplay(character: UserCharacter?) {
     val totalRam = character?.ramSlots ?: 8
     val usedRam = character?.usedRam ?: 0
@@ -397,6 +443,28 @@ fun MemorySlotsDisplay(character: UserCharacter?) {
                 }
             }
         }
+    }
+}
+
+@Composable
+fun HolographicAdvicePanel(message: String, intensity: Float) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(60.dp)
+            .background(Color(0xFF00FF9C).copy(alpha = 0.05f))
+            .border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.2f))
+            .padding(8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = message,
+            color = Color(0xFF00FF9C),
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.cyberGlitch(intensity = intensity * 0.2f)
+        )
     }
 }
 
@@ -496,10 +564,68 @@ fun CyberwareLabelOverlay(item: String) {
 }
 
 @Composable
+fun DashboardActionButton(label: String, color: Color, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .clip(CyberButtonShape)
+            .background(Color.Black.copy(alpha = 0.6f))
+            .border(1.dp, color.copy(alpha = 0.6f), CyberButtonShape)
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            label, 
+            color = color, 
+            fontSize = 11.sp, 
+            fontWeight = FontWeight.Bold, 
+            fontFamily = FontFamily.Monospace,
+            letterSpacing = 1.sp
+        )
+    }
+}
+
+@Composable
+fun AttributeRadarChart(stats: Map<String, Int>, modifier: Modifier) {
+    Canvas(modifier = modifier) {
+        val center = Offset(size.width / 2, size.height / 2)
+        val radius = size.minDimension / 2
+        val sides = stats.size
+        val angleStep = (2 * PI / sides).toFloat()
+        
+        // Background hex
+        val bgPath = Path()
+        for (i in 0 until sides) {
+            val angle = i * angleStep - PI.toFloat() / 2
+            val x = center.x + radius * cos(angle)
+            val y = center.y + radius * sin(angle)
+            if (i == 0) bgPath.moveTo(x, y) else bgPath.lineTo(x, y)
+        }
+        bgPath.close()
+        drawPath(bgPath, Color.White.copy(alpha = 0.05f))
+        drawPath(bgPath, Color.White.copy(alpha = 0.1f), style = Stroke(1f))
+        
+        // Data path
+        val dataPath = Path()
+        stats.values.forEachIndexed { i, value ->
+            val angle = i * angleStep - PI.toFloat() / 2
+            val normValue = (value.toFloat() / 10f).coerceIn(0.1f, 1f)
+            val x = center.x + radius * normValue * cos(angle)
+            val y = center.y + radius * normValue * sin(angle)
+            if (i == 0) dataPath.moveTo(x, y) else dataPath.lineTo(x, y)
+        }
+        dataPath.close()
+        drawPath(dataPath, Color(0xFF00FF9C).copy(alpha = 0.3f))
+        drawPath(dataPath, Color(0xFF00FF9C), style = Stroke(2f))
+    }
+}
+
+@Composable
 fun SnapshotPreviewDialog(character: UserCharacter?, viewModel: DashboardViewModel, onDismiss: () -> Unit) {
     val snapshotSaying by viewModel.snapshotSaying.collectAsState()
 
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -573,186 +699,6 @@ fun SnapshotPreviewDialog(character: UserCharacter?, viewModel: DashboardViewMod
                     Text("POST TO X", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun HolographicAdvicePanel(message: String, intensity: Float) {
-    val jitterOffset = if (intensity > 0.7f) {
-        Offset(Random.nextInt(-5, 5).toFloat(), Random.nextInt(-3, 3).toFloat())
-    } else Offset.Zero
-
-    Box(
-        modifier = Modifier
-            .offset(jitterOffset.x.dp, jitterOffset.y.dp)
-            .neonBorder(
-                color = if (intensity > 0.8f) Color.Red else Color(0xFF00FFFF),
-                width = 1.dp,
-                glowIntensity = 0.7f,
-                cornerRadius = 4.dp
-            )
-            .background(Color(0xFF00FFFF).copy(alpha = 0.05f))
-            .padding(12.dp)
-    ) {
-        Text(
-            text = message,
-            color = Color.White,
-            fontSize = 11.sp,
-            fontFamily = FontFamily.Monospace,
-            lineHeight = 14.sp
-        )
-    }
-}
-
-@Composable
-fun DashboardActionButton(label: String, color: Color, onClick: () -> Unit) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val glowIntensity by animateFloatAsState(
-        targetValue = if (isPressed) 0.5f else 1f,
-        label = "GlowIntensity"
-    )
-
-    Button(
-        onClick = onClick,
-        interactionSource = interactionSource,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(46.dp)
-            .clip(CyberButtonShape)
-            .neonBorder(color, width = 2.dp, glowIntensity = glowIntensity),
-        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F0F0F).copy(alpha = 0.9f)),
-        contentPadding = PaddingValues(0.dp)
-    ) {
-        Text(
-            label, 
-            color = color, 
-            fontSize = 11.sp, 
-            fontWeight = FontWeight.Black,
-            fontFamily = FontFamily.Monospace,
-            letterSpacing = 1.5.sp
-        )
-    }
-}
-
-@Composable
-fun EnergyBar(label: String, value: Float) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, color = Color(0xFF00FFFF), fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
-            Text("${(value * 100).toInt()}%", color = Color(0xFF00FFFF), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
-        }
-        Spacer(Modifier.height(6.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(8.dp)
-                .background(Color.Black)
-                .neonBorder(Color(0xFF00FFFF).copy(alpha = 0.4f), width = 1.dp, cornerRadius = 0.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(value)
-                    .fillMaxHeight()
-                    .background(
-                        Brush.horizontalGradient(
-                            colors = listOf(Color(0xFF00FFFF).copy(alpha = 0.5f), Color(0xFF00FFFF))
-                        )
-                    )
-            )
-        }
-    }
-}
-
-@Composable
-fun AttributeRadarChart(
-    stats: Map<String, Int>,
-    modifier: Modifier = Modifier,
-    maxValue: Int = 10
-) {
-    val labels = listOf("STR", "AGI", "END", "PER", "CHA", "LUC")
-    val values = listOf(
-        stats["STR"] ?: 0,
-        stats["AGI"] ?: 0,
-        stats["END"] ?: 0,
-        stats["PER"] ?: 0,
-        stats["CHA"] ?: 0,
-        stats["LUC"] ?: 0
-    )
-
-    Canvas(modifier = modifier) {
-        val centerX = size.width / 2f
-        val centerY = size.height / 2f
-        val radius = size.minDimension / 2.5f
-
-        for (i in 1..5) {
-            val f = i.toFloat()
-            val currentRadius = radius * (f / 5f)
-            val path = Path()
-            for (j in 0 until 6) {
-                val angle = (j * 60f - 90f) * (Math.PI / 180f).toFloat()
-                val x = centerX + currentRadius * cos(angle)
-                val y = centerY + currentRadius * sin(angle)
-                if (j == 0) path.moveTo(x, y) else path.lineTo(x, y)
-            }
-            path.close()
-            drawPath(
-                path = path,
-                color = Color(0xFF00FF9C).copy(alpha = 0.1f),
-                style = Stroke(width = 1.dp.toPx())
-            )
-        }
-
-        for (i in 0 until 6) {
-            val angle = (i * 60f - 90f) * (Math.PI / 180f).toFloat()
-            val x = centerX + radius * cos(angle)
-            val y = centerY + radius * sin(angle)
-            drawLine(
-                color = Color(0xFF00FF9C).copy(alpha = 0.1f),
-                start = Offset(centerX, centerY),
-                end = Offset(x, y),
-                strokeWidth = 1.dp.toPx()
-            )
-        }
-
-        val dataPath = Path()
-        for (i in 0 until 6) {
-            val angle = (i * 60f - 90f) * (Math.PI / 180f).toFloat()
-            val value = values[i].coerceIn(0, maxValue)
-            val currentRadius = radius * (value.toFloat() / maxValue)
-            val x = centerX + currentRadius * cos(angle)
-            val y = centerY + currentRadius * sin(angle)
-            if (i == 0) dataPath.moveTo(x, y) else dataPath.lineTo(x, y)
-        }
-        dataPath.close()
-        drawPath(
-            path = dataPath,
-            color = Color(0xFF00FF9C).copy(alpha = 0.3f)
-        )
-        drawPath(
-            path = dataPath,
-            color = Color(0xFF00FF9C),
-            style = Stroke(width = 2.dp.toPx())
-        )
-        
-        val textPaint = android.graphics.Paint().apply {
-            color = android.graphics.Color.WHITE
-            textSize = 8.sp.toPx()
-            textAlign = android.graphics.Paint.Align.CENTER
-            typeface = android.graphics.Typeface.MONOSPACE
-        }
-        
-        for (i in 0 until 6) {
-            val angle = (i * 60f - 90f) * (Math.PI / 180f).toFloat()
-            val x = centerX + (radius + 12.dp.toPx()) * cos(angle)
-            val y = centerY + (radius + 12.dp.toPx()) * sin(angle)
-            drawContext.canvas.nativeCanvas.drawText(
-                labels[i],
-                x,
-                y + 4.dp.toPx(),
-                textPaint
-            )
         }
     }
 }
