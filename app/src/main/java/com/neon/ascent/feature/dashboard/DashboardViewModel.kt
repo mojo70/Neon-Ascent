@@ -66,6 +66,12 @@ class DashboardViewModel @Inject constructor(
     private val _systemAdvice = MutableStateFlow("NEURAL_LINK_ESTABLISHED. SCANNING_SYSTEM...")
     val systemAdvice: StateFlow<String> = _systemAdvice.asStateFlow()
 
+    private val _snapshotSaying = MutableStateFlow("STAY_CHROME")
+    val snapshotSaying: StateFlow<String> = _snapshotSaying.asStateFlow()
+
+    val allSayings: StateFlow<List<Saying>> = sayingsDao.getAllSayings()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val tickerMessages: StateFlow<List<String>> = combine(userCharacter, _weatherState) { character, weather ->
         generateTickerMessages(character, weather)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -76,6 +82,7 @@ class DashboardViewModel @Inject constructor(
         fetchRealWeather()
         refreshHealthData()
         generateSystemAdvice()
+        refreshSnapshotSaying()
     }
 
     private fun seedSayingsIfEmpty() {
@@ -136,6 +143,23 @@ class DashboardViewModel @Inject constructor(
                 _systemAdvice.value = getRandomSayingFromDb()
             } else {
                 _systemAdvice.value = result
+            }
+        }
+    }
+
+    fun refreshSnapshotSaying(flavor: String? = null) {
+        viewModelScope.launch {
+            val prompt = """
+                Generate a short, cool cyberpunk saying (max 12 words) for a character snapshot.
+                Flavor: ${flavor ?: "RANDOM_STREET_WISDOM"}
+                Archetype: ${userCharacter.value?.archetype ?: "Unknown"}
+            """.trimIndent()
+            
+            val result = aiProvider.generateContent(prompt)
+            if (result.startsWith("ERROR:")) {
+                _snapshotSaying.value = getRandomSayingFromDb()
+            } else {
+                _snapshotSaying.value = result.replace("\"", "")
             }
         }
     }

@@ -14,7 +14,7 @@ import com.neon.ascent.model.*
     Task::class,
     DataShard::class,
     MemoryFragment::class
-], version = 18)
+], version = 19)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userCharacterDao(): UserCharacterDao
     abstract fun biohackingDao(): BiohackingDao

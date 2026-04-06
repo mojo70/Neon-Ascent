@@ -37,7 +37,13 @@ data class UserCharacter(
     val avatarPath: String? = null,
     val isCreationComplete: Boolean = false,
     val neuralLoad: Float = 0.2f, // Default starting load
-    val chessElo: Int = 1000 // Starting Elo
+    val chessElo: Int = 1000, // Starting Elo
+    val equippedCyberware: String? = null, // Comma-separated IDs: "NEURAL_LINK,KIROSHI_V1"
+    val cyberdeckName: String? = "MILITECH_PARALINE",
+    val ramSlots: Int = 8,
+    val usedRam: Int = 0,
+    val quickhackSlots: Int = 4,
+    val loadedQuickhacks: String? = "SHORT_CIRCUIT,OVERHEAT" // Comma-separated IDs
 ) {
     fun getChessRank(): String {
         return when {
@@ -68,4 +74,7 @@ data class UserCharacter(
             else -> "SGM" // Super Grandmaster
         }
     }
+
+    fun getEquippedList(): List<String> = equippedCyberware?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+    fun getQuickhackList(): List<String> = loadedQuickhacks?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
 }

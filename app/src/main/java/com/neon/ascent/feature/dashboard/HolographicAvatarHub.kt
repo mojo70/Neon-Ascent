@@ -3,6 +3,7 @@ package com.neon.ascent.feature.dashboard
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -13,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,12 +22,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -54,6 +55,7 @@ fun HolographicAvatarHub(
     var selectedBodyPart by remember { mutableStateOf<String?>(null) }
     var isEditingName by remember { mutableStateOf(false) }
     var editedName by remember { mutableStateOf("") }
+    var showSnapshotPreview by remember { mutableStateOf(false) }
 
     // Instant glitch burst state for interactive feedback
     var glitchBurstIntensity by remember { mutableFloatStateOf(0f) }
@@ -80,7 +82,6 @@ fun HolographicAvatarHub(
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF020202))) {
-        // --- 1. ATMOSPHERIC HUD LAYERS ---
         PerspectiveGrid()
         Scanlines()
         StaticNoise(intensity = displayLoad)
@@ -90,7 +91,7 @@ fun HolographicAvatarHub(
         HudCornerAccents(color = Color(0xFF00FF9C).copy(alpha = 0.2f))
 
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            // --- 2. TOP HUD BAR ---
+            // --- TOP HUD BAR ---
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -169,7 +170,7 @@ fun HolographicAvatarHub(
                 }
             }
 
-            // --- 3. CENTRAL Area: Load Gauge & Avatar ---
+            // --- CENTRAL Area: Load Gauge & Avatar ---
             Row(modifier = Modifier.weight(1f)) {
                 // Left Column: Gauge & Info
                 Column(
@@ -179,15 +180,18 @@ fun HolographicAvatarHub(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    NeuralLoadGauge(load = displayLoad, modifier = Modifier.size(220.dp))
-                    
-                    Spacer(Modifier.height(32.dp))
-                    
-                    EnergyBar(label = "NEURAL_ENERGY", value = healthState.bodyBattery / 100f)
+                    NeuralLoadGauge(load = displayLoad, modifier = Modifier.size(200.dp))
                     
                     Spacer(Modifier.height(24.dp))
                     
-                    //Advice/Status Panel
+                    EnergyBar(label = "NEURAL_ENERGY", value = healthState.bodyBattery / 100f)
+                    
+                    Spacer(Modifier.height(16.dp))
+                    
+                    MemorySlotsDisplay(userCharacter)
+                    
+                    Spacer(Modifier.height(16.dp))
+                    
                     HolographicAdvicePanel(
                         message = tickerMessages.firstOrNull() ?: "ALL SYSTEMS OPERATIONAL",
                         intensity = displayLoad
@@ -197,28 +201,53 @@ fun HolographicAvatarHub(
                 Spacer(Modifier.width(16.dp))
 
                 // Avatar Display Panel
-                Box(
-                    modifier = Modifier
-                        .weight(1.2f)
-                        .fillMaxHeight()
-                        .neonBorder(Color(0xFF00FF9C).copy(alpha = 0.3f), cornerRadius = 12.dp)
-                        .background(Color.Black.copy(alpha = 0.3f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    HologramDisplay(userCharacter) { part ->
-                        selectedBodyPart = part
-                        systemLogs.add(0, "[LOG] SECTOR_ACCESS: $part")
-                        glitchBurstIntensity = 0.3f
+                Column(modifier = Modifier.weight(1.2f).fillMaxHeight()) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .neonBorder(Color(0xFF00FF9C).copy(alpha = 0.3f), cornerRadius = 12.dp)
+                            .background(Color.Black.copy(alpha = 0.3f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        HologramDisplay(userCharacter) { part ->
+                            selectedBodyPart = part
+                            systemLogs.add(0, "[LOG] SECTOR_ACCESS: $part")
+                            glitchBurstIntensity = 0.3f
+                        }
+                    }
+                    
+                    Spacer(Modifier.height(8.dp))
+                    
+                    // SHARE SNAPSHOT Button
+                    Button(
+                        onClick = { showSnapshotPreview = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                            .clip(CyberButtonShape)
+                            .neonBorder(Color(0xFF00FFFF), width = 2.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Black.copy(alpha = 0.6f))
+                    ) {
+                        Icon(Icons.Default.Share, contentDescription = null, tint = Color(0xFF00FFFF), modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            "SHARE SNAPSHOT", 
+                            color = Color(0xFF00FFFF), 
+                            fontSize = 12.sp, 
+                            fontWeight = FontWeight.Black, 
+                            fontFamily = FontFamily.Monospace,
+                            letterSpacing = 2.sp
+                        )
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // --- 4. BOTTOM HUD Area ---
+            // --- BOTTOM HUD Area ---
             Row(modifier = Modifier.height(220.dp)) {
                 Column(modifier = Modifier.weight(1.5f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    // Biometric Data Panel
                     CyberFrame(label = "BIOMETRIC_STATUS", modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) {
@@ -266,7 +295,6 @@ fun HolographicAvatarHub(
                         }
                     }
                     
-                    // Logs Terminal
                     CyberFrame(label = "TERMINAL_OUTPUT", accentColor = Color.Gray, modifier = Modifier.height(80.dp)) {
                         LazyColumn(modifier = Modifier.fillMaxSize()) {
                             items(systemLogs.take(4)) { log ->
@@ -283,7 +311,6 @@ fun HolographicAvatarHub(
 
                 Spacer(Modifier.width(16.dp))
 
-                // Action Column
                 Column(
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -304,6 +331,237 @@ fun HolographicAvatarHub(
                         onHacksClick()
                         glitchBurstIntensity = 0.4f
                     }
+                }
+            }
+        }
+    }
+
+    if (showSnapshotPreview) {
+        SnapshotPreviewDialog(userCharacter, viewModel) {
+            showSnapshotPreview = false
+        }
+    }
+}
+
+@Composable
+fun MemorySlotsDisplay(character: UserCharacter?) {
+    val totalRam = character?.ramSlots ?: 8
+    val usedRam = character?.usedRam ?: 0
+    val totalHacks = character?.quickhackSlots ?: 4
+    val loadedHacks = character?.getQuickhackList() ?: emptyList()
+
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+        Text("CYBERDECK_RAM", color = Color(0xFF00FFFF), fontSize = 9.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(4.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+            repeat(totalRam) { i ->
+                Box(
+                    modifier = Modifier
+                        .size(8.dp, 14.dp)
+                        .border(1.dp, if (i < usedRam) Color(0xFFFF006E) else Color(0xFF00FFFF))
+                        .background(if (i < usedRam) Color(0xFFFF006E).copy(alpha = 0.6f) else Color.Transparent)
+                )
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        Text("ACTIVE_QUICKHACKS", color = Color(0xFF00FF9C), fontSize = 9.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(4.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            repeat(totalHacks) { i ->
+                val hackName = loadedHacks.getOrNull(i)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .border(1.dp, if (hackName != null) Color(0xFF00FF9C) else Color.Gray.copy(alpha = 0.4f))
+                            .background(if (hackName != null) Color(0xFF00FF9C) else Color.Transparent)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = hackName ?: "EMPTY_SLOT",
+                        color = if (hackName != null) Color.White else Color.Gray.copy(alpha = 0.5f),
+                        fontSize = 8.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HologramDisplay(character: UserCharacter?, onPartClick: (String) -> Unit) {
+    val infiniteTransition = rememberInfiniteTransition(label = "HologramAnim")
+    val scanY by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "ScanLine"
+    )
+
+    val flickerAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(100, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Flicker"
+    )
+
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+        Canvas(modifier = Modifier.fillMaxSize().graphicsLayer { alpha = flickerAlpha }) {
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color(0xFF00FF9C).copy(alpha = 0.15f), Color.Transparent),
+                    center = center,
+                    radius = size.minDimension / 1.5f
+                )
+            )
+
+            val y = size.height * scanY
+            drawLine(
+                color = Color(0xFF00FF9C).copy(alpha = 0.5f),
+                start = Offset(0f, y),
+                end = Offset(size.width, y),
+                strokeWidth = 2.dp.toPx()
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxHeight(0.85f)
+                .fillMaxWidth(0.8f)
+                .neonBorder(Color(0xFF00FF9C).copy(alpha = 0.2f), cornerRadius = 8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            AvatarImage(character, modifier = Modifier.fillMaxSize())
+            
+            // Equipped Cyberware Indicators
+            val equipped = character?.getEquippedList() ?: emptyList()
+            equipped.forEach { item ->
+                CyberwareLabelOverlay(item)
+            }
+            
+            Column(modifier = Modifier.fillMaxSize()) {
+                Box(Modifier.weight(1f).fillMaxWidth().clickable { onPartClick("HEAD") })
+                Box(Modifier.weight(2f).fillMaxWidth().clickable { onPartClick("TORSO") })
+                Row(Modifier.weight(1f).fillMaxWidth()) {
+                    Box(Modifier.weight(1f).fillMaxHeight().clickable { onPartClick("ARMS") })
+                    Box(Modifier.weight(1f).fillMaxHeight().clickable { onPartClick("ARMS") })
+                }
+                Box(Modifier.weight(2f).fillMaxWidth().clickable { onPartClick("LEGS") })
+            }
+        }
+    }
+}
+
+@Composable
+fun CyberwareLabelOverlay(item: String) {
+    val alignment = when {
+        item.contains("NEURAL") || item.contains("KIROSHI") || item.contains("SYNAPTIC") -> Alignment.TopStart
+        item.contains("HEART") || item.contains("LUNGS") || item.contains("CORE") -> Alignment.CenterEnd
+        item.contains("ARM") || item.contains("HAND") -> Alignment.CenterStart
+        else -> Alignment.BottomEnd
+    }
+    
+    Box(modifier = Modifier.fillMaxSize().padding(12.dp), contentAlignment = alignment) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(4.dp).background(Color(0xFF00FFFF)))
+            Spacer(Modifier.width(4.dp))
+            Text(
+                text = item,
+                color = Color(0xFF00FFFF),
+                fontSize = 7.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.background(Color.Black.copy(alpha = 0.7f)).padding(horizontal = 4.dp, vertical = 1.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun SnapshotPreviewDialog(character: UserCharacter?, viewModel: DashboardViewModel, onDismiss: () -> Unit) {
+    val snapshotSaying by viewModel.snapshotSaying.collectAsState()
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color.Black)
+                .neonBorder(Color(0xFF00FF9C), cornerRadius = 12.dp)
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("SNAPSHOT_PREVIEW", color = Color(0xFF00FF9C), fontWeight = FontWeight.Black, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
+            Spacer(Modifier.height(16.dp))
+            
+            // "Clean" image with saying overlay
+            Box(
+                modifier = Modifier
+                    .size(280.dp)
+                    .background(Color(0xFF050505))
+                    .border(1.dp, Color.White.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                AvatarImage(character, modifier = Modifier.fillMaxSize())
+                
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(12.dp),
+                    verticalArrangement = Arrangement.Bottom
+                ) {
+                    Text(
+                        text = "\"$snapshotSaying\"",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.Black.copy(alpha = 0.8f))
+                            .padding(12.dp)
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text = "@${character?.netrunnerName ?: "RUNNER"} // NEON_ASCENT",
+                        color = Color(0xFF00FF9C),
+                        fontSize = 8.sp,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.align(Alignment.End)
+                    )
+                }
+            }
+            
+            Spacer(Modifier.height(16.dp))
+            
+            TextButton(onClick = { viewModel.refreshSnapshotSaying() }) {
+                Text("RE-ROLL SAYING", color = Color(0xFF00FFFF), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+            }
+            
+            Spacer(Modifier.height(16.dp))
+            
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f).clip(CyberButtonShape),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
+                ) {
+                    Text("CANCEL", color = Color.White, fontSize = 10.sp)
+                }
+                Button(
+                    onClick = { /* Implement sharing logic */ onDismiss() },
+                    modifier = Modifier.weight(1f).clip(CyberButtonShape),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C))
+                ) {
+                    Text("POST TO X", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -486,70 +744,6 @@ fun AttributeRadarChart(
                 y + 4.dp.toPx(),
                 textPaint
             )
-        }
-    }
-}
-
-@Composable
-fun HologramDisplay(character: UserCharacter?, onPartClick: (String) -> Unit) {
-    val infiniteTransition = rememberInfiniteTransition(label = "HologramAnim")
-    val scanY by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(3000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "ScanLine"
-    )
-
-    val flickerAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.8f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(100, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "Flicker"
-    )
-
-    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-        Canvas(modifier = Modifier.fillMaxSize().graphicsLayer { alpha = flickerAlpha }) {
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(Color(0xFF00FF9C).copy(alpha = 0.15f), Color.Transparent),
-                    center = center,
-                    radius = size.minDimension / 1.5f
-                )
-            )
-
-            val y = size.height * scanY
-            drawLine(
-                color = Color(0xFF00FF9C).copy(alpha = 0.5f),
-                start = Offset(0f, y),
-                end = Offset(size.width, y),
-                strokeWidth = 2.dp.toPx()
-            )
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxHeight(0.85f)
-                .fillMaxWidth(0.8f)
-                .neonBorder(Color(0xFF00FF9C).copy(alpha = 0.2f), cornerRadius = 8.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            AvatarImage(character, modifier = Modifier.fillMaxSize())
-            
-            Column(modifier = Modifier.fillMaxSize()) {
-                Box(Modifier.weight(1f).fillMaxWidth().clickable { onPartClick("HEAD") })
-                Box(Modifier.weight(2f).fillMaxWidth().clickable { onPartClick("TORSO") })
-                Row(Modifier.weight(1f).fillMaxWidth()) {
-                    Box(Modifier.weight(1f).fillMaxHeight().clickable { onPartClick("ARMS") })
-                    Box(Modifier.weight(1f).fillMaxHeight().clickable { onPartClick("ARMS") })
-                }
-                Box(Modifier.weight(2f).fillMaxWidth().clickable { onPartClick("LEGS") })
-            }
         }
     }
 }
