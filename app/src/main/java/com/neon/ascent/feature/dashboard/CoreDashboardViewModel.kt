@@ -10,6 +10,8 @@ import com.neon.ascent.feature.biohacking.AiProvider
 import com.neon.ascent.model.Saying
 import com.neon.ascent.model.UserCharacter
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -48,6 +50,18 @@ class CoreDashboardViewModel @Inject constructor(
 
     private val _databankSessionUnlocked = MutableStateFlow(false)
     val databankSessionUnlocked = _databankSessionUnlocked.asStateFlow()
+
+    // ICE Regeneration Progress (0.0 to 1.0)
+    private val _aiCoreIceRegen = MutableStateFlow(0f)
+    val aiCoreIceRegen = _aiCoreIceRegen.asStateFlow()
+
+    private val _databankIceRegen = MutableStateFlow(0f)
+    val databankIceRegen = _databankIceRegen.asStateFlow()
+
+    private var aiCoreRegenJob: Job? = null
+    private var databankRegenJob: Job? = null
+
+    private val REGEN_TIME_MS = 3 * 60 * 1000L // 3 minutes
 
     init {
         generateDummyLogs()
@@ -114,15 +128,57 @@ class CoreDashboardViewModel @Inject constructor(
             val char = userCharacter.value ?: return@launch
             if (char.eddies >= 20) {
                 userCharacterDao.updateEddies(char.eddies - 20)
-                if (target == "AI_CORE") _aiCoreSessionUnlocked.value = true
-                if (target == "DATABANK") _databankSessionUnlocked.value = true
+                sessionUnlock(target)
             }
         }
     }
 
     fun sessionUnlock(target: String) {
-        if (target == "AI_CORE") _aiCoreSessionUnlocked.value = true
-        if (target == "DATABANK") _databankSessionUnlocked.value = true
+        if (target == "AI_CORE") {
+            _aiCoreSessionUnlocked.value = true
+            startRegen("AI_CORE")
+        }
+        if (target == "DATABANK") {
+            _databankSessionUnlocked.value = true
+            startRegen("DATABANK")
+        }
+    }
+
+    private fun startRegen(target: String) {
+        if (target == "AI_CORE") {
+            aiCoreRegenJob?.cancel()
+            aiCoreRegenJob = viewModelScope.launch {
+                val startTime = System.currentTimeMillis()
+                while (System.currentTimeMillis() - startTime < REGEN_TIME_MS) {
+                    val progress = (System.currentTimeMillis() - startTime).toFloat() / REGEN_TIME_MS
+                    _aiCoreIceRegen.value = progress
+                    delay(1000)
+                }
+                _aiCoreIceRegen.value = 1f
+            }
+        } else if (target == "DATABANK") {
+            databankRegenJob?.cancel()
+            databankRegenJob = viewModelScope.launch {
+                val startTime = System.currentTimeMillis()
+                while (System.currentTimeMillis() - startTime < REGEN_TIME_MS) {
+                    val progress = (System.currentTimeMillis() - startTime).toFloat() / REGEN_TIME_MS
+                    _databankIceRegen.value = progress
+                    delay(1000)
+                }
+                _databankIceRegen.value = 1f
+            }
+        }
+    }
+
+    fun checkIce(currentTab: String) {
+        if (currentTab != "AI_CORE" && _aiCoreIceRegen.value >= 1f) {
+            _aiCoreSessionUnlocked.value = false
+            _aiCoreIceRegen.value = 0f
+        }
+        if (currentTab != "DATABANK" && _databankIceRegen.value >= 1f) {
+            _databankSessionUnlocked.value = false
+            _databankIceRegen.value = 0f
+        }
     }
 
     fun transferToSecure(amount: Int) {

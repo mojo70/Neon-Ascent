@@ -52,6 +52,9 @@ fun CoreDashboardScreen(
     val aiSessionUnlocked by viewModel.aiCoreSessionUnlocked.collectAsState()
     val dataSessionUnlocked by viewModel.databankSessionUnlocked.collectAsState()
 
+    val aiRegen by viewModel.aiCoreIceRegen.collectAsState()
+    val dataRegen by viewModel.databankIceRegen.collectAsState()
+
     // Handle session unlock from navigation result
     LaunchedEffect(unlockedSectionFromResult) {
         unlockedSectionFromResult?.let { section ->
@@ -63,6 +66,11 @@ fun CoreDashboardScreen(
             }
             onUnlockConsumed()
         }
+    }
+
+    // Check ICE when tab changes or regen updates
+    LaunchedEffect(activeTab, aiRegen, dataRegen) {
+        viewModel.checkIce(tabs[activeTab])
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
@@ -96,6 +104,17 @@ fun CoreDashboardScreen(
             // Tab Bar
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 tabs.forEachIndexed { index, title ->
+                    val regenProgress = when (title) {
+                        "AI_CORE" -> aiRegen
+                        "DATABANK" -> dataRegen
+                        else -> 0f
+                    }
+                    val isUnlocked = when (title) {
+                        "AI_CORE" -> aiSessionUnlocked
+                        "DATABANK" -> dataSessionUnlocked
+                        else -> true
+                    }
+
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -103,14 +122,30 @@ fun CoreDashboardScreen(
                             .background(if (activeTab == index) Color(0xFF00FF9C).copy(alpha = 0.2f) else Color.Transparent)
                             .border(1.dp, if (activeTab == index) Color(0xFF00FF9C) else Color.Gray.copy(alpha = 0.3f))
                             .clickable { activeTab = index },
-                        contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.BottomCenter
                     ) {
-                        Text(
-                            title,
-                            color = if (activeTab == index) Color(0xFF00FF9C) else Color.Gray,
-                            fontSize = 9.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                title,
+                                color = if (activeTab == index) Color(0xFF00FF9C) else Color.Gray,
+                                fontSize = 8.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                        
+                        // Regen Progress Bar
+                        if (isUnlocked && regenProgress > 0f && regenProgress < 1f) {
+                            LinearProgressIndicator(
+                                progress = { regenProgress },
+                                modifier = Modifier.fillMaxWidth().height(2.dp),
+                                color = Color(0xFF00CCFF),
+                                trackColor = Color.Transparent,
+                            )
+                        }
                     }
                 }
             }
