@@ -152,6 +152,34 @@ fun AppNavigation(
             CharacterCreationScreen(
                 onCreationFinished = { name, sex, dob, units, weight, somatotype, hFeet, hInches, hCm ->
                     creationViewModel.updateBasicInfo(name, sex, dob, units, weight, somatotype, hFeet, hInches, hCm)
+                    navController.navigate("personality_intake")
+                }
+            )
+        }
+
+        composable("personality_intake") {
+            NeuralScanScreen(
+                onComplete = { answers ->
+                    // Derive and update personality info
+                    val energy = if (answers["ENERGY_SOURCE"]?.contains("SOLO") == true) "I" else "E"
+                    val info = if (answers["INPUT_METHOD"]?.contains("SENSORY") == true) "S" else "N"
+                    val decision = if (answers["LOGIC_GATE"]?.contains("CYBER") == true) "T" else "F"
+                    val structure = if (answers["SYSTEM_EXECUTION"]?.contains("STRICT") == true) "J" else "P"
+                    val mbti = "$energy$info$decision$structure"
+                    
+                    val alignmentLaw = when {
+                        answers["OPERATIONAL_CODE"]?.contains("FOLLOW") == true -> "Lawful"
+                        answers["OPERATIONAL_CODE"]?.contains("BREAK") == true -> "Chaotic"
+                        else -> "Neutral"
+                    }
+                    val alignmentMorality = when {
+                        answers["MORAL_COMPASS"]?.contains("RESCUE") == true -> "Good"
+                        answers["MORAL_COMPASS"]?.contains("EXPLOIT") == true -> "Evil"
+                        else -> "Neutral"
+                    }
+                    val alignment = if (alignmentLaw == "Neutral" && alignmentMorality == "Neutral") "True Neutral" else "$alignmentLaw $alignmentMorality"
+
+                    creationViewModel.updatePersonality(mbti, alignment, "THE EDGE-RUNNER") // Default archetype for now, logic is in screen
                     navController.navigate("avatar_capture")
                 }
             )

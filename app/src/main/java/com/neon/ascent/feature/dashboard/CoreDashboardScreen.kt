@@ -1,5 +1,6 @@
 package com.neon.ascent.feature.dashboard
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -162,7 +163,7 @@ fun CoreDashboardScreen(
                     "LOGS" -> DiagnosticsLogs(viewModel)
                     "AI_CORE" -> {
                         if (!isRooted) {
-                            BlackIceOverlay { onTriggerHack("ROOT") }
+                            BlackIceOverlay()
                         } else if (!aiSessionUnlocked) {
                             LightIceOverlay(
                                 section = "AI_CORE",
@@ -175,7 +176,7 @@ fun CoreDashboardScreen(
                     }
                     "DATABANK" -> {
                         if (!isRooted) {
-                            BlackIceOverlay { onTriggerHack("ROOT") }
+                            BlackIceOverlay()
                         } else if (!dataSessionUnlocked) {
                             LightIceOverlay(
                                 section = "DATABANK",
@@ -193,7 +194,18 @@ fun CoreDashboardScreen(
 }
 
 @Composable
-fun BlackIceOverlay(onTriggerHack: () -> Unit) {
+fun BlackIceOverlay() {
+    val infiniteTransition = rememberInfiniteTransition(label = "Cursor")
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(500, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "CursorAlpha"
+    )
+
     Box(
         modifier = Modifier.fillMaxSize().border(2.dp, Color.Red.copy(alpha = 0.5f)),
         contentAlignment = Alignment.Center
@@ -217,11 +229,19 @@ fun BlackIceOverlay(onTriggerHack: () -> Unit) {
                 fontFamily = FontFamily.Monospace
             )
             Spacer(Modifier.height(24.dp))
-            Button(
-                onClick = onTriggerHack,
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-            ) {
-                Text("INITIATE ROOT BREACH", color = Color.Black, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Secured by AI Sec Core",
+                    color = Color.Red.copy(alpha = 0.8f),
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 14.sp
+                )
+                Box(
+                    modifier = Modifier
+                        .padding(start = 4.dp)
+                        .size(8.dp, 16.dp)
+                        .background(Color.Red.copy(alpha = alpha))
+                )
             }
         }
     }
