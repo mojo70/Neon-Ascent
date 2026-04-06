@@ -39,7 +39,8 @@ class BiohackingViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             biohackingDao.getBiohackingData(0).collectLatest { data ->
-                data?.let { _uiState.value = it }
+                // RESET_BEHAVIOR: If data is null (wiped), reset to default state to trigger onboarding
+                _uiState.value = data ?: BiohackingData()
             }
         }
         viewModelScope.launch {

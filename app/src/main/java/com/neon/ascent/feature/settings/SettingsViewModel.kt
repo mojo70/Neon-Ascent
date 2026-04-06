@@ -2,6 +2,7 @@ package com.neon.ascent.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.UserCharacterDao
 import com.neon.ascent.data.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,6 +15,7 @@ import javax.inject.Inject
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val userCharacterDao: UserCharacterDao,
+    private val biohackingDao: BiohackingDao,
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
@@ -44,13 +46,30 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * RESET_PROTOCOL: FULL_WIPE
+     * First-time behaviors to reset:
+     * 1. UserCharacter (Level, Eddies, etc.)
+     * 2. Netrunner Mode (Settings) -> OFF
+     * 3. AI Core Welcome Protocol (Settings) -> READY
+     * 4. Biohacking Privacy Onboarding (Database) -> READY
+     */
     fun resetProfile(onComplete: () -> Unit) {
         viewModelScope.launch {
-            // Reset character data
+            // 1. Reset character data
             userCharacterDao.resetCharacter()
-            // Reset settings
+            
+            // 2. Reset Settings Repository Flags
             settingsRepository.setReligionShortcutEnabled(false)
             settingsRepository.setLocalAiOnly(false)
+            settingsRepository.setNetrunnerMode(false) // Netrunner selection back to OFF
+            settingsRepository.setFirstAiCoreEntry(true) // Re-enable AI Core welcome protocol
+            
+            // 3. Reset Biohacking State
+            // This triggers the Privacy Onboarding prompt again by deleting the local data record
+            biohackingDao.deleteBiohackingData(0)
+            biohackingDao.deleteBioProtocolLogs(0)
+
             onComplete()
         }
     }

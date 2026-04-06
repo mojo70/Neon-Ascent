@@ -21,4 +21,10 @@ interface BiohackingDao {
 
     @Query("SELECT * FROM bio_protocol_logs ORDER BY timestamp DESC")
     fun getAllProtocolLogs(): Flow<List<BioProtocolLog>>
+
+    @Query("DELETE FROM biohacking_data WHERE userId = :userId")
+    suspend fun deleteBiohackingData(userId: Int)
+
+    @Query("DELETE FROM bio_protocol_logs WHERE userId = :userId")
+    suspend fun deleteBioProtocolLogs(userId: Int)
 }

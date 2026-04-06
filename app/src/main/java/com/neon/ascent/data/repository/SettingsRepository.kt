@@ -11,6 +11,44 @@ import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * --------------------------------------------------------------------------------
+ * FIRST-TIME BEHAVIORS REGISTRY (Neural Profile Initializers)
+ * --------------------------------------------------------------------------------
+ * This registry documents all behaviors that trigger upon first-time usage or after 
+ * a "Neural Profile Reset". 
+ *
+ * 1. AI_CORE_WELCOME_PROTOCOL
+ *    - Logic: CoreDashboardViewModel.checkFirstEntry()
+ *    - Trigger: SettingsRepository.isFirstAiCoreEntry is true.
+ *    - Behavior: Prepend a "WELCOME_INITIALIZATION" log with a random 
+ *      "Soul in the Machine" saying to the diagnostics history.
+ *    - Reset: Handled in SettingsViewModel.resetProfile().
+ *
+ * 2. BIOHACKING_PRIVACY_ONBOARDING
+ *    - Logic: BiohackingScreen.kt (PrivacyOnboarding overlay)
+ *    - Trigger: BiohackingData.hasCompletedPrivacyOnboarding is false.
+ *    - Behavior: Forces a full-screen data agreement and neural core toggle.
+ *    - Reset: Handled via biohackingDao.deleteBiohackingData(0) in resetProfile().
+ *
+ * 3. NETRUNNER_DEFAULT_STATE
+ *    - Logic: SettingsRepository.isNetrunnerMode
+ *    - Behavior: Must default to OFF (false) to protect the user's kernel.
+ *    - Reset: Set to false in SettingsViewModel.resetProfile().
+ *
+ * 4. CHARACTER_CREATION_FLOW
+ *    - Logic: AppNavigation.kt (LoadingScreen check)
+ *    - Trigger: UserCharacter.isCreationComplete is false.
+ *    - Behavior: Redirects user to the multi-step character creation/personality scan.
+ *    - Reset: Handled by userCharacterDao.resetCharacter() in resetProfile().
+ *
+ * 5. DATABASE_SEEDING
+ *    - Logic: DashboardViewModel.seedSayingsIfEmpty()
+ *    - Trigger: sayingsDao.count() == 0.
+ *    - Behavior: Populates the world with initial lore, philosophy, and street wisdom.
+ * --------------------------------------------------------------------------------
+ */
+
 @Singleton
 class SettingsRepository @Inject constructor(
     @ApplicationContext private val context: Context
