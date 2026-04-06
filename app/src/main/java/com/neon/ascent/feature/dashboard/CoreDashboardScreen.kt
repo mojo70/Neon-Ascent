@@ -2,6 +2,7 @@ package com.neon.ascent.feature.dashboard
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,9 +21,12 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
@@ -37,6 +41,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.model.Saying
 import com.neon.ascent.ui.CyberFrame
 import com.neon.ascent.ui.Scanlines
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.random.Random
 
 @Composable
 fun CoreDashboardScreen(
@@ -46,7 +53,7 @@ fun CoreDashboardScreen(
     unlockedSectionFromResult: String? = null,
     onUnlockConsumed: () -> Unit = {}
 ) {
-    var activeTab by remember { mutableIntStateOf(0) }
+    var activeTab by rememberSaveable { mutableIntStateOf(0) }
     val tabs = listOf("VAULT", "LOGS", "AI_CORE", "DATABANK")
     val userCharacter by viewModel.userCharacter.collectAsState()
     val isRooted = userCharacter?.isSystemDatabaseUnlocked == true
@@ -371,22 +378,90 @@ fun VaultHub(viewModel: CoreDashboardViewModel) {
 
         // DEAD DROP
         CyberFrame(label = "DEAD_DROP_MESSAGES", modifier = Modifier.alpha(alpha)) {
+            var message by rememberSaveable { mutableStateOf("") }
+            var isSaved by rememberSaveable { mutableStateOf(false) }
+            val scope = rememberCoroutineScope()
+
             Column {
-                var message by remember { mutableStateOf("") }
-                BasicTextField(
-                    value = message,
-                    onValueChange = { if (it.length <= 140) message = it },
-                    enabled = isNetrunnerOn,
-                    textStyle = TextStyle(color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 11.sp),
-                    modifier = Modifier.fillMaxWidth().height(60.dp).background(Color.White.copy(alpha = 0.05f)).padding(8.dp),
-                    decorationBox = { innerTextField ->
-                        if (message.isEmpty()) Text("Leave graffiti for other runners...", color = Color.Gray, fontSize = 11.sp)
-                        innerTextField()
-                    }
-                )
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                if (isSaved) {
+                    Text(
+                        text = "> $message",
+                        color = Color(0xFF00FF9C),
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(60.dp)
+                            .background(Color.White.copy(alpha = 0.05f))
+                            .padding(8.dp)
+                    )
+                } else {
+                    BasicTextField(
+                        value = message,
+                        onValueChange = { if (it.length <= 140) message = it },
+                        enabled = isNetrunnerOn,
+                        textStyle = TextStyle(color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 11.sp),
+                        modifier = Modifier.fillMaxWidth().height(60.dp).background(Color.White.copy(alpha = 0.05f)).padding(8.dp),
+                        decorationBox = { innerTextField ->
+                            if (message.isEmpty()) Text("Leave graffiti for other runners...", color = Color.Gray, fontSize = 11.sp)
+                            innerTextField()
+                        }
+                    )
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text("${message.length}/140", color = Color.Gray, fontSize = 9.sp)
-                    Text("UPLOAD", color = if (isNetrunnerOn) Color(0xFF00FF9C) else Color.Gray, fontSize = 10.sp, modifier = Modifier.clickable(enabled = isNetrunnerOn) {})
+                    
+                    if (isSaved) {
+                        Text(
+                            "EDIT",
+                            color = Color(0xFFFFCC00),
+                            fontSize = 10.sp,
+                            modifier = Modifier.clickable { isSaved = false }
+                        )
+                    } else {
+                        var isGlitching by remember { mutableStateOf(false) }
+                        var offsetX by remember { mutableStateOf(0.dp) }
+                        var offsetY by remember { mutableStateOf(0.dp) }
+
+                        Box(contentAlignment = Alignment.Center) {
+                            if (isGlitching) {
+                                Canvas(modifier = Modifier.matchParentSize()) {
+                                    repeat(20) {
+                                        drawRect(
+                                            color = if (Random.nextBoolean()) Color.White else Color(0xFF00FF9C),
+                                            topLeft = Offset(
+                                                x = Random.nextFloat() * size.width,
+                                                y = Random.nextFloat() * size.height
+                                            ),
+                                            size = Size(1.5.dp.toPx(), 1.5.dp.toPx())
+                                        )
+                                    }
+                                }
+                            }
+                            Text(
+                                "UPLOAD",
+                                color = if (isGlitching) Color.White else if (isNetrunnerOn) Color(0xFF00FF9C) else Color.Gray,
+                                fontSize = 10.sp,
+                                modifier = Modifier
+                                    .offset(offsetX, offsetY)
+                                    .clickable(enabled = isNetrunnerOn && message.isNotBlank()) {
+                                        scope.launch {
+                                            isGlitching = true
+                                            repeat(10) {
+                                                offsetX = ((-5..5).random()).dp
+                                                offsetY = ((-5..5).random()).dp
+                                                delay(40)
+                                            }
+                                            offsetX = 0.dp
+                                            offsetY = 0.dp
+                                            isGlitching = false
+                                            isSaved = true
+                                            viewModel.addCustomSaying(message)
+                                        }
+                                    }
+                            )
+                        }
+                    }
                 }
             }
         }
