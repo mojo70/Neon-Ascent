@@ -3,6 +3,7 @@ package com.neon.ascent.feature.library
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.neon.ascent.data.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -11,7 +12,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class EReaderViewModel @Inject constructor(
-    application: Application
+    application: Application,
+    private val settingsRepository: SettingsRepository
 ) : AndroidViewModel(application) {
 
     private val _currentBook = MutableStateFlow<EBook?>(null)
@@ -34,5 +36,13 @@ class EReaderViewModel @Inject constructor(
                 _isLoading.value = false
             }
         }
+    }
+
+    fun getSavedProgress(bookId: String): Int {
+        return settingsRepository.getBookProgress(bookId)
+    }
+
+    fun saveProgress(bookId: String, index: Int) {
+        settingsRepository.saveBookProgress(bookId, index)
     }
 }

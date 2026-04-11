@@ -121,6 +121,7 @@ fun DeepNodeScreen(
 
                         CyberFrame(label = "DIVINE_INTERFACE") {
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                SettingsItem("THE WORD - OLD TESTAMENT", color = Color(0xFF00FF9C), onClick = { onReaderNavigate("ot_word", "library/Old_Testament.epub") })
                                 SettingsItem("BIBLE_KOINE_GREEK", onClick = { onReaderNavigate("nt_koine", "library/nt_koine.epub") })
                                 SettingsItem("BIBLE_HEBREW_WLC", onClick = { onReaderNavigate("ot_hebrew", "library/ot_hebrew.epub") })
                                 SettingsItem("BIBLE_WEB_ENGLISH", onClick = { onReaderNavigate("bible_web", "library/bible_web.epub") })

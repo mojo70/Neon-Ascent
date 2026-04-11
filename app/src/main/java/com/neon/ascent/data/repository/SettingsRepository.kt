@@ -129,4 +129,12 @@ class SettingsRepository @Inject constructor(
         sharedPreferences.edit().putBoolean("first_ai_core_entry", isFirst).apply()
         _isFirstAiCoreEntry.value = isFirst
     }
+
+    fun getBookProgress(bookId: String): Int {
+        return sharedPreferences.getInt("book_progress_$bookId", 0)
+    }
+
+    fun saveBookProgress(bookId: String, chapterIndex: Int) {
+        sharedPreferences.edit().putInt("book_progress_$bookId", chapterIndex).apply()
+    }
 }

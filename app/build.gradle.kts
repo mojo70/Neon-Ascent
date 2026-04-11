@@ -57,6 +57,12 @@ android {
         compose = true
         buildConfig = true
     }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+    }
 }
 
 room {
@@ -129,7 +135,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     // CameraX
-    val cameraxVersion = "1.3.4"
+    val cameraxVersion = "1.4.0"
     implementation("androidx.camera:camera-core:$cameraxVersion")
     implementation("androidx.camera:camera-camera2:$cameraxVersion")
     implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
@@ -150,7 +156,7 @@ dependencies {
     implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
 
     // ObjectBox (Vector DB)
-    implementation("io.objectbox:objectbox-android:4.0.0")
+    implementation("io.objectbox:objectbox-android:4.1.0")
 
     // EPUB Parsing
     implementation("com.positiondev.epublib:epublib-core:3.1") {
