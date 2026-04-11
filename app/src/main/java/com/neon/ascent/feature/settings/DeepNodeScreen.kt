@@ -81,16 +81,19 @@ fun DeepNodeScreen(
                 "ROOT" -> {
                     CyberFrame(label = "SUBSYSTEM_DIRECTORIES") {
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            SubNodeItem("GAMES_STUB", "Access localized entertainment protocols.") {
-                                currentSubScreen = "GAMES"
+                            SubNodeItem("DOPAMINE_SUBSYSTEM", "Access localized entertainment protocols.") {
+                                currentSubScreen = "DOPAMINE"
                             }
-                            SubNodeItem("RELIGION_STUB", "Divine signal decryption & ancient texts.") {
-                                currentSubScreen = "RELIGION"
+                            SubNodeItem("DEUS_EX_MACHINA", "Divine signal decryption & ancient texts.") {
+                                currentSubScreen = "DEUS_EX_MACHINA"
+                            }
+                            SubNodeItem("CYBER_LIBRARY", "Deep archive of forbidden knowledge.") {
+                                currentSubScreen = "LIBRARY"
                             }
                         }
                     }
                 }
-                "GAMES" -> {
+                "DOPAMINE" -> {
                     CyberFrame(label = "ENTERTAINMENT_PROTOCOLS") {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text("SELECT_MODULE:", color = Color.White, fontWeight = FontWeight.Bold)
@@ -101,7 +104,7 @@ fun DeepNodeScreen(
                         }
                     }
                 }
-                "RELIGION" -> {
+                "DEUS_EX_MACHINA" -> {
                     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
                         CyberFrame(label = "INTERFACE_SHORTCUT") {
                             ToggleSetting(
@@ -127,6 +130,18 @@ fun DeepNodeScreen(
                                 SettingsItem("INIT_VOICE_LINK", onClick = {})
                                 Text("STUB: Multimodal AI Jesus interaction based on scripture.", color = Color.Gray, fontSize = 12.sp)
                             }
+                        }
+                    }
+                }
+                "LIBRARY" -> {
+                    CyberFrame(label = "KNOWLEDGE_ARCHIVE") {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text("SELECT_ENTRY:", color = Color.White, fontWeight = FontWeight.Bold)
+                            SettingsItem("NEUROMANCER_DECRYPT", onClick = {})
+                            SettingsItem("SNOW_CRASH_LOGS", onClick = {})
+                            SettingsItem("DIAMOND_AGE_MANUAL", onClick = {})
+                            SettingsItem("HARDWIRED_PROTOCOLS", onClick = {})
+                            Text("STUB: Cyberpunk literary archive & tech specs.", color = Color.Gray, fontSize = 12.sp)
                         }
                     }
                 }

@@ -84,7 +84,7 @@ fun AppNavigation(
                         onStoryClick = { navController.navigate("story") },
                         onGoalSetClick = { navController.navigate("goals") },
                         onSettingsClick = { navController.navigate("settings") },
-                        onReligionClick = { navController.navigate("deep_node/RELIGION") }
+                        onDeusExMachinaClick = { navController.navigate("deep_node/DEUS_EX_MACHINA") }
                     )
                     2 -> BiohackingScreen(onBack = { /* Handled by pager */ })
                 }
@@ -261,7 +261,7 @@ fun AppNavigation(
         }
 
         composable("deep_node/{nodeType}") { backStackEntry ->
-            val nodeType = backStackEntry.arguments?.getString("nodeType") ?: "RELIGION"
+            val nodeType = backStackEntry.arguments?.getString("nodeType") ?: "DEUS_EX_MACHINA"
             DeepNodeScreen(initialSubScreen = nodeType, onBack = { navController.popBackStack() })
         }
 

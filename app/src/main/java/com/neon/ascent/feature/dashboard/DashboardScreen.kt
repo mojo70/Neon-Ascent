@@ -39,7 +39,7 @@ fun DashboardScreen(
     onStoryClick: () -> Unit,
     onGoalSetClick: () -> Unit,
     onSettingsClick: () -> Unit,
-    onReligionClick: () -> Unit
+    onDeusExMachinaClick: () -> Unit
 ) {
     val userCharacter by viewModel.userCharacter.collectAsState()
     val weatherState by viewModel.weatherState.collectAsState()
@@ -158,7 +158,7 @@ fun DashboardScreen(
                 Column(horizontalAlignment = Alignment.End) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (isReligionShortcutEnabled) {
-                            CyberCrossIcon(onClick = onReligionClick)
+                            CyberCrossIcon(onClick = onDeusExMachinaClick)
                             Spacer(Modifier.width(16.dp))
                         }
                         NeuralJackIcon(onClick = onSettingsClick)
