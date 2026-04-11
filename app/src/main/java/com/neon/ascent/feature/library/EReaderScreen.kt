@@ -22,9 +22,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.R
-import com.neon.ascent.feature.charactercreation.CyberFrame
-import com.neon.ascent.feature.charactercreation.CyberGridBackground
-import com.neon.ascent.feature.charactercreation.GlitchOverlay
+import com.neon.ascent.ui.CyberFrame
+import com.neon.ascent.ui.CyberGridBackground
+import com.neon.ascent.ui.GlitchOverlay
 import org.jsoup.Jsoup
 
 val provider = GoogleFont.Provider(
