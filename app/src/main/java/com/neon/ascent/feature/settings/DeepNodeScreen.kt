@@ -41,6 +41,7 @@ fun DeepNodeScreen(
     initialSubScreen: String = "ROOT",
     onBack: () -> Unit,
     onGameSelect: (String) -> Unit = {},
+    onReaderNavigate: (String, String) -> Unit = { _, _ -> },
     onRebirthSuccess: () -> Unit = {}
 ) {
     var currentSubScreen by remember { mutableStateOf(initialSubScreen) }
@@ -120,8 +121,9 @@ fun DeepNodeScreen(
 
                         CyberFrame(label = "DIVINE_INTERFACE") {
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                SettingsItem("BIBLE_EREADER_LOAD", onClick = { currentSubScreen = "BIBLE" })
-                                Text("STUB: Scrollable New Testament implementation pending...", color = Color.Gray, fontSize = 12.sp)
+                                SettingsItem("BIBLE_KOINE_GREEK", onClick = { onReaderNavigate("nt_koine", "library/nt_koine.epub") })
+                                SettingsItem("BIBLE_HEBREW_WLC", onClick = { onReaderNavigate("ot_hebrew", "library/ot_hebrew.epub") })
+                                SettingsItem("BIBLE_WEB_ENGLISH", onClick = { onReaderNavigate("bible_web", "library/bible_web.epub") })
                             }
                         }
                         CyberFrame(label = "AI_CHRIST_COMM_LINK") {
@@ -137,8 +139,8 @@ fun DeepNodeScreen(
                     CyberFrame(label = "KNOWLEDGE_ARCHIVE") {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text("SELECT_ENTRY:", color = Color.White, fontWeight = FontWeight.Bold)
-                            SettingsItem("NEUROMANCER_DECRYPT", onClick = {})
-                            SettingsItem("SNOW_CRASH_LOGS", onClick = {})
+                            SettingsItem("NEUROMANCER_DECRYPT", onClick = { onReaderNavigate("neuromancer", "library/neuromancer.epub") })
+                            SettingsItem("SNOW_CRASH_LOGS", onClick = { onReaderNavigate("snow_crash", "library/snow_crash.epub") })
                             SettingsItem("DIAMOND_AGE_MANUAL", onClick = {})
                             SettingsItem("HARDWIRED_PROTOCOLS", onClick = {})
                             Text("STUB: Cyberpunk literary archive & tech specs.", color = Color.Gray, fontSize = 12.sp)

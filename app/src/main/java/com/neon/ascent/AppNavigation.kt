@@ -31,6 +31,7 @@ import com.neon.ascent.feature.journal.JournalScreen
 import com.neon.ascent.feature.journal.JournalViewModel
 import com.neon.ascent.feature.journal.StoryScreen
 import com.neon.ascent.feature.loading.LoadingScreen
+import com.neon.ascent.feature.library.EReaderScreen
 import com.neon.ascent.feature.settings.DeepNodeScreen
 import com.neon.ascent.feature.settings.SettingsScreen
 import com.neon.ascent.feature.wallet.EurodollarWalletScreen
@@ -262,11 +263,33 @@ fun AppNavigation(
 
         composable("deep_node/{nodeType}") { backStackEntry ->
             val nodeType = backStackEntry.arguments?.getString("nodeType") ?: "DEUS_EX_MACHINA"
-            DeepNodeScreen(initialSubScreen = nodeType, onBack = { navController.popBackStack() })
+            DeepNodeScreen(
+                initialSubScreen = nodeType,
+                onBack = { navController.popBackStack() },
+                onReaderNavigate = { id, path ->
+                    navController.navigate("e_reader/$id?assetPath=$path")
+                }
+            )
         }
 
         composable("character_bio") {
             AvatarCaptureScreen(onComplete = { navController.popBackStack() })
+        }
+
+        composable(
+            route = "e_reader/{bookId}?assetPath={assetPath}",
+            arguments = listOf(
+                navArgument("bookId") { type = NavType.StringType },
+                navArgument("assetPath") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val bookId = backStackEntry.arguments?.getString("bookId") ?: ""
+            val assetPath = backStackEntry.arguments?.getString("assetPath") ?: ""
+            EReaderScreen(
+                bookId = bookId,
+                bookAssetPath = assetPath,
+                onBack = { navController.popBackStack() }
+            )
         }
     }
 }

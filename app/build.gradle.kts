@@ -151,4 +151,14 @@ dependencies {
 
     // ObjectBox (Vector DB)
     implementation("io.objectbox:objectbox-android:4.0.0")
+
+    // EPUB Parsing
+    implementation("com.positiondev.epublib:epublib-core:3.1") {
+        exclude(group = "org.slf4j")
+        exclude(group = "xmlpull")
+    }
+    implementation("org.jsoup:jsoup:1.18.1")
+    
+    // Google Fonts
+    implementation("androidx.compose.ui:ui-text-google-fonts:1.7.6")
 }
