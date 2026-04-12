@@ -120,7 +120,7 @@ class EReaderViewModel @Inject constructor(
             val charsPerLine = (maxWidth / 14).toInt().coerceAtLeast(1)
             val estimatedCharsPerPage = (linesPerPage * charsPerLine).coerceIn(100, 1200)
 
-            val isBilingual = bookId == "ot_word" || bookId == "nt_word"
+            val isBilingual = bookId.startsWith("ot_word") || bookId.startsWith("nt_word")
 
             val pages = book.chapters.flatMapIndexed { chapterIndex, chapter ->
                 val text = stripHtmlWithBreaks(chapter.content)

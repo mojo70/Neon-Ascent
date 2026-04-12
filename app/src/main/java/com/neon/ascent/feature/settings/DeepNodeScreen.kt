@@ -122,7 +122,7 @@ fun DeepNodeScreen(
                         CyberFrame(label = "DIVINE_INTERFACE") {
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 SettingsItem("THE WORD - OLD TESTAMENT", color = Color(0xFF00FF9C), onClick = { onReaderNavigate("ot_word", "library/Old_Testament.epub") })
-                                SettingsItem("THE WORD - NEW TESTAMENT", color = Color(0xFF00FF9C), onClick = { onReaderNavigate("nt_word", "library/New_Testament.epub") })
+                                SettingsItem("THE WORD - NEW TESTAMENT", color = Color(0xFF00FF9C), onClick = { onReaderNavigate("nt_word_v3", "library/New_Testament.epub") })
                                 SettingsItem("BIBLE_KOINE_GREEK", onClick = { onReaderNavigate("nt_koine", "library/nt_koine.epub") })
                                 SettingsItem("BIBLE_HEBREW_WLC", onClick = { onReaderNavigate("ot_hebrew", "library/ot_hebrew.epub") })
                                 SettingsItem("BIBLE_WEB_ENGLISH", onClick = { onReaderNavigate("bible_web", "library/bible_web.epub") })
@@ -143,8 +143,22 @@ fun DeepNodeScreen(
                             Text("SELECT_ENTRY:", color = Color.White, fontWeight = FontWeight.Bold)
                             SettingsItem("NEUROMANCER_DECRYPT", onClick = { onReaderNavigate("neuromancer", "library/neuromancer.epub") })
                             SettingsItem("SNOW_CRASH_LOGS", onClick = { onReaderNavigate("snow_crash", "library/snow_crash.epub") })
-                            SettingsItem("DIAMOND_AGE_MANUAL", onClick = {})
-                            SettingsItem("HARDWIRED_PROTOCOLS", onClick = {})
+                            SettingsItem("ART_OF_WAR_PROTOCOLS", onClick = { onReaderNavigate("art_of_war", "library/TheArtofWar.epub") })
+                            SettingsItem("MEDITATIONS_LOGS", onClick = { onReaderNavigate("meditations", "library/Meditations.epub") })
+                            SettingsItem("THE_PRINCE_DECRYPT", onClick = { onReaderNavigate("the_prince", "library/ThePrince.epub") })
+                            SettingsItem("REPUBLIC_PLATFORM", onClick = { onReaderNavigate("republic", "library/Republic.epub") })
+                            SettingsItem("BUSHIDO_CODE_V1", onClick = { onReaderNavigate("bushido", "library/Bushido.epub") })
+                            SettingsItem("DECLARATION_OF_INDEPENDENCE", onClick = { onReaderNavigate("declaration", "library/TheDeclarationofIndependence.epub") })
+                            SettingsItem("US_CONSTITUTION_PROTOCOLS", onClick = { onReaderNavigate("constitution", "library/TheUSConstitution.epub") })
+                            SettingsItem("MALLEUS_MALEFICARUM_DECRYPT", onClick = { onReaderNavigate("malleus", "library/malleus-maleficarum.epub") })
+                            SettingsItem("KAMA_SUTRA_ENCRYPT", onClick = { onReaderNavigate("kamasutra", "library/KamaSutra.epub") })
+                            SettingsItem("ETHICS_OF_ARISTOTLE", onClick = { onReaderNavigate("ethics_aristotle", "library/EthicsofAristotle.epub") })
+                            SettingsItem("PENSEES_LOGS", onClick = { onReaderNavigate("pensees", "library/Pensees.epub") })
+                            SettingsItem("TIMAEUS_PROTOCOLS", onClick = { onReaderNavigate("timaeus", "library/Timaeus.epub") })
+                            SettingsItem("PHAEDRUS_DECRYPT", onClick = { onReaderNavigate("phaedrus", "library/Phaedrus.epub") })
+                            SettingsItem("LAWS_SYSTEM_FILE", onClick = { onReaderNavigate("laws", "library/Laws.epub") })
+                            SettingsItem("THEAETUS_LOGS", onClick = { onReaderNavigate("theaetus", "library/Theaetus.epub") })
+                            SettingsItem("LIBERTY_OR_DEATH_DECRYPT", onClick = { onReaderNavigate("liberty_death", "library/GiveMeLibertyorGiveMeDeath.epub") })
                             Text("STUB: Cyberpunk literary archive & tech specs.", color = Color.Gray, fontSize = 12.sp)
                         }
                     }
