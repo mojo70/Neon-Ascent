@@ -21,8 +21,15 @@ class BookParser(private val context: Context) {
         val chapters = book.spine.spineReferences.map { spineReference ->
             val resource = spineReference.resource
             val doc = Jsoup.parse(String(resource.data, charset(resource.inputEncoding ?: "UTF-8")))
+            
+            // Try to extract a better title from the HTML if the resource title is generic
+            var chapterTitle = resource.title
+            if (chapterTitle == null || chapterTitle.lowercase() == "chapter") {
+                chapterTitle = doc.select("h1, h2, h3").firstOrNull()?.text() ?: "Chapter"
+            }
+
             Chapter(
-                title = resource.title ?: "Chapter",
+                title = chapterTitle,
                 content = doc.body().html()
             )
         }
