@@ -77,6 +77,7 @@ fun EReaderScreen(
     val isAiLoading by viewModel.isAiLoading.collectAsState()
 
     var showNavDrawer by remember { mutableStateOf(false) }
+    var showAiSearch by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -222,6 +223,13 @@ fun EReaderScreen(
                         ),
                         modifier = Modifier.weight(1f).padding(start = 8.dp)
                     )
+                    IconButton(onClick = { showAiSearch = !showAiSearch }) {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = "Neural Link",
+                            tint = if (showAiSearch) Color(0xFFFF006E) else Color(0xFF00FF9C)
+                        )
+                    }
                     IconButton(onClick = { showNavDrawer = true }) {
                         Icon(
                             Icons.Default.List,
@@ -232,44 +240,50 @@ fun EReaderScreen(
                 }
 
                 // AI Search Bar
-                CyberFrame(
-                    label = "NEURAL_LINK",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                AnimatedVisibility(
+                    visible = showAiSearch,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut()
                 ) {
-                    TextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        placeholder = { Text("ASK BIBLE SCHOLAR...", color = Color(0xFF00FF9C).copy(alpha = 0.5f), fontSize = 12.sp) },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            cursorColor = Color(0xFF00FF9C),
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
-                        ),
-                        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                        trailingIcon = {
-                            if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = {
-                                    val currentPage = bookPages.getOrNull(pagerState.currentPage)
-                                    viewModel.askAi(searchQuery, currentPage?.content ?: "")
-                                    keyboardController?.hide()
-                                }) {
-                                    Icon(Icons.Default.Search, "Ask", tint = Color(0xFF00FF9C))
+                    CyberFrame(
+                        label = "NEURAL_LINK",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                    ) {
+                        TextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = { Text("ASK CYBER ORACLE...", color = Color(0xFF00FF9C).copy(alpha = 0.5f), fontSize = 12.sp) },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                cursorColor = Color(0xFF00FF9C),
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            ),
+                            textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                            trailingIcon = {
+                                if (searchQuery.isNotEmpty()) {
+                                    IconButton(onClick = {
+                                        val currentPage = bookPages.getOrNull(pagerState.currentPage)
+                                        viewModel.askAi(searchQuery, currentPage?.content ?: "")
+                                        keyboardController?.hide()
+                                    }) {
+                                        Icon(Icons.Default.Search, "Ask", tint = Color(0xFF00FF9C))
+                                    }
                                 }
-                            }
-                        },
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        keyboardActions = KeyboardActions(onSearch = {
-                            val currentPage = bookPages.getOrNull(pagerState.currentPage)
-                            viewModel.askAi(searchQuery, currentPage?.content ?: "")
-                            keyboardController?.hide()
-                        }),
-                        singleLine = true
-                    )
+                            },
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(onSearch = {
+                                val currentPage = bookPages.getOrNull(pagerState.currentPage)
+                                viewModel.askAi(searchQuery, currentPage?.content ?: "")
+                                keyboardController?.hide()
+                            }),
+                            singleLine = true
+                        )
+                    }
                 }
 
                 // AI Response Section
@@ -285,7 +299,7 @@ fun EReaderScreen(
                         Column(modifier = Modifier.padding(8.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    "BIBLE_SCHOLAR_v1.0 > ",
+                                    "CYBER_ORACLE_v1.0 > ",
                                     color = Color(0xFFFF006E),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontFamily = FontFamily.Monospace
