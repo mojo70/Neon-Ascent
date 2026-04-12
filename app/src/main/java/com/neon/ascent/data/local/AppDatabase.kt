@@ -13,8 +13,10 @@ import com.neon.ascent.model.*
     Quest::class,
     Task::class,
     DataShard::class,
-    MemoryFragment::class
-], version = 19)
+    MemoryFragment::class,
+    BookEntity::class,
+    ChapterEntity::class
+], version = 20)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userCharacterDao(): UserCharacterDao
     abstract fun biohackingDao(): BiohackingDao
@@ -23,4 +25,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun questDao(): QuestDao
     abstract fun taskDao(): TaskDao
     abstract fun loreDao(): LoreDao
+    abstract fun bookDao(): BookDao
 }

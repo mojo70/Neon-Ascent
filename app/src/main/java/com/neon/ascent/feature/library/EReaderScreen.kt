@@ -72,6 +72,7 @@ fun EReaderScreen(
     onBack: () -> Unit
 ) {
     val book by viewModel.currentBook.collectAsState()
+    val bookPages by viewModel.bookPages.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val aiResponse by viewModel.aiResponse.collectAsState()
     val isAiLoading by viewModel.isAiLoading.collectAsState()
@@ -86,89 +87,11 @@ fun EReaderScreen(
         val maxWidth = maxWidth
         val maxHeight = maxHeight
 
-        // Dynamic pagination based on screen size
-        val bookPages = remember(book, maxWidth, maxHeight, bookId) {
-            if (book == null) return@remember emptyList<ChapterPage>()
-
-            val heightInDp = maxHeight.value
-            val widthInDp = maxWidth.value
-            
-            // Be more conservative with pagination to avoid clipping at the bottom
-            // 180dp overhead for header and controls, ~34dp per line height safely
-            val linesPerPage = ((heightInDp - 180) / 34).toInt().coerceAtLeast(1)
-            val charsPerLine = (widthInDp / 12).toInt().coerceAtLeast(1)
-            val estimatedCharsPerPage = (linesPerPage * charsPerLine).coerceIn(200, 2000)
-
-            val isBilingual = bookId == "ot_word"
-
-            book?.chapters?.flatMapIndexed { chapterIndex, chapter ->
-                val text = stripHtmlWithBreaks(chapter.content)
-                val paragraphs = text.split("\n\n").filter { it.isNotBlank() }
-                
-                if (isBilingual) {
-                    val enParas = mutableListOf<String>()
-                    val heParas = mutableListOf<String>()
-                    
-                    for (para in paragraphs) {
-                        val enLines = mutableListOf<String>()
-                        val heLines = mutableListOf<String>()
-                        
-                        // Split mixed paragraphs by newline to catch interleaved languages (common with <br> or <td> tags)
-                        val lines = para.split("\n").filter { it.isNotBlank() }
-                        for (line in lines) {
-                            val hasHebrew = line.any { it in '\u0590'..'\u05FF' }
-                            val hasEnglish = line.any { it in 'a'..'z' || it in 'A'..'Z' }
-                            
-                            if (hasEnglish) {
-                                // Add to English pages, stripping Hebrew characters to avoid noise
-                                val cleaned = line.filter { it !in '\u0590'..'\u05FF' }.trim()
-                                if (cleaned.isNotEmpty()) enLines.add(cleaned)
-                            }
-                            
-                            if (hasHebrew) {
-                                // Add to Hebrew pages, stripping English letters to avoid noise
-                                val cleaned = line.filter { it !in 'a'..'z' && it !in 'A'..'Z' }.trim()
-                                if (cleaned.isNotEmpty()) heLines.add(cleaned)
-                            }
-                            
-                            // If it has neither (e.g. just digits/punctuation), add to both to be safe
-                            if (!hasEnglish && !hasHebrew) {
-                                val cleaned = line.trim()
-                                if (cleaned.isNotEmpty()) {
-                                    enLines.add(cleaned)
-                                    heLines.add(cleaned)
-                                }
-                            }
-                        }
-                        
-                        if (enLines.isNotEmpty()) enParas.add(enLines.joinToString("\n"))
-                        if (heLines.isNotEmpty()) heParas.add(heLines.joinToString("\n"))
-                    }
-                    
-                    val enPages = paginateParas(enParas, estimatedCharsPerPage)
-                    val hePages = paginateParas(heParas, estimatedCharsPerPage)
-                    
-                    val interleaved = mutableListOf<ChapterPage>()
-                    val maxPageCount = maxOf(enPages.size, hePages.size)
-                    for (i in 0 until maxPageCount) {
-                        if (i < enPages.size) {
-                            interleaved.add(ChapterPage(chapterIndex, chapter.title, enPages[i], isRtl = false))
-                        }
-                        if (i < hePages.size) {
-                            interleaved.add(ChapterPage(chapterIndex, chapter.title, hePages[i], isRtl = true))
-                        }
-                    }
-                    if (interleaved.isEmpty()) listOf(ChapterPage(chapterIndex, chapter.title, "[EMPTY_CHAPTER]"))
-                    else interleaved
-                } else {
-                    val pages = paginateParas(paragraphs, estimatedCharsPerPage)
-                    val isRtl = book?.language == "he"
-                    if (pages.isEmpty()) listOf(ChapterPage(chapterIndex, chapter.title, "[EMPTY_CHAPTER]", isRtl = isRtl))
-                    else pages.map { content ->
-                        ChapterPage(chapterIndex, chapter.title, content, isRtl = isRtl)
-                    }
-                }
-            } ?: emptyList()
+        LaunchedEffect(book, maxWidth, maxHeight, bookId) {
+            val currentBook = book
+            if (currentBook != null) {
+                viewModel.updatePagination(currentBook, maxWidth.value, maxHeight.value, bookId)
+            }
         }
 
         val pagerState = rememberPagerState(
@@ -483,70 +406,4 @@ fun EReaderScreen(
             }
         }
     }
-}
-
-private fun paginateParas(paragraphs: List<String>, estimatedCharsPerPage: Int): List<String> {
-    val pages = mutableListOf<String>()
-    var currentPageText = StringBuilder()
-
-    for (para in paragraphs) {
-        var remainingPara = para.trim()
-
-        while (remainingPara.isNotEmpty()) {
-            val availableSpace = estimatedCharsPerPage - currentPageText.length
-
-            if (remainingPara.length <= availableSpace) {
-                currentPageText.append(remainingPara).append("\n\n")
-                remainingPara = ""
-            } else {
-                if (availableSpace < estimatedCharsPerPage / 5 && currentPageText.isNotEmpty()) {
-                    pages.add(currentPageText.toString().trim())
-                    currentPageText = StringBuilder()
-                } else {
-                    var splitIndex = remainingPara.lastIndexOf(' ', availableSpace)
-                    if (splitIndex == -1) {
-                        if (currentPageText.isEmpty()) {
-                            splitIndex = availableSpace.coerceAtMost(remainingPara.length)
-                        } else {
-                            pages.add(currentPageText.toString().trim())
-                            currentPageText = StringBuilder()
-                            continue
-                        }
-                    }
-                    val chunk = remainingPara.substring(0, splitIndex).trim()
-                    currentPageText.append(chunk)
-                    pages.add(currentPageText.toString().trim())
-                    currentPageText = StringBuilder()
-                    remainingPara = remainingPara.substring(splitIndex).trim()
-                }
-            }
-        }
-    }
-    if (currentPageText.isNotEmpty()) {
-        pages.add(currentPageText.toString().trim())
-    }
-    return pages
-}
-
-private fun isHebrewText(text: String): Boolean {
-    return text.any { it in '\u0590'..'\u05FF' }
-}
-
-private fun stripHtmlWithBreaks(html: String): String {
-    val document = Jsoup.parse(html)
-    document.outputSettings(org.jsoup.nodes.Document.OutputSettings().prettyPrint(false))
-    // Use unique markers to ensure newlines are preserved through Jsoup's text normalization
-    document.select("br").append(" BR_MARKER ")
-    document.select("p, div, tr, td, th, li").prepend(" PARA_MARKER ")
-    val s = document.text()
-        .replace("BR_MARKER", "\n")
-        .replace("PARA_MARKER", "\n\n")
-        .replace(Regex("\n +"), "\n")
-        .replace(Regex(" +\n"), "\n")
-        .trim()
-    return s
-}
-
-private fun stripHtml(html: String): String {
-    return Jsoup.parse(html).text()
 }
