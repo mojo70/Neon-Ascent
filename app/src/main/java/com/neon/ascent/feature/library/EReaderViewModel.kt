@@ -115,11 +115,12 @@ class EReaderViewModel @Inject constructor(
 
     fun updatePagination(book: EBook, maxWidth: Float, maxHeight: Float, bookId: String) {
         viewModelScope.launch(Dispatchers.Default) {
-            val linesPerPage = ((maxHeight - 180) / 34).toInt().coerceAtLeast(1)
-            val charsPerLine = (maxWidth / 12).toInt().coerceAtLeast(1)
-            val estimatedCharsPerPage = (linesPerPage * charsPerLine).coerceIn(200, 2000)
+            // More conservative constants to ensure text fits within the viewport without scrolling
+            val linesPerPage = (maxHeight / 38).toInt().coerceAtLeast(1)
+            val charsPerLine = (maxWidth / 14).toInt().coerceAtLeast(1)
+            val estimatedCharsPerPage = (linesPerPage * charsPerLine).coerceIn(100, 1200)
 
-            val isBilingual = bookId == "ot_word"
+            val isBilingual = bookId == "ot_word" || bookId == "nt_word"
 
             val pages = book.chapters.flatMapIndexed { chapterIndex, chapter ->
                 val text = stripHtmlWithBreaks(chapter.content)
@@ -127,51 +128,52 @@ class EReaderViewModel @Inject constructor(
                 
                 if (isBilingual) {
                     val enParas = mutableListOf<String>()
-                    val heParas = mutableListOf<String>()
+                    val ancParas = mutableListOf<String>()
                     
                     for (para in paragraphs) {
                         val enLines = mutableListOf<String>()
-                        val heLines = mutableListOf<String>()
+                        val ancLines = mutableListOf<String>()
                         
                         val lines = para.split("\n").filter { it.isNotBlank() }
                         for (line in lines) {
-                            val hasHebrew = line.any { it in '\u0590'..'\u05FF' }
+                            val hasAncient = line.any { it in '\u0590'..'\u05FF' || it in '\u0370'..'\u03FF' }
                             val hasEnglish = line.any { it in 'a'..'z' || it in 'A'..'Z' }
                             
                             if (hasEnglish) {
-                                val cleaned = line.filter { it !in '\u0590'..'\u05FF' }.trim()
+                                val cleaned = line.filter { it !in '\u0590'..'\u05FF' && it !in '\u0370'..'\u03FF' }.trim()
                                 if (cleaned.isNotEmpty()) enLines.add(cleaned)
                             }
                             
-                            if (hasHebrew) {
+                            if (hasAncient) {
                                 val cleaned = line.filter { it !in 'a'..'z' && it !in 'A'..'Z' }.trim()
-                                if (cleaned.isNotEmpty()) heLines.add(cleaned)
+                                if (cleaned.isNotEmpty()) ancLines.add(cleaned)
                             }
                             
-                            if (!hasEnglish && !hasHebrew) {
+                            if (!hasEnglish && !hasAncient) {
                                 val cleaned = line.trim()
                                 if (cleaned.isNotEmpty()) {
                                     enLines.add(cleaned)
-                                    heLines.add(cleaned)
+                                    ancLines.add(cleaned)
                                 }
                             }
                         }
                         
                         if (enLines.isNotEmpty()) enParas.add(enLines.joinToString("\n"))
-                        if (heLines.isNotEmpty()) heParas.add(heLines.joinToString("\n"))
+                        if (ancLines.isNotEmpty()) ancParas.add(ancLines.joinToString("\n"))
                     }
                     
                     val enPages = paginateParas(enParas, estimatedCharsPerPage)
-                    val hePages = paginateParas(heParas, estimatedCharsPerPage)
+                    val ancPages = paginateParas(ancParas, estimatedCharsPerPage)
                     
                     val interleaved = mutableListOf<ChapterPage>()
-                    val maxPageCount = maxOf(enPages.size, hePages.size)
+                    val maxPageCount = maxOf(enPages.size, ancPages.size)
                     for (i in 0 until maxPageCount) {
                         if (i < enPages.size) {
                             interleaved.add(ChapterPage(chapterIndex, chapter.title, enPages[i], isRtl = false))
                         }
-                        if (i < hePages.size) {
-                            interleaved.add(ChapterPage(chapterIndex, chapter.title, hePages[i], isRtl = true))
+                        if (i < ancPages.size) {
+                            val isRtl = ancPages[i].any { it in '\u0590'..'\u05FF' }
+                            interleaved.add(ChapterPage(chapterIndex, chapter.title, ancPages[i], isRtl = isRtl))
                         }
                     }
                     if (interleaved.isEmpty()) listOf(ChapterPage(chapterIndex, chapter.title, "[EMPTY_CHAPTER]"))
@@ -242,6 +244,7 @@ class EReaderViewModel @Inject constructor(
             .replace("PARA_MARKER", "\n\n")
             .replace(Regex("\n +"), "\n")
             .replace(Regex(" +\n"), "\n")
+            .replace(Regex("\n\n+"), "\n\n")
             .trim()
         return s
     }

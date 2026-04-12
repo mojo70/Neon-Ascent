@@ -127,37 +127,44 @@ fun EReaderScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color(0xFF00FF9C)
+                            tint = Color(0xFF00FF9C),
+                            modifier = Modifier.size(20.dp)
                         )
                     }
+                    val displayTitle = book?.title?.let {
+                        if (it.length > 25) it.take(22) + "..." else it
+                    } ?: "LOADING..."
                     Text(
-                        text = "// READER // ${book?.title ?: "LOADING..."}",
-                        style = MaterialTheme.typography.labelLarge.copy(
+                        text = "// $displayTitle",
+                        style = MaterialTheme.typography.labelSmall.copy(
                             color = Color(0xFF00FF9C),
                             fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 10.sp
                         ),
-                        modifier = Modifier.weight(1f).padding(start = 8.dp)
+                        modifier = Modifier.weight(1f).padding(start = 4.dp)
                     )
                     IconButton(onClick = { showAiSearch = !showAiSearch }) {
                         Icon(
                             Icons.Default.Search,
                             contentDescription = "Neural Link",
-                            tint = if (showAiSearch) Color(0xFFFF006E) else Color(0xFF00FF9C)
+                            tint = if (showAiSearch) Color(0xFFFF006E) else Color(0xFF00FF9C),
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                     IconButton(onClick = { showNavDrawer = true }) {
                         Icon(
                             Icons.Default.List,
                             contentDescription = "Chapters",
-                            tint = Color(0xFF00FF9C)
+                            tint = Color(0xFF00FF9C),
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
@@ -268,18 +275,19 @@ fun EReaderScreen(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .padding(horizontal = 24.dp)
-                                    .verticalScroll(rememberScrollState())
                             ) {
-                                Text(
-                                    text = page.chapterTitle,
-                                    style = MaterialTheme.typography.headlineSmall.copy(
-                                        color = Color(0xFFFF006E),
-                                        fontFamily = FontFamily.Monospace,
-                                        fontWeight = FontWeight.Black,
-                                        fontSize = 14.sp
-                                    ),
-                                    modifier = Modifier.padding(top = 8.dp, bottom = 12.dp)
-                                )
+                                if (page.chapterTitle.isNotBlank() && !page.chapterTitle.contains(book?.title ?: "", ignoreCase = true)) {
+                                    Text(
+                                        text = page.chapterTitle,
+                                        style = MaterialTheme.typography.headlineSmall.copy(
+                                            color = Color(0xFFFF006E),
+                                            fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.Black,
+                                            fontSize = 12.sp
+                                        ),
+                                        modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+                                    )
+                                }
 
                                 Text(
                                     text = page.content,
