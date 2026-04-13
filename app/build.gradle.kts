@@ -149,6 +149,10 @@ dependencies {
     // Updated to latest experimental version for improved stability
     implementation("com.google.ai.edge.aicore:aicore:0.0.1-exp02")
     
+    // LiteRT LLM (Local Gemma)
+    implementation(project(":core:ai-litert"))
+    // implementation("com.google.ai.edge.litertlm:litertlm-android:0.10.0")
+
     // Google AI SDK (Cloud-based Gemini)
     implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
 

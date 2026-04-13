@@ -18,7 +18,8 @@ class BiohackingViewModel @Inject constructor(
     private val biohackingDao: BiohackingDao,
     private val userCharacterDao: UserCharacterDao,
     private val healthRepository: HealthRepository,
-    private val aiProvider: AiProvider
+    private val aiProvider: AiProvider,
+    val modelDownloadManager: ModelDownloadManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BiohackingData())

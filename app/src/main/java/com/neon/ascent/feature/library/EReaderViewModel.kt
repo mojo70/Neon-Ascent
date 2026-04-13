@@ -5,7 +5,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.neon.ascent.data.local.BookDao
 import com.neon.ascent.data.repository.SettingsRepository
-import com.neon.ascent.feature.biohacking.GeminiNanoClient
+import com.neon.ascent.feature.biohacking.AiProvider
+import com.neon.ascent.feature.biohacking.ModelDownloadManager
 import com.neon.ascent.model.BookEntity
 import com.neon.ascent.model.ChapterEntity
 import com.neon.ascent.model.HighlightEntity
@@ -29,8 +30,9 @@ import javax.inject.Inject
 class EReaderViewModel @Inject constructor(
     application: Application,
     private val settingsRepository: SettingsRepository,
-    private val geminiNanoClient: GeminiNanoClient,
-    private val bookDao: BookDao
+    private val aiProvider: AiProvider,
+    private val bookDao: BookDao,
+    val modelDownloadManager: ModelDownloadManager
 ) : AndroidViewModel(application) {
 
     private val _currentBook = MutableStateFlow<EBook?>(null)
@@ -107,7 +109,7 @@ class EReaderViewModel @Inject constructor(
                 Provide a concise, insightful answer in a cyberpunk terminal style.
             """.trimIndent()
             
-            val response = geminiNanoClient.generateContent(prompt)
+            val response = aiProvider.generateContent(prompt)
             _aiResponse.value = response
             _isAiLoading.value = false
         }

@@ -48,6 +48,10 @@ fun BiohackingScreen(
     val logs by viewModel.logs.collectAsState()
     val isNeuralCoreThinking by viewModel.isNeuralCoreThinking.collectAsState()
     
+    val modelIsDownloaded = viewModel.modelDownloadManager.isModelDownloaded()
+    val downloadProgress by viewModel.modelDownloadManager.downloadProgress.collectAsState()
+    val isDownloading by viewModel.modelDownloadManager.isDownloading.collectAsState()
+
     val displayChar = characterState ?: UserCharacter(
         name = "PROTAGONIST", sex = "NON_BINARY", dob = "2077.01.01", units = "METRIC", weight = "75", somatotype = 0.5f
     )
@@ -248,9 +252,47 @@ fun BiohackingScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            if (!modelIsDownloaded) {
+                CyberFrame(label = "NEURAL_ENGINE_MISSING", borderColor = neonMagenta) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            "Local AI capabilities require the Neural Engine core (Gemma 2B). Download now to enable secure, on-device biohacking protocols.",
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        if (isDownloading) {
+                            LinearProgressIndicator(
+                                progress = { downloadProgress ?: 0f },
+                                modifier = Modifier.fillMaxWidth().height(2.dp),
+                                color = neonCyan,
+                                trackColor = neonCyan.copy(alpha = 0.1f)
+                            )
+                            Text(
+                                "DOWNLOADING_CORE...",
+                                color = neonCyan,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+                        } else {
+                            CyberActionButton(
+                                label = "DOWNLOAD NEURAL_ENGINE (Gemma 4-E2B)",
+                                color = neonCyan,
+                                onClick = { viewModel.modelDownloadManager.startDownload() }
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
             CyberActionButton(
                 label = if (uiState.enableOnDeviceNeuralCore) "INITIATE NEURAL_CORE_SCAN" else "INITIATE AI_DEEP_SCAN",
-                color = neonCyan,
+                color = if (modelIsDownloaded || !uiState.enableOnDeviceNeuralCore) neonCyan else Color.Gray,
+                enabled = modelIsDownloaded || !uiState.enableOnDeviceNeuralCore,
                 onClick = { viewModel.initiateLocalScan(selectedSector) }
             )
 

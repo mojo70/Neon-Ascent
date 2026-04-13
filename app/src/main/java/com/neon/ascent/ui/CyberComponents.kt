@@ -449,19 +449,22 @@ fun CyberActionButton(
     label: String, 
     color: Color, 
     modifier: Modifier = Modifier, 
+    enabled: Boolean = true,
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     
+    val buttonColor = if (enabled) color else Color.Gray
+    
     val glowIntensity by animateFloatAsState(
-        targetValue = if (isPressed) 0.3f else 1f,
+        targetValue = if (isPressed && enabled) 0.3f else 1f,
         animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "GlowIntensity"
     )
     
     val staticRipple by animateFloatAsState(
-        targetValue = if (isPressed) 1f else 0f,
+        targetValue = if (isPressed && enabled) 1f else 0f,
         animationSpec = tween(150),
         label = "StaticRipple"
     )
@@ -474,22 +477,23 @@ fun CyberActionButton(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
+                enabled = enabled,
                 onClick = onClick
             )
             .background(Color(0xFF080808).copy(alpha = 0.9f))
             .neonBorder(
-                color = color, 
+                color = buttonColor, 
                 width = 2.dp, 
-                glowIntensity = glowIntensity,
+                glowIntensity = if (enabled) glowIntensity else 0.2f,
                 cornerRadius = 0.dp // HexTerminalShape handles shape
             )
             .drawBehind {
-                if (staticRipple > 0f) {
+                if (staticRipple > 0f && enabled) {
                     val random = Random(System.nanoTime())
                     repeat(10) {
                         val y = random.nextFloat() * size.height
                         drawLine(
-                            color = color.copy(alpha = 0.2f * staticRipple),
+                            color = buttonColor.copy(alpha = 0.2f * staticRipple),
                             start = Offset(0f, y),
                             end = Offset(size.width, y),
                             strokeWidth = 1.dp.toPx()
@@ -501,14 +505,14 @@ fun CyberActionButton(
     ) {
         Text(
             text = label, 
-            color = if (isPressed) color.copy(alpha = 0.7f) else color, 
+            color = if (isPressed && enabled) buttonColor.copy(alpha = 0.7f) else buttonColor, 
             fontSize = 14.sp,
             fontWeight = FontWeight.Black, 
             fontFamily = FontFamily.Monospace,
             letterSpacing = 3.sp,
             style = TextStyle(
                 shadow = Shadow(
-                    color = color.copy(alpha = 0.5f * glowIntensity),
+                    color = buttonColor.copy(alpha = 0.5f * glowIntensity),
                     blurRadius = 10f * glowIntensity
                 )
             )

@@ -20,3 +20,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Neon Ascent"
 include(":app")
+include(":core:ai-litert")

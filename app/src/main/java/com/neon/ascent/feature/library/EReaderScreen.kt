@@ -21,6 +21,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
@@ -81,6 +82,7 @@ fun SelectionMenu(
     modifier: Modifier = Modifier,
     onHighlight: (Color) -> Unit,
     onQuote: () -> Unit,
+    onAiAsk: () -> Unit,
     onDelete: (() -> Unit)? = null
 ) {
     CyberFrame(
@@ -121,6 +123,10 @@ fun SelectionMenu(
             IconButton(onClick = onQuote, modifier = Modifier.size(32.dp)) {
                 Icon(Icons.Default.FormatQuote, "Save Quote", tint = Color.White)
             }
+
+            IconButton(onClick = onAiAsk, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Default.AutoAwesome, "Ask AI", tint = Color(0xFF00FF9C))
+            }
             
             IconButton(onClick = { /* Could add copy to clipboard */ }, modifier = Modifier.size(32.dp)) {
                 Icon(Icons.Default.ContentCopy, "Copy", tint = Color.White)
@@ -141,6 +147,10 @@ fun EReaderScreen(
     val aiResponse by viewModel.aiResponse.collectAsState()
     val isAiLoading by viewModel.isAiLoading.collectAsState()
     val highlights by viewModel.highlights.collectAsState()
+    
+    val modelIsDownloaded = viewModel.modelDownloadManager.isModelDownloaded()
+    val downloadProgress by viewModel.modelDownloadManager.downloadProgress.collectAsState()
+    val isDownloading by viewModel.modelDownloadManager.isDownloading.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
     var showNavDrawer by remember { mutableStateOf(false) }
@@ -323,6 +333,44 @@ fun EReaderScreen(
                     }
                 }
 
+                if (!modelIsDownloaded) {
+                    CyberFrame(
+                        label = "NEURAL_ENGINE_OFFLINE",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                "Download local Neural Engine (Gemma) for private, on-device AI analysis.",
+                                color = Color.White.copy(alpha = 0.7f),
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            if (isDownloading) {
+                                LinearProgressIndicator(
+                                    progress = { downloadProgress ?: 0f },
+                                    modifier = Modifier.fillMaxWidth().height(2.dp),
+                                    color = Color(0xFF00FF9C),
+                                    trackColor = Color.DarkGray
+                                )
+                            } else {
+                                Button(
+                                    onClick = { viewModel.modelDownloadManager.startDownload() },
+                                    modifier = Modifier.height(32.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C).copy(alpha = 0.1f)),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF00FF9C))
+                                ) {
+                                    Text("DOWNLOAD_GEMMA_CORE", color = Color(0xFF00FF9C), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
+
                 if (isLoading) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = Color(0xFF00FF9C))
@@ -418,6 +466,11 @@ fun EReaderScreen(
                                                 viewModel.saveQuote(selectedText, page.chapterTitle)
                                                 selectionValue = selectionValue.copy(selection = TextRange.Zero)
                                                 scope.launch { snackbarHostState.showSnackbar("FRAGMENT_SAVED_TO_DATABASE") }
+                                            },
+                                            onAiAsk = {
+                                                val selectedText = selectionValue.text.substring(isMin, isMax)
+                                                viewModel.askAi("Explain this in context.", selectedText)
+                                                selectionValue = selectionValue.copy(selection = TextRange.Zero)
                                             },
                                             onDelete = if (overlappingHighlights.isNotEmpty()) {
                                                 {
