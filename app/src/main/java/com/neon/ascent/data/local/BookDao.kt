@@ -3,6 +3,8 @@ package com.neon.ascent.data.local
 import androidx.room.*
 import com.neon.ascent.model.BookEntity
 import com.neon.ascent.model.ChapterEntity
+import com.neon.ascent.model.HighlightEntity
+import com.neon.ascent.model.QuoteEntity
 
 @Dao
 interface BookDao {
@@ -23,4 +25,21 @@ interface BookDao {
         insertBook(book)
         insertChapters(chapters)
     }
+
+    // Highlights
+    @Query("SELECT * FROM highlights WHERE bookId = :bookId")
+    fun getHighlightsForBook(bookId: String): kotlinx.coroutines.flow.Flow<List<HighlightEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertHighlight(highlight: HighlightEntity)
+
+    @Delete
+    suspend fun deleteHighlight(highlight: HighlightEntity)
+
+    // Quotes
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertQuote(quote: QuoteEntity)
+
+    @Query("SELECT * FROM quotes ORDER BY timestamp DESC")
+    fun getAllQuotes(): kotlinx.coroutines.flow.Flow<List<QuoteEntity>>
 }

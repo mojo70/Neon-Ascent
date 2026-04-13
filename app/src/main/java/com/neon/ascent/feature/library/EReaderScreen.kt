@@ -15,12 +15,16 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FormatQuote
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -30,13 +34,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.googlefonts.Font
 import androidx.compose.ui.text.googlefonts.GoogleFont
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -61,9 +72,62 @@ data class ChapterPage(
     val chapterIndex: Int,
     val chapterTitle: String,
     val content: String,
-    val isRtl: Boolean = false
+    val isRtl: Boolean = false,
+    val startOffsetInChapter: Int = 0
 )
 
+@Composable
+fun SelectionMenu(
+    modifier: Modifier = Modifier,
+    onHighlight: (Color) -> Unit,
+    onQuote: () -> Unit,
+    onDelete: (() -> Unit)? = null
+) {
+    CyberFrame(
+        label = "SELECTION_TOOLS",
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.padding(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Highlight Colors
+            val colors = listOf(
+                Color(0xFF00FF9C), // Cyan/Green
+                Color(0xFFFF006E), // Pink
+                Color(0xFF8338EC), // Purple
+                Color(0xFFFFBE0B)  // Yellow
+            )
+            
+            colors.forEach { color ->
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(color, RoundedCornerShape(4.dp))
+                        .clickable { onHighlight(color) }
+                )
+            }
+            
+            VerticalDivider(modifier = Modifier.height(24.dp).padding(horizontal = 4.dp), color = Color.Gray)
+
+            if (onDelete != null) {
+                IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.Delete, "Delete Highlight", tint = Color(0xFFFF006E))
+                }
+                VerticalDivider(modifier = Modifier.height(24.dp).padding(horizontal = 4.dp), color = Color.Gray)
+            }
+            
+            IconButton(onClick = onQuote, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Default.FormatQuote, "Save Quote", tint = Color.White)
+            }
+            
+            IconButton(onClick = { /* Could add copy to clipboard */ }, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Default.ContentCopy, "Copy", tint = Color.White)
+            }
+        }
+    }
+}
 @Composable
 fun EReaderScreen(
     viewModel: EReaderViewModel = hiltViewModel(),
@@ -76,7 +140,9 @@ fun EReaderScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val aiResponse by viewModel.aiResponse.collectAsState()
     val isAiLoading by viewModel.isAiLoading.collectAsState()
+    val highlights by viewModel.highlights.collectAsState()
 
+    val snackbarHostState = remember { SnackbarHostState() }
     var showNavDrawer by remember { mutableStateOf(false) }
     var showAiSearch by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
@@ -271,6 +337,23 @@ fun EReaderScreen(
                         val pageLayoutDirection = if (page.isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
                         
                         CompositionLocalProvider(LocalLayoutDirection provides pageLayoutDirection) {
+                            val pageHighlights = highlights.filter { it.chapterIndex == page.chapterIndex }
+                            
+                            var selectionValue by remember(page, pageHighlights) { 
+                                mutableStateOf(TextFieldValue(
+                                    annotatedString = buildAnnotatedString {
+                                        append(page.content)
+                                        pageHighlights.forEach { h ->
+                                            val start = (h.startOffset - page.startOffsetInChapter).coerceAtLeast(0)
+                                            val end = (h.endOffset - page.startOffsetInChapter).coerceAtMost(page.content.length)
+                                            if (start < end) {
+                                                addStyle(SpanStyle(background = Color(h.color).copy(alpha = 0.4f)), start, end)
+                                            }
+                                        }
+                                    }
+                                )) 
+                            }
+
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -289,16 +372,62 @@ fun EReaderScreen(
                                     )
                                 }
 
-                                Text(
-                                    text = page.content,
-                                    style = MaterialTheme.typography.bodyLarge.copy(
-                                        color = Color.White.copy(alpha = 0.9f),
-                                        fontFamily = if (page.isRtl) NotoSerif else FontFamily.Default,
-                                        lineHeight = 26.sp,
-                                        fontSize = 17.sp
-                                    ),
-                                    modifier = Modifier.fillMaxWidth()
-                                )
+                                Box(modifier = Modifier.weight(1f)) {
+                                    BasicTextField(
+                                        value = selectionValue,
+                                        onValueChange = { selectionValue = it },
+                                        readOnly = true,
+                                        textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                            color = Color.White.copy(alpha = 0.9f),
+                                            fontFamily = if (page.isRtl) NotoSerif else FontFamily.Default,
+                                            lineHeight = 26.sp,
+                                            fontSize = 17.sp
+                                        ),
+                                        cursorBrush = SolidColor(Color.Transparent),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+
+                                    if (selectionValue.selection.length > 0) {
+                                        val isMin = selectionValue.selection.min
+                                        val isMax = selectionValue.selection.max
+                                        val globalStart = page.startOffsetInChapter + isMin
+                                        val globalEnd = page.startOffsetInChapter + isMax
+                                        
+                                        // Find if selection overlaps or matches an existing highlight
+                                        val overlappingHighlight = highlights.find { 
+                                            it.chapterIndex == page.chapterIndex &&
+                                            it.startOffset == globalStart && 
+                                            it.endOffset == globalEnd 
+                                        }
+
+                                        SelectionMenu(
+                                            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp),
+                                            onHighlight = { color ->
+                                                viewModel.saveHighlight(
+                                                    page.chapterIndex,
+                                                    globalStart,
+                                                    globalEnd,
+                                                    color.toArgb().toLong()
+                                                )
+                                                selectionValue = selectionValue.copy(selection = TextRange.Zero)
+                                                scope.launch { snackbarHostState.showSnackbar("HIGHLIGHT_STORED") }
+                                            },
+                                            onQuote = {
+                                                val selectedText = selectionValue.text.substring(isMin, isMax)
+                                                viewModel.saveQuote(selectedText, page.chapterTitle)
+                                                selectionValue = selectionValue.copy(selection = TextRange.Zero)
+                                                scope.launch { snackbarHostState.showSnackbar("FRAGMENT_SAVED_TO_DATABASE") }
+                                            },
+                                            onDelete = overlappingHighlight?.let { h ->
+                                                {
+                                                    viewModel.deleteHighlight(h)
+                                                    selectionValue = selectionValue.copy(selection = TextRange.Zero)
+                                                    scope.launch { snackbarHostState.showSnackbar("HIGHLIGHT_PURGED") }
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -412,6 +541,22 @@ fun EReaderScreen(
                     }
                 }
             }
+
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 80.dp),
+                snackbar = { data ->
+                    CyberFrame(label = "SYSTEM_MSG") {
+                        Text(
+                            text = data.visuals.message,
+                            modifier = Modifier.padding(12.dp),
+                            color = Color(0xFF00FF9C),
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 10.sp
+                        )
+                    }
+                }
+            )
         }
     }
 }

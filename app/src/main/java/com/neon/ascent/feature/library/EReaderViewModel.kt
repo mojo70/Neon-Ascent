@@ -8,11 +8,18 @@ import com.neon.ascent.data.repository.SettingsRepository
 import com.neon.ascent.feature.biohacking.GeminiNanoClient
 import com.neon.ascent.model.BookEntity
 import com.neon.ascent.model.ChapterEntity
+import com.neon.ascent.model.HighlightEntity
+import com.neon.ascent.model.QuoteEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
@@ -28,6 +35,49 @@ class EReaderViewModel @Inject constructor(
 
     private val _currentBook = MutableStateFlow<EBook?>(null)
     val currentBook: StateFlow<EBook?> = _currentBook
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val highlights: StateFlow<List<HighlightEntity>> = _currentBook
+        .flatMapLatest { book ->
+            if (book != null) bookDao.getHighlightsForBook(book.id)
+            else flowOf(emptyList())
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun saveHighlight(chapterIndex: Int, start: Int, end: Int, color: Long) {
+        val bookId = _currentBook.value?.id ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            bookDao.insertHighlight(
+                HighlightEntity(
+                    bookId = bookId,
+                    chapterIndex = chapterIndex,
+                    startOffset = start,
+                    endOffset = end,
+                    color = color
+                )
+            )
+        }
+    }
+
+    fun deleteHighlight(highlight: HighlightEntity) {
+        viewModelScope.launch(Dispatchers.IO) {
+            bookDao.deleteHighlight(highlight)
+        }
+    }
+
+    fun saveQuote(content: String, chapterTitle: String) {
+        val book = _currentBook.value ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            bookDao.insertQuote(
+                QuoteEntity(
+                    bookId = book.id,
+                    bookTitle = book.title,
+                    content = content,
+                    chapterTitle = chapterTitle
+                )
+            )
+        }
+    }
 
     private val _bookPages = MutableStateFlow<List<ChapterPage>>(emptyList())
     val bookPages: StateFlow<List<ChapterPage>> = _bookPages.asStateFlow()
@@ -167,13 +217,16 @@ class EReaderViewModel @Inject constructor(
                     
                     val interleaved = mutableListOf<ChapterPage>()
                     val maxPageCount = maxOf(enPages.size, ancPages.size)
+                    var currentChapterOffset = 0
                     for (i in 0 until maxPageCount) {
                         if (i < enPages.size) {
-                            interleaved.add(ChapterPage(chapterIndex, chapter.title, enPages[i], isRtl = false))
+                            interleaved.add(ChapterPage(chapterIndex, chapter.title, enPages[i], isRtl = false, startOffsetInChapter = currentChapterOffset))
+                            currentChapterOffset += enPages[i].length
                         }
                         if (i < ancPages.size) {
                             val isRtl = ancPages[i].any { it in '\u0590'..'\u05FF' }
-                            interleaved.add(ChapterPage(chapterIndex, chapter.title, ancPages[i], isRtl = isRtl))
+                            interleaved.add(ChapterPage(chapterIndex, chapter.title, ancPages[i], isRtl = isRtl, startOffsetInChapter = currentChapterOffset))
+                            currentChapterOffset += ancPages[i].length
                         }
                     }
                     if (interleaved.isEmpty()) listOf(ChapterPage(chapterIndex, chapter.title, "[EMPTY_CHAPTER]"))
@@ -181,9 +234,12 @@ class EReaderViewModel @Inject constructor(
                 } else {
                     val pages = paginateParas(paragraphs, estimatedCharsPerPage)
                     val isRtl = book.language == "he"
+                    var currentChapterOffset = 0
                     if (pages.isEmpty()) listOf(ChapterPage(chapterIndex, chapter.title, "[EMPTY_CHAPTER]", isRtl = isRtl))
                     else pages.map { content ->
-                        ChapterPage(chapterIndex, chapter.title, content, isRtl = isRtl)
+                        val page = ChapterPage(chapterIndex, chapter.title, content, isRtl = isRtl, startOffsetInChapter = currentChapterOffset)
+                        currentChapterOffset += content.length
+                        page
                     }
                 }
             }
