@@ -393,16 +393,17 @@ fun EReaderScreen(
                                         val globalStart = page.startOffsetInChapter + isMin
                                         val globalEnd = page.startOffsetInChapter + isMax
                                         
-                                        // Find if selection overlaps or matches an existing highlight
-                                        val overlappingHighlight = highlights.find { 
+                                        // Find if selection overlaps any existing highlights
+                                        val overlappingHighlights = highlights.filter { 
                                             it.chapterIndex == page.chapterIndex &&
-                                            it.startOffset == globalStart && 
-                                            it.endOffset == globalEnd 
+                                            globalStart < it.endOffset && globalEnd > it.startOffset 
                                         }
 
                                         SelectionMenu(
                                             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp),
                                             onHighlight = { color ->
+                                                // Clear overlapping highlights to prevent stacking
+                                                overlappingHighlights.forEach { viewModel.deleteHighlight(it) }
                                                 viewModel.saveHighlight(
                                                     page.chapterIndex,
                                                     globalStart,
@@ -418,13 +419,13 @@ fun EReaderScreen(
                                                 selectionValue = selectionValue.copy(selection = TextRange.Zero)
                                                 scope.launch { snackbarHostState.showSnackbar("FRAGMENT_SAVED_TO_DATABASE") }
                                             },
-                                            onDelete = overlappingHighlight?.let { h ->
+                                            onDelete = if (overlappingHighlights.isNotEmpty()) {
                                                 {
-                                                    viewModel.deleteHighlight(h)
+                                                    overlappingHighlights.forEach { viewModel.deleteHighlight(it) }
                                                     selectionValue = selectionValue.copy(selection = TextRange.Zero)
                                                     scope.launch { snackbarHostState.showSnackbar("HIGHLIGHT_PURGED") }
                                                 }
-                                            }
+                                            } else null
                                         )
                                     }
                                 }

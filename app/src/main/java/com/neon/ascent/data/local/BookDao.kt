@@ -36,6 +36,9 @@ interface BookDao {
     @Delete
     suspend fun deleteHighlight(highlight: HighlightEntity)
 
+    @Query("DELETE FROM highlights WHERE bookId = :bookId")
+    suspend fun deleteHighlightsForBook(bookId: String)
+
     // Quotes
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertQuote(quote: QuoteEntity)
