@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.feature.biohacking.AiType
-import com.neon.ascent.feature.charactercreation.CyberFrame
+import com.neon.ascent.ui.CyberFrame
 import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.cos

@@ -31,9 +31,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.neon.ascent.feature.charactercreation.CyberButtonShape
-import com.neon.ascent.feature.charactercreation.CyberFrame
-import com.neon.ascent.feature.charactercreation.GlitchOverlay
 import com.neon.ascent.model.UserCharacter
 import com.neon.ascent.ui.*
 import kotlinx.coroutines.delay

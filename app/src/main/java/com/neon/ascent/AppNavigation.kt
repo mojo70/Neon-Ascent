@@ -7,13 +7,11 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
+import androidx.navigation.toRoute
 import com.neon.ascent.feature.biohacking.BiohackingScreen
 import com.neon.ascent.feature.charactercreation.AvatarCaptureScreen
 import com.neon.ascent.feature.charactercreation.CharacterCreationScreen
@@ -36,7 +34,6 @@ import com.neon.ascent.feature.settings.DeepNodeScreen
 import com.neon.ascent.feature.settings.SettingsScreen
 import com.neon.ascent.feature.wallet.EurodollarWalletScreen
 import com.neon.ascent.ui.cyberGlitch
-import kotlin.random.Random
 
 @Composable
 fun AppNavigation(
@@ -49,79 +46,75 @@ fun AppNavigation(
 
     NavHost(
         navController = navController, 
-        startDestination = "loading",
+        startDestination = Screen.Loading,
         enterTransition = { fadeIn(animationSpec = tween(300)) },
         exitTransition = { fadeOut(animationSpec = tween(300)) }
     ) {
-        composable("loading") {
+        composable<Screen.Loading> {
             LoadingScreen(
                 onLoadingFinished = {
-                    val target = if (userCharacter?.isCreationComplete == true) "main_hub" else "creation"
+                    val target = if (userCharacter?.isCreationComplete == true) Screen.MainHub else Screen.Creation
                     navController.navigate(target) {
-                        popUpTo("loading") { inclusive = true }
+                        popUpTo(Screen.Loading) { inclusive = true }
                     }
                 }
             )
         }
         
-        composable("main_hub") {
+        composable<Screen.MainHub> {
             val pagerState = rememberPagerState(pageCount = { 3 }, initialPage = 1)
             HorizontalPager(state = pagerState) { page ->
                 when (page) {
                     0 -> CyberdeckScreen(
-                        onWalletClick = { navController.navigate("wallet") },
-                        onDatabaseClick = { navController.navigate("journal") },
+                        onWalletClick = { navController.navigate(Screen.Wallet) },
+                        onDatabaseClick = { navController.navigate(Screen.Journal) },
                         onIceBreachClick = { 
-                            navController.navigate("ice_breach/ROOT")
+                            navController.navigate(Screen.IceBreach("ROOT"))
                         },
                         onCoreClick = {
-                            navController.navigate("core_dashboard")
+                            navController.navigate(Screen.CoreDashboard)
                         },
                         tickerMessages = tickerMessages
                     )
                     1 -> DashboardScreen(
-                        onAvatarClick = { navController.navigate("holographic_hub") },
-                        onAttributeSetClick = { navController.navigate("attribute_scan") },
-                        onStoryClick = { navController.navigate("story") },
-                        onGoalSetClick = { navController.navigate("goals") },
-                        onSettingsClick = { navController.navigate("settings") },
-                        onDeusExMachinaClick = { navController.navigate("deep_node/DEUS_EX_MACHINA") }
+                        onAvatarClick = { navController.navigate(Screen.HolographicHub) },
+                        onAttributeSetClick = { navController.navigate(Screen.AttributeScan) },
+                        onStoryClick = { navController.navigate(Screen.Story) },
+                        onGoalSetClick = { navController.navigate(Screen.Goals) },
+                        onSettingsClick = { navController.navigate(Screen.Settings) },
+                        onDeusExMachinaClick = { navController.navigate(Screen.DeepNode("DEUS_EX_MACHINA")) }
                     )
                     2 -> BiohackingScreen(onBack = { /* Handled by pager */ })
                 }
             }
         }
 
-        composable("holographic_hub") {
+        composable<Screen.HolographicHub> {
             HolographicAvatarHub(
                 onBack = { navController.popBackStack() },
                 onUpgradeClick = { /* TODO: Implement upgrades */ },
                 onHacksClick = { /* TODO: Navigate to biohacking page in pager */ },
-                onAttributeScanClick = { navController.navigate("attribute_scan") },
-                onStoryClick = { navController.navigate("story") },
-                onGoalSettingClick = { navController.navigate("goals") }
+                onAttributeScanClick = { navController.navigate(Screen.AttributeScan) },
+                onStoryClick = { navController.navigate(Screen.Story) },
+                onGoalSettingClick = { navController.navigate(Screen.Goals) }
             )
         }
 
-        composable(
-            route = "ice_breach/{context}",
-            arguments = listOf(navArgument("context") { type = NavType.StringType; defaultValue = "ROOT" })
-        ) { backStackEntry ->
-            val context = backStackEntry.arguments?.getString("context") ?: "ROOT"
+        composable<Screen.IceBreach> { backStackEntry ->
+            val iceBreach = backStackEntry.toRoute<Screen.IceBreach>()
+            val context = iceBreach.context
             IceBreachScreen(
                 onBreachSuccess = {
                     if (context == "ROOT") {
-                        // Check if we came from dashboard or cyberdeck
                         val prevRoute = navController.previousBackStackEntry?.destination?.route
-                        if (prevRoute?.contains("core_dashboard") == true) {
+                        if (prevRoute?.contains("CoreDashboard") == true) {
                             navController.popBackStack()
                         } else {
-                            navController.navigate("core_dashboard") {
-                                popUpTo("ice_breach/$context") { inclusive = true }
+                            navController.navigate(Screen.CoreDashboard) {
+                                popUpTo(Screen.IceBreach(context)) { inclusive = true }
                             }
                         }
                     } else {
-                        // Set result and pop back to dashboard
                         navController.previousBackStackEntry?.savedStateHandle?.set("unlocked_section", context)
                         navController.popBackStack()
                     }
@@ -130,7 +123,7 @@ fun AppNavigation(
             )
         }
 
-        composable("system_breach") {
+        composable<Screen.SystemBreach> {
             val journalViewModel: JournalViewModel = hiltViewModel()
             BlackIceBreachScreen(
                 onBreachSuccess = {
@@ -141,8 +134,7 @@ fun AppNavigation(
             )
         }
 
-        composable(
-            route = "core_dashboard",
+        composable<Screen.CoreDashboard>(
             enterTransition = {
                 slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(400, easing = LinearEasing)) +
                         fadeIn(animationSpec = tween(400))
@@ -154,7 +146,6 @@ fun AppNavigation(
         ) { backStackEntry ->
             val unlockedSection = backStackEntry.savedStateHandle.get<String>("unlocked_section")
             
-            // Custom glitch transition effect
             var glitchIntensity by remember { mutableFloatStateOf(1f) }
             LaunchedEffect(Unit) {
                 animate(1f, 0f, animationSpec = tween(600, easing = LinearOutSlowInEasing)) { value, _ ->
@@ -165,7 +156,7 @@ fun AppNavigation(
             Box(modifier = Modifier.fillMaxSize().cyberGlitch(glitchIntensity)) {
                 CoreDashboardScreen(
                     onBack = { navController.popBackStack() },
-                    onTriggerHack = { context -> navController.navigate("ice_breach/$context") },
+                    onTriggerHack = { context -> navController.navigate(Screen.IceBreach(context)) },
                     unlockedSectionFromResult = unlockedSection,
                     onUnlockConsumed = {
                         backStackEntry.savedStateHandle.remove<String>("unlocked_section")
@@ -174,35 +165,34 @@ fun AppNavigation(
             }
         }
 
-        composable("journal") {
+        composable<Screen.Journal> {
             JournalScreen(
                 onEntryClick = { /* TODO: Navigate to entry detail */ },
-                onStoryClick = { navController.navigate("story") },
+                onStoryClick = { navController.navigate(Screen.Story) },
                 onBack = { navController.popBackStack() },
-                onHackingRequired = { navController.navigate("system_breach") }
+                onHackingRequired = { navController.navigate(Screen.SystemBreach) }
             )
         }
 
-        composable("story") {
+        composable<Screen.Story> {
             StoryScreen(
                 onBack = { navController.popBackStack() },
-                onHackingRequired = { navController.navigate("system_breach") }
+                onHackingRequired = { navController.navigate(Screen.SystemBreach) }
             )
         }
 
-        composable("creation") {
+        composable<Screen.Creation> {
             CharacterCreationScreen(
                 onCreationFinished = { name, sex, dob, units, weight, somatotype, hFeet, hInches, hCm ->
                     creationViewModel.updateBasicInfo(name, sex, dob, units, weight, somatotype, hFeet, hInches, hCm)
-                    navController.navigate("personality_intake")
+                    navController.navigate(Screen.PersonalityIntake)
                 }
             )
         }
 
-        composable("personality_intake") {
+        composable<Screen.PersonalityIntake> {
             NeuralScanScreen(
                 onComplete = { answers ->
-                    // Derive and update personality info
                     val energy = if (answers["ENERGY_SOURCE"]?.contains("SOLO") == true) "I" else "E"
                     val info = if (answers["INPUT_METHOD"]?.contains("SENSORY") == true) "S" else "N"
                     val decision = if (answers["LOGIC_GATE"]?.contains("CYBER") == true) "T" else "F"
@@ -223,71 +213,71 @@ fun AppNavigation(
 
                     val (archetype, _) = deriveArchetype(mbti, alignment)
                     creationViewModel.updatePersonality(mbti, alignment, archetype)
-                    navController.navigate("avatar_capture")
+                    navController.navigate(Screen.AvatarCapture)
                 }
             )
         }
 
-        composable("avatar_capture") {
+        composable<Screen.AvatarCapture> {
             AvatarCaptureScreen(
                 onComplete = { bitmap ->
                     creationViewModel.completeCreation(bitmap)
-                    navController.navigate("main_hub") {
-                        popUpTo("creation") { inclusive = true }
+                    navController.navigate(Screen.MainHub) {
+                        popUpTo(Screen.Creation) { inclusive = true }
                     }
                 }
             )
         }
 
-        composable("attribute_scan") {
+        composable<Screen.AttributeScan> {
             NeuralScanScreen(onComplete = { navController.popBackStack() })
         }
 
-        composable("wallet") {
+        composable<Screen.Wallet> {
             EurodollarWalletScreen(onBack = { navController.popBackStack() })
         }
 
-        composable("settings") {
+        composable<Screen.Goals> {
+            // Placeholder for Goals Screen
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                androidx.compose.material3.Text("GOALS_SYSTEM_OFFLINE", color = androidx.compose.ui.graphics.Color.Red)
+            }
+        }
+
+        composable<Screen.Settings> {
             SettingsScreen(
                 onBack = { navController.popBackStack() },
                 onResetComplete = {
-                    navController.navigate("loading") {
+                    navController.navigate(Screen.Loading) {
                         popUpTo(0) { inclusive = true }
                     }
                 },
                 onDeepNodeUnlock = {
-                    navController.navigate("deep_node/ROOT")
+                    navController.navigate(Screen.DeepNode("ROOT"))
                 }
             )
         }
 
-        composable("deep_node/{nodeType}") { backStackEntry ->
-            val nodeType = backStackEntry.arguments?.getString("nodeType") ?: "DEUS_EX_MACHINA"
+        composable<Screen.DeepNode> { backStackEntry ->
+            val deepNode = backStackEntry.toRoute<Screen.DeepNode>()
             DeepNodeScreen(
-                initialSubScreen = nodeType,
+                initialSubScreen = deepNode.nodeType,
                 onBack = { navController.popBackStack() },
                 onReaderNavigate = { id, path ->
-                    navController.navigate("e_reader/$id?assetPath=$path")
+                    navController.navigate(Screen.EReader(id, path))
                 }
             )
         }
 
-        composable("character_bio") {
+        composable<Screen.CharacterBio> {
             AvatarCaptureScreen(onComplete = { navController.popBackStack() })
         }
 
-        composable(
-            route = "e_reader/{bookId}?assetPath={assetPath}",
-            arguments = listOf(
-                navArgument("bookId") { type = NavType.StringType },
-                navArgument("assetPath") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            val bookId = backStackEntry.arguments?.getString("bookId") ?: ""
-            val assetPath = backStackEntry.arguments?.getString("assetPath") ?: ""
+        composable<Screen.EReader> { backStackEntry ->
+            val eReader = backStackEntry.toRoute<Screen.EReader>()
             EReaderScreen(
-                bookId = bookId,
-                bookAssetPath = assetPath,
+                bookId = eReader.bookId,
+                bookAssetPath = eReader.assetPath,
                 onBack = { navController.popBackStack() }
             )
         }

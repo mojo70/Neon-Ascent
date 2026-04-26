@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -17,7 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
@@ -26,83 +24,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.neon.ascent.ui.CyberButtonShape
+import com.neon.ascent.ui.CyberFrame
+import com.neon.ascent.ui.CyberGridBackground
+import com.neon.ascent.ui.GlitchOverlay
 import com.neon.ascent.ui.theme.NeonAscentTheme
 import kotlinx.coroutines.delay
 import kotlin.random.Random
-
-// Custom shape for cyberpunk aesthetic
-val CyberButtonShape = GenericShape { size, _ ->
-    moveTo(0f, 12f)
-    lineTo(12f, 0f)
-    lineTo(size.width - 24f, 0f)
-    lineTo(size.width, 24f)
-    lineTo(size.width, size.height - 12f)
-    lineTo(size.width - 12f, size.height)
-    lineTo(24f, size.height)
-    lineTo(0f, size.height - 24f)
-    close()
-}
-
-@Composable
-fun GlitchOverlay(intensity: Float = 0.05f) {
-    var glitchTrigger by remember { mutableStateOf(0) }
-    
-    LaunchedEffect(intensity) {
-        while(true) {
-            val baseDelay = (2000 / (intensity * 10).coerceAtLeast(1f)).toLong()
-            delay(Random.nextLong(baseDelay, baseDelay * 2))
-            glitchTrigger++
-            delay(Random.nextLong(50, 150))
-            glitchTrigger++
-        }
-    }
-
-    if (glitchTrigger % 2 != 0) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val count = (Random.nextInt(3, 8) * (1f + intensity * 5f)).toInt()
-            repeat(count) {
-                val y = Random.nextFloat() * size.height
-                val height = Random.nextFloat() * 20f + 2f
-                val width = size.width * (Random.nextFloat() * 0.5f + 0.2f)
-                val x = if (Random.nextBoolean()) 0f else size.width - width
-                
-                val color = when(Random.nextInt(3)) {
-                    0 -> Color(0xFF00FF9C).copy(alpha = 0.4f + intensity * 0.4f)
-                    1 -> Color(0xFFFF006E).copy(alpha = 0.4f + intensity * 0.4f)
-                    else -> Color.White.copy(alpha = 0.3f + intensity * 0.4f)
-                }
-                
-                drawRect(
-                    color = color,
-                    topLeft = Offset(x, y),
-                    size = Size(width, height)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun CyberGridBackground() {
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        val gridSpacing = 30.dp.toPx()
-        val color = Color(0xFF00FF9C).copy(alpha = 0.08f)
-        
-        // Vertical lines
-        var x = 0f
-        while (x < size.width) {
-            drawLine(color, Offset(x, 0f), Offset(x, size.height), strokeWidth = 1f)
-            x += gridSpacing
-        }
-        
-        // Horizontal lines
-        var y = 0f
-        while (y < size.height) {
-            drawLine(color, Offset(0f, y), Offset(size.width, y), strokeWidth = 1f)
-            y += gridSpacing
-        }
-    }
-}
 
 @Composable
 fun MorphologyIcon(value: Float, modifier: Modifier = Modifier) {
@@ -386,40 +314,6 @@ fun CharacterCreationScreen(
             )
             
             Spacer(modifier = Modifier.height(48.dp))
-        }
-    }
-}
-
-@Composable
-fun CyberFrame(label: String, content: @Composable () -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(8.dp, 16.dp).background(Color(0xFFFF006E)))
-            Text(
-                text = label,
-                modifier = Modifier.padding(start = 12.dp),
-                style = MaterialTheme.typography.labelLarge.copy(
-                    color = Color(0xFF00FF9C),
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 2.sp
-                )
-            )
-        }
-        Box(
-            modifier = Modifier
-                .padding(top = 6.dp)
-                .fillMaxWidth()
-                .border(
-                    width = 1.dp,
-                    brush = Brush.verticalGradient(
-                        colors = listOf(Color(0xFF00FF9C).copy(alpha = 0.4f), Color.Transparent)
-                    ),
-                    shape = RectangleShape
-                )
-                .background(Color(0xFF00FF9C).copy(alpha = 0.02f))
-                .padding(16.dp)
-        ) {
-            content()
         }
     }
 }

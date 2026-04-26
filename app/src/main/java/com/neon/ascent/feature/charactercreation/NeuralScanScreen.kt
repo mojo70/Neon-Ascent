@@ -14,6 +14,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.neon.ascent.ui.CyberGridBackground
+import com.neon.ascent.ui.GlitchOverlay
+import com.neon.ascent.ui.CyberButtonShape
+import com.neon.ascent.ui.CyberFrame
 
 @Composable
 fun NeuralScanScreen(onComplete: (Map<String, String>) -> Unit) {

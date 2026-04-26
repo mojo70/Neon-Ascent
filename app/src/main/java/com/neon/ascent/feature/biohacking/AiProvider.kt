@@ -6,7 +6,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.future.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -29,7 +28,7 @@ class AiProvider @Inject constructor(
     suspend fun initialize() {
         when {
             gemmaClient.isAvailable() -> {
-                gemmaClient.initialize().await()
+                gemmaClient.initialize()
                 _activeAiType.value = AiType.LOCAL
             }
             geminiNanoClient.isSupported() -> {
@@ -61,7 +60,7 @@ class AiProvider @Inject constructor(
         val shouldForceLocal = forceLocal || isGlobalLocalOnly
         
         return when {
-            gemmaClient.isAvailable() -> gemmaClient.generateContent(prompt).await()
+            gemmaClient.isAvailable() -> gemmaClient.generateContent(prompt)
             currentType == AiType.LOCAL -> geminiNanoClient.generateContent(prompt)
             shouldForceLocal -> "ERROR: LOCAL_AI_CORE_REQUIRED_BUT_UNAVAILABLE"
             currentType == AiType.CLOUD -> cloudGeminiClient.generateContent(prompt)
