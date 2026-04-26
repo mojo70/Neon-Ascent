@@ -21,6 +21,21 @@ interface UserCharacterDao {
     @Query("UPDATE user_character SET holyGhost = :level WHERE id = 0")
     suspend fun updateHolyGhost(level: Int)
 
+    @Query("UPDATE user_character SET holyGhostExp = holyGhostExp + :points WHERE id = 0")
+    suspend fun addHolyGhostExp(points: Int)
+
+    @Query("UPDATE user_character SET prayerStreak = :streak, lastPrayerDate = :date WHERE id = 0")
+    suspend fun updatePrayerStats(streak: Int, date: Long)
+
+    @Query("UPDATE user_character SET waterBaptized = :isBaptized WHERE id = 0")
+    suspend fun updateWaterBaptized(isBaptized: Boolean)
+
+    @Query("UPDATE user_character SET holySpiritBaptized = :isBaptized WHERE id = 0")
+    suspend fun updateHolySpiritBaptized(isBaptized: Boolean)
+
+    @Query("UPDATE user_character SET hasTonguesAura = :hasAura WHERE id = 0")
+    suspend fun updateTonguesAura(hasAura: Boolean)
+
     @Query("UPDATE user_character SET eddies = :eddies WHERE id = 0")
     suspend fun updateEddies(eddies: Int)
 

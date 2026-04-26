@@ -90,6 +90,12 @@ class SettingsRepository @Inject constructor(
     private val _isFirstAiCoreEntry = MutableStateFlow(sharedPreferences.getBoolean("first_ai_core_entry", true))
     val isFirstAiCoreEntry: StateFlow<Boolean> = _isFirstAiCoreEntry.asStateFlow()
 
+    private val _hasCompletedSinnersPrayer = MutableStateFlow(sharedPreferences.getBoolean("has_completed_sinners_prayer", false))
+    val hasCompletedSinnersPrayer: StateFlow<Boolean> = _hasCompletedSinnersPrayer.asStateFlow()
+
+    private val _lastAltarVisit = MutableStateFlow(sharedPreferences.getLong("last_altar_visit", 0L))
+    val lastAltarVisit: StateFlow<Long> = _lastAltarVisit.asStateFlow()
+
     fun setBiometricLockEnabled(enabled: Boolean) {
         sharedPreferences.edit().putBoolean("biometric_lock", enabled).apply()
         _isBiometricLockEnabled.value = enabled
@@ -128,6 +134,16 @@ class SettingsRepository @Inject constructor(
     fun setFirstAiCoreEntry(isFirst: Boolean) {
         sharedPreferences.edit().putBoolean("first_ai_core_entry", isFirst).apply()
         _isFirstAiCoreEntry.value = isFirst
+    }
+
+    fun setCompletedSinnersPrayer(completed: Boolean) {
+        sharedPreferences.edit().putBoolean("has_completed_sinners_prayer", completed).apply()
+        _hasCompletedSinnersPrayer.value = completed
+    }
+
+    fun setLastAltarVisit(timestamp: Long) {
+        sharedPreferences.edit().putLong("last_altar_visit", timestamp).apply()
+        _lastAltarVisit.value = timestamp
     }
 
     fun getBookProgress(bookId: String): Int {
