@@ -227,15 +227,15 @@ fun DeepNodeScreen(
                             }
                         }
 
-                        CyberFrame(label = "DIVINE_INTERFACE") {
-                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                SettingsItem("THE WORD - OLD TESTAMENT", color = Color(0xFF00FF9C), onClick = { onReaderNavigate("ot_word", "library/Old_Testament.epub") })
-                                SettingsItem("THE WORD - NEW TESTAMENT", color = Color(0xFF00FF9C), onClick = { onReaderNavigate("nt_word_v3", "library/New_Testament.epub") })
-                                SettingsItem("BIBLE_KOINE_GREEK", onClick = { onReaderNavigate("nt_koine", "library/nt_koine.epub") })
-                                SettingsItem("BIBLE_HEBREW_WLC", onClick = { onReaderNavigate("ot_hebrew", "library/ot_hebrew.epub") })
-                                SettingsItem("BIBLE_WEB_ENGLISH", onClick = { onReaderNavigate("bible_web", "library/bible_web.epub") })
+                            CyberFrame(label = "DIVINE_INTERFACE") {
+                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    SettingsItem("THE WORD - OLD TESTAMENT", color = Color(0xFF00FF9C), onClick = { onReaderNavigate("ot_word", "library/Old_Testament.epub") })
+                                    SettingsItem("THE WORD - NEW TESTAMENT", color = Color(0xFF00FF9C), onClick = { onReaderNavigate("nt_word_v3", "library/New_Testament.epub") })
+                                    // SettingsItem("BIBLE_KOINE_GREEK", onClick = { onReaderNavigate("nt_koine", "library/nt_koine.epub") })
+                                    // SettingsItem("BIBLE_HEBREW_WLC", onClick = { onReaderNavigate("ot_hebrew", "library/ot_hebrew.epub") })
+                                    // SettingsItem("BIBLE_WEB_ENGLISH", onClick = { onReaderNavigate("bible_web", "library/bible_web.epub") })
+                                }
                             }
-                        }
                         CyberFrame(label = "AI_CHRIST_COMM_LINK") {
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 SettingsItem("INIT_TEXT_UPLINK", onClick = {})
@@ -249,8 +249,10 @@ fun DeepNodeScreen(
                     CyberFrame(label = "KNOWLEDGE_ARCHIVE") {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text("SELECT_ENTRY:", color = Color.White, fontWeight = FontWeight.Bold)
-                            SettingsItem("NEUROMANCER_DECRYPT", onClick = { onReaderNavigate("neuromancer", "library/neuromancer.epub") })
-                            SettingsItem("SNOW_CRASH_LOGS", onClick = { onReaderNavigate("snow_crash", "library/snow_crash.epub") })
+                            // SettingsItem("NEUROMANCER_DECRYPT", onClick = { onReaderNavigate("neuromancer", "library/neuromancer.epub") })
+                            // SettingsItem("SNOW_CRASH_LOGS", onClick = { onReaderNavigate("snow_crash", "library/snow_crash.epub") })
+                            SettingsItem("CONSOLATION_OF_PHILOSOPHY", onClick = { onReaderNavigate("consolation", "library/ConsolationofPhilosophy.epub") })
+                            SettingsItem("APOLOGY_LOGS", onClick = { onReaderNavigate("apology", "library/Apology.epub") })
                             SettingsItem("ART_OF_WAR_PROTOCOLS", onClick = { onReaderNavigate("art_of_war", "library/TheArtofWar.epub") })
                             SettingsItem("MEDITATIONS_LOGS", onClick = { onReaderNavigate("meditations", "library/Meditations.epub") })
                             SettingsItem("THE_PRINCE_DECRYPT", onClick = { onReaderNavigate("the_prince", "library/ThePrince.epub") })

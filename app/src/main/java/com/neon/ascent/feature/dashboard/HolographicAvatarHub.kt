@@ -314,6 +314,7 @@ fun HolographicAvatarHub(
                                     "AGI" to (userCharacter?.agility ?: 0),
                                     "END" to (userCharacter?.endurance ?: 0),
                                     "PER" to (userCharacter?.perception ?: 0),
+                                    "INT" to (userCharacter?.intelligence ?: 0),
                                     "CHA" to (userCharacter?.charisma ?: 0),
                                     "LUC" to (userCharacter?.luck ?: 0)
                                 ),

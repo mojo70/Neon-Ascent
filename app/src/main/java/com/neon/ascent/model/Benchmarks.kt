@@ -1,11 +1,17 @@
 package com.neon.ascent.model
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "strength_benchmarks")
 data class StrengthBenchmark(
     val ageGroup: String,
     val sex: String,
     val weightClass: String,
     val bench1RM: Int, // e.g., IPF standards
-    // Add squat, deadlift from USAPL/IPF data
+    val squat1RM: Int? = null,
+    val deadlift1RM: Int? = null,
+    @PrimaryKey(autoGenerate = true) val id: Int = 0
 )
 
 val IPF_BENCHMARKS = listOf(

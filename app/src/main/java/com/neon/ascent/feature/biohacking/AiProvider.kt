@@ -26,17 +26,23 @@ class AiProvider @Inject constructor(
     val activeAiType: StateFlow<AiType> = _activeAiType.asStateFlow()
 
     suspend fun initialize() {
-        when {
-            gemmaClient.isAvailable() -> {
-                gemmaClient.initialize()
-                _activeAiType.value = AiType.LOCAL
+        try {
+            when {
+                gemmaClient.isAvailable() -> {
+                    gemmaClient.initialize()
+                    _activeAiType.value = AiType.LOCAL
+                }
+                geminiNanoClient.isSupported() -> {
+                    _activeAiType.value = AiType.LOCAL
+                }
+                else -> {
+                    _activeAiType.value = AiType.CLOUD
+                }
             }
-            geminiNanoClient.isSupported() -> {
-                _activeAiType.value = AiType.LOCAL
-            }
-            else -> {
-                _activeAiType.value = AiType.CLOUD
-            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // Fallback to Cloud if local initialization fails
+            _activeAiType.value = AiType.CLOUD
         }
     }
 

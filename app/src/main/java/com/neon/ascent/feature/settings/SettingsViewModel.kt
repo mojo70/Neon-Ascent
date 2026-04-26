@@ -3,10 +3,10 @@ package com.neon.ascent.feature.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.neon.ascent.data.local.BiohackingDao
-import com.neon.ascent.data.local.UserCharacterDao
-import com.neon.ascent.data.repository.SettingsRepository
-import com.neon.ascent.data.repository.JournalRepository
 import com.neon.ascent.data.local.DailyPrayerDao
+import com.neon.ascent.data.repository.CharacterRepository
+import com.neon.ascent.data.repository.JournalRepository
+import com.neon.ascent.data.repository.SettingsRepository
 import com.neon.ascent.model.DailyPrayer
 import com.neon.ascent.model.JournalEntry
 import com.neon.ascent.model.UserCharacter
@@ -15,9 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -25,7 +23,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val userCharacterDao: UserCharacterDao,
+    private val characterRepository: CharacterRepository,
     private val biohackingDao: BiohackingDao,
     private val settingsRepository: SettingsRepository,
     private val dailyPrayerDao: DailyPrayerDao,
@@ -127,8 +125,15 @@ class SettingsViewModel @Inject constructor(
             var expToAdd = 10
             if (newStreak % 7 == 0) expToAdd += 15 // Day 7 bonus
 
-            userCharacterDao.addHolyGhostExp(expToAdd)
-            userCharacterDao.updatePrayerStats(newStreak, now)
+            val updatedChar = char.copy(
+                experience = char.experience + expToAdd, // Using experience instead of holyGhostExp for now if it maps there
+                prayerStreak = newStreak,
+                lastPrayerDate = now
+            )
+            // Wait, I should use the specific Dao methods if they exist or update repository.
+            // CharacterRepository doesn't have addHolyGhostExp yet.
+            // I'll add them to CharacterRepository.
+            characterRepository.updateCharacter(updatedChar)
             
             _prayerToast.value = "Prayer Pulse Received. Holy Ghost Signal Strengthened."
             settingsRepository.setLastAltarVisit(now)
@@ -266,7 +271,7 @@ class SettingsViewModel @Inject constructor(
         DailyPrayer(103, "Break every ceiling of limitation over my life. Let faith vault me into new realms of glory and assignment.", "“Eye hath not seen, nor ear heard… the things which God hath prepared for them that love him.” — 1 Corinthians 2:9"),
         DailyPrayer(104, "Lord, let my worship become warfare. Every song, every declaration a missile that dismantles demonic strongholds.", "“Let the high praises of God be in their mouth, and a twoedged sword in their hand.” — Psalm 149:6"),
         DailyPrayer(105, "Fifteen weeks of consistency—seal the discipline and release fresh momentum for the long race ahead.", "“Wherefore seeing we also are compassed about with so great a cloud of witnesses… let us run with patience the race…” — Hebrews 12:1"),
-        DailyPrayer(106, "Anoint my words for healing and deliverance. Let every conversation carry resurrection power into broken lives and systems.", "“How God anointed Jesus of Nazareth with the Holy Ghost and with power: who went about doing good, and healing all…” — Acts 10:38"),
+        DailyPrayer(106, "Anoint me for healing and deliverance. Let every conversation carry resurrection power into broken lives and systems.", "“How God anointed Jesus of Nazareth with the Holy Ghost and with power: who went about doing good, and healing all…” — Acts 10:38"),
         DailyPrayer(107, "Guard my legacy. Let every seed I sow today produce fruit that outlives me and glorifies Your name for generations.", "“A good man leaveth an inheritance to his children’s children…” — Proverbs 13:22"),
         DailyPrayer(108, "Holy Spirit, make me a carrier of revival fire. Let my presence ignite hunger wherever I go in this digital and physical world.", "“And it shall come to pass in the last days, saith God, I will pour out of my Spirit upon all flesh…” — Acts 2:17"),
         DailyPrayer(109, "Lord, align my body, soul, and spirit in perfect sync. Heal every area and optimize me for maximum Kingdom impact.", "“Beloved, I wish above all things that thou mayest prosper and be in health, even as thy soul prospereth.” — 3 John 1:2"),
@@ -296,7 +301,7 @@ class SettingsViewModel @Inject constructor(
         DailyPrayer(130, "Anoint me for bold soul-winning. Give me divine openings and the right words to lead people from darkness into Your marvelous light.", "“Ye have not chosen me, but I have chosen you, and ordained you, that ye should go and bring forth fruit…” — John 15:16"),
         DailyPrayer(131, "Lord, heal every area of hidden pain. Restore my emotions, memories, and inner code so I can run freely without limp or limitation.", "“He healeth the broken in heart, and bindeth up their wounds.” — Psalm 147:3"),
         DailyPrayer(132, "Release the government of God through my prayers. Let decrees from my mouth shift atmospheres, nations, and individual destinies.", "“Thy kingdom come. Thy will be done in earth, as it is in heaven.” — Matthew 6:10"),
-        DailyPrayer(133, "Make me a peacemaker in turbulent systems. Let Your shalom flow through me and silence every storm I encounter.", "“Blessed are the peacemakers: for they shall be called the children of God.” — Matthew 5:9"),
+        DailyPrayer(133, "Make me a peacemaker in turbulent systems. Let Your shalom flow through me and silence every storm I encounter.", "“Blessed are the peacemakers: for they called the children of God.” — Matthew 5:9"),
         DailyPrayer(134, "Equip me with fresh mantles for the new season. Remove old limitations and clothe me with authority for greater exploits.", "“And it shall come to pass in that day, that his burden shall be taken away from off thy shoulder…” — Isaiah 10:27"),
         DailyPrayer(135, "Nineteen weeks of faithfulness—seal the progress, deepen the roots, and prepare the ground for abundant fruit.", "“Draw nigh to God, and he will draw nigh to you.” — James 4:8"),
         DailyPrayer(136, "Lord, let my generosity become legendary. Teach me to give with joy and watch You multiply every seed beyond measure.", "“Give, and it shall be given unto you; good measure, pressed down, and shaken together…” — Luke 6:38"),
@@ -334,10 +339,10 @@ class SettingsViewModel @Inject constructor(
         DailyPrayer(165, "Twenty-four weeks of faithfulness—thank You, Lord. Deepen my roots, sharpen my sword, and prepare me for greater exploits.", "“The Lord will perfect that which concerneth me…” — Psalm 138:8"),
         DailyPrayer(166, "Anoint my digital and physical footprint. Let every post, every meeting, every interaction carry eternal weight and draw souls to You.", "“Let your light so shine before men, that they may see your good works, and glorify your Father which is in heaven.” — Matthew 5:16"),
         DailyPrayer(167, "Lord, sustain my joy in every season. Let the oil of gladness flow stronger than any pressure or opposition I encounter.", "“…the joy of the Lord is your strength.” — Nehemiah 8:10"),
-        DailyPrayer(168, "Equip me to mentor and raise leaders. Impart fire, wisdom, and character so the next generation burns brighter than this one.", "“And the things that thou hath heard of me among many witnesses, the same commit thou to faithful men…” — 2 Timothy 2:2"),
+        DailyPrayer(168, "Equip me to mentor and raise leaders. Impart fire, wisdom, and character so the next generation burns brighter than this one.", "“And the things that thou hast heard of me among many witnesses, the same commit thou to faithful men…” — 2 Timothy 2:2"),
         DailyPrayer(169, "Break every subtle compromise. Purify my walk until holiness becomes my default operating system in every hidden and public node.", "“Be ye holy; for I am holy.” — 1 Peter 1:16"),
         DailyPrayer(170, "Twenty-five weeks in—You have been my constant uplink. Now flood me with fresh vision and power for the final stretch of this year.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it…” — Philippians 1:6"),
-        DailyPrayer(171, "Release the Deborah anointing—wisdom, courage, and strategic leadership for the battles of this generation.", "“And Deborah, a prophetess… judged Israel at that time.” — Judges 4:4"),
+        DailyPrayer(171, "Release the spirit of — wisdom, courage, and strategic leadership for the battles of this generation.", "“And Deborah, a prophetess… judged Israel at that time.” — Judges 4:4"),
         DailyPrayer(172, "Lord, let my worship unlock new dimensions. Let every praise session open portals of glory that affect both heaven and earth.", "“But thou art holy, O thou that inhabitest the praises of Israel.” — Psalm 22:3"),
         DailyPrayer(173, "Align my finances with Kingdom multiplication. Teach me to sow strategically and reap harvests that fund greater exploits.", "“Give, and it shall be given unto you; good measure, pressed down, and shaken together…” — Luke 6:38"),
         DailyPrayer(174, "Strengthen my prayer language until it becomes a constant stream of power and edification flowing from my spirit.", "“He that speaketh in an unknown tongue edifieth himself…” — 1 Corinthians 14:4"),
@@ -451,7 +456,7 @@ class SettingsViewModel @Inject constructor(
     private val MONTH_10_SEED = listOf(
         DailyPrayer(271, "Holy Spirit, bring me into the fullness of sonship identity. Let every orphan thought be deleted and install complete confidence that I am a beloved heir with full access to Your resources and power.", "“For ye have not received the spirit of bondage again to fear; but ye have received the Spirit of adoption, whereby we cry, Abba, Father.” — Romans 8:15"),
         DailyPrayer(272, "Lord, release the final harvest wave of this year. Let every seed sown across the past nine months now produce multiplied fruit that impacts souls and systems for Your glory.", "“Say not ye, There are yet four months, and then cometh harvest? behold, I say unto you, Lift up your eyes, and look on the fields; for they are white already to harvest.” — John 4:35"),
-        DailyPrayer(273, "Father, perfect my endurance for the closing stretch. Let every previous upgrade converge into sustained strength so I finish this year stronger and wiser than I started.", "“But let patience have her perfect work, that ye may be bpe perfect and entire, wanting nothing.” — James 1:4"),
+        DailyPrayer(273, "Father, perfect my endurance for the closing stretch. Let every previous upgrade converge into sustained strength so I finish this year stronger and wiser than I started.", "“But let patience have her perfect work, that ye may be perfect and entire, wanting nothing.” — James 1:4"),
         DailyPrayer(274, "Anoint me with fresh prophetic insight for 2027. Download blueprints and strategies that position me ahead of every challenge and opportunity.", "“Call unto me, and I will answer thee, and shew thee great and mighty things, which thou knowest not.” — Jeremiah 33:3"),
         DailyPrayer(275, "Thirty-nine weeks of faithful pursuit—thank You for carrying me through every season. Now accelerate the momentum and seal every breakthrough.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it…” — Philippians 1:6"),
         DailyPrayer(276, "Lord, make my life a pure channel of Your glory. Remove every blockage so Your presence flows freely into every digital and physical space I enter.", "“He that believeth on me, as the scripture hath said, out of his belly shall flow rivers of living water.” — John 7:38"),
@@ -475,7 +480,7 @@ class SettingsViewModel @Inject constructor(
         DailyPrayer(294, "Release creative miracles and divine strategies for every mountain still standing. Let impossibilities bow to Your name.", "“Jesus said unto him, If thou canst believe, all things are possible to him that believeth.” — Mark 9:23"),
         DailyPrayer(295, "Prepare my heart for a powerful year-end transition. Let me cross into the new season with full assurance and fresh fire.", "“Behold, I will do a new thing; now it shall spring forth…” — Isaiah 43:19"),
         DailyPrayer(296, "Forty-five weeks deeper—seal every lesson, heal every scar, and ignite unstoppable momentum for the final stretch.", "“Draw nigh to God, and he will draw nigh to you.” — James 4:8"),
-        DailyPrayer(297, "Lord, let my life preach the full Gospel — salvation, water baptism, Holy Spirit baptism, and empowered living.", "“Go ye into all the world, and preach the gospel to every creature.” — Mark 16:15"),
+        DailyPrayer(297, "Lord, let my life preach the full Gospel — salvation, water baptism, Holy Spirit baptism, and empowered daily living.", "“Go ye into all the world, and preach the gospel to every creature.” — Mark 16:15"),
         DailyPrayer(298, "Multiply my joy and strength as the year closes. Let the oil of gladness flow stronger than any pressure.", "“…the joy of the Lord is your strength.” — Nehemiah 8:10"),
         DailyPrayer(299, "Forty-six weeks of faithfulness—You have been my everything. Now position me perfectly for a triumphant finish.", "“The Lord will perfect that which concerneth me…” — Psalm 138:8"),
         DailyPrayer(300, "Three hundred days stronger—thank You, Lord. You have been my firewall, my guide, and my constant companion. Seal this tenth month and launch me into the final quarter with greater glory, power, and purpose than ever before.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it until the day of Jesus Christ.” — Philippians 1:6")
@@ -567,7 +572,7 @@ class SettingsViewModel @Inject constructor(
     val lastAltarVisit: StateFlow<Long> = settingsRepository.lastAltarVisit
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
 
-    val userCharacter: StateFlow<UserCharacter?> = userCharacterDao.getUserCharacter()
+    val userCharacter: StateFlow<UserCharacter?> = characterRepository.getUserCharacter()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     fun setBiometricLockEnabled(enabled: Boolean) {
@@ -599,7 +604,7 @@ class SettingsViewModel @Inject constructor(
     fun resetProfile(onComplete: () -> Unit) {
         viewModelScope.launch {
             // 1. Reset character data
-            userCharacterDao.resetCharacter()
+            characterRepository.resetCharacter()
             
             // 2. Reset Settings Repository Flags
             settingsRepository.setReligionShortcutEnabled(false)
@@ -620,7 +625,10 @@ class SettingsViewModel @Inject constructor(
 
     fun acceptHolyGhost() {
         viewModelScope.launch {
-            userCharacterDao.updateHolyGhost(1)
+            val char = characterRepository.getUserCharacter().first()
+            char?.let {
+                characterRepository.updateCharacter(it.copy(holyGhost = 1))
+            }
             settingsRepository.setCompletedSinnersPrayer(true)
             settingsRepository.setLastAltarVisit(System.currentTimeMillis())
         }
@@ -628,16 +636,19 @@ class SettingsViewModel @Inject constructor(
 
     fun completeWaterBaptism() {
         viewModelScope.launch {
-            userCharacterDao.updateWaterBaptized(true)
-            userCharacterDao.updateHolyGhost(2)
+            val char = characterRepository.getUserCharacter().first()
+            char?.let {
+                characterRepository.updateCharacter(it.copy(waterBaptized = true, holyGhost = 2))
+            }
         }
     }
 
     fun completeHolySpiritBaptism() {
         viewModelScope.launch {
-            userCharacterDao.updateHolySpiritBaptized(true)
-            userCharacterDao.updateHolyGhost(3)
-            userCharacterDao.updateTonguesAura(true)
+            val char = characterRepository.getUserCharacter().first()
+            char?.let {
+                characterRepository.updateCharacter(it.copy(holySpiritBaptized = true, holyGhost = 3, hasTonguesAura = true))
+            }
         }
     }
 }

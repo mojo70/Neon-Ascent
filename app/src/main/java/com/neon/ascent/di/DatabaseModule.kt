@@ -3,6 +3,7 @@ package com.neon.ascent.di
 import android.content.Context
 import androidx.room.Room
 import com.neon.ascent.data.local.AppDatabase
+import com.neon.ascent.data.local.BenchmarkDao
 import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.BookDao
 import com.neon.ascent.data.local.DailyPrayerDao
@@ -17,6 +18,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import net.sqlcipher.database.SQLiteDatabase
 import net.sqlcipher.database.SupportFactory
 import javax.inject.Singleton
 
@@ -26,13 +28,13 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
-        val passphrase = net.sqlcipher.database.SQLiteDatabase.getBytes("NEON_ASCENT_SECURE_KEY".toCharArray())
+        val passphrase = SQLiteDatabase.getBytes("neon_protocol_secure_alpha".toCharArray())
         val factory = SupportFactory(passphrase)
-
+        
         return Room.databaseBuilder(
             context,
             AppDatabase::class.java,
-            "neon_ascent_v3_secure.db" 
+            "neon_ascent_v5_secure.db"
         )
         .openHelperFactory(factory)
         .fallbackToDestructiveMigration()
@@ -82,5 +84,10 @@ object DatabaseModule {
     @Provides
     fun provideDailyPrayerDao(database: AppDatabase): DailyPrayerDao {
         return database.dailyPrayerDao()
+    }
+
+    @Provides
+    fun provideBenchmarkDao(database: AppDatabase): BenchmarkDao {
+        return database.benchmarkDao()
     }
 }

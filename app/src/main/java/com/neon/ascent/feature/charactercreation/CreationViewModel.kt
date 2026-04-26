@@ -7,7 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
 import com.neon.ascent.BuildConfig
-import com.neon.ascent.data.local.UserCharacterDao
+import com.neon.ascent.data.repository.CharacterRepository
 import com.neon.ascent.model.UserCharacter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,14 +23,14 @@ import javax.inject.Inject
 
 @HiltViewModel
 class CreationViewModel @Inject constructor(
-    private val userCharacterDao: UserCharacterDao,
+    private val characterRepository: CharacterRepository,
     application: Application
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow<CreationUiState>(CreationUiState.Initial)
     val uiState = _uiState.asStateFlow()
 
-    val userCharacter: StateFlow<UserCharacter?> = userCharacterDao.getUserCharacter()
+    val userCharacter: StateFlow<UserCharacter?> = characterRepository.getUserCharacter()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private var draftCharacter = UserCharacter(
@@ -70,21 +70,21 @@ class CreationViewModel @Inject constructor(
                 heightInches = heightInches,
                 heightCm = heightCm
             )
-            userCharacterDao.insertUserCharacter(finalCharacter)
+            characterRepository.saveCharacter(finalCharacter)
             _uiState.value = CreationUiState.Success
         }
     }
 
     fun updatePersonality(mbti: String, alignment: String, archetype: String) {
         viewModelScope.launch {
-            val char = userCharacterDao.getUserCharacter().first()
+            val char = characterRepository.getUserCharacter().first()
             char?.let {
                 val updated = it.copy(
                     mbti = mbti,
                     alignment = alignment,
                     archetype = archetype
                 )
-                userCharacterDao.insertUserCharacter(updated)
+                characterRepository.saveCharacter(updated)
             }
         }
     }
@@ -93,7 +93,7 @@ class CreationViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = CreationUiState.Loading
             try {
-                val char = userCharacterDao.getUserCharacter().first()
+                val char = characterRepository.getUserCharacter().first()
                 char?.let {
                     var savedPath: String? = null
                     if (avatarBitmap != null) {
@@ -108,7 +108,7 @@ class CreationViewModel @Inject constructor(
                         isCreationComplete = true,
                         avatarPath = savedPath ?: it.avatarPath
                     )
-                    userCharacterDao.insertUserCharacter(finalCharacter)
+                    characterRepository.saveCharacter(finalCharacter)
                     _uiState.value = CreationUiState.Success
                 }
             } catch (e: Exception) {
@@ -137,7 +137,7 @@ class CreationViewModel @Inject constructor(
                     neuralLoad = 0.2f,
                     isCreationComplete = true
                 )
-                userCharacterDao.insertUserCharacter(character)
+                characterRepository.saveCharacter(character)
                 _uiState.value = CreationUiState.Success
             } catch (e: Exception) {
                 _uiState.value = CreationUiState.Error(e.message ?: "Unknown error")

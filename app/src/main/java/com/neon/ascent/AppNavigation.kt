@@ -13,6 +13,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.neon.ascent.feature.biohacking.BiohackingScreen
+import com.neon.ascent.feature.charactercreation.AttributeScanScreen
 import com.neon.ascent.feature.charactercreation.AvatarCaptureScreen
 import com.neon.ascent.feature.charactercreation.CharacterCreationScreen
 import com.neon.ascent.feature.charactercreation.CreationViewModel
@@ -235,7 +236,7 @@ fun AppNavigation(
         }
 
         composable<Screen.AttributeScan> {
-            NeuralScanScreen(onComplete = { navController.popBackStack() })
+            AttributeScanScreen(onComplete = { navController.popBackStack() })
         }
 
         composable<Screen.Wallet> {

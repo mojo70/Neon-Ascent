@@ -33,6 +33,7 @@ data class UserCharacter(
     val charisma: Int? = null,
     val agility: Int? = null,
     val luck: Int? = null,
+    val intelligence: Int? = null,
     val holyGhost: Int? = 0,
     val holyGhostExp: Int = 0,
     val prayerStreak: Int = 0,

@@ -18,8 +18,9 @@ import com.neon.ascent.model.*
     ChapterEntity::class,
     HighlightEntity::class,
     QuoteEntity::class,
-    DailyPrayer::class
-], version = 23)
+    DailyPrayer::class,
+    StrengthBenchmark::class
+], version = 31)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userCharacterDao(): UserCharacterDao
     abstract fun biohackingDao(): BiohackingDao
@@ -30,4 +31,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun loreDao(): LoreDao
     abstract fun bookDao(): BookDao
     abstract fun dailyPrayerDao(): DailyPrayerDao
+    abstract fun benchmarkDao(): BenchmarkDao
 }

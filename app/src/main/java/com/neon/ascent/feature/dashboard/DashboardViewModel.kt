@@ -8,7 +8,8 @@ import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.Priority
 import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.SayingsDao
-import com.neon.ascent.data.local.UserCharacterDao
+import com.neon.ascent.data.repository.BenchmarkRepository
+import com.neon.ascent.data.repository.CharacterRepository
 import com.neon.ascent.data.repository.HealthRepository
 import com.neon.ascent.data.repository.SettingsRepository
 import com.neon.ascent.data.repository.WeatherRepository
@@ -44,16 +45,17 @@ data class HealthState(
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
-    private val userCharacterDao: UserCharacterDao,
+    private val characterRepository: CharacterRepository,
     private val biohackingDao: BiohackingDao,
     private val sayingsDao: SayingsDao,
     private val weatherRepository: WeatherRepository,
     private val healthRepository: HealthRepository,
     private val settingsRepository: SettingsRepository,
+    private val benchmarkRepository: BenchmarkRepository,
     private val fusedLocationClient: FusedLocationProviderClient,
     private val aiProvider: AiProvider
 ) : ViewModel() {
-    val userCharacter: StateFlow<UserCharacter?> = userCharacterDao.getUserCharacter()
+    val userCharacter: StateFlow<UserCharacter?> = characterRepository.getUserCharacter()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val biohackingData: StateFlow<BiohackingData?> = biohackingDao.getBiohackingData(0)
@@ -91,6 +93,9 @@ class DashboardViewModel @Inject constructor(
         refreshHealthData()
         generateSystemAdvice()
         refreshSnapshotSaying()
+        viewModelScope.launch {
+            benchmarkRepository.populateBenchmarksFromCsv()
+        }
     }
 
     private fun seedSayingsIfEmpty() {
@@ -255,16 +260,14 @@ class DashboardViewModel @Inject constructor(
     fun updateNetrunnerName(newName: String) {
         viewModelScope.launch {
             userCharacter.value?.let {
-                userCharacterDao.updateUserCharacter(it.copy(netrunnerName = newName))
+                characterRepository.updateCharacter(it.copy(netrunnerName = newName))
             }
         }
     }
 
     fun updateChessElo(newElo: Int) {
         viewModelScope.launch {
-            userCharacter.value?.let {
-                userCharacterDao.updateUserCharacter(it.copy(chessElo = newElo))
-            }
+            characterRepository.updateChessElo(newElo)
         }
     }
 }
