@@ -44,6 +44,12 @@ sealed interface Screen {
     data object Wallet : Screen
 
     @Serializable
+    data class CyberChess(val returnToDopamine: Boolean = false) : Screen
+
+    @Serializable
+    data class CyberPong(val returnToDopamine: Boolean = true) : Screen
+
+    @Serializable
     data object Goals : Screen
 
     @Serializable

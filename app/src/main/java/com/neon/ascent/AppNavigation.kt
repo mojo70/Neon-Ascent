@@ -25,6 +25,8 @@ import com.neon.ascent.feature.dashboard.CoreDashboardScreen
 import com.neon.ascent.feature.dashboard.HolographicAvatarHub
 import com.neon.ascent.feature.games.IceBreachScreen
 import com.neon.ascent.feature.games.BlackIceBreachScreen
+import com.neon.ascent.feature.games.CyberChessScreen
+import com.neon.ascent.feature.games.CyberPongScreen
 import com.neon.ascent.feature.journal.JournalScreen
 import com.neon.ascent.feature.journal.JournalViewModel
 import com.neon.ascent.feature.journal.StoryScreen
@@ -73,6 +75,9 @@ fun AppNavigation(
                         },
                         onCoreClick = {
                             navController.navigate(Screen.CoreDashboard)
+                        },
+                        onExploitsClick = {
+                            navController.navigate(Screen.CyberChess(returnToDopamine = false))
                         },
                         tickerMessages = tickerMessages
                     )
@@ -263,8 +268,44 @@ fun AppNavigation(
             DeepNodeScreen(
                 initialSubScreen = deepNode.nodeType,
                 onBack = { navController.popBackStack() },
+                onGameSelect = { game ->
+                    when (game) {
+                        "CHESS" -> navController.navigate(Screen.CyberChess(returnToDopamine = true))
+                        "PONG" -> navController.navigate(Screen.CyberPong(returnToDopamine = true))
+                    }
+                },
                 onReaderNavigate = { id, path ->
                     navController.navigate(Screen.EReader(id, path))
+                }
+            )
+        }
+
+        composable<Screen.CyberChess> { backStackEntry ->
+            val cyberChess = backStackEntry.toRoute<Screen.CyberChess>()
+            CyberChessScreen(
+                onBack = {
+                    if (cyberChess.returnToDopamine) {
+                        navController.navigate(Screen.DeepNode("DOPAMINE")) {
+                            popUpTo<Screen.CyberChess> { inclusive = true }
+                        }
+                    } else {
+                        navController.popBackStack()
+                    }
+                }
+            )
+        }
+
+        composable<Screen.CyberPong> { backStackEntry ->
+            val cyberPong = backStackEntry.toRoute<Screen.CyberPong>()
+            CyberPongScreen(
+                onBack = {
+                    if (cyberPong.returnToDopamine) {
+                        navController.navigate(Screen.DeepNode("DOPAMINE")) {
+                            popUpTo<Screen.CyberPong> { inclusive = true }
+                        }
+                    } else {
+                        navController.popBackStack()
+                    }
                 }
             )
         }

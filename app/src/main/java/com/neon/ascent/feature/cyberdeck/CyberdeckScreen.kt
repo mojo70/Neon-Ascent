@@ -39,6 +39,7 @@ fun CyberdeckScreen(
     onDatabaseClick: () -> Unit,
     onIceBreachClick: () -> Unit,
     onCoreClick: () -> Unit,
+    onExploitsClick: () -> Unit = {},
     tickerMessages: List<String> = emptyList(),
     viewModel: CyberdeckViewModel = hiltViewModel()
 ) {
@@ -109,7 +110,7 @@ fun CyberdeckScreen(
                 }
 
                 // 4. Hexagon Cores (Enhanced 3D Neon)
-                CoreLayout(onWalletClick, onDatabaseClick, onCoreClick, aiType)
+                CoreLayout(onWalletClick, onDatabaseClick, onCoreClick, onExploitsClick, aiType)
             }
 
             // 5. Live Console
@@ -258,12 +259,18 @@ private fun SecCoreWithIce(onClick: () -> Unit) {
 }
 
 @Composable
-private fun CoreLayout(onWalletClick: () -> Unit, onDatabaseClick: () -> Unit, onCoreClick: () -> Unit, aiType: AiType) {
+private fun CoreLayout(
+    onWalletClick: () -> Unit,
+    onDatabaseClick: () -> Unit,
+    onCoreClick: () -> Unit,
+    onExploitsClick: () -> Unit,
+    aiType: AiType
+) {
     Box(Modifier.fillMaxSize()) {
         // NETWORK
         HexCore("NETWORK",  Color(0xFF00FF99), Modifier.align(Alignment.TopCenter).padding(top = 80.dp))
         // EXPLOITS
-        HexCore("EXPLOITS", Color(0xFFFF0088), Modifier.align(Alignment.CenterStart).padding(start = 32.dp, bottom = 40.dp))
+        HexCore("EXPLOITS", Color(0xFFFF0088), Modifier.align(Alignment.CenterStart).padding(start = 32.dp, bottom = 40.dp), onClick = onExploitsClick)
         
         // CORE_OS / AI Status
         val coreLabel = when (aiType) {
