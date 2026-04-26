@@ -6,7 +6,6 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -14,17 +13,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -45,6 +40,12 @@ fun JournalScreen(
 ) {
     var activeTab by remember { mutableIntStateOf(0) }
     val isHacked by viewModel.isSystemDatabaseHacked.collectAsState()
+    var selectedEntry by remember { mutableStateOf<JournalEntry?>(null) }
+    var selectedProtocol by remember { mutableStateOf<BioProtocolLog?>(null) }
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    
+    // Sub-navigation within tabs
+    var currentView by remember { mutableStateOf(DatabaseView.OVERVIEW) }
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF020508))) {
         Scanlines()
@@ -56,13 +57,20 @@ fun JournalScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    "DATABASE_NODE // V.4.0",
-                    color = Color(0xFF00FFAA),
-                    fontSize = 20.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (currentView != DatabaseView.OVERVIEW) {
+                        IconButton(onClick = { currentView = DatabaseView.OVERVIEW }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF00FFAA))
+                        }
+                    }
+                    Text(
+                        if (currentView == DatabaseView.OVERVIEW) "DATABASE_NODE // V.4.0" else currentView.name,
+                        color = Color(0xFF00FFAA),
+                        fontSize = 20.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 IconButton(onClick = onBack) {
                     Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Red)
                 }
@@ -70,24 +78,64 @@ fun JournalScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            // Tab Selector
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                DatabaseTab("YOUR_DATA", activeTab == 0, Modifier.weight(1f)) { activeTab = 0 }
-                DatabaseTab("SYSTEM_DATA", activeTab == 1, Modifier.weight(1f)) { activeTab = 1 }
+            if (currentView == DatabaseView.OVERVIEW) {
+                // Tab Selector
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DatabaseTab("YOUR_DATA", activeTab == 0, Modifier.weight(1f)) { activeTab = 0 }
+                    DatabaseTab("SYSTEM_DATA", activeTab == 1, Modifier.weight(1f)) { activeTab = 1 }
+                }
+                Spacer(Modifier.height(24.dp))
+            } else {
+                // Search Bar for dedicated views
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { viewModel.updateSearchQuery(it) },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    placeholder = { Text("FILTER_DATABASE...", color = Color.Gray, fontSize = 12.sp, fontFamily = FontFamily.Monospace) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF00FFAA)) },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.updateSearchQuery("") }) {
+                                Icon(Icons.Default.Clear, contentDescription = null, tint = Color.Gray)
+                            }
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF00FFAA),
+                        unfocusedBorderColor = Color.Gray.copy(alpha = 0.3f),
+                        cursorColor = Color(0xFF00FFAA)
+                    ),
+                    textStyle = LocalTextStyle.current.copy(color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 14.sp)
+                )
             }
-
-            Spacer(Modifier.height(24.dp))
 
             // Content Area
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                if (activeTab == 0) {
-                    PersonalDatabaseContent(viewModel, onEntryClick)
-                } else {
-                    SystemDatabaseContent(isHacked, onHackingRequired, viewModel)
+                when (currentView) {
+                    DatabaseView.OVERVIEW -> {
+                        if (activeTab == 0) {
+                            PersonalDatabaseOverview(
+                                viewModel = viewModel,
+                                onJournalClick = { currentView = DatabaseView.NEURAL_JOURNAL },
+                                onBioClick = { currentView = DatabaseView.BIO_PROTOCOLS },
+                                onEntryClick = { selectedEntry = it }
+                            )
+                        } else {
+                            SystemDatabaseContent(isHacked, onHackingRequired, viewModel)
+                        }
+                    }
+                    DatabaseView.NEURAL_JOURNAL -> {
+                        val entries by viewModel.entries.collectAsState()
+                        JournalListView(entries) { selectedEntry = it }
+                    }
+                    DatabaseView.BIO_PROTOCOLS -> {
+                        val protocols by viewModel.bioProtocolLogs.collectAsState()
+                        ProtocolListView(protocols) { selectedProtocol = it }
+                    }
                 }
             }
             
-            if (activeTab == 1) {
+            if (activeTab == 1 && currentView == DatabaseView.OVERVIEW) {
                 Button(
                     onClick = onStoryClick,
                     modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
@@ -95,6 +143,173 @@ fun JournalScreen(
                     border = BorderStroke(1.dp, Color(0xFF00FFAA))
                 ) {
                     Text("FULL_ARCHIVE_VIEW", color = Color(0xFF00FFAA), fontFamily = FontFamily.Monospace)
+                }
+            }
+        }
+
+        selectedEntry?.let { entry ->
+            JournalEntryDialog(entry = entry, onDismiss = { selectedEntry = null })
+        }
+        
+        selectedProtocol?.let { protocol ->
+            ProtocolDetailDialog(protocol = protocol, onDismiss = { selectedProtocol = null })
+        }
+    }
+}
+
+enum class DatabaseView {
+    OVERVIEW, NEURAL_JOURNAL, BIO_PROTOCOLS
+}
+
+@Composable
+fun PersonalDatabaseOverview(
+    viewModel: JournalViewModel,
+    onJournalClick: () -> Unit,
+    onBioClick: () -> Unit,
+    onEntryClick: (JournalEntry) -> Unit
+) {
+    val entries by viewModel.entries.collectAsState()
+    val protocols by viewModel.bioProtocolLogs.collectAsState()
+    val quests by viewModel.quests.collectAsState()
+    val dailyTasks by viewModel.dailyTasks.collectAsState()
+    
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        item { SectionHeader("DAILY_OBJECTIVES", "ACTIVE") }
+        items(dailyTasks) { task ->
+            TaskItem(task) { viewModel.updateTaskCompletion(task, it) }
+        }
+
+        item { SectionHeader("NEURAL_JOURNAL", "${entries.size} LOGS", onJournalClick) }
+        if (entries.isEmpty()) {
+            item { EmptyDataPlaceholder("NO_ENTRIES_FOUND") }
+        } else {
+            items(entries.take(3)) { entry ->
+                JournalEntryMiniItem(entry) { onEntryClick(entry) }
+            }
+        }
+
+        item { SectionHeader("BIO_PROTOCOLS", "${protocols.size} VERIFIED", onBioClick) }
+        val workingProtocols = protocols.filter { it.isWorking == true }
+        if (workingProtocols.isEmpty()) {
+            item { EmptyDataPlaceholder("NO_STABLE_PROTOCOLS") }
+        } else {
+            items(workingProtocols.take(2)) { protocol ->
+                ProtocolItem(protocol, true) { onBioClick() }
+            }
+        }
+        
+        item { SectionHeader("CAMPAIGN_DATA", "LONG_TERM") }
+        items(quests) { quest ->
+            QuestItem(quest, viewModel)
+        }
+        
+        item { Spacer(Modifier.height(32.dp)) }
+    }
+}
+
+@Composable
+fun JournalListView(entries: List<JournalEntry>, onEntryClick: (JournalEntry) -> Unit) {
+    if (entries.isEmpty()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            EmptyDataPlaceholder("NO_MATCHING_LOGS")
+        }
+    } else {
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(entries) { entry ->
+                JournalEntryMiniItem(entry) { onEntryClick(entry) }
+                HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+            }
+        }
+    }
+}
+
+@Composable
+fun ProtocolListView(protocols: List<BioProtocolLog>, onProtocolClick: (BioProtocolLog) -> Unit) {
+    val stable = protocols.filter { it.isWorking == true }
+    val rejected = protocols.filter { it.isWorking == false }
+    val unrated = protocols.filter { it.isWorking == null }
+
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        if (stable.isNotEmpty()) {
+            item { SectionHeader("SYNERGY_STABLE", "${stable.size} LOGS") }
+            items(stable) { protocol -> 
+                ProtocolItem(protocol, true) { onProtocolClick(protocol) }
+            }
+        }
+        if (rejected.isNotEmpty()) {
+            item { SectionHeader("NEURAL_REJECTION", "${rejected.size} LOGS") }
+            items(rejected) { protocol -> 
+                ProtocolItem(protocol, false) { onProtocolClick(protocol) }
+            }
+        }
+        if (unrated.isNotEmpty()) {
+            item { SectionHeader("PENDING_CALIBRATION", "${unrated.size} LOGS") }
+            items(unrated) { protocol ->
+                CyberFrame(label = "UNRATED_LOG", borderColor = Color.Gray) {
+                    Text("Protocol ${protocol.protocolId} - Pending Rating", color = Color.Gray, fontSize = 12.sp)
+                }
+            }
+        }
+        
+        if (protocols.isEmpty()) {
+            item { EmptyDataPlaceholder("NO_PROTOCOLS_FOUND") }
+        }
+    }
+}
+
+@Composable
+fun ProtocolDetailDialog(protocol: BioProtocolLog, onDismiss: () -> Unit) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        CyberFrame(label = "PROTOCOL_LOG // ${protocol.protocolId}") {
+            Column(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
+                Text("STABILITY_RATING: ${if (protocol.isWorking == true) "STABLE" else if (protocol.isWorking == false) "REJECTED" else "UNRATED"}", color = if (protocol.isWorking == true) Color(0xFF00FFAA) else Color.Red)
+                Spacer(Modifier.height(12.dp))
+                Text("NOTES:", color = Color(0xFF00FFAA), fontSize = 10.sp)
+                Text(protocol.notes ?: "NO_NOTES", color = Color.White, fontSize = 14.sp)
+                if (protocol.sideEffects != null) {
+                    Spacer(Modifier.height(12.dp))
+                    Text("SIDE_EFFECTS:", color = Color.Red, fontSize = 10.sp)
+                    Text(protocol.sideEffects, color = Color.White, fontSize = 14.sp)
+                }
+                Spacer(Modifier.height(24.dp))
+                Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                    Text("CLOSE")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun JournalEntryDialog(entry: JournalEntry, onDismiss: () -> Unit) {
+    val dateFormat = remember { SimpleDateFormat("yyyy.MM.dd HH:mm", Locale.US) }
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        CyberFrame(label = "NEURAL_LOG // ${entry.category}") {
+            Column(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
+                Text(
+                    dateFormat.format(Date(entry.timestamp)),
+                    color = Color(0xFF00FFAA),
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    entry.text,
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier
+                        .heightIn(max = 400.dp)
+                        .verticalScroll(rememberScrollState())
+                )
+                Spacer(Modifier.height(24.dp))
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                    border = BorderStroke(1.dp, Color(0xFF00FFAA))
+                ) {
+                    Text("CLOSE_LOG", color = Color(0xFF00FFAA), fontFamily = FontFamily.Monospace)
                 }
             }
         }
@@ -161,60 +376,6 @@ fun DatabaseTab(label: String, isSelected: Boolean, modifier: Modifier = Modifie
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Bold
         )
-    }
-}
-
-@Composable
-fun PersonalDatabaseContent(viewModel: JournalViewModel, onEntryClick: (JournalEntry) -> Unit) {
-    val entries by viewModel.entries.collectAsState()
-    val protocols by viewModel.bioProtocolLogs.collectAsState()
-    val quests by viewModel.quests.collectAsState()
-    val dailyTasks by viewModel.dailyTasks.collectAsState()
-    
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        // 1. Daily Tasks (Priority)
-        item {
-            SectionHeader("DAILY_OBJECTIVES", "ACTIVE")
-        }
-        items(dailyTasks) { task ->
-            TaskItem(task) { viewModel.updateTaskCompletion(task, it) }
-        }
-
-        // 2. Journal Saves
-        item {
-            SectionHeader("NEURAL_JOURNAL", "${entries.size} LOGS")
-        }
-        if (entries.isEmpty()) {
-            item { EmptyDataPlaceholder("NO_ENTRIES_FOUND") }
-        } else {
-            items(entries.take(3)) { entry ->
-                JournalEntryMiniItem(entry) { onEntryClick(entry) }
-            }
-        }
-
-        // 3. Biohacking Protocols
-        item {
-            SectionHeader("BIO_PROTOCOLS", "VERIFIED")
-        }
-        items(protocols.filter { it.isWorking == true }) { protocol ->
-            ProtocolItem(protocol, true)
-        }
-        item {
-            SectionHeader("BIO_PROTOCOLS", "FAILED_SYNERGY")
-        }
-        items(protocols.filter { it.isWorking == false }) { protocol ->
-            ProtocolItem(protocol, false)
-        }
-
-        // 4. Long Term Quests
-        item {
-            SectionHeader("CAMPAIGN_DATA", "LONG_TERM")
-        }
-        items(quests) { quest ->
-            QuestItem(quest, viewModel)
-        }
-        
-        item { Spacer(Modifier.height(32.dp)) }
     }
 }
 
@@ -351,9 +512,12 @@ fun MemoryItem(memory: MemoryFragment) {
 }
 
 @Composable
-fun SectionHeader(label: String, status: String) {
+fun SectionHeader(label: String, status: String, onClick: (() -> Unit)? = null) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
+            .padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -388,9 +552,13 @@ fun TaskItem(task: Task, onToggle: (Boolean) -> Unit) {
 }
 
 @Composable
-fun ProtocolItem(protocol: BioProtocolLog, isWorking: Boolean) {
+fun ProtocolItem(protocol: BioProtocolLog, isWorking: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit = {}) {
     val color = if (isWorking) Color(0xFF00FFAA) else Color(0xFFFF0088)
-    CyberFrame(label = if (isWorking) "SYNERGY_STABLE" else "NEURAL_REJECTION", borderColor = color.copy(alpha = 0.4f)) {
+    CyberFrame(
+        label = if (isWorking) "SYNERGY_STABLE" else "NEURAL_REJECTION", 
+        borderColor = color.copy(alpha = 0.4f),
+        modifier = modifier.clickable { onClick() }
+    ) {
         Column {
             Text(
                 "ID: ${protocol.protocolId}",
@@ -467,15 +635,27 @@ fun JournalEntryMiniItem(entry: JournalEntry, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            "> ${entry.text.take(30)}...",
-            color = Color.White.copy(alpha = 0.7f),
-            fontSize = 11.sp,
-            fontFamily = FontFamily.Monospace
-        )
+        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+            Text(
+                "[${entry.category.uppercase()}]",
+                color = Color(0xFF00FFAA),
+                fontSize = 9.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                entry.text.replace("\n", " "),
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
         Text(
             dateFormat.format(Date(entry.timestamp)),
             color = Color.Gray,

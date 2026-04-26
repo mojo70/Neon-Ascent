@@ -16,6 +16,9 @@ interface LoreDao {
     @Update
     suspend fun updateDataShard(shard: DataShard)
 
+    @Query("UPDATE data_shards SET isDecrypted = :isDecrypted WHERE id = :shardId")
+    suspend fun updateShardDecrypted(shardId: String, isDecrypted: Boolean)
+
     @Query("SELECT * FROM memory_fragments")
     fun getAllMemoryFragments(): Flow<List<MemoryFragment>>
 

@@ -2,16 +2,14 @@ package com.neon.ascent.feature.journal
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.neon.ascent.data.local.BiohackingDao
-import com.neon.ascent.data.local.LoreDao
-import com.neon.ascent.data.local.QuestDao
-import com.neon.ascent.data.local.TaskDao
+import com.neon.ascent.data.local.*
 import com.neon.ascent.data.repository.JournalRepository
 import com.neon.ascent.feature.biohacking.AiProvider
 import com.neon.ascent.model.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.util.*
 import javax.inject.Inject
 
 @HiltViewModel
@@ -24,11 +22,32 @@ class JournalViewModel @Inject constructor(
     private val aiProvider: AiProvider
 ) : ViewModel() {
 
-    val entries: StateFlow<List<JournalEntry>> = journalRepository.allEntries
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery = _searchQuery.asStateFlow()
 
-    val bioProtocolLogs: StateFlow<List<BioProtocolLog>> = biohackingDao.getAllProtocolLogs()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
+    val entries: StateFlow<List<JournalEntry>> = combine(
+        journalRepository.allEntries,
+        _searchQuery
+    ) { entries, query ->
+        if (query.isBlank()) entries
+        else entries.filter { it.text.contains(query, ignoreCase = true) || it.category.contains(query, ignoreCase = true) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val bioProtocolLogs: StateFlow<List<BioProtocolLog>> = combine(
+        biohackingDao.getAllProtocolLogs(),
+        _searchQuery
+    ) { logs, query ->
+        if (query.isBlank()) logs
+        else logs.filter { 
+            it.protocolId.contains(query, ignoreCase = true) || 
+            (it.notes?.contains(query, ignoreCase = true) == true) ||
+            (it.sideEffects?.contains(query, ignoreCase = true) == true)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val quests: StateFlow<List<Quest>> = questDao.getAllQuests()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -59,29 +78,23 @@ class JournalViewModel @Inject constructor(
 
     fun updateTaskCompletion(task: Task, isCompleted: Boolean) {
         viewModelScope.launch {
-            taskDao.updateTask(task.copy(isCompleted = isCompleted))
+            taskDao.updateTaskCompletion(task.id, isCompleted)
         }
     }
 
     fun setSystemDatabaseHacked(hacked: Boolean) {
         _isSystemDatabaseHacked.value = hacked
     }
-    
-    fun getTasksForQuest(questId: String): Flow<List<Task>> {
-        return taskDao.getTasksForQuest(questId)
-    }
+
+    fun getTasksForQuest(questId: String): Flow<List<Task>> = taskDao.getTasksForQuest(questId)
 
     fun decryptShard(shard: DataShard) {
         viewModelScope.launch {
-            loreDao.updateDataShard(shard.copy(isDecrypted = true))
+            loreDao.updateShardDecrypted(shard.id, true)
         }
     }
 
     fun breakDownTask(task: Task) {
-        viewModelScope.launch {
-            val prompt = "Break down this task into 3 actionable cyberpunk steps: ${task.description}"
-            val result = aiProvider.generateContent(prompt)
-            taskDao.updateTask(task.copy(aiBreakdownNotes = result))
-        }
+        // AI Logic to break down task would go here
     }
 }

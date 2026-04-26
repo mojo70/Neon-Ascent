@@ -95,15 +95,10 @@ class SettingsViewModel @Inject constructor(
 
     fun sealDailyPrayer(amen: String, reflection: String = "") {
         viewModelScope.launch {
-            val char = userCharacter.value ?: return@launch
             val prayer = _currentDailyPrayer.value ?: return@launch
             val now = System.currentTimeMillis()
-            
-            // Check if already prayed today (UTC day check simplified for now)
-            val isSameDay = isSameDay(char.lastPrayerDate, now)
-            if (isSameDay) return@launch
 
-            // Save reflection to Neural Journal if present
+            // Save to Neural Journal (Logging only if reflection is entered)
             if (reflection.isNotBlank()) {
                 val entryText = "VERSE: ${prayer.scripture}\n\nREFLECTION: $reflection"
                 journalRepository.saveToJournal(
@@ -114,6 +109,15 @@ class SettingsViewModel @Inject constructor(
                         timestamp = now
                     )
                 )
+            }
+
+            val char = userCharacter.value ?: return@launch
+            
+            // Check if already prayed today for stats/exp
+            val isSameDay = isSameDay(char.lastPrayerDate, now)
+            if (isSameDay) {
+                _prayerToast.value = "Neural Reflection logged. Streak already maintained for today."
+                return@launch
             }
 
             val isNextDay = isNextDay(char.lastPrayerDate, now)
