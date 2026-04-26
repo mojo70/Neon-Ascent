@@ -213,7 +213,7 @@ fun AvatarCaptureScreen(
 
 suspend fun generateCyberAvatar(input: Bitmap?, character: UserCharacter): Bitmap? {
     val generativeModel = GenerativeModel(
-        modelName = "gemini-1.5-flash",
+        modelName = "gemini-2.0-flash",
         apiKey = BuildConfig.GEMINI_API_KEY
     )
 
