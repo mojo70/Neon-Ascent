@@ -29,6 +29,7 @@ import com.neon.ascent.feature.games.CyberChessScreen
 import com.neon.ascent.feature.games.CyberPongScreen
 import com.neon.ascent.feature.journal.JournalScreen
 import com.neon.ascent.feature.journal.JournalViewModel
+import com.neon.ascent.feature.attributes.AttributeDetailScreen
 import com.neon.ascent.feature.journal.StoryScreen
 import com.neon.ascent.feature.loading.LoadingScreen
 import com.neon.ascent.feature.library.EReaderScreen
@@ -97,7 +98,9 @@ fun AppNavigation(
         composable<Screen.HolographicHub> {
             HolographicAvatarHub(
                 onBack = { navController.popBackStack() },
-                onUpgradeClick = { /* TODO: Implement upgrades */ }
+                onUpgradeClick = { attrName ->
+                    navController.navigate(Screen.AttributeDetail(attrName))
+                }
             )
         }
 
@@ -316,6 +319,15 @@ fun AppNavigation(
                 bookId = eReader.bookId,
                 bookAssetPath = eReader.assetPath,
                 onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable<Screen.AttributeDetail> { backStackEntry ->
+            val attr = backStackEntry.toRoute<Screen.AttributeDetail>()
+            AttributeDetailScreen(
+                attributeName = attr.attributeName,
+                onBack = { navController.popBackStack() },
+                onNavigateToDatabase = { navController.navigate(Screen.Journal) }
             )
         }
     }

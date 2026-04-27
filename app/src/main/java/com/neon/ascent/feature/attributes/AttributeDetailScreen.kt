@@ -1,0 +1,268 @@
+package com.neon.ascent.feature.attributes
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.neon.ascent.ui.*
+
+@Composable
+fun AttributeDetailScreen(
+    attributeName: String,
+    onBack: () -> Unit,
+    onNavigateToDatabase: () -> Unit,
+    viewModel: AttributeViewModel = hiltViewModel()
+) {
+    val attribute = AttributeData.attributes[attributeName.uppercase()] ?: return
+    val userCharacter by viewModel.userCharacter.collectAsState()
+    val aiResponse by viewModel.aiResponse.collectAsState()
+    val isChatLoading by viewModel.isChatLoading.collectAsState()
+
+    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF020202))) {
+        PerspectiveGrid()
+        Scanlines()
+        
+        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+            // Header
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = attribute.accentColor)
+                }
+                Spacer(Modifier.width(8.dp))
+                GlitchText(
+                    text = attribute.name,
+                    color = attribute.accentColor,
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Black
+                )
+            }
+            
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                item {
+                    CyberFrame(label = "OVERVIEW", borderColor = attribute.accentColor) {
+                        Column {
+                            Text(
+                                text = attribute.description,
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                text = "REAL-WORLD_IMPACT:",
+                                color = attribute.accentColor.copy(alpha = 0.7f),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Text(
+                                text = attribute.lifeImportance,
+                                color = Color.LightGray,
+                                fontSize = 12.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+                }
+                
+                item {
+                    Text(
+                        "TRAINING_PROTOCOLS",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        attribute.quickGames.forEach { game ->
+                            QuickGameCard(game, attribute.accentColor)
+                        }
+                    }
+                }
+                
+                if (userCharacter?.isSystemDatabaseUnlocked == true) {
+                    item {
+                        CyberActionButton(
+                            label = "ACCESS_CORE_DATA",
+                            color = Color(0xFF00FF9C),
+                            onClick = onNavigateToDatabase
+                        )
+                    }
+                }
+                
+                item {
+                    CyberFrame(label = "SYSTEM_TIPS", borderColor = attribute.accentColor) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            attribute.tips.forEach { tip ->
+                                Row {
+                                    Text(">", color = attribute.accentColor, fontWeight = FontWeight.Bold)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(tip, color = Color.White, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                item {
+                    AiChatSection(
+                        attribute = attribute,
+                        aiResponse = aiResponse,
+                        isLoading = isChatLoading,
+                        onSend = { viewModel.askAi(attribute, it) }
+                    )
+                }
+
+                item {
+                    Spacer(Modifier.height(32.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun QuickGameCard(game: QuickGame, accentColor: Color) {
+    Box(
+        modifier = Modifier
+            .width(200.dp)
+            .height(120.dp)
+            .clip(CyberButtonShape)
+            .background(Color(0xFF0A0A0A))
+            .border(1.dp, accentColor.copy(alpha = 0.4f), CyberButtonShape)
+            .clickable { /* TODO: Start Game */ }
+            .padding(12.dp)
+    ) {
+        Column {
+            Text(
+                text = game.name,
+                color = accentColor,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+            Text(
+                text = game.description,
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.weight(1f).padding(top = 4.dp)
+            )
+            Text(
+                text = game.actionLabel,
+                color = accentColor,
+                fontSize = 8.sp,
+                fontWeight = FontWeight.Black,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.align(Alignment.End)
+            )
+        }
+    }
+}
+
+@Composable
+fun AiChatSection(
+    attribute: AttributeDetail,
+    aiResponse: String,
+    isLoading: Boolean,
+    onSend: (String) -> Unit
+) {
+    var textInput by remember { mutableStateOf("") }
+
+    CyberFrame(label = "NEURAL_CONSULTANT: ${attribute.aiExpertName}", borderColor = attribute.accentColor) {
+        Column {
+            if (aiResponse.isNotEmpty()) {
+                Text(
+                    text = aiResponse,
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White.copy(alpha = 0.05f))
+                        .padding(8.dp)
+                )
+                Spacer(Modifier.height(16.dp))
+            } else {
+                Text(
+                    text = "Awaiting query... [Expert Personality: ${attribute.aiPersonalityDescription}]",
+                    color = Color.Gray,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextField(
+                    value = textInput,
+                    onValueChange = { textInput = it },
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("Consult ${attribute.aiExpertName}...", fontSize = 12.sp) },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = attribute.accentColor,
+                        unfocusedIndicatorColor = attribute.accentColor.copy(alpha = 0.5f),
+                        cursorColor = attribute.accentColor,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, fontSize = 13.sp)
+                )
+                
+                IconButton(
+                    onClick = {
+                        if (textInput.isNotBlank()) {
+                            onSend(textInput)
+                            textInput = ""
+                        }
+                    },
+                    enabled = !isLoading
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = attribute.accentColor,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "Send",
+                            tint = attribute.accentColor
+                        )
+                    }
+                }
+            }
+        }
+    }
+}

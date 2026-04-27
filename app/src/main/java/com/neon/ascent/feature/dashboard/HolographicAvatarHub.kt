@@ -232,23 +232,28 @@ fun HolographicAvatarHub(
                         modifier = Modifier.weight(1f).padding(end = 8.dp),
                         verticalArrangement = Arrangement.Center
                     ) {
-                        val statsText = """
-                            [S] STRENGTH:     ${userCharacter?.strength ?: "??"}
-                            [P] PERCEPTION:   ${userCharacter?.perception ?: "??"}
-                            [E] ENDURANCE:    ${userCharacter?.endurance ?: "??"}
-                            [C] CHARISMA:     ${userCharacter?.charisma ?: "??"}
-                            [I] INTELLIGENCE: ${userCharacter?.intelligence ?: "??"}
-                            [A] AGILITY:      ${userCharacter?.agility ?: "??"}
-                            [L] LUCK:         ${userCharacter?.luck ?: "??"}
-                        """.trimIndent()
-                        
-                        Text(
-                            statsText, 
-                            color = Color.White, 
-                            fontSize = 12.sp, 
-                            fontFamily = FontFamily.Monospace,
-                            lineHeight = 16.sp
+                        val attributes = listOf(
+                            "STRENGTH" to (userCharacter?.strength ?: 0),
+                            "PERCEPTION" to (userCharacter?.perception ?: 0),
+                            "ENDURANCE" to (userCharacter?.endurance ?: 0),
+                            "CHARISMA" to (userCharacter?.charisma ?: 0),
+                            "INTELLIGENCE" to (userCharacter?.intelligence ?: 0),
+                            "AGILITY" to (userCharacter?.agility ?: 0),
+                            "LUCK" to (userCharacter?.luck ?: 0)
                         )
+
+                        attributes.forEach { (name, value) ->
+                            Text(
+                                text = "[${name[0]}] ${name.padEnd(12)}: $value",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onUpgradeClick(name) }
+                                    .padding(vertical = 1.dp)
+                            )
+                        }
                         
                         val rank = userCharacter?.getChessRank() ?: "GHOST_IN_SHELL"
                         Text(
