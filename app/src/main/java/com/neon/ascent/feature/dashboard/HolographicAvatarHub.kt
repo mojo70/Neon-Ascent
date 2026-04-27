@@ -44,15 +44,10 @@ import kotlin.math.sin
 fun HolographicAvatarHub(
     viewModel: DashboardViewModel = hiltViewModel(),
     onBack: () -> Unit,
-    onUpgradeClick: (String) -> Unit,
-    onHacksClick: () -> Unit,
-    onAttributeScanClick: () -> Unit,
-    onStoryClick: () -> Unit,
-    onGoalSettingClick: () -> Unit
+    onUpgradeClick: (String) -> Unit
 ) {
     val userCharacter by viewModel.userCharacter.collectAsState()
     val healthState by viewModel.healthState.collectAsState()
-    val tickerMessages by viewModel.tickerMessages.collectAsState()
     val isNetrunnerMode by viewModel.isNetrunnerMode.collectAsState()
     val isReligionEnabled by viewModel.isReligionShortcutEnabled.collectAsState()
 
@@ -111,7 +106,7 @@ fun HolographicAvatarHub(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp)
+                    .padding(bottom = 8.dp)
                     .neonBorder(Color(0xFF00FF9C).copy(alpha = 0.4f), cornerRadius = 8.dp),
                 color = Color.Black.copy(alpha = 0.6f),
                 shape = RoundedCornerShape(8.dp)
@@ -187,177 +182,131 @@ fun HolographicAvatarHub(
                 }
             }
 
-            // --- CENTRAL Area: Load Gauge & Avatar ---
-            Row(modifier = Modifier.weight(1f)) {
-                // Left Column: Gauge & Info
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    NeuralLoadGauge(load = displayLoad, modifier = Modifier.size(200.dp))
-                    
-                    Spacer(Modifier.height(24.dp))
-                    
-                    EnergyBar(label = "NEURAL_ENERGY", value = healthState.bodyBattery / 100f)
-                    
-                    Spacer(Modifier.height(16.dp))
-                    
-                    MemorySlotsDisplay(userCharacter)
-                    
-                    Spacer(Modifier.height(16.dp))
-                    
-                    HolographicAdvicePanel(
-                        message = tickerMessages.firstOrNull() ?: "ALL SYSTEMS OPERATIONAL",
-                        intensity = displayLoad
-                    )
+            // --- CENTRAL Area: Avatar Display ---
+            Box(
+                modifier = Modifier
+                    .weight(1.2f)
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+                    .neonBorder(Color(0xFF00FF9C).copy(alpha = 0.2f), cornerRadius = 12.dp)
+                    .background(Color.Black.copy(alpha = 0.2f)),
+                contentAlignment = Alignment.Center
+            ) {
+                HologramDisplay(userCharacter) { part ->
+                    selectedBodyPart = part
+                    systemLogs.add(0, "[LOG] SECTOR_ACCESS: $part")
+                    glitchBurstIntensity = 0.3f
+                }
+                
+                // Load Gauge Overlay (Small/Minimal)
+                Box(modifier = Modifier.align(Alignment.CenterStart).padding(16.dp)) {
+                    NeuralLoadGauge(load = displayLoad, modifier = Modifier.size(100.dp))
                 }
 
-                Spacer(Modifier.width(16.dp))
+                // Archetype Label
+                Text(
+                    text = runnerTitle,
+                    color = titleColor.copy(alpha = 0.8f),
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = titleFontWeight,
+                    modifier = Modifier.align(Alignment.TopStart).padding(12.dp)
+                )
 
-                // Avatar Display Panel
-                Column(modifier = Modifier.weight(1.2f).fillMaxHeight()) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .neonBorder(Color(0xFF00FF9C).copy(alpha = 0.3f), cornerRadius = 12.dp)
-                            .background(Color.Black.copy(alpha = 0.3f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        HologramDisplay(userCharacter) { part ->
-                            selectedBodyPart = part
-                            systemLogs.add(0, "[LOG] SECTOR_ACCESS: $part")
-                            glitchBurstIntensity = 0.3f
-                        }
-                        
-                        // Archetype Label
-                        Text(
-                            text = runnerTitle,
-                            color = titleColor.copy(alpha = 0.8f),
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = titleFontWeight,
-                            modifier = Modifier.align(Alignment.TopStart).padding(8.dp)
-                        )
-                    }
-                    
-                    Spacer(Modifier.height(8.dp))
-                    
-                    // SHARE SNAPSHOT Button
-                    Button(
-                        onClick = { showSnapshotPreview = true },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(44.dp)
-                            .clip(CyberButtonShape)
-                            .neonBorder(Color(0xFF00FFFF), width = 2.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Black.copy(alpha = 0.6f))
-                    ) {
-                        Icon(Icons.Default.Share, contentDescription = null, tint = Color(0xFF00FFFF), modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(12.dp))
-                        Text(
-                            "SHARE SNAPSHOT", 
-                            color = Color(0xFF00FFFF), 
-                            fontSize = 12.sp, 
-                            fontWeight = FontWeight.Black, 
-                            fontFamily = FontFamily.Monospace,
-                            letterSpacing = 2.sp
-                        )
-                    }
+                // Share Snapshot Button
+                IconButton(
+                    onClick = { showSnapshotPreview = true },
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp).background(Color.Black.copy(alpha = 0.6f), CircleShape).border(1.dp, Color(0xFF00FFFF).copy(alpha = 0.4f), CircleShape)
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = "Share", tint = Color(0xFF00FFFF), modifier = Modifier.size(20.dp))
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            // --- S.P.E.C.I.A.L. BIOMETRICS ---
+            CyberFrame(label = "S.P.E.C.I.A.L._BIO_METRICS", modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f).padding(end = 8.dp),
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        val statsText = """
+                            [S] STRENGTH:     ${userCharacter?.strength ?: "??"}
+                            [P] PERCEPTION:   ${userCharacter?.perception ?: "??"}
+                            [E] ENDURANCE:    ${userCharacter?.endurance ?: "??"}
+                            [C] CHARISMA:     ${userCharacter?.charisma ?: "??"}
+                            [I] INTELLIGENCE: ${userCharacter?.intelligence ?: "??"}
+                            [A] AGILITY:      ${userCharacter?.agility ?: "??"}
+                            [L] LUCK:         ${userCharacter?.luck ?: "??"}
+                        """.trimIndent()
+                        
+                        Text(
+                            statsText, 
+                            color = Color.White, 
+                            fontSize = 12.sp, 
+                            fontFamily = FontFamily.Monospace,
+                            lineHeight = 16.sp
+                        )
+                        
+                        val rank = userCharacter?.getChessRank() ?: "GHOST_IN_SHELL"
+                        Text(
+                            "RANK: $rank // HR: ${healthState.heartRate} BPM",
+                            color = Color(0xFF00FF9C).copy(alpha = 0.7f),
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
 
-            // --- BOTTOM HUD Area ---
-            Row(modifier = Modifier.height(220.dp)) {
-                Column(modifier = Modifier.weight(1.5f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    CyberFrame(label = "BIOMETRIC_STATUS", modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                val statsText = when(selectedBodyPart) {
-                                    "HEAD" -> {
-                                        val rank = userCharacter?.getChessRank() ?: "GHOST_IN_SHELL"
-                                        "PERCEPTION: ${userCharacter?.perception ?: "??"}\nRANK: $rank\nELO: ${userCharacter?.chessElo ?: 1000}"
-                                    }
-                                    "TORSO" -> "ENDURANCE: ${userCharacter?.endurance ?: "??"}\nHEART_RATE: ${healthState.heartRate} BPM"
-                                    "ARMS" -> "STRENGTH: ${userCharacter?.strength ?: "??"}\nLOAD_CAP: 85%"
-                                    "LEGS" -> "AGILITY: ${userCharacter?.agility ?: "??"}\nREFLEX: ACTIVATED"
-                                    else -> "STATUS: ONLINE\nTITLE: $runnerTitle\nSYSTEM SYNC: OPTIMAL"
-                                }
-                                Text(
-                                    statsText, 
-                                    color = Color.White, 
-                                    fontSize = 10.sp, 
-                                    fontFamily = FontFamily.Monospace,
-                                    lineHeight = 16.sp
-                                )
-                                
-                                if (selectedBodyPart != null) {
-                                    Spacer(Modifier.height(8.dp))
-                                    Button(
-                                        onClick = { onUpgradeClick(selectedBodyPart!!) },
-                                        modifier = Modifier.height(24.dp).clip(CyberButtonShape),
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
-                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                                    ) {
-                                        Text("UPGRADE", color = Color.Black, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                }
+                        if (selectedBodyPart != null) {
+                            Button(
+                                onClick = { onUpgradeClick(selectedBodyPart!!) },
+                                modifier = Modifier.padding(top = 8.dp).height(28.dp).clip(CyberButtonShape),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                            ) {
+                                Text("UPGRADE_${selectedBodyPart}", color = Color.Black, fontSize = 8.sp, fontWeight = FontWeight.Bold)
                             }
-                            AttributeRadarChart(
-                                stats = mapOf(
-                                    "STR" to (userCharacter?.strength ?: 0),
-                                    "AGI" to (userCharacter?.agility ?: 0),
-                                    "END" to (userCharacter?.endurance ?: 0),
-                                    "PER" to (userCharacter?.perception ?: 0),
-                                    "INT" to (userCharacter?.intelligence ?: 0),
-                                    "CHA" to (userCharacter?.charisma ?: 0),
-                                    "LUC" to (userCharacter?.luck ?: 0)
-                                ),
-                                modifier = Modifier.size(110.dp)
-                            )
                         }
                     }
-                    
-                    CyberFrame(label = "TERMINAL_OUTPUT", accentColor = Color.Gray, modifier = Modifier.height(80.dp)) {
-                        LazyColumn(modifier = Modifier.fillMaxSize()) {
-                            items(systemLogs.take(4)) { log ->
-                                Text(
-                                    text = "> $log",
-                                    color = Color(0xFF00FF9C).copy(alpha = 0.8f),
-                                    fontSize = 9.sp,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                            }
-                        }
+
+                    AttributeRadarChart(
+                        stats = mapOf(
+                            "STR" to (userCharacter?.strength ?: 0),
+                            "AGI" to (userCharacter?.agility ?: 0),
+                            "END" to (userCharacter?.endurance ?: 0),
+                            "PER" to (userCharacter?.perception ?: 0),
+                            "INT" to (userCharacter?.intelligence ?: 0),
+                            "CHA" to (userCharacter?.charisma ?: 0),
+                            "LUC" to (userCharacter?.luck ?: 0)
+                        ),
+                        modifier = Modifier.size(150.dp)
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            // --- SYSTEM STATS & TERMINAL ---
+            Row(modifier = Modifier.weight(0.6f), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                CyberFrame(label = "SYSTEM_LOAD", modifier = Modifier.weight(0.8f)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        EnergyBar(label = "BATTERY", value = healthState.bodyBattery / 100f)
+                        MemorySlotsDisplay(userCharacter)
                     }
                 }
-
-                Spacer(Modifier.width(16.dp))
-
-                Column(
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    DashboardActionButton("ATTRIBUTE SCAN", Color(0xFF00FF9C)) { 
-                        onAttributeScanClick()
-                        glitchBurstIntensity = 0.4f
-                    }
-                    DashboardActionButton("YOUR STORY", Color(0xFFFF006E)) { 
-                        onStoryClick()
-                        glitchBurstIntensity = 0.4f
-                    }
-                    DashboardActionButton("GOAL SETTING", Color.White) { 
-                        onGoalSettingClick()
-                        glitchBurstIntensity = 0.4f
-                    }
-                    DashboardActionButton("BIOHACKS", Color(0xFF00FFFF)) { 
-                        onHacksClick()
-                        glitchBurstIntensity = 0.4f
+                
+                CyberFrame(label = "TERMINAL_OUTPUT", accentColor = Color.Gray, modifier = Modifier.weight(1.2f)) {
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(systemLogs.take(5)) { log ->
+                            Text(
+                                text = "> $log",
+                                color = Color(0xFF00FF9C).copy(alpha = 0.8f),
+                                fontSize = 9.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
                     }
                 }
             }
@@ -558,29 +507,6 @@ fun CyberwareLabelOverlay(item: String) {
                 modifier = Modifier.background(Color.Black.copy(alpha = 0.7f)).padding(horizontal = 4.dp, vertical = 1.dp)
             )
         }
-    }
-}
-
-@Composable
-fun DashboardActionButton(label: String, color: Color, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(44.dp)
-            .clip(CyberButtonShape)
-            .background(Color.Black.copy(alpha = 0.6f))
-            .border(1.dp, color.copy(alpha = 0.6f), CyberButtonShape)
-            .clickable { onClick() },
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            label, 
-            color = color, 
-            fontSize = 11.sp, 
-            fontWeight = FontWeight.Bold, 
-            fontFamily = FontFamily.Monospace,
-            letterSpacing = 1.sp
-        )
     }
 }
 

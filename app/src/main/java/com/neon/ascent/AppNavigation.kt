@@ -97,11 +97,7 @@ fun AppNavigation(
         composable<Screen.HolographicHub> {
             HolographicAvatarHub(
                 onBack = { navController.popBackStack() },
-                onUpgradeClick = { /* TODO: Implement upgrades */ },
-                onHacksClick = { /* TODO: Navigate to biohacking page in pager */ },
-                onAttributeScanClick = { navController.navigate(Screen.AttributeScan) },
-                onStoryClick = { navController.navigate(Screen.Story) },
-                onGoalSettingClick = { navController.navigate(Screen.Goals) }
+                onUpgradeClick = { /* TODO: Implement upgrades */ }
             )
         }
 
