@@ -1,12 +1,18 @@
 package com.neon.ascent
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.health.connect.client.PermissionController
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.feature.dashboard.DashboardViewModel
@@ -22,9 +28,11 @@ class MainActivity : ComponentActivity() {
     lateinit var healthRepository: HealthRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
             NeonAscentTheme {
+                val context = LocalContext.current
                 val viewModel: DashboardViewModel = hiltViewModel()
                 val healthState by viewModel.healthState.collectAsState()
 
@@ -34,9 +42,33 @@ class MainActivity : ComponentActivity() {
                     viewModel.refreshHealthData()
                 }
 
+                val locationPermissionLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.RequestMultiplePermissions()
+                ) { permissions ->
+                    if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                        permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+                    ) {
+                        viewModel.fetchRealWeather()
+                    }
+                }
+
                 LaunchedEffect(Unit) {
                     if (!healthRepository.hasAllPermissions()) {
                         permissionsLauncher.launch(healthRepository.permissions)
+                    }
+
+                    val hasFineLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                    val hasCoarseLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                    
+                    if (hasFineLocation || hasCoarseLocation) {
+                        viewModel.fetchRealWeather()
+                    } else {
+                        locationPermissionLauncher.launch(
+                            arrayOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            )
+                        )
                     }
                 }
 

@@ -198,7 +198,11 @@ fun EReaderScreen(
             CyberGridBackground()
             GlitchOverlay(intensity = 0.05f)
 
-            Column(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+            ) {
                 // Header
                 Row(
                     modifier = Modifier

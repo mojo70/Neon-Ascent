@@ -73,7 +73,11 @@ fun CyberdeckScreen(
         // 2. Ambient Haze
         AtmosphericHaze()
 
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+        ) {
             TopStatusBar(onIceBreachClick)
 
             BoxWithConstraints(

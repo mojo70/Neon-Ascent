@@ -50,7 +50,13 @@ fun BlackIceBreachScreen(
 
         // Abort Button
         if (uiState !is IceBreachUiState.Success && uiState !is IceBreachUiState.Failed) {
-            Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.TopStart) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .padding(16.dp),
+                contentAlignment = Alignment.TopStart
+            ) {
                 OutlinedButton(
                     onClick = onCancel,
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
@@ -125,7 +131,12 @@ fun BlackIcePhase1(state: IceBreachUiState.Phase1, viewModel: IceBreachViewModel
         }
     }
 
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxSize()) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+    ) {
         Text("PHASE 1: TRACE_BYPASS", color = Color(0xFF00FF9C), fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 32.dp))
         Text("NODES CAUGHT: $caughtCount / $targetCount", color = Color.White, fontSize = 12.sp)
 

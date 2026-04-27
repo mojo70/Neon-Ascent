@@ -109,6 +109,7 @@ fun BiohackingScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .statusBarsPadding()
                 .padding(16.dp)
                 .verticalScroll(scrollState)
         ) {

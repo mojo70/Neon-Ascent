@@ -101,7 +101,12 @@ fun HolographicAvatarHub(
         GlitchOverlay(intensity = displayLoad)
         HudCornerAccents(color = Color(0xFF00FF9C).copy(alpha = 0.2f))
 
-        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(16.dp)
+        ) {
             // --- TOP HUD BAR ---
             Surface(
                 modifier = Modifier

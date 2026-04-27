@@ -84,7 +84,10 @@ fun AvatarCaptureScreen(
         if (avatarBitmap != null) {
             // Result View
             Column(
-                modifier = Modifier.fillMaxSize().padding(24.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {

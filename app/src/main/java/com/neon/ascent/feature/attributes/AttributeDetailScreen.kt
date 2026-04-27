@@ -35,12 +35,20 @@ fun AttributeDetailScreen(
     val userCharacter by viewModel.userCharacter.collectAsState()
     val aiResponse by viewModel.aiResponse.collectAsState()
     val isChatLoading by viewModel.isChatLoading.collectAsState()
+    
+    val systemOverride by viewModel.systemOverrideMessage.collectAsState()
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF020202))) {
         PerspectiveGrid()
-        Scanlines()
+        Scanlines(intensity = 0.1f)
+        StaticNoise(intensity = 0.05f)
         
-        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(16.dp)
+        ) {
             // Header
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -50,12 +58,14 @@ fun AttributeDetailScreen(
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = attribute.accentColor)
                 }
                 Spacer(Modifier.width(8.dp))
-                GlitchText(
-                    text = attribute.name,
-                    color = attribute.accentColor,
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Black
-                )
+                Column {
+                    GlitchText(
+                        text = attribute.name,
+                        color = attribute.accentColor,
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                }
             }
             
             LazyColumn(
@@ -103,7 +113,16 @@ fun AttributeDetailScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         attribute.quickGames.forEach { game ->
-                            QuickGameCard(game, attribute.accentColor)
+                            QuickGameCard(
+                                game = game, 
+                                accentColor = attribute.accentColor,
+                                isGlitching = false,
+                                onClick = {
+                                    if (attribute.name == "LUCK" && game.name == "Crit Chance") {
+                                        viewModel.onLuckButtonClick()
+                                    }
+                                }
+                            )
                         }
                     }
                 }
@@ -146,25 +165,68 @@ fun AttributeDetailScreen(
                 }
             }
         }
+
+        // System Override Overlay
+        if (systemOverride != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.9f))
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "!! SYSTEM OVERRIDE !!",
+                        color = Color.Red,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Black,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    GlitchText(
+                        text = systemOverride!!,
+                        color = Color.White,
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Spacer(Modifier.height(24.dp))
+                    Text(
+                        "LUCK_VARIABLE_MANIPULATED_SUCCESSFULLY...",
+                        color = Color(0xFF00FF9C),
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+        }
     }
 }
 
 @Composable
-fun QuickGameCard(game: QuickGame, accentColor: Color) {
+fun QuickGameCard(
+    game: QuickGame, 
+    accentColor: Color,
+    isGlitching: Boolean = false,
+    onClick: () -> Unit = {}
+) {
+    val cardColor = if (isGlitching) Color.Magenta.copy(alpha = 0.3f) else Color(0xFF0A0A0A)
+    val borderColor = if (isGlitching) Color.White else accentColor.copy(alpha = 0.4f)
+
     Box(
         modifier = Modifier
             .width(200.dp)
             .height(120.dp)
             .clip(CyberButtonShape)
-            .background(Color(0xFF0A0A0A))
-            .border(1.dp, accentColor.copy(alpha = 0.4f), CyberButtonShape)
-            .clickable { /* TODO: Start Game */ }
+            .background(cardColor)
+            .border(1.dp, borderColor, CyberButtonShape)
+            .clickable { onClick() }
             .padding(12.dp)
     ) {
         Column {
             Text(
                 text = game.name,
-                color = accentColor,
+                color = if (isGlitching) Color.White else accentColor,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace
@@ -177,8 +239,8 @@ fun QuickGameCard(game: QuickGame, accentColor: Color) {
                 modifier = Modifier.weight(1f).padding(top = 4.dp)
             )
             Text(
-                text = game.actionLabel,
-                color = accentColor,
+                text = if (isGlitching) "!! LUCK_FLIP_READY !!" else game.actionLabel,
+                color = if (isGlitching) Color.White else accentColor,
                 fontSize = 8.sp,
                 fontWeight = FontWeight.Black,
                 fontFamily = FontFamily.Monospace,

@@ -28,12 +28,26 @@ class AttributeViewModel @Inject constructor(
     private val _isChatLoading = MutableStateFlow(false)
     val isChatLoading: StateFlow<Boolean> = _isChatLoading.asStateFlow()
 
+    // Luck Cheat Logic
+    private val _isGlitching = MutableStateFlow(false)
+    val isGlitching: StateFlow<Boolean> = _isGlitching.asStateFlow()
+
+    private val _luckCheatStreak = MutableStateFlow(0)
+    val luckCheatStreak: StateFlow<Int> = _luckCheatStreak.asStateFlow()
+
+    private val _systemOverrideMessage = MutableStateFlow<String?>(null)
+    val systemOverrideMessage: StateFlow<String?> = _systemOverrideMessage.asStateFlow()
+
     init {
         viewModelScope.launch {
             characterRepository.getUserCharacter().collect {
                 _userCharacter.value = it
             }
         }
+    }
+
+    fun onLuckButtonClick() {
+        // Removed cheat logic as per user request
     }
 
     fun askAi(attribute: AttributeDetail, message: String) {

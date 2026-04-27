@@ -27,6 +27,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.ui.*
 import com.neon.ascent.util.CalculatedScores
+import com.neon.ascent.util.RawAttributeInputs
+import kotlinx.coroutines.delay
 import java.util.Locale
 import kotlin.math.*
 import kotlin.random.Random
@@ -44,7 +46,12 @@ fun AttributeScanScreen(
         PerspectiveGrid()
         Scanlines(intensity = 0.2f)
         
-        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(16.dp)
+        ) {
             // Header with Progress and Abort
             Row(
                 modifier = Modifier.fillMaxWidth().height(48.dp),
@@ -394,20 +401,74 @@ fun CharismaStep(onComplete: (Int) -> Unit) {
 fun LuckStep(onComplete: (Int) -> Unit) {
     var heads by remember { mutableIntStateOf(0) }
     var flips by remember { mutableIntStateOf(0) }
+
+    var isGlitching by remember { mutableStateOf(false) }
+    var glitchCaught by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            // Random timing: between 3 and 10 seconds
+            delay(Random.nextLong(3000, 10000))
+            isGlitching = true
+            // 70ms duration - about 4-5 frames. Just enough to be distinct but fast.
+            delay(70)
+            isGlitching = false
+        }
+    }
     
-    Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        Text("LUCK_FACTOR", color = Color.White, style = MaterialTheme.typography.headlineSmall)
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        if (flips < 10) {
-            CyberActionButton("FLIP_COIN ($flips/10)", Color.White) {
-                if (Random.nextBoolean()) heads++
-                flips++
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        if (isGlitching) {
+            // Subtle magenta flash
+            Box(Modifier.fillMaxSize().background(Color.Magenta.copy(alpha = 0.15f)))
+            // Small random offset jitter for the whole screen
+            Box(Modifier.fillMaxSize().offset(
+                x = Random.nextInt(-20, 20).dp,
+                y = Random.nextInt(-10, 10).dp
+            ).background(Color.Cyan.copy(alpha = 0.05f)))
+        }
+
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Text(
+                text = "LUCK_FACTOR", 
+                color = if (isGlitching) Color.Magenta else Color.White, 
+                style = MaterialTheme.typography.headlineSmall
+            )
+            
+            if (glitchCaught) {
+                Text(
+                    "!! FORCE_CRIT_LINK_ESTABLISHED !!",
+                    color = Color(0xFF00FF9C),
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
             }
-        } else {
-            Text("HEADS: $heads / 10", color = Color(0xFF00FF9C), fontSize = 24.sp, fontWeight = FontWeight.Black)
+
             Spacer(modifier = Modifier.height(32.dp))
-            CyberActionButton("REVEAL_BUILD", Color(0xFF00FF9C)) { onComplete(heads) }
+            
+            if (flips < 10) {
+                CyberActionButton(
+                    label = "FLIP_COIN ($flips/10)", 
+                    color = if (isGlitching) Color.Magenta else Color.White
+                ) {
+                    if (isGlitching) {
+                        heads++ // Cheat!
+                        glitchCaught = true
+                    } else {
+                        if (Random.nextBoolean()) heads++
+                        glitchCaught = false
+                    }
+                    flips++
+                }
+            } else {
+                Text("HEADS: $heads / 10", color = Color(0xFF00FF9C), fontSize = 24.sp, fontWeight = FontWeight.Black)
+                Spacer(modifier = Modifier.height(32.dp))
+                CyberActionButton("REVEAL_BUILD", Color(0xFF00FF9C)) { onComplete(heads) }
+            }
         }
     }
 }

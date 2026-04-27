@@ -39,6 +39,7 @@ fun EurodollarWalletScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .statusBarsPadding()
                 .padding(16.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {

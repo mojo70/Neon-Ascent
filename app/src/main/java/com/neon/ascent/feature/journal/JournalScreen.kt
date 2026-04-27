@@ -50,7 +50,12 @@ fun JournalScreen(
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF020508))) {
         Scanlines()
         
-        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(16.dp)
+        ) {
             // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -327,7 +332,12 @@ fun StoryScreen(
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF020508))) {
         Scanlines()
         
-        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(16.dp)
+        ) {
             // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),

@@ -197,15 +197,20 @@ class DashboardViewModel @Inject constructor(
     }
 
     @SuppressLint("MissingPermission")
-    private fun fetchRealWeather() {
+    fun fetchRealWeather() {
         viewModelScope.launch {
             try {
                 val location: Location? = fusedLocationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null).await()
-                location?.let {
-                    val realWeather = weatherRepository.getWeatherData(it.latitude, it.longitude)
+                if (location != null) {
+                    val realWeather = weatherRepository.getWeatherData(location.latitude, location.longitude)
                     _weatherState.value = realWeather
+                } else {
+                    updateAtmosphereSimulated()
                 }
-            } catch (e: Exception) { }
+            } catch (e: Exception) {
+                // If real fetch fails, ensure we have at least simulated data that respects units
+                updateAtmosphereSimulated()
+            }
         }
     }
 
@@ -250,10 +255,17 @@ class DashboardViewModel @Inject constructor(
     private fun updateAtmosphereSimulated() {
         val now = LocalTime.now()
         val isNight = now.hour < 6 || now.hour > 19
+        val useFahrenheit = Locale.getDefault().country == "US"
+        
+        // Provide more realistic defaults if fetch fails or hasn't run yet
         _weatherState.value = WeatherState(
             isRaining = false,
             isNight = isNight,
-            temperature = if (isNight) 18 else 26
+            temperature = if (useFahrenheit) {
+                if (isNight) 65 else 78
+            } else {
+                if (isNight) 18 else 26
+            }
         )
     }
 

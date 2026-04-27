@@ -96,7 +96,8 @@ fun LoadingScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF010203)),
+            .background(Color(0xFF010203))
+            .statusBarsPadding(),
         contentAlignment = Alignment.Center
     ) {
         // 1. ATMOSPHERIC BACKGROUND

@@ -52,7 +52,13 @@ fun IceBreachScreen(
         BreachBackground()
 
         if (uiState !is IceBreachUiState.Success && uiState !is IceBreachUiState.Failed) {
-            Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.TopStart) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .padding(16.dp),
+                contentAlignment = Alignment.TopStart
+            ) {
                 OutlinedButton(
                     onClick = onCancel,
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),

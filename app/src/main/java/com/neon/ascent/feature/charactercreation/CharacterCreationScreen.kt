@@ -124,6 +124,7 @@ fun CharacterCreationScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .statusBarsPadding()
                 .padding(horizontal = 20.dp)
                 .verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally,
