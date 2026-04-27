@@ -47,6 +47,13 @@ class CreationViewModel @Inject constructor(
         apiKey = BuildConfig.GEMINI_API_KEY
     )
 
+    fun abort(onComplete: () -> Unit) {
+        viewModelScope.launch {
+            // Save current progress if any
+            onComplete()
+        }
+    }
+
     fun updateBasicInfo(
         name: String,
         sex: String,

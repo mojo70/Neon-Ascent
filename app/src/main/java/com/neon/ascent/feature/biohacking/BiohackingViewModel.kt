@@ -93,9 +93,14 @@ class BiohackingViewModel @Inject constructor(
     fun syncWearable() {
         viewModelScope.launch {
             if (healthRepository.hasAllPermissions()) {
+                val steps = healthRepository.getTodaySteps()
+                val heartRate = healthRepository.getLatestHeartRate()
+                
                 updateData { it.copy(
                     isWearableSynced = true, 
-                    lastSyncTimestamp = System.currentTimeMillis()
+                    lastSyncTimestamp = System.currentTimeMillis(),
+                    currentSteps = steps,
+                    currentHeartRate = heartRate
                 ) }
             }
         }

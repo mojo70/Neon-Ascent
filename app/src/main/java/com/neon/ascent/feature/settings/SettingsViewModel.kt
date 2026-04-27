@@ -7,6 +7,7 @@ import com.neon.ascent.data.local.DailyPrayerDao
 import com.neon.ascent.data.repository.CharacterRepository
 import com.neon.ascent.data.repository.JournalRepository
 import com.neon.ascent.data.repository.SettingsRepository
+import com.neon.ascent.data.repository.UserPreferencesRepository
 import com.neon.ascent.model.DailyPrayer
 import com.neon.ascent.model.JournalEntry
 import com.neon.ascent.model.UserCharacter
@@ -26,6 +27,7 @@ class SettingsViewModel @Inject constructor(
     private val characterRepository: CharacterRepository,
     private val biohackingDao: BiohackingDao,
     private val settingsRepository: SettingsRepository,
+    private val userPreferencesRepository: UserPreferencesRepository,
     private val dailyPrayerDao: DailyPrayerDao,
     private val journalRepository: JournalRepository
 ) : ViewModel() {
@@ -572,6 +574,9 @@ class SettingsViewModel @Inject constructor(
     val lastAltarVisit: StateFlow<Long> = settingsRepository.lastAltarVisit
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
 
+    val measurementUnit: StateFlow<String> = userPreferencesRepository.measurementUnit
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Metric")
+
     val userCharacter: StateFlow<UserCharacter?> = characterRepository.getUserCharacter()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
@@ -590,6 +595,12 @@ class SettingsViewModel @Inject constructor(
     fun setLocalAiOnly(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setLocalAiOnly(enabled)
+        }
+    }
+
+    fun setMeasurementUnit(unit: String) {
+        viewModelScope.launch {
+            userPreferencesRepository.updateMeasurementUnit(unit)
         }
     }
 

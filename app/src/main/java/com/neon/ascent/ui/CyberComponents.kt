@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.*
@@ -40,6 +41,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neon.ascent.R
+import com.neon.ascent.model.TrainingTemplate
 import com.neon.ascent.model.UserCharacter
 import kotlin.random.Random
 
@@ -64,6 +66,83 @@ val HexTerminalShape = GenericShape { size, _ ->
     lineTo(gap, size.height)
     lineTo(0f, size.height / 2f)
     close()
+}
+
+@Composable
+fun CyberTabButton(
+    selected: Boolean,
+    onClick: () -> Unit,
+    label: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .height(44.dp)
+            .clip(CyberButtonShape)
+            .background(if (selected) Color(0xFFFF006E) else Color(0xFF0A0A0A))
+            .border(
+                width = 1.dp,
+                color = if (selected) Color.White.copy(alpha = 0.4f) else Color(0xFF00FF9C).copy(alpha = 0.2f),
+                shape = CyberButtonShape
+            )
+            .selectable(selected = selected, onClick = onClick, role = androidx.compose.ui.semantics.Role.RadioButton),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            color = if (selected) Color.White else Color(0xFF00FF9C).copy(alpha = 0.5f),
+            style = MaterialTheme.typography.labelLarge.copy(
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 1.5.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        )
+    }
+}
+
+@Composable
+fun TemplateCard(
+    template: TrainingTemplate,
+    isSelected: Boolean,
+    isSuggested: Boolean = false,
+    onClick: () -> Unit
+) {
+    val borderColor = if (isSuggested) Color(0xFFFF006E) else Color(0xFF00FF9C)
+    
+    Box(
+        modifier = Modifier
+            .width(160.dp)
+            .height(80.dp)
+            .clip(CyberButtonShape)
+            .background(if (isSelected) borderColor else Color(0xFF0A0A0A))
+            .border(
+                width = if (isSuggested) 2.dp else 1.dp,
+                color = if (isSelected) Color.White else borderColor.copy(alpha = 0.4f),
+                shape = CyberButtonShape
+            )
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = template.name,
+                color = if (isSelected) Color.Black else Color.White,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 1.sp,
+                fontFamily = FontFamily.Monospace
+            )
+            if (isSuggested) {
+                Text(
+                    text = "[SYSTEM_MATCH]",
+                    color = if (isSelected) Color.Black.copy(alpha = 0.7f) else borderColor,
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+        }
+    }
 }
 
 @Composable

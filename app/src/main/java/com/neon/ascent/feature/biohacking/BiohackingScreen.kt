@@ -203,6 +203,30 @@ fun BiohackingScreen(
                 }
             }
 
+            // Wearable Metrics
+            if (uiState.isWearableSynced) {
+                ExpandableBioSection("WEARABLE_METRICS", neonCyan) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        BioReadOnlyField("HEART_RATE", "${uiState.currentHeartRate ?: "--"} BPM", Modifier.weight(1f), neonCyan)
+                        BioReadOnlyField("STEPS_TODAY", "${uiState.currentSteps ?: "--"}", Modifier.weight(1f), neonCyan)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "LAST_SYNC: ${uiState.lastSyncTimestamp?.let { java.time.Instant.ofEpochMilli(it).toString() } ?: "NEVER"}",
+                        color = Color.Gray,
+                        fontSize = 8.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            } else {
+                CyberActionButton(
+                    label = "SYNC_WEARABLE_DATA",
+                    color = neonCyan.copy(alpha = 0.5f),
+                    onClick = { viewModel.syncWearable() }
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
             // Lifestyle Stack
             ExpandableBioSection("LIFESTYLE_STACK", neonCyan) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {

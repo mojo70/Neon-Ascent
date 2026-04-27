@@ -1,6 +1,7 @@
 package com.neon.ascent.feature.charactercreation
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,9 +26,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.ui.CyberButtonShape
 import com.neon.ascent.ui.CyberFrame
 import com.neon.ascent.ui.CyberGridBackground
+import com.neon.ascent.ui.CyberTabButton
 import com.neon.ascent.ui.GlitchOverlay
 import com.neon.ascent.ui.theme.NeonAscentTheme
 import kotlinx.coroutines.delay
@@ -77,6 +81,8 @@ fun MorphologyIcon(value: Float, modifier: Modifier = Modifier) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CharacterCreationScreen(
+    viewModel: CreationViewModel = hiltViewModel(),
+    onAbort: () -> Unit,
     onCreationFinished: (String, String, String, String, String, Float, String?, String?, String?) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
@@ -123,7 +129,34 @@ fun CharacterCreationScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Abort Button at top right-ish
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Surface(
+                    onClick = { 
+                        viewModel.updateBasicInfo(name, sex, dobValue.text, units, weight, somatotype, heightFeet, heightInches, heightCm)
+                        onAbort()
+                    },
+                    color = Color.Transparent,
+                    shape = RoundedCornerShape(4.dp),
+                    border = BorderStroke(1.dp, Color(0xFFFF006E).copy(alpha = 0.5f)),
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Box(
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "ABORT",
+                            color = Color(0xFFFF006E),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                        )
+                    }
+                }
+            }
 
             // Header Section
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -342,33 +375,4 @@ fun CyberInputTransparent(
     )
 }
 
-@Composable
-fun CyberTabButton(
-    selected: Boolean,
-    onClick: () -> Unit,
-    label: String,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .height(44.dp)
-            .clip(CyberButtonShape)
-            .background(if (selected) Color(0xFFFF006E) else Color(0xFF0A0A0A))
-            .border(
-                width = 1.dp,
-                color = if (selected) Color.White.copy(alpha = 0.4f) else Color(0xFF00FF9C).copy(alpha = 0.2f),
-                shape = CyberButtonShape
-            )
-            .selectable(selected = selected, onClick = onClick, role = Role.RadioButton),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = label,
-            color = if (selected) Color.White else Color(0xFF00FF9C).copy(alpha = 0.5f),
-            style = MaterialTheme.typography.labelLarge.copy(
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 1.5.sp
-            )
-        )
-    }
-}
+

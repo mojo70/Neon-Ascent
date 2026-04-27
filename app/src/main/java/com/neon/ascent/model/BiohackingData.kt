@@ -31,6 +31,8 @@ data class BiohackingData(
     // Sync Status
     val isWearableSynced: Boolean = false,
     val lastSyncTimestamp: Long? = null,
+    val currentHeartRate: Int? = null,
+    val currentSteps: Long? = null,
     
     // Genetic/Lab Data
     val labResultsPath: String? = null,

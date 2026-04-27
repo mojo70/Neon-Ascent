@@ -10,6 +10,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -82,6 +83,7 @@ fun SettingsScreen(
     val haptic = LocalHapticFeedback.current
     val biometricLockEnabled by viewModel.isBiometricLockEnabled.collectAsState()
     val localAiOnly by viewModel.isLocalAiOnly.collectAsState()
+    val measurementUnit by viewModel.measurementUnit.collectAsState()
     val biometricAuthManager = remember { BiometricAuthManager(context) }
     
     var showResetDialog by remember { mutableStateOf(false) }
@@ -248,6 +250,34 @@ fun SettingsScreen(
                             viewModel.setLocalAiOnly(it)
                         }
                     )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Text("SYSTEM_UNITS", color = Color(0xFF00FF9C).copy(alpha = 0.6f), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        Modifier.fillMaxWidth().selectableGroup(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        CyberTabButton(
+                            selected = measurementUnit == "Imperial", 
+                            onClick = { 
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                viewModel.setMeasurementUnit("Imperial") 
+                            }, 
+                            label = "IMPERIAL", 
+                            modifier = Modifier.weight(1f)
+                        )
+                        CyberTabButton(
+                            selected = measurementUnit == "Metric", 
+                            onClick = { 
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                viewModel.setMeasurementUnit("Metric") 
+                            }, 
+                            label = "METRIC", 
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
 

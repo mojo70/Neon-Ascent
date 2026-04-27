@@ -18,6 +18,7 @@ import com.neon.ascent.ui.CyberGridBackground
 import com.neon.ascent.ui.GlitchOverlay
 import com.neon.ascent.ui.CyberButtonShape
 import com.neon.ascent.ui.CyberFrame
+import com.neon.ascent.util.derivePersonalityArchetype
 
 @Composable
 fun NeuralScanScreen(onComplete: (Map<String, String>) -> Unit) {
@@ -153,7 +154,7 @@ fun ArchetypeResultView(answers: Map<String, String>, onFinish: () -> Unit) {
     }
     val alignment = if (alignmentLaw == "Neutral" && alignmentMorality == "Neutral") "True Neutral" else "$alignmentLaw $alignmentMorality"
 
-    val (archetype, description) = deriveArchetype(mbti, alignment)
+    val (archetype, description) = derivePersonalityArchetype(mbti, alignment)
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("SCAN COMPLETE", color = Color(0xFF00FF9C), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
@@ -185,17 +186,4 @@ fun ArchetypeResultView(answers: Map<String, String>, onFinish: () -> Unit) {
     }
 }
 
-fun deriveArchetype(mbti: String, alignment: String): Pair<String, String> {
-    return when {
-        mbti.startsWith("INF") && alignment.contains("Good") -> 
-            "THE IDEALIST" to "Driven by strong values and a desire to help others. You are the glitch in the corporate machine that fights for the people."
-        mbti.startsWith("INT") -> 
-            "THE STRATEGIST" to "Analytical and goal-oriented. You see the city as a series of systems to be optimized or exploited."
-        mbti.contains("ENF") && alignment.contains("Chaotic") -> 
-            "THE ADVOCATE" to "Enthusiastic and inspiring. Your creativity is your weapon against the neon monotony."
-        mbti.contains("IST") -> 
-            "THE PRAGMATIST" to "Observant and adaptable. You don't care about the 'why', only that the job gets done and you get paid."
-        else -> 
-            "THE EDGE-RUNNER" to "A versatile survivalist in the sprawl. You balance logic and instinct to stay one step ahead of the ICE."
-    }
-}
+

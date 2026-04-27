@@ -20,7 +20,7 @@ import com.neon.ascent.model.*
     QuoteEntity::class,
     DailyPrayer::class,
     StrengthBenchmark::class
-], version = 31)
+], version = 32)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userCharacterDao(): UserCharacterDao
     abstract fun biohackingDao(): BiohackingDao

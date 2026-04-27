@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -44,11 +45,43 @@ fun AttributeScanScreen(
         Scanlines(intensity = 0.2f)
         
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            // Progress Bar
-            if (currentStep in 1..7) {
-                AttributeProgressBar(currentStep)
-                Spacer(modifier = Modifier.height(24.dp))
+            // Header with Progress and Abort
+            Row(
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                if (currentStep in 1..7) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        AttributeProgressBar(currentStep)
+                    }
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+                
+                Surface(
+                    onClick = { viewModel.abort(onComplete) },
+                    color = Color.Transparent,
+                    shape = RoundedCornerShape(4.dp),
+                    border = BorderStroke(1.dp, Color(0xFFFF006E).copy(alpha = 0.5f)),
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Box(
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "ABORT",
+                            color = Color(0xFFFF006E),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
             }
+            
+            Spacer(modifier = Modifier.height(16.dp))
 
             AnimatedContent(
                 targetState = currentStep,
@@ -101,11 +134,11 @@ fun AttributeScanScreen(
                     7 -> LuckStep(
                         onComplete = { heads ->
                             viewModel.updateInputs { it.copy(coinFlipsHeads = heads) }
-                            viewModel.calculateResults()
-                            viewModel.nextStep()
+                            viewModel.calculateResults { viewModel.nextStep() }
                         }
                     )
                     8 -> ResultsStep(
+                        viewModel = viewModel,
                         result = scanResult,
                         onSave = {
                             viewModel.saveResults()
@@ -380,9 +413,35 @@ fun LuckStep(onComplete: (Int) -> Unit) {
 }
 
 @Composable
-fun ResultsStep(result: CalculatedScores?, onSave: () -> Unit) {
-    if (result == null) return
+fun ResultsStep(
+    viewModel: AttributeScanViewModel,
+    result: CalculatedScores?,
+    onSave: () -> Unit
+) {
+    if (result == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator(color = Color(0xFF00FF9C))
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("ANALYZING_BIOMETRIC_DATA...", color = Color(0xFF00FF9C), fontFamily = FontFamily.Monospace)
+            }
+        }
+        return
+    }
     
+    val suggestedId by viewModel.suggestedTemplateId.collectAsState()
+    val selectedId by viewModel.selectedTemplateId.collectAsState()
+    val templates = viewModel.templates
+    
+    val sortedTemplates = remember(templates, suggestedId) {
+        val suggested = templates.find { it.id == suggestedId }
+        if (suggested != null) {
+            listOf(suggested) + (templates - suggested)
+        } else {
+            templates
+        }
+    }
+
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -413,8 +472,50 @@ fun ResultsStep(result: CalculatedScores?, onSave: () -> Unit) {
             AttributeResultRow("CHARISMA", result.charisma, Color(0xFFBC00FF))
             AttributeResultRow("LUCK", result.luck, Color.White)
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
         
-        CyberActionButton("UPLOAD_TO_NEURAL_LINK", Color(0xFF00FF9C), onClick = onSave)
+        CyberFrame(label = "ARCHETYPE_SELECTION", borderColor = Color(0xFF00FF9C)) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(
+                    "Based on your biometric scan, the system suggests a specialized training path. Choose your archetype to finalize the link.",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    lineHeight = 16.sp
+                )
+                
+                androidx.compose.foundation.lazy.LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(vertical = 8.dp)
+                ) {
+                    items(sortedTemplates) { template ->
+                        TemplateCard(
+                            template = template,
+                            isSelected = selectedId == template.id,
+                            isSuggested = suggestedId == template.id,
+                            onClick = { viewModel.selectTemplate(template.id) }
+                        )
+                    }
+                }
+                
+                selectedId?.let { id ->
+                    val template = templates.find { it.id == id }
+                    template?.let {
+                        Text(
+                            text = "DESC: ${it.description}",
+                            color = Color(0xFF00FF9C),
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.background(Color(0xFF00FF9C).copy(alpha = 0.05f)).padding(8.dp)
+                        )
+                    }
+                }
+            }
+        }
+        
+        CyberActionButton("FINALIZE_AND_UPLOAD", Color(0xFF00FF9C), onClick = onSave)
+        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 

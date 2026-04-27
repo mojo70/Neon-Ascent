@@ -18,7 +18,6 @@ import com.neon.ascent.feature.charactercreation.AvatarCaptureScreen
 import com.neon.ascent.feature.charactercreation.CharacterCreationScreen
 import com.neon.ascent.feature.charactercreation.CreationViewModel
 import com.neon.ascent.feature.charactercreation.NeuralScanScreen
-import com.neon.ascent.feature.charactercreation.deriveArchetype
 import com.neon.ascent.feature.cyberdeck.CyberdeckScreen
 import com.neon.ascent.feature.dashboard.DashboardScreen
 import com.neon.ascent.feature.dashboard.DashboardViewModel
@@ -189,6 +188,7 @@ fun AppNavigation(
 
         composable<Screen.Creation> {
             CharacterCreationScreen(
+                onAbort = { navController.popBackStack() },
                 onCreationFinished = { name, sex, dob, units, weight, somatotype, hFeet, hInches, hCm ->
                     creationViewModel.updateBasicInfo(name, sex, dob, units, weight, somatotype, hFeet, hInches, hCm)
                     navController.navigate(Screen.PersonalityIntake)
@@ -217,8 +217,7 @@ fun AppNavigation(
                     }
                     val alignment = if (alignmentLaw == "Neutral" && alignmentMorality == "Neutral") "True Neutral" else "$alignmentLaw $alignmentMorality"
 
-                    val (archetype, _) = deriveArchetype(mbti, alignment)
-                    creationViewModel.updatePersonality(mbti, alignment, archetype)
+                    creationViewModel.updatePersonality(mbti, alignment, "OPERATIVE")
                     navController.navigate(Screen.AvatarCapture)
                 }
             )
