@@ -52,9 +52,10 @@ fun BiohackingScreen(
     val isLocalAiAvailable = activeAiType == AiType.LOCAL
     val downloadProgress by viewModel.modelDownloadManager.downloadProgress.collectAsState()
     val isDownloading by viewModel.modelDownloadManager.isDownloading.collectAsState()
+    val measurementUnit by viewModel.measurementUnit.collectAsState()
 
     val displayChar = characterState ?: UserCharacter(
-        name = "PROTAGONIST", sex = "NON_BINARY", dob = "2077.01.01", units = "METRIC", weight = "75", somatotype = 0.5f
+        name = "PROTAGONIST", sex = "NON_BINARY", dob = "2077.01.01", units = measurementUnit, weight = "75", somatotype = 0.5f
     )
 
     var selectedSector by remember { mutableStateOf("CORE_CHASSIS") }

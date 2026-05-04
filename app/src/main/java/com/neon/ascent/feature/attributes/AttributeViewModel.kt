@@ -3,7 +3,9 @@ package com.neon.ascent.feature.attributes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.neon.ascent.data.repository.CharacterRepository
+import com.neon.ascent.data.repository.TemplateRepository
 import com.neon.ascent.feature.biohacking.AiProvider
+import com.neon.ascent.model.TrainingTemplate
 import com.neon.ascent.model.UserCharacter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,11 +18,15 @@ import javax.inject.Inject
 @HiltViewModel
 class AttributeViewModel @Inject constructor(
     private val characterRepository: CharacterRepository,
+    private val templateRepository: TemplateRepository,
     private val aiProvider: AiProvider
 ) : ViewModel() {
 
     private val _userCharacter = MutableStateFlow<UserCharacter?>(null)
     val userCharacter: StateFlow<UserCharacter?> = _userCharacter.asStateFlow()
+
+    private val _templates = MutableStateFlow<List<TrainingTemplate>>(emptyList())
+    val templates: StateFlow<List<TrainingTemplate>> = _templates.asStateFlow()
 
     private val _aiResponse = MutableStateFlow<String>("")
     val aiResponse: StateFlow<String> = _aiResponse.asStateFlow()
@@ -44,6 +50,7 @@ class AttributeViewModel @Inject constructor(
                 _userCharacter.value = it
             }
         }
+        _templates.value = templateRepository.getTemplates()
     }
 
     fun onLuckButtonClick() {

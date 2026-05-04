@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.DailyPrayerDao
 import com.neon.ascent.data.repository.CharacterRepository
+import com.neon.ascent.data.repository.HealthRepository
 import com.neon.ascent.data.repository.JournalRepository
 import com.neon.ascent.data.repository.SettingsRepository
 import com.neon.ascent.data.repository.UserPreferencesRepository
@@ -29,7 +30,8 @@ class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val dailyPrayerDao: DailyPrayerDao,
-    private val journalRepository: JournalRepository
+    private val journalRepository: JournalRepository,
+    private val healthRepository: HealthRepository
 ) : ViewModel() {
 
     private val _prayerToast = MutableStateFlow<String?>(null)
@@ -38,8 +40,22 @@ class SettingsViewModel @Inject constructor(
     private val _currentDailyPrayer = MutableStateFlow<DailyPrayer?>(null)
     val currentDailyPrayer = _currentDailyPrayer.asStateFlow()
 
+    private val _isHealthConnectGranted = MutableStateFlow(false)
+    val isHealthConnectGranted = _isHealthConnectGranted.asStateFlow()
+
     init {
         seedPrayersIfEmpty()
+        checkHealthConnectStatus()
+    }
+
+    fun checkHealthConnectStatus() {
+        viewModelScope.launch {
+            _isHealthConnectGranted.value = healthRepository.hasAllPermissions()
+        }
+    }
+
+    fun getHealthPermissions(): Set<String> {
+        return healthRepository.permissions
     }
 
     private fun seedPrayersIfEmpty() {

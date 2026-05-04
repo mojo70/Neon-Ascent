@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.UserCharacterDao
 import com.neon.ascent.data.repository.HealthRepository
+import com.neon.ascent.data.repository.UserPreferencesRepository
 import com.neon.ascent.model.BioProtocolLog
 import com.neon.ascent.model.BiohackingData
 import com.neon.ascent.model.UserCharacter
@@ -18,6 +19,7 @@ class BiohackingViewModel @Inject constructor(
     private val biohackingDao: BiohackingDao,
     private val userCharacterDao: UserCharacterDao,
     private val healthRepository: HealthRepository,
+    private val userPreferencesRepository: UserPreferencesRepository,
     private val aiProvider: AiProvider,
     val modelDownloadManager: ModelDownloadManager
 ) : ViewModel() {
@@ -38,6 +40,9 @@ class BiohackingViewModel @Inject constructor(
     val latestReport: StateFlow<String?> = _latestReport.asStateFlow()
 
     val activeAiType: StateFlow<AiType> = aiProvider.activeAiType
+
+    val measurementUnit: StateFlow<String> = userPreferencesRepository.measurementUnit
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Metric")
 
     init {
         viewModelScope.launch {

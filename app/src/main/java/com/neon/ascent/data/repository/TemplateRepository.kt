@@ -58,6 +58,19 @@ class TemplateRepository @Inject constructor() {
             perception = 4,
             charisma = 6,
             luck = 7
+        ),
+        TrainingTemplate(
+            id = "TANK",
+            name = "THE TANK",
+            description = "Heavy-duty endurance and strength for soaking up damage.",
+            somatotype = "Endomorph",
+            strength = 8,
+            agility = 2,
+            endurance = 9,
+            intelligence = 3,
+            perception = 3,
+            charisma = 2,
+            luck = 3
         )
     )
 

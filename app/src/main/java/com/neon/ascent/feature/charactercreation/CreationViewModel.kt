@@ -8,6 +8,7 @@ import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
 import com.neon.ascent.BuildConfig
 import com.neon.ascent.data.repository.CharacterRepository
+import com.neon.ascent.data.repository.UserPreferencesRepository
 import com.neon.ascent.model.UserCharacter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +25,7 @@ import javax.inject.Inject
 @HiltViewModel
 class CreationViewModel @Inject constructor(
     private val characterRepository: CharacterRepository,
+    private val userPreferencesRepository: UserPreferencesRepository,
     application: Application
 ) : AndroidViewModel(application) {
 
@@ -78,6 +80,7 @@ class CreationViewModel @Inject constructor(
                 heightCm = heightCm
             )
             characterRepository.saveCharacter(finalCharacter)
+            userPreferencesRepository.updateMeasurementUnit(units)
             _uiState.value = CreationUiState.Success
         }
     }

@@ -1,5 +1,6 @@
 package com.neon.ascent.feature.attributes
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -33,6 +34,7 @@ fun AttributeDetailScreen(
 ) {
     val attribute = AttributeData.attributes[attributeName.uppercase()] ?: return
     val userCharacter by viewModel.userCharacter.collectAsState()
+    val templates by viewModel.templates.collectAsState()
     val aiResponse by viewModel.aiResponse.collectAsState()
     val isChatLoading by viewModel.isChatLoading.collectAsState()
     
@@ -145,6 +147,119 @@ fun AttributeDetailScreen(
                                     Text(">", color = attribute.accentColor, fontWeight = FontWeight.Bold)
                                     Spacer(Modifier.width(8.dp))
                                     Text(tip, color = Color.White, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                item {
+                    Text(
+                        "OPTIMIZED_TRAINING_TEMPLATES",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    
+                    val userSomatotype = when {
+                        (userCharacter?.somatotype ?: 5f) < 3.3f -> "Ectomorph"
+                        (userCharacter?.somatotype ?: 5f) < 6.6f -> "Mesomorph"
+                        else -> "Endomorph"
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        templates.forEach { template ->
+                            val isRecommended = template.somatotype == userSomatotype
+                            
+                            CyberFrame(
+                                label = if (isRecommended) "RECOMMENDED_FOR_YOUR_FRAME" else "LEGACY_PROTOCOL",
+                                borderColor = if (isRecommended) attribute.accentColor else Color.Gray.copy(alpha = 0.3f),
+                                accentColor = if (isRecommended) Color(0xFFFF006E) else Color.Transparent
+                            ) {
+                                Column(modifier = Modifier.padding(4.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = template.name,
+                                            color = if (isRecommended) Color.White else Color.Gray,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 16.sp,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                        
+                                        Surface(
+                                            color = if (isRecommended) attribute.accentColor.copy(alpha = 0.2f) else Color.Transparent,
+                                            border = BorderStroke(1.dp, if (isRecommended) attribute.accentColor else Color.Gray.copy(alpha = 0.5f)),
+                                            shape = RoundedCornerShape(4.dp)
+                                        ) {
+                                            Text(
+                                                text = template.somatotype.uppercase(),
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                fontSize = 9.sp,
+                                                color = if (isRecommended) attribute.accentColor else Color.Gray,
+                                                fontWeight = FontWeight.Black,
+                                                fontFamily = FontFamily.Monospace
+                                            )
+                                        }
+                                    }
+                                    
+                                    Spacer(Modifier.height(4.dp))
+                                    
+                                    Text(
+                                        text = template.description,
+                                        color = Color.LightGray,
+                                        fontSize = 11.sp,
+                                        lineHeight = 14.sp,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                    
+                                    Spacer(Modifier.height(12.dp))
+                                    
+                                    // Target Attribute Level for this template
+                                    val targetVal = when(attributeName.uppercase()) {
+                                        "STRENGTH" -> template.strength
+                                        "AGILITY" -> template.agility
+                                        "ENDURANCE" -> template.endurance
+                                        "INTELLIGENCE" -> template.intelligence
+                                        "PERCEPTION" -> template.perception
+                                        "CHARISMA" -> template.charisma
+                                        "LUCK" -> template.luck
+                                        else -> 0
+                                    }
+                                    
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            "TARGET_${attributeName.uppercase()}_LVL: ",
+                                            color = attribute.accentColor.copy(alpha = 0.7f),
+                                            fontSize = 10.sp,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                        Text(
+                                            targetVal.toString(),
+                                            color = Color.White,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Black,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                        
+                                        Spacer(Modifier.weight(1f))
+                                        
+                                        Button(
+                                            onClick = { /* In a future update, this could set a 'Goal' */ },
+                                            modifier = Modifier.height(28.dp),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = attribute.accentColor.copy(alpha = 0.1f)),
+                                            border = BorderStroke(1.dp, attribute.accentColor),
+                                            shape = RoundedCornerShape(4.dp)
+                                        ) {
+                                            Text("LOAD_TEMPLATE", color = attribute.accentColor, fontSize = 9.sp, fontWeight = FontWeight.Black)
+                                        }
+                                    }
                                 }
                             }
                         }

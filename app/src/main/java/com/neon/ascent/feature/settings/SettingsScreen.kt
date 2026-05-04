@@ -1,6 +1,7 @@
 package com.neon.ascent.feature.settings
 
 import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -84,7 +85,14 @@ fun SettingsScreen(
     val biometricLockEnabled by viewModel.isBiometricLockEnabled.collectAsState()
     val localAiOnly by viewModel.isLocalAiOnly.collectAsState()
     val measurementUnit by viewModel.measurementUnit.collectAsState()
+    val isHealthGranted by viewModel.isHealthConnectGranted.collectAsState()
     val biometricAuthManager = remember { BiometricAuthManager(context) }
+    
+    val healthPermissionsLauncher = rememberLauncherForActivityResult(
+        androidx.health.connect.client.PermissionController.createRequestPermissionResultContract()
+    ) { granted ->
+        viewModel.checkHealthConnectStatus()
+    }
     
     var showResetDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -200,24 +208,33 @@ fun SettingsScreen(
 
             CyberFrame(label = "WEARABLE LINKS") {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Button(
-                        onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp)
-                            .clip(CyberButtonShape)
-                            .border(1.dp, Color(0xFF00FF9C), CyberButtonShape),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A1A1A))
-                    ) {
-                        Text("+ JACK IN DEVICE", color = Color(0xFF00FF9C), fontWeight = FontWeight.Black)
+                    if (!isHealthGranted) {
+                        Button(
+                            onClick = { 
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                healthPermissionsLauncher.launch(viewModel.getHealthPermissions())
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp)
+                                .clip(CyberButtonShape)
+                                .border(1.dp, Color(0xFF00FF9C), CyberButtonShape),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A1A1A))
+                        ) {
+                            Text("+ JACK IN HEALTH CONNECT", color = Color(0xFF00FF9C), fontWeight = FontWeight.Black)
+                        }
+                    } else {
+                        DeviceStatusCard("HEALTH_CONNECT_API", "OPTIMAL", "CONNECTED // SYNCED")
                     }
-                    
-                    DeviceStatusCard("NEURAL_LINK_V4", "98%", "LAST_SYNC: 2m ago")
                     
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(
-                            checked = true, 
-                            onCheckedChange = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
+                            checked = isHealthGranted, 
+                            onCheckedChange = { 
+                                if (!isHealthGranted) {
+                                    healthPermissionsLauncher.launch(viewModel.getHealthPermissions())
+                                }
+                            },
                             colors = CheckboxDefaults.colors(checkedColor = Color(0xFF00FF9C), uncheckedColor = Color.DarkGray)
                         )
                         Text("SHARE BIOMETRICS TO BOOST STATS", color = Color.White, fontSize = 12.sp)
