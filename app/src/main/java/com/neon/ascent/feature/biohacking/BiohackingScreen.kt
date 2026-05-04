@@ -48,7 +48,8 @@ fun BiohackingScreen(
     val logs by viewModel.logs.collectAsState()
     val isNeuralCoreThinking by viewModel.isNeuralCoreThinking.collectAsState()
     
-    val modelIsDownloaded = viewModel.modelDownloadManager.isModelDownloaded()
+    val activeAiType by viewModel.activeAiType.collectAsState()
+    val isLocalAiAvailable = activeAiType == AiType.LOCAL
     val downloadProgress by viewModel.modelDownloadManager.downloadProgress.collectAsState()
     val isDownloading by viewModel.modelDownloadManager.isDownloading.collectAsState()
 
@@ -277,7 +278,7 @@ fun BiohackingScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            if (!modelIsDownloaded) {
+            if (!isLocalAiAvailable) {
                 CyberFrame(label = "NEURAL_ENGINE_MISSING", borderColor = neonMagenta) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
@@ -316,8 +317,8 @@ fun BiohackingScreen(
 
             CyberActionButton(
                 label = if (uiState.enableOnDeviceNeuralCore) "INITIATE NEURAL_CORE_SCAN" else "INITIATE AI_DEEP_SCAN",
-                color = if (modelIsDownloaded || !uiState.enableOnDeviceNeuralCore) neonCyan else Color.Gray,
-                enabled = modelIsDownloaded || !uiState.enableOnDeviceNeuralCore,
+                color = if (isLocalAiAvailable || !uiState.enableOnDeviceNeuralCore) neonCyan else Color.Gray,
+                enabled = isLocalAiAvailable || !uiState.enableOnDeviceNeuralCore,
                 onClick = { viewModel.initiateLocalScan(selectedSector) }
             )
 

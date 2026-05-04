@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.neon.ascent.data.local.BookDao
 import com.neon.ascent.data.repository.SettingsRepository
 import com.neon.ascent.feature.biohacking.AiProvider
+import com.neon.ascent.feature.biohacking.AiType
 import com.neon.ascent.feature.biohacking.ModelDownloadManager
 import com.neon.ascent.model.BookEntity
 import com.neon.ascent.model.ChapterEntity
@@ -37,6 +38,8 @@ class EReaderViewModel @Inject constructor(
 
     private val _currentBook = MutableStateFlow<EBook?>(null)
     val currentBook: StateFlow<EBook?> = _currentBook
+
+    val activeAiType: StateFlow<AiType> = aiProvider.activeAiType
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val highlights: StateFlow<List<HighlightEntity>> = _currentBook

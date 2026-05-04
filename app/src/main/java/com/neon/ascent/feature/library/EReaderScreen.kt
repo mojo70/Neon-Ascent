@@ -57,6 +57,7 @@ import com.neon.ascent.R
 import com.neon.ascent.ui.CyberFrame
 import com.neon.ascent.ui.CyberGridBackground
 import com.neon.ascent.ui.GlitchOverlay
+import com.neon.ascent.feature.biohacking.AiType
 import org.jsoup.Jsoup
 
 val provider = GoogleFont.Provider(
@@ -148,7 +149,8 @@ fun EReaderScreen(
     val isAiLoading by viewModel.isAiLoading.collectAsState()
     val highlights by viewModel.highlights.collectAsState()
     
-    val modelIsDownloaded = viewModel.modelDownloadManager.isModelDownloaded()
+    val activeAiType by viewModel.activeAiType.collectAsState()
+    val isLocalAiAvailable = activeAiType == AiType.LOCAL
     val downloadProgress by viewModel.modelDownloadManager.downloadProgress.collectAsState()
     val isDownloading by viewModel.modelDownloadManager.isDownloading.collectAsState()
 
@@ -337,7 +339,7 @@ fun EReaderScreen(
                     }
                 }
 
-                if (!modelIsDownloaded) {
+                if (!isLocalAiAvailable) {
                     CyberFrame(
                         label = "NEURAL_ENGINE_OFFLINE",
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)

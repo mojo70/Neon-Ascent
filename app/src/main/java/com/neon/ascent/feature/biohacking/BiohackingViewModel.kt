@@ -37,6 +37,8 @@ class BiohackingViewModel @Inject constructor(
     private val _latestReport = MutableStateFlow<String?>(null)
     val latestReport: StateFlow<String?> = _latestReport.asStateFlow()
 
+    val activeAiType: StateFlow<AiType> = aiProvider.activeAiType
+
     init {
         viewModelScope.launch {
             biohackingDao.getBiohackingData(0).collectLatest { data ->
@@ -65,8 +67,6 @@ class BiohackingViewModel @Inject constructor(
     }
 
     fun initiateLocalScan(sector: String) {
-        if (!_uiState.value.enableOnDeviceNeuralCore) return
-        
         _isNeuralCoreThinking.value = true
         viewModelScope.launch {
             val char = _character.value
@@ -80,8 +80,8 @@ class BiohackingViewModel @Inject constructor(
                 FORMAT: Concise, technical, neon-noir style. Max 100 words.
             """.trimIndent()
             
-            // Biohacking scan uses AiProvider with forceLocal = true to never fail over to Cloud
-            val result = aiProvider.generateContent(prompt, forceLocal = true)
+            // Biohacking scan uses forceLocal based on user preference to either strictly use local or allow Cloud fallback
+            val result = aiProvider.generateContent(prompt, forceLocal = data.enableOnDeviceNeuralCore)
             _latestReport.value = result
             _isNeuralCoreThinking.value = false
             
