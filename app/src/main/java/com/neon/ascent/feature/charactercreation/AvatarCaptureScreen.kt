@@ -132,14 +132,11 @@ fun AvatarCaptureScreen(
                         scope.launch {
                             try {
                                 val generated = generateCyberAvatar(bitmap, character)
-                                if (generated != null) {
-                                    avatarBitmap = generated
-                                } else {
-                                    errorMessage = "AVATAR_GEN_FAILED: NO_DATA"
-                                }
+                                avatarBitmap = generated ?: bitmap
                             } catch (e: Exception) {
                                 Log.e("AvatarGen", "Fail", e)
                                 errorMessage = "CONNECTION_LOST: ${e.message}"
+                                avatarBitmap = bitmap // Fallback to captured photo if AI fails
                             } finally {
                                 isProcessing = false
                             }
@@ -221,14 +218,17 @@ suspend fun generateCyberAvatar(input: Bitmap?, character: UserCharacter): Bitma
     )
 
     val promptText = if (input != null) {
-        "Transform this person into a high-quality cyberpunk line-art avatar. " +
+        "Transform this person into a high-quality cyberpunk line-art avatar including their full body. " +
+        "Physical Attributes: Height ${character.heightFeet}'${character.heightInches}\" (${character.heightCm}cm), " +
+        "Weight: ${character.weight}, Somatotype Score: ${character.somatotype}. " +
         "Style: Digital blueprint, holographic scan, minimalist line art. " +
         "Colors: Matrix green (#00FF9C) and Cyberpink (#FF006E) highlights on a deep black background. " +
         "Context: They are a ${character.archetype} (${character.mbti}) with a ${character.alignment} alignment."
     } else {
-        "Generate a high-quality cyberpunk line-art avatar face for a character with these traits: " +
+        "Generate a high-quality cyberpunk line-art avatar face and full body for a character with these traits: " +
         "Archetype: ${character.archetype}, MBTI: ${character.mbti}, Alignment: ${character.alignment}, " +
-        "Sex: ${character.sex}, Somatotype: ${character.somatotype}. " +
+        "Sex: ${character.sex}, Height ${character.heightFeet}'${character.heightInches}\" (${character.heightCm}cm), " +
+        "Weight: ${character.weight}, Somatotype Score: ${character.somatotype}. " +
         "Style: Digital blueprint, holographic scan, minimalist line art. " +
         "Colors: Matrix green (#00FF9C) and Cyberpink (#FF006E) highlights on a deep black background."
     }
@@ -244,12 +244,44 @@ suspend fun generateCyberAvatar(input: Bitmap?, character: UserCharacter): Bitma
         }
         
         // Note: SDK 0.9.0 does not return ImagePart in parts yet in a simple way for bitmap generation
-        // Fallback to placeholder if text response received instead of image
+        // If we get a text response, we use our stylized placeholder which now includes body stats
         createPlaceholderAvatar(character)
     } catch (e: Exception) {
         Log.e("Gemini", "Generation failed: ${e.message}", e)
-        input ?: createPlaceholderAvatar(character)
+        // If AI fails, we still want a Cyberpunk look. 
+        // We'll apply a Matrix Green tint to the input photo if available, otherwise use placeholder.
+        input?.let { stylizeBitmap(it) } ?: createPlaceholderAvatar(character)
     }
+}
+
+private fun stylizeBitmap(input: Bitmap): Bitmap {
+    val width = input.width
+    val height = input.height
+    val stylized = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(stylized)
+    val paint = android.graphics.Paint()
+    
+    // Matrix Green tint matrix
+    val matrixGreen = android.graphics.ColorMatrix(floatArrayOf(
+        0f, 0f, 0f, 0f, 0f,
+        0.3f, 0.6f, 0.1f, 0f, 0f,
+        0f, 0f, 0f, 0f, 0f,
+        0f, 0f, 0f, 1f, 0f
+    ))
+    
+    paint.colorFilter = android.graphics.ColorMatrixColorFilter(matrixGreen)
+    canvas.drawBitmap(input, 0f, 0f, paint)
+    
+    // Add holographic scanlines
+    paint.colorFilter = null
+    paint.color = android.graphics.Color.GREEN
+    paint.alpha = 40
+    paint.strokeWidth = 2f
+    for (i in 0 until height step 15) {
+        canvas.drawLine(0f, i.toFloat(), width.toFloat(), i.toFloat(), paint)
+    }
+    
+    return stylized
 }
 
 private fun createPlaceholderAvatar(character: UserCharacter): Bitmap {
@@ -306,9 +338,23 @@ private fun createPlaceholderAvatar(character: UserCharacter): Bitmap {
     }
     canvas.drawPath(path, paint)
     
+    // Body silhouette based on somatotype (0.0 Ecto to 1.0 Endo)
+    val bodyWidth = size * (0.3f + character.somatotype * 0.4f)
+    val bodyPath = android.graphics.Path()
+    bodyPath.moveTo(size/2f - bodyWidth/2f, size.toFloat())
+    bodyPath.lineTo(size/2f - bodyWidth/3f, size * 0.7f)
+    bodyPath.lineTo(size/2f + bodyWidth/3f, size * 0.7f)
+    bodyPath.lineTo(size/2f + bodyWidth/2f, size.toFloat())
+    
+    paint.color = android.graphics.Color.parseColor("#00FF9C")
+    paint.style = android.graphics.Paint.Style.STROKE
+    paint.alpha = 100
+    canvas.drawPath(bodyPath, paint)
+    
     // Cyber-optics (Pink)
     paint.color = android.graphics.Color.parseColor("#FF006E")
     paint.style = android.graphics.Paint.Style.FILL
+    paint.alpha = 255
     canvas.drawRect(size*0.35f, size*0.45f, size*0.45f, size*0.5f, paint)
     canvas.drawRect(size*0.55f, size*0.45f, size*0.65f, size*0.5f, paint)
     
@@ -355,19 +401,28 @@ fun CameraPreview(onImageCaptured: (Bitmap) -> Unit) {
         
         Button(
             onClick = {
-                imageCapture.takePicture(
-                    cameraExecutor,
-                    object : ImageCapture.OnImageCapturedCallback() {
-                        override fun onCaptureSuccess(image: ImageProxy) {
-                            val buffer = image.planes[0].buffer
-                            val bytes = ByteArray(buffer.remaining())
-                            buffer.get(bytes)
-                            val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                            onImageCaptured(bitmap)
-                            image.close()
+                    imageCapture.takePicture(
+                        cameraExecutor,
+                        object : ImageCapture.OnImageCapturedCallback() {
+                            override fun onCaptureSuccess(image: ImageProxy) {
+                                val rotationDegrees = image.imageInfo.rotationDegrees
+                                val buffer = image.planes[0].buffer
+                                val bytes = ByteArray(buffer.remaining())
+                                buffer.get(bytes)
+                                val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                                
+                                // Rotate bitmap to correct orientation
+                                val matrix = android.graphics.Matrix()
+                                matrix.postRotate(rotationDegrees.toFloat())
+                                val rotatedBitmap = Bitmap.createBitmap(
+                                    bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true
+                                )
+                                
+                                onImageCaptured(rotatedBitmap)
+                                image.close()
+                            }
                         }
-                    }
-                )
+                    )
             },
             modifier = Modifier
                 .padding(bottom = 80.dp)
