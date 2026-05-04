@@ -53,7 +53,7 @@ class GemmaClient(private val context: Context) {
 
             val currentEngine = engine ?: return@withContext "ERROR: GEMMA_ENGINE_OFFLINE"
 
-            val samplerConfig = SamplerConfig(40, 0.9, 1.0, 42)
+            val samplerConfig = SamplerConfig(40, 0.9, 0.7, 42)
             val conversationConfig = ConversationConfig(
                 null, // systemInstruction
                 emptyList(), // initialMessages

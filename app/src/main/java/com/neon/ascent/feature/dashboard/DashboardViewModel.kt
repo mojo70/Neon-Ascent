@@ -20,6 +20,7 @@ import com.neon.ascent.model.UserCharacter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
 import java.time.LocalTime
 import java.util.Locale
@@ -91,8 +92,14 @@ class DashboardViewModel @Inject constructor(
         updateAtmosphereSimulated()
         fetchRealWeather()
         refreshHealthData()
-        generateSystemAdvice()
-        refreshSnapshotSaying()
+        
+        // Generate initial advice once we have some data context
+        viewModelScope.launch {
+            delay(1000) // Give a moment for initial repo fetches
+            generateSystemAdvice()
+            refreshSnapshotSaying()
+        }
+
         viewModelScope.launch {
             benchmarkRepository.populateBenchmarksFromCsv()
         }
@@ -143,36 +150,68 @@ class DashboardViewModel @Inject constructor(
 
     private fun generateSystemAdvice() {
         viewModelScope.launch {
+            val steps = healthState.value.steps
+            val hr = healthState.value.heartRate
+            val weather = if (weatherState.value.isRaining) "Acid Rain" else "Clear"
+            val archetype = userCharacter.value?.archetype ?: "Unknown"
+
             val prompt = """
-                Act as a cyberpunk system AI. Based on the following data, give one short, punchy advice sentence (max 15 words) for the user.
-                Steps: ${healthState.value.steps}
-                Heart Rate: ${healthState.value.heartRate}
-                Weather: ${if (weatherState.value.isRaining) "Acid Rain" else "Clear"}
-                Archetype: ${userCharacter.value?.archetype ?: "Unknown"}
+                [SYSTEM_ANALYSIS]
+                CONTEXT:
+                - STEPS: $steps
+                - HR: $hr
+                - ATMOSPHERE: $weather
+                - ARCHETYPE: $archetype
+                
+                TASK: Generate one short, cryptic cyberpunk advice (max 12 words) for the runner. 
+                Do NOT repeat the input data. 
+                Do NOT use line breaks or prefixes.
+                OUTPUT:
             """.trimIndent()
             
             val result = aiProvider.generateContent(prompt)
             if (result.startsWith("ERROR:")) {
                 _systemAdvice.value = getRandomSayingFromDb()
             } else {
-                _systemAdvice.value = result
+                // Defensive cleaning to handle small model hallucinations or prompt echoing
+                val cleaned = result
+                    .substringAfter("OUTPUT:")
+                    .substringBefore("\n")
+                    .replace("\"", "")
+                    .trim()
+                
+                if (cleaned.isNotEmpty() && !cleaned.contains("STEPS:") && !cleaned.contains("HR:")) {
+                    _systemAdvice.value = cleaned
+                } else {
+                    // Fallback to first line if tags weren't followed perfectly
+                    val firstLine = result.split("\n").firstOrNull { it.isNotBlank() && !it.contains(":") }
+                    _systemAdvice.value = firstLine?.trim() ?: getRandomSayingFromDb()
+                }
             }
         }
     }
 
     fun refreshSnapshotSaying(flavor: String? = null) {
         viewModelScope.launch {
+            val archetype = userCharacter.value?.archetype ?: "Unknown"
             val prompt = """
-                Generate a short, cool cyberpunk saying (max 12 words) for a character snapshot.
+                Generate a short, cool cyberpunk saying (max 10 words) for a character snapshot.
                 Flavor: ${flavor ?: "RANDOM_STREET_WISDOM"}
-                Archetype: ${userCharacter.value?.archetype ?: "Unknown"}
+                Archetype: $archetype
+                OUTPUT:
             """.trimIndent()
             
             val result = aiProvider.generateContent(prompt)
             if (result.startsWith("ERROR:")) {
                 _snapshotSaying.value = getRandomSayingFromDb()
             } else {
-                _snapshotSaying.value = result.replace("\"", "")
+                val cleaned = result
+                    .substringAfter("OUTPUT:")
+                    .substringBefore("\n")
+                    .replace("\"", "")
+                    .trim()
+                
+                _snapshotSaying.value = if (cleaned.isNotEmpty()) cleaned else result.split("\n").first().trim()
             }
         }
     }
