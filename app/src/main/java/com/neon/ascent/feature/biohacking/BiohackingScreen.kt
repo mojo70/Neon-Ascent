@@ -1,5 +1,7 @@
 package com.neon.ascent.feature.biohacking
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -63,6 +65,12 @@ fun BiohackingScreen(
     var showReport by remember { mutableStateOf(false) }
     var showEffectivenessLogger by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        uri?.let { viewModel.processLabResults(it) }
+    }
 
     val neonCyan = Color(0xFF00F5FF)
     val neonMagenta = Color(0xFFFF0088)
@@ -196,6 +204,16 @@ fun BiohackingScreen(
                         BioReadOnlyField("AGE", calculateAge(displayChar.dob), Modifier.weight(1f), neonCyan)
                         BioReadOnlyField("SEX", displayChar.sex, Modifier.weight(1f), neonCyan)
                     }
+                    if (uiState.calculatedBioAge != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        BioAgeCard(
+                            bioAge = uiState.calculatedBioAge!!,
+                            calendarAge = uiState.calendarAgeAtCalculation ?: calculateAge(displayChar.dob).toIntOrNull() ?: 0,
+                            neonCyan = neonCyan,
+                            neonMagenta = neonMagenta
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         BioReadOnlyField("HEIGHT", "${displayChar.heightFeet ?: "0"}'${displayChar.heightInches ?: "0"}\"", Modifier.weight(1f), neonCyan)
                         BioReadOnlyField("WEIGHT", "${displayChar.weight}kg", Modifier.weight(1f), neonCyan)
@@ -273,8 +291,12 @@ fun BiohackingScreen(
 
             // Lab & Genetic Uploads
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                UploadCard("LAB_RESULTS_PDF", Modifier.weight(1f), neonCyan)
-                UploadCard("GENETIC_RAW_DATA", Modifier.weight(1f), neonMagenta)
+                UploadCard("LAB_RESULTS_PDF/JSON", Modifier.weight(1f), neonCyan) {
+                    filePickerLauncher.launch("*/*")
+                }
+                UploadCard("GENETIC_RAW_DATA", Modifier.weight(1f), neonMagenta) {
+                    // Placeholder for genetic data
+                }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -793,11 +815,47 @@ fun BioInputField(label: String, value: String, color: Color) {
 }
 
 @Composable
-fun UploadCard(label: String, modifier: Modifier = Modifier, color: Color) {
+fun BioAgeCard(bioAge: Float, calendarAge: Int, neonCyan: Color, neonMagenta: Color) {
+    val delta = bioAge - calendarAge
+    val color = if (delta <= 0) neonCyan else neonMagenta
+    
+    CyberFrame(label = "BIOLOGICAL_AGE_ANALYSIS", borderColor = color) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("CALENDAR", color = Color.Gray, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                    Text("$calendarAge", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
+                }
+                Text(" VS ", color = color, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("BIOLOGICAL", color = color, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                    Text(String.format(Locale.US, "%.1f", bioAge), color = color, fontSize = 24.sp, fontWeight = FontWeight.Black)
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = if (delta <= 0) "SYSTEM_OPTIMIZED: -${String.format(Locale.US, "%.1f", -delta)} YEARS" 
+                       else "DEGRADATION_DETECTED: +${String.format(Locale.US, "%.1f", delta)} YEARS",
+                color = color,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+    }
+}
+
+@Composable
+fun UploadCard(label: String, modifier: Modifier = Modifier, color: Color, onClick: () -> Unit = {}) {
     Column(
         modifier = modifier
             .background(Color(0xFF080808))
             .border(1.dp, color.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+            .clickable { onClick() }
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {

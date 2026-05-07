@@ -48,7 +48,12 @@ data class BiohackingData(
     
     // AI Report
     val latestReportJson: String? = null,
-    val reportTimestamp: Long? = null
+    val reportTimestamp: Long? = null,
+    
+    // Bio Age Results
+    val calculatedBioAge: Float? = null,
+    val calendarAgeAtCalculation: Int? = null,
+    val extractedBiomarkersJson: String? = null
 )
 
 @Entity(tableName = "bio_protocol_logs")

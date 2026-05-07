@@ -165,6 +165,12 @@ dependencies {
     // ObjectBox (Vector DB)
     implementation("io.objectbox:objectbox-android:4.1.0")
 
+    // ONNX Runtime
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.25.1")
+
+    // PDF Parsing
+    implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+
     // EPUB Parsing
     implementation("com.positiondev.epublib:epublib-core:3.1") {
         exclude(group = "org.slf4j")
