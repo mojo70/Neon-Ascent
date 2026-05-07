@@ -45,4 +45,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun userStoryDao(): UserStoryDao
     abstract fun goalDao(): GoalDao
     abstract fun goalTaskDao(): GoalTaskDao
+    abstract fun habitMetricDao(): HabitMetricDao
 }
