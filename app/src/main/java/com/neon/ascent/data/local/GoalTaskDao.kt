@@ -15,6 +15,9 @@ interface GoalTaskDao {
     @Upsert
     suspend fun upsertTask(task: TaskEntity)
 
+    @Query("SELECT * FROM task_entities WHERE id = :taskId")
+    fun getTaskById(taskId: String): Flow<TaskEntity?>
+
     @Query("UPDATE task_entities SET completedDates = :newDates WHERE id = :taskId")
     suspend fun markCompleted(taskId: String, newDates: List<String>)
 }

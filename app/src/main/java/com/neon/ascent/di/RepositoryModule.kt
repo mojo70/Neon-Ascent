@@ -1,0 +1,31 @@
+package com.neon.ascent.di
+
+import com.neon.ascent.data.local.GoalDao
+import com.neon.ascent.data.local.GoalTaskDao
+import com.neon.ascent.data.local.UserStoryDao
+import com.neon.ascent.data.repository.GoalRepository
+import com.neon.ascent.data.repository.TaskRepository
+import com.neon.ascent.data.repository.UserStoryRepository
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+object RepositoryModule {
+
+    @Provides
+    @Singleton
+    fun provideUserStoryRepository(dao: UserStoryDao) =
+        UserStoryRepository(dao)
+
+    @Provides
+    @Singleton
+    fun provideGoalRepository(dao: GoalDao) = GoalRepository(dao)
+
+    @Provides
+    @Singleton
+    fun provideTaskRepository(dao: GoalTaskDao) = TaskRepository(dao)
+}

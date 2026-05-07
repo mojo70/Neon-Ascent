@@ -8,11 +8,9 @@ import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.Priority
 import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.SayingsDao
-import com.neon.ascent.data.repository.BenchmarkRepository
-import com.neon.ascent.data.repository.CharacterRepository
-import com.neon.ascent.data.repository.HealthRepository
-import com.neon.ascent.data.repository.SettingsRepository
-import com.neon.ascent.data.repository.WeatherRepository
+import com.neon.ascent.data.repository.*
+import com.neon.ascent.domain.usecase.GenerateDailyTasksUseCase
+import com.neon.ascent.domain.usecase.SuggestGoalsUseCase
 import com.neon.ascent.feature.biohacking.AiProvider
 import com.neon.ascent.model.BiohackingData
 import com.neon.ascent.model.Saying
@@ -53,6 +51,12 @@ class DashboardViewModel @Inject constructor(
     private val healthRepository: HealthRepository,
     private val settingsRepository: SettingsRepository,
     private val benchmarkRepository: BenchmarkRepository,
+    private val userStoryRepository: UserStoryRepository,
+    private val goalRepository: GoalRepository,
+    private val taskRepository: TaskRepository,
+    private val suggestGoalsUseCase: SuggestGoalsUseCase,
+    private val generateDailyTasksUseCase: GenerateDailyTasksUseCase,
+    private val bioAgePredictor: BioAgePredictor,
     private val fusedLocationClient: FusedLocationProviderClient,
     private val aiProvider: AiProvider
 ) : ViewModel() {
@@ -61,6 +65,9 @@ class DashboardViewModel @Inject constructor(
 
     val biohackingData: StateFlow<BiohackingData?> = biohackingDao.getBiohackingData(0)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    private val _uiState = MutableStateFlow(DashboardUiState())
+    val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
     private val _weatherState = MutableStateFlow(WeatherState())
     val weatherState: StateFlow<WeatherState> = _weatherState.asStateFlow()
@@ -92,6 +99,7 @@ class DashboardViewModel @Inject constructor(
         updateAtmosphereSimulated()
         fetchRealWeather()
         refreshHealthData()
+        loadDashboard()
         
         // Generate initial advice once we have some data context
         viewModelScope.launch {
@@ -102,6 +110,39 @@ class DashboardViewModel @Inject constructor(
 
         viewModelScope.launch {
             benchmarkRepository.populateBenchmarksFromCsv()
+        }
+    }
+
+    private fun loadDashboard() {
+        viewModelScope.launch {
+            combine(
+                userStoryRepository.getMainStory(),
+                goalRepository.getActiveGoals(),
+                taskRepository.getDailyTasks(),
+                bioAgePredictor.lastResultFlow
+            ) { story, goals, dailyTasks, bioAge ->
+                DashboardUiState(
+                    userStory = story,
+                    activeGoals = goals,
+                    todayTasks = dailyTasks,
+                    bioAgeResult = bioAge,
+                    isLoading = false
+                )
+            }.collect { _uiState.value = it }
+        }
+    }
+
+    fun suggestNewGoals() {
+        viewModelScope.launch {
+            val newGoals = suggestGoalsUseCase.suggestGoals()
+            newGoals.forEach { goalRepository.createGoal(it) }
+        }
+    }
+
+    fun generateTodaysTasks() {
+        viewModelScope.launch {
+            val tasks = generateDailyTasksUseCase.generateDailyTasks()
+            tasks.forEach { taskRepository.createTask(it) }
         }
     }
 
