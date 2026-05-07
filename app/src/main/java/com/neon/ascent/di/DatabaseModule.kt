@@ -6,13 +6,17 @@ import com.neon.ascent.data.local.AppDatabase
 import com.neon.ascent.data.local.BenchmarkDao
 import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.BookDao
+import com.neon.ascent.data.local.Converters
 import com.neon.ascent.data.local.DailyPrayerDao
+import com.neon.ascent.data.local.GoalDao
+import com.neon.ascent.data.local.GoalTaskDao
 import com.neon.ascent.data.local.JournalDao
 import com.neon.ascent.data.local.LoreDao
 import com.neon.ascent.data.local.QuestDao
 import com.neon.ascent.data.local.SayingsDao
 import com.neon.ascent.data.local.TaskDao
 import com.neon.ascent.data.local.UserCharacterDao
+import com.neon.ascent.data.local.UserStoryDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -37,6 +41,7 @@ object DatabaseModule {
             "neon_ascent_v5_secure.db"
         )
         .openHelperFactory(factory)
+        .addTypeConverter(Converters())
         .fallbackToDestructiveMigration()
         .build()
     }
@@ -89,5 +94,20 @@ object DatabaseModule {
     @Provides
     fun provideBenchmarkDao(database: AppDatabase): BenchmarkDao {
         return database.benchmarkDao()
+    }
+
+    @Provides
+    fun provideUserStoryDao(database: AppDatabase): UserStoryDao {
+        return database.userStoryDao()
+    }
+
+    @Provides
+    fun provideGoalDao(database: AppDatabase): GoalDao {
+        return database.goalDao()
+    }
+
+    @Provides
+    fun provideGoalTaskDao(database: AppDatabase): GoalTaskDao {
+        return database.goalTaskDao()
     }
 }

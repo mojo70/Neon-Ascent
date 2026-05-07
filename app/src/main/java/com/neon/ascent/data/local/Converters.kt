@@ -1,0 +1,30 @@
+package com.neon.ascent.data.local
+
+import androidx.room.ProvidedTypeConverter
+import androidx.room.TypeConverter
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+
+@ProvidedTypeConverter
+class Converters {
+
+    private val gson = Gson()
+
+    @TypeConverter
+    fun fromStringList(value: String?): List<String> {
+        if (value.isNullOrEmpty()) return emptyList()
+        return gson.fromJson(value, object : TypeToken<List<String>>() {}.type)
+    }
+
+    @TypeConverter
+    fun toStringList(list: List<String>?): String = gson.toJson(list ?: emptyList<String>())
+
+    @TypeConverter
+    fun fromStringMap(value: String?): Map<String, Int> {
+        if (value.isNullOrEmpty()) return emptyMap()
+        return gson.fromJson(value, object : TypeToken<Map<String, Int>>() {}.type)
+    }
+
+    @TypeConverter
+    fun toStringMap(map: Map<String, Int>?): String = gson.toJson(map ?: emptyMap<String, Int>())
+}

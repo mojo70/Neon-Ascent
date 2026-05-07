@@ -2,6 +2,10 @@ package com.neon.ascent.data.local
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
+import com.neon.ascent.data.local.entity.GoalEntity
+import com.neon.ascent.data.local.entity.TaskEntity
+import com.neon.ascent.data.local.entity.UserStoryEntity
 import com.neon.ascent.model.*
 
 @Database(entities = [
@@ -19,8 +23,12 @@ import com.neon.ascent.model.*
     HighlightEntity::class,
     QuoteEntity::class,
     DailyPrayer::class,
-    StrengthBenchmark::class
-], version = 33)
+    StrengthBenchmark::class,
+    UserStoryEntity::class,
+    GoalEntity::class,
+    TaskEntity::class
+], version = 34)
+@TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userCharacterDao(): UserCharacterDao
     abstract fun biohackingDao(): BiohackingDao
@@ -32,4 +40,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun bookDao(): BookDao
     abstract fun dailyPrayerDao(): DailyPrayerDao
     abstract fun benchmarkDao(): BenchmarkDao
+    abstract fun userStoryDao(): UserStoryDao
+    abstract fun goalDao(): GoalDao
+    abstract fun goalTaskDao(): GoalTaskDao
 }
