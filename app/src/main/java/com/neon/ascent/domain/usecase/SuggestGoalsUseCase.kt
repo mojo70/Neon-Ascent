@@ -2,6 +2,7 @@ package com.neon.ascent.domain.usecase
 
 import android.content.Context
 import com.google.gson.Gson
+import com.neon.ascent.data.repository.BioAgePredictor
 import com.neon.ascent.data.repository.GoalRepository
 import com.neon.ascent.data.repository.UserStoryRepository
 import com.neon.ascent.domain.model.*
@@ -15,6 +16,7 @@ import javax.inject.Singleton
 class SuggestGoalsUseCase @Inject constructor(
     private val userStoryRepository: UserStoryRepository,
     private val goalRepository: GoalRepository,
+    private val bioAgePredictor: BioAgePredictor,
     @ApplicationContext private val context: Context
 ) {
 
@@ -45,6 +47,14 @@ class SuggestGoalsUseCase @Inject constructor(
             }
         }
 
+        // Bio-age based suggestions
+        val lastBioAge = bioAgePredictor.getLastResult()
+        val chronoAge = bioAgePredictor.getChronologicalAge()
+        if (lastBioAge != null && lastBioAge.biologicalAge > chronoAge + 3) {
+            suggested.add(createLongevityGoal())
+            suggested.add(createHydrationGoal())
+        }
+
         // Fallback if nothing matched
         if (suggested.isEmpty()) {
             suggested.add(createDefaultFocusGoal())
@@ -66,6 +76,30 @@ class SuggestGoalsUseCase @Inject constructor(
         targetValue = 2000f,
         currentValue = 0f,
         unit = "hours",
+        deadline = null,
+        isActive = true
+    )
+
+    private fun createLongevityGoal() = Goal(
+        id = UUID.randomUUID().toString(),
+        title = "Reverse Biological Age by 5 Years",
+        description = "Lower your biological age through lifestyle",
+        aspirationLink = "Biological Age Reduction",
+        targetValue = 5f,
+        currentValue = 0f,
+        unit = "years",
+        deadline = null,
+        isActive = true
+    )
+
+    private fun createHydrationGoal() = Goal(
+        id = UUID.randomUUID().toString(),
+        title = "Consistent Water Intake",
+        description = "Build the foundation of cellular health",
+        aspirationLink = "Optimal Hydration",
+        targetValue = 365f,
+        currentValue = 0f,
+        unit = "days",
         deadline = null,
         isActive = true
     )

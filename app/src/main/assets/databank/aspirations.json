@@ -4,43 +4,44 @@
       "keyword": "enlightened",
       "title": "Spiritual Enlightenment",
       "suggestedGoals": [
-        {
-          "title": "10,000 Hour Meditation Mastery",
-          "description": "Reach mastery level through consistent practice",
-          "targetValue": 10000,
-          "unit": "hours",
-          "milestones": [100, 1000, 5000, 10000]
-        },
-        {
-          "title": "Daily Presence",
-          "description": "Build unbreakable mindfulness",
-          "targetValue": 365,
-          "unit": "days"
-        }
+        { "title": "10,000 Hour Meditation Mastery", "description": "Master presence through consistent practice", "targetValue": 10000, "unit": "hours", "milestones": [100, 1000, 5000, 10000] },
+        { "title": "Daily Stillness", "description": "Build unbreakable inner peace", "targetValue": 365, "unit": "days" }
       ]
     },
     {
       "keyword": "meditation master",
       "title": "Meditation Mastery",
       "suggestedGoals": [
-        {
-          "title": "Prefrontal Cortex Optimization",
-          "description": "Science-backed meditation training",
-          "targetValue": 1000,
-          "unit": "hours"
-        }
+        { "title": "Prefrontal Cortex Optimization", "description": "Science-backed daily meditation", "targetValue": 1000, "unit": "hours", "milestones": [100, 500, 1000] }
       ]
     },
     {
       "keyword": "focus",
       "title": "Unbreakable Focus",
       "suggestedGoals": [
-        {
-          "title": "Deep Work Champion",
-          "description": "Build legendary concentration",
-          "targetValue": 2000,
-          "unit": "hours"
-        }
+        { "title": "Deep Work Champion", "description": "Build legendary concentration", "targetValue": 2000, "unit": "hours" }
+      ]
+    },
+    {
+      "keyword": "longevity",
+      "title": "Biological Age Reduction",
+      "suggestedGoals": [
+        { "title": "Reverse Biological Age by 5 Years", "description": "Lower your biological age through lifestyle", "targetValue": 5, "unit": "years" },
+        { "title": "Daily Longevity Habits", "description": "Stack small habits that science shows slow aging", "targetValue": 365, "unit": "days" }
+      ]
+    },
+    {
+      "keyword": "vitality",
+      "title": "Peak Physical Vitality",
+      "suggestedGoals": [
+        { "title": "Daily Movement Master", "description": "Move every day with intention", "targetValue": 365, "unit": "days" }
+      ]
+    },
+    {
+      "keyword": "hydration",
+      "title": "Optimal Hydration",
+      "suggestedGoals": [
+        { "title": "Consistent Water Intake", "description": "Build the foundation of cellular health", "targetValue": 365, "unit": "days" }
       ]
     }
   ]

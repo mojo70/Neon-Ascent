@@ -141,7 +141,7 @@ class DashboardViewModel @Inject constructor(
 
     fun generateTodaysTasks() {
         viewModelScope.launch {
-            val tasks = generateDailyTasksUseCase.generateDailyTasks()
+            val tasks = generateDailyTasksUseCase.generateTodaysTasks()
             tasks.forEach { taskRepository.createTask(it) }
         }
     }

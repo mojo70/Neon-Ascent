@@ -1,0 +1,35 @@
+{
+  "tasks": [
+    {
+      "category": "hydration",
+      "title": "Drink water",
+      "description": "Start your day with hydration",
+      "baseMinutes": 1,
+      "frequency": "DAILY",
+      "parameter": "amount",
+      "defaultValue": 8,
+      "unit": "oz"
+    },
+    {
+      "category": "meditation",
+      "title": "Meditate",
+      "description": "Build presence",
+      "baseMinutes": 10,
+      "frequency": "DAILY"
+    },
+    {
+      "category": "movement",
+      "title": "Take a short walk",
+      "description": "Gentle movement after meals",
+      "baseMinutes": 15,
+      "frequency": "DAILY"
+    },
+    {
+      "category": "focus",
+      "title": "Deep work block",
+      "description": "Single-task focus time",
+      "baseMinutes": 25,
+      "frequency": "DAILY"
+    }
+  ]
+}

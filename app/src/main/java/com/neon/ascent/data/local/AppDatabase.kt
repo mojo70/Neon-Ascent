@@ -4,6 +4,7 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.neon.ascent.data.local.entity.GoalEntity
+import com.neon.ascent.data.local.entity.HabitMetricEntity
 import com.neon.ascent.data.local.entity.TaskEntity
 import com.neon.ascent.data.local.entity.UserStoryEntity
 import com.neon.ascent.model.*
@@ -26,8 +27,9 @@ import com.neon.ascent.model.*
     StrengthBenchmark::class,
     UserStoryEntity::class,
     GoalEntity::class,
-    TaskEntity::class
-], version = 34)
+    TaskEntity::class,
+    HabitMetricEntity::class
+], version = 35)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userCharacterDao(): UserCharacterDao
