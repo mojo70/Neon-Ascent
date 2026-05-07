@@ -31,6 +31,7 @@ import com.neon.ascent.feature.journal.JournalScreen
 import com.neon.ascent.feature.journal.JournalViewModel
 import com.neon.ascent.feature.attributes.AttributeDetailScreen
 import com.neon.ascent.feature.journal.StoryScreen
+import com.neon.ascent.feature.goals.GoalIntakeScreen
 import com.neon.ascent.feature.story.StoryIntakeScreen
 import com.neon.ascent.feature.loading.LoadingScreen
 import com.neon.ascent.feature.library.EReaderScreen
@@ -249,10 +250,10 @@ fun AppNavigation(
         }
 
         composable<Screen.Goals> {
-            // Placeholder for Goals Screen
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
-                androidx.compose.material3.Text("GOALS_SYSTEM_OFFLINE", color = androidx.compose.ui.graphics.Color.Red)
-            }
+            GoalIntakeScreen(
+                onGoalCreated = { navController.popBackStack() },
+                onCancel = { navController.popBackStack() }
+            )
         }
 
         composable<Screen.Settings> {
