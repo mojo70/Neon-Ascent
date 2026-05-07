@@ -15,6 +15,9 @@ interface HabitMetricDao {
     """)
     fun getCurrentStreakPotential(startDate: String): Flow<Int>
 
+    @Query("SELECT COUNT(DISTINCT date) FROM habit_metrics WHERE completed = 1")
+    fun getTotalCompletedDays(): Flow<Int>
+
     // Completion heatmap data (for nice calendar view)
     @Query("SELECT date, COUNT(*) as completed FROM habit_metrics WHERE completed = 1 GROUP BY date ORDER BY date DESC LIMIT 90")
     fun get90DayHeatmap(): Flow<List<DailyCompletion>>

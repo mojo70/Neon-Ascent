@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -46,6 +47,7 @@ fun DashboardScreen(
     val healthState by viewModel.healthState.collectAsState()
     val biohackingData by viewModel.biohackingData.collectAsState()
     val systemAdvice by viewModel.systemAdvice.collectAsState()
+    val state by viewModel.uiState.collectAsState()
     val isReligionShortcutEnabled by settingsViewModel.isReligionShortcutEnabled.collectAsState()
     val currentTime = remember { mutableStateOf(LocalDateTime.now()) }
     
@@ -96,6 +98,19 @@ fun DashboardScreen(
         }
         
         HudCornerAccents(color = systemColor.copy(alpha = 0.2f))
+
+        FloatingActionButton(
+            onClick = { viewModel.generateTodaysTasks() },
+            containerColor = systemColor,
+            contentColor = Color.Black,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(24.dp)
+                .neonBorder(systemColor, cornerRadius = 16.dp),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Icon(Icons.Default.Refresh, contentDescription = "RECALIBRATE_TASKS")
+        }
 
         Column(
             modifier = Modifier
@@ -312,6 +327,25 @@ fun DashboardScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            if (state.cyberLoreSnippet.isNotBlank()) {
+                CyberFrame(
+                    label = "CYBER_LORE // PROTOCOL_LOG",
+                    accentColor = Color(0xFFFF006E),
+                    borderColor = Color(0xFFFF006E).copy(alpha = 0.6f)
+                ) {
+                    Text(
+                        text = state.cyberLoreSnippet,
+                        color = Color.White.copy(alpha = 0.9f),
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            lineHeight = 16.sp
+                        ),
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 CyberMetricCard(
                     label = "STEPS", 
@@ -325,6 +359,13 @@ fun DashboardScreen(
                     value = "1,840", 
                     subValue = "TARGET: 2.2K", 
                     color = Color(0xFFFF006E), 
+                    modifier = Modifier.weight(1f)
+                )
+                CyberMetricCard(
+                    label = "CONSISTENCY", 
+                    value = "${state.totalHabitDays}", 
+                    subValue = "DAYS 🔥", 
+                    color = Color(0xFF00FF9C),
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -355,6 +396,158 @@ fun DashboardScreen(
                     })
                 }
             }
+
+            if (state.todayTasks.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(32.dp))
+                Text(
+                    "TODAY'S_GRIND",
+                    color = systemColor,
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        fontFamily = FontFamily.Monospace,
+                        letterSpacing = 2.sp
+                    ),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                state.todayTasks.forEach { task ->
+                    DashboardTaskItem(
+                        task = task,
+                        onComplete = { viewModel.markTaskCompleted(task.id) }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+
+            if (state.activeGoals.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(32.dp))
+                Text(
+                    "ACTIVE_QUESTS",
+                    color = Color(0xFFFF006E),
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        fontFamily = FontFamily.Monospace,
+                        letterSpacing = 2.sp
+                    ),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                state.activeGoals.forEach { goal ->
+                    DashboardGoalCard(goal)
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
+
+            if (state.bioAgeResult != null) {
+                Spacer(modifier = Modifier.height(32.dp))
+                BioAgeDashboardCard(state.bioAgeResult!!)
+            }
+
+            Spacer(modifier = Modifier.height(64.dp))
+        }
+    }
+}
+
+@Composable
+fun DashboardTaskItem(task: com.neon.ascent.domain.model.Task, onComplete: () -> Unit) {
+    val isCompleted = task.completedDates.contains(java.time.LocalDate.now())
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.Black.copy(alpha = 0.4f))
+            .border(1.dp, if (isCompleted) Color(0xFF00FF9C).copy(alpha = 0.3f) else Color.White.copy(alpha = 0.1f))
+            .clickable { if (!isCompleted) onComplete() }
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(18.dp)
+                .border(1.dp, if (isCompleted) Color(0xFF00FF9C) else Color.White.copy(alpha = 0.4f))
+                .background(if (isCompleted) Color(0xFF00FF9C).copy(alpha = 0.2f) else Color.Transparent),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isCompleted) {
+                Icon(Icons.Default.Favorite, contentDescription = null, tint = Color(0xFF00FF9C), modifier = Modifier.size(12.dp))
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        Text(
+            task.title,
+            color = if (isCompleted) Color.Gray else Color.White,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontFamily = FontFamily.Monospace,
+                textDecoration = if (isCompleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else null
+            )
+        )
+    }
+}
+
+@Composable
+fun DashboardGoalCard(goal: com.neon.ascent.domain.model.Goal) {
+    CyberFrame(
+        label = "GOAL // ${goal.title.uppercase()}",
+        borderColor = Color(0xFFFF006E).copy(alpha = 0.4f)
+    ) {
+        Column {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(
+                    "${goal.currentValue} / ${goal.targetValue} ${goal.unit}",
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace)
+                )
+                Text(
+                    "${(goal.currentValue / goal.targetValue * 100).toInt()}%",
+                    color = Color(0xFFFF006E),
+                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .background(Color.White.copy(alpha = 0.1f))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(goal.currentValue / goal.targetValue)
+                        .fillMaxHeight()
+                        .background(Color(0xFFFF006E))
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun BioAgeDashboardCard(result: com.neon.ascent.model.BioAgeResult) {
+    CyberFrame(
+        label = "BIOLOGICAL_AGE_SCAN",
+        accentColor = Color(0xFF00FFFF),
+        borderColor = Color(0xFF00FFFF).copy(alpha = 0.6f)
+    ) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = String.format(java.util.Locale.US, "%.1f", result.biologicalAge),
+                    color = Color(0xFF00FFFF),
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontWeight = FontWeight.Black,
+                        fontFamily = FontFamily.Monospace
+                    )
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "YEARS_OLD",
+                    color = Color.White.copy(alpha = 0.6f),
+                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace)
+                )
+            }
+            Text(
+                result.explanation.take(100) + "...",
+                color = Color.White.copy(alpha = 0.8f),
+                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                modifier = Modifier.padding(top = 8.dp)
+            )
         }
     }
 }

@@ -9,6 +9,8 @@ import com.google.android.gms.location.Priority
 import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.SayingsDao
 import com.neon.ascent.data.repository.*
+import com.neon.ascent.data.local.HabitMetricDao
+import com.neon.ascent.domain.usecase.GenerateCyberLoreUseCase
 import com.neon.ascent.domain.usecase.GenerateDailyTasksUseCase
 import com.neon.ascent.domain.usecase.SuggestGoalsUseCase
 import com.neon.ascent.feature.biohacking.AiProvider
@@ -54,8 +56,10 @@ class DashboardViewModel @Inject constructor(
     private val userStoryRepository: UserStoryRepository,
     private val goalRepository: GoalRepository,
     private val taskRepository: TaskRepository,
+    private val habitMetricDao: HabitMetricDao,
     private val suggestGoalsUseCase: SuggestGoalsUseCase,
     private val generateDailyTasksUseCase: GenerateDailyTasksUseCase,
+    private val generateCyberLoreUseCase: GenerateCyberLoreUseCase,
     private val bioAgePredictor: BioAgePredictor,
     private val fusedLocationClient: FusedLocationProviderClient,
     private val aiProvider: AiProvider
@@ -119,13 +123,21 @@ class DashboardViewModel @Inject constructor(
                 userStoryRepository.getMainStory(),
                 goalRepository.getActiveGoals(),
                 taskRepository.getDailyTasks(),
-                bioAgePredictor.lastResultFlow
-            ) { story, goals, dailyTasks, bioAge ->
+                bioAgePredictor.lastResultFlow,
+                habitMetricDao.getTotalCompletedDays()
+            ) { story, goals, dailyTasks, bioAge, totalCompletedDays ->
+
+                val lore = if (story.bio.isNotBlank()) {
+                    generateCyberLoreUseCase.generateLore(emptyMap()) // Pass empty for now or parse if possible
+                } else "Your cyber lore is still being written..."
+
                 DashboardUiState(
                     userStory = story,
+                    cyberLoreSnippet = lore.take(180) + if (lore.length > 180) "..." else "",
                     activeGoals = goals,
                     todayTasks = dailyTasks,
                     bioAgeResult = bioAge,
+                    totalHabitDays = totalCompletedDays,
                     isLoading = false
                 )
             }.collect { _uiState.value = it }
@@ -143,6 +155,12 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             val tasks = generateDailyTasksUseCase.generateTodaysTasks()
             tasks.forEach { taskRepository.createTask(it) }
+        }
+    }
+
+    fun markTaskCompleted(taskId: String) {
+        viewModelScope.launch {
+            taskRepository.markTaskCompleted(taskId)
         }
     }
 
