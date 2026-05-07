@@ -2,6 +2,7 @@ package com.neon.ascent.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.neon.ascent.domain.model.SpecialType
 import java.util.UUID
 
 @Entity(tableName = "goals")
@@ -14,6 +15,7 @@ data class GoalEntity(
     val currentValue: Float = 0f,
     val unit: String = "hours",              // hours, days, sessions, years_reduced, etc.
     val deadline: Long? = null,              // Timestamp or null for open-ended
+    val linkedSpecial: SpecialType? = null,  // e.g. STRENGTH, PERCEPTION, etc.
     val isActive: Boolean = true,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()

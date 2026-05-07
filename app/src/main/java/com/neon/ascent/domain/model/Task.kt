@@ -13,6 +13,8 @@ data class Task(
     val frequency: Frequency,
     val estimatedMinutes: Int,
     val completedDates: List<LocalDate>,
+    val linkedSpecial: SpecialType? = null,
+    val suggestsRetestAfterDays: Int = 0,
     val isArchived: Boolean
 )
 
@@ -24,6 +26,8 @@ fun TaskEntity.toDomain() = Task(
     frequency = try { Frequency.valueOf(frequency) } catch (e: Exception) { Frequency.DAILY },
     estimatedMinutes = estimatedMinutes,
     completedDates = completedDates.map { LocalDate.parse(it) },
+    linkedSpecial = linkedSpecial,
+    suggestsRetestAfterDays = suggestsRetestAfterDays,
     isArchived = isArchived
 )
 
@@ -35,5 +39,7 @@ fun Task.toEntity() = TaskEntity(
     frequency = frequency.name,
     estimatedMinutes = estimatedMinutes,
     completedDates = completedDates.map { it.toString() },
+    linkedSpecial = linkedSpecial,
+    suggestsRetestAfterDays = suggestsRetestAfterDays,
     isArchived = isArchived
 )

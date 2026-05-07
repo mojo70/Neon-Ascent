@@ -16,16 +16,20 @@ class BioAgePredictor @Inject constructor(
     private val biohackingDao: BiohackingDao,
     private val userCharacterDao: UserCharacterDao
 ) {
-    val lastResultFlow: Flow<BioAgeResult?> = biohackingDao.getBiohackingData(0)
-        .map { data ->
-            val jsonStr = data?.extractedBiomarkersJson
-            if (jsonStr != null) {
-                val biomarkers = Json.decodeFromString<Map<String, Float>>(jsonStr)
-                bioAgeRepository.predictBiologicalAge(biomarkers)
-            } else {
-                null
-            }
+    val lastResultFlow: Flow<BioAgeResult?> = combine(
+        biohackingDao.getBiohackingData(0),
+        userCharacterDao.getUserCharacter()
+    ) { data, char ->
+        val jsonStr = data?.extractedBiomarkersJson
+        if (jsonStr != null) {
+            val biomarkers = Json.decodeFromString<Map<String, Float>>(jsonStr)
+            val result = bioAgeRepository.predictBiologicalAge(biomarkers)
+            val chronoAge = calculateAge(char?.dob ?: "2000.01.01")
+            result.copy(ageGap = result.biologicalAge - chronoAge)
+        } else {
+            null
         }
+    }
 
     suspend fun getLastResult(): BioAgeResult? = lastResultFlow.firstOrNull()
 

@@ -6,7 +6,8 @@ import kotlinx.serialization.Serializable
 data class BioAgeResult(
     val biologicalAge: Float,
     val explanation: String,           // Natural language explanation
-    val keyDrivers: List<Driver>       // Top contributors
+    val keyDrivers: List<Driver>,      // Top contributors
+    val ageGap: Float = 0f
 )
 
 @Serializable

@@ -4,6 +4,7 @@ import androidx.room.ProvidedTypeConverter
 import androidx.room.TypeConverter
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.neon.ascent.domain.model.SpecialType
 
 @ProvidedTypeConverter
 class Converters {
@@ -27,4 +28,10 @@ class Converters {
 
     @TypeConverter
     fun toStringMap(map: Map<String, Int>?): String = gson.toJson(map ?: emptyMap<String, Int>())
+
+    @TypeConverter
+    fun fromSpecialType(value: SpecialType?): String? = value?.name
+
+    @TypeConverter
+    fun toSpecialType(value: String?): SpecialType? = value?.let { SpecialType.valueOf(it) }
 }

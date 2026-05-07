@@ -1,12 +1,12 @@
 package com.neon.ascent.domain.usecase
 
 import android.content.Context
-import com.google.gson.Gson
 import com.neon.ascent.data.repository.BioAgePredictor
 import com.neon.ascent.data.repository.GoalRepository
+import com.neon.ascent.data.repository.SpecialRepository
 import com.neon.ascent.data.repository.UserStoryRepository
 import com.neon.ascent.domain.model.*
-import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import java.util.*
 import javax.inject.Inject
@@ -17,42 +17,71 @@ class SuggestGoalsUseCase @Inject constructor(
     private val userStoryRepository: UserStoryRepository,
     private val goalRepository: GoalRepository,
     private val bioAgePredictor: BioAgePredictor,
-    @ApplicationContext private val context: Context
+    private val specialRepository: SpecialRepository
 ) {
 
     suspend fun suggestGoals(): List<Goal> {
         val story = userStoryRepository.getMainStory().firstOrNull() ?: UserStory()
-        val aspirations = story.grandAspirations.map { it.lowercase() }
+        val currentSpecials = specialRepository.getAllSpecialStats().first()
 
-        val databank = loadDatabank()
         val suggested = mutableListOf<Goal>()
 
-        for (asp in aspirations) {
-            databank.aspirations.find { it.keyword.lowercase() in asp || asp in it.keyword.lowercase() }?.let { match ->
-                match.suggestedGoals.forEach { template ->
+        story.grandAspirations.forEach { aspiration ->
+            when {
+                aspiration.contains("strength", ignoreCase = true) -> {
                     suggested.add(
                         Goal(
                             id = UUID.randomUUID().toString(),
-                            title = template.title,
-                            description = template.description,
-                            aspirationLink = match.title,
-                            targetValue = template.targetValue,
+                            title = "Forge Iron Body",
+                            description = "Build raw physical power",
+                            aspirationLink = aspiration,
+                            targetValue = 10f,
                             currentValue = 0f,
-                            unit = template.unit,
+                            unit = "levels",
                             deadline = null,
+                            linkedSpecial = SpecialType.STRENGTH,
                             isActive = true
                         )
                     )
                 }
+                aspiration.contains("focus", ignoreCase = true) || aspiration.contains("intelligence", ignoreCase = true) -> {
+                    suggested.add(
+                        Goal(
+                            id = UUID.randomUUID().toString(),
+                            title = "Sharpen the Mind",
+                            description = "Elevate Perception & Intelligence",
+                            aspirationLink = aspiration,
+                            targetValue = 10f,
+                            currentValue = 0f,
+                            unit = "levels",
+                            deadline = null,
+                            linkedSpecial = SpecialType.PERCEPTION,
+                            isActive = true
+                        )
+                    )
+                }
+                // ... add more mappings as needed
             }
         }
 
-        // Bio-age based suggestions
-        val lastBioAge = bioAgePredictor.getLastResult()
-        val chronoAge = bioAgePredictor.getChronologicalAge()
-        if (lastBioAge != null && lastBioAge.biologicalAge > chronoAge + 3) {
-            suggested.add(createLongevityGoal())
-            suggested.add(createHydrationGoal())
+        // Biological age based suggestions
+        bioAgePredictor.getLastResult()?.let { result ->
+            if (result.ageGap > 5) {
+                suggested.add(
+                    Goal(
+                        id = UUID.randomUUID().toString(),
+                        title = "Reverse Biological Aging",
+                        description = "Lower your biological age through consistent habits",
+                        aspirationLink = "Biological Age Reduction",
+                        targetValue = result.ageGap - 3f,
+                        currentValue = 0f,
+                        unit = "years",
+                        deadline = null,
+                        linkedSpecial = SpecialType.ENDURANCE,
+                        isActive = true
+                    )
+                )
+            }
         }
 
         // Fallback if nothing matched
@@ -61,11 +90,6 @@ class SuggestGoalsUseCase @Inject constructor(
         }
 
         return suggested
-    }
-
-    private fun loadDatabank(): AspirationDatabank {
-        val json = context.assets.open("databank/aspirations.json").bufferedReader().use { it.readText() }
-        return Gson().fromJson(json, AspirationDatabank::class.java)
     }
 
     private fun createDefaultFocusGoal() = Goal(
@@ -77,30 +101,7 @@ class SuggestGoalsUseCase @Inject constructor(
         currentValue = 0f,
         unit = "hours",
         deadline = null,
-        isActive = true
-    )
-
-    private fun createLongevityGoal() = Goal(
-        id = UUID.randomUUID().toString(),
-        title = "Reverse Biological Age by 5 Years",
-        description = "Lower your biological age through lifestyle",
-        aspirationLink = "Biological Age Reduction",
-        targetValue = 5f,
-        currentValue = 0f,
-        unit = "years",
-        deadline = null,
-        isActive = true
-    )
-
-    private fun createHydrationGoal() = Goal(
-        id = UUID.randomUUID().toString(),
-        title = "Consistent Water Intake",
-        description = "Build the foundation of cellular health",
-        aspirationLink = "Optimal Hydration",
-        targetValue = 365f,
-        currentValue = 0f,
-        unit = "days",
-        deadline = null,
+        linkedSpecial = SpecialType.INTELLIGENCE,
         isActive = true
     )
 }

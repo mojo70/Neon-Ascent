@@ -12,5 +12,7 @@ data class TaskBankTemplate(
     val frequency: String,
     val parameter: String? = null,
     val defaultValue: Int? = null,
-    val unit: String? = null
+    val unit: String? = null,
+    val linkedSpecial: SpecialType? = null,
+    val suggestsRetestAfterDays: Int = 0
 )

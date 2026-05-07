@@ -37,6 +37,8 @@ class GenerateDailyTasksUseCase @Inject constructor(
                 frequency = Frequency.valueOf(template.frequency),
                 estimatedMinutes = template.baseMinutes,
                 completedDates = emptyList(),
+                linkedSpecial = template.linkedSpecial,
+                suggestsRetestAfterDays = template.suggestsRetestAfterDays,
                 isArchived = false
             ))
         }
@@ -60,6 +62,8 @@ class GenerateDailyTasksUseCase @Inject constructor(
                         frequency = Frequency.valueOf(template.frequency),
                         estimatedMinutes = template.baseMinutes,
                         completedDates = emptyList(),
+                        linkedSpecial = template.linkedSpecial,
+                        suggestsRetestAfterDays = template.suggestsRetestAfterDays,
                         isArchived = false
                     ))
                 }
@@ -80,6 +84,8 @@ class GenerateDailyTasksUseCase @Inject constructor(
                         frequency = Frequency.valueOf(template.frequency),
                         estimatedMinutes = template.baseMinutes,
                         completedDates = emptyList(),
+                        linkedSpecial = template.linkedSpecial,
+                        suggestsRetestAfterDays = template.suggestsRetestAfterDays,
                         isArchived = false
                     ))
                 }

@@ -14,6 +14,7 @@ data class Goal(
     val currentValue: Float,
     val unit: String,
     val deadline: LocalDate?,
+    val linkedSpecial: SpecialType? = null,
     val isActive: Boolean
 )
 
@@ -26,6 +27,7 @@ fun GoalEntity.toDomain() = Goal(
     currentValue = currentValue,
     unit = unit,
     deadline = deadline?.let { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate() },
+    linkedSpecial = linkedSpecial,
     isActive = isActive
 )
 
@@ -38,5 +40,6 @@ fun Goal.toEntity() = GoalEntity(
     currentValue = currentValue,
     unit = unit,
     deadline = deadline?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli(),
+    linkedSpecial = linkedSpecial,
     isActive = isActive
 )

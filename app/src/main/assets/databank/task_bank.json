@@ -1,35 +1,40 @@
 {
   "tasks": [
     {
+      "category": "strength",
+      "title": "Bodyweight Strength Circuit",
+      "description": "Push-ups, squats, planks",
+      "baseMinutes": 15,
+      "frequency": "DAILY",
+      "linkedSpecial": "STRENGTH",
+      "suggestsRetestAfterDays": 21
+    },
+    {
+      "category": "perception",
+      "title": "Mindful Observation Drill",
+      "description": "5 minutes of pure sensory awareness",
+      "baseMinutes": 5,
+      "frequency": "DAILY",
+      "linkedSpecial": "PERCEPTION",
+      "suggestsRetestAfterDays": 14
+    },
+    {
+      "category": "endurance",
+      "title": "Zone 2 Cardio",
+      "description": "Steady walk or light jog",
+      "baseMinutes": 20,
+      "frequency": "DAILY",
+      "linkedSpecial": "ENDURANCE",
+      "suggestsRetestAfterDays": 30
+    },
+    {
       "category": "hydration",
-      "title": "Drink water",
-      "description": "Start your day with hydration",
+      "title": "Morning Hydration Ritual",
+      "description": "Drink 500ml water upon waking",
       "baseMinutes": 1,
       "frequency": "DAILY",
-      "parameter": "amount",
-      "defaultValue": 8,
-      "unit": "oz"
-    },
-    {
-      "category": "meditation",
-      "title": "Meditate",
-      "description": "Build presence",
-      "baseMinutes": 10,
-      "frequency": "DAILY"
-    },
-    {
-      "category": "movement",
-      "title": "Take a short walk",
-      "description": "Gentle movement after meals",
-      "baseMinutes": 15,
-      "frequency": "DAILY"
-    },
-    {
-      "category": "focus",
-      "title": "Deep work block",
-      "description": "Single-task focus time",
-      "baseMinutes": 25,
-      "frequency": "DAILY"
+      "linkedSpecial": "ENDURANCE",
+      "suggestsRetestAfterDays": 14
     }
   ]
 }
