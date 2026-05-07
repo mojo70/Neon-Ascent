@@ -32,6 +32,7 @@ import com.neon.ascent.feature.journal.JournalViewModel
 import com.neon.ascent.feature.attributes.AttributeDetailScreen
 import com.neon.ascent.feature.journal.StoryScreen
 import com.neon.ascent.feature.goals.GoalIntakeScreen
+import com.neon.ascent.feature.goals.AspirationsScreen
 import com.neon.ascent.feature.story.StoryIntakeScreen
 import com.neon.ascent.feature.loading.LoadingScreen
 import com.neon.ascent.feature.library.EReaderScreen
@@ -252,7 +253,14 @@ fun AppNavigation(
         composable<Screen.Goals> {
             GoalIntakeScreen(
                 onGoalCreated = { navController.popBackStack() },
+                onManageAspirations = { navController.navigate(Screen.Aspirations) },
                 onCancel = { navController.popBackStack() }
+            )
+        }
+
+        composable<Screen.Aspirations> {
+            AspirationsScreen(
+                onBack = { navController.popBackStack() }
             )
         }
 

@@ -33,6 +33,7 @@ class SuggestGoalsUseCase @Inject constructor(
                         Goal(
                             id = UUID.randomUUID().toString(),
                             title = "Forge Iron Body",
+                            objective = "Increase physical power and resilience",
                             description = "Build raw physical power",
                             aspirationLink = aspiration,
                             targetValue = 10f,
@@ -49,6 +50,7 @@ class SuggestGoalsUseCase @Inject constructor(
                         Goal(
                             id = UUID.randomUUID().toString(),
                             title = "Sharpen the Mind",
+                            objective = "Elevate cognitive functions",
                             description = "Elevate Perception & Intelligence",
                             aspirationLink = aspiration,
                             targetValue = 10f,
@@ -71,6 +73,7 @@ class SuggestGoalsUseCase @Inject constructor(
                     Goal(
                         id = UUID.randomUUID().toString(),
                         title = "Reverse Biological Aging",
+                        objective = "Achieve a biological age lower than calendar age",
                         description = "Lower your biological age through consistent habits",
                         aspirationLink = "Biological Age Reduction",
                         targetValue = result.ageGap - 3f,
@@ -95,6 +98,7 @@ class SuggestGoalsUseCase @Inject constructor(
     private fun createDefaultFocusGoal() = Goal(
         id = UUID.randomUUID().toString(),
         title = "Build Elite Focus",
+        objective = "Master deep work and meditation",
         description = "Daily deep work + meditation practice",
         aspirationLink = "General Growth",
         targetValue = 2000f,

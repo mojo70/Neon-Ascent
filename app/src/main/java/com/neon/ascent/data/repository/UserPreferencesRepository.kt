@@ -23,6 +23,7 @@ class UserPreferencesRepository @Inject constructor(
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val LAST_BIO_AGE = floatPreferencesKey("last_bio_age")
         val LAST_BIO_AGE_TIMESTAMP = longPreferencesKey("last_bio_age_timestamp")
+        val YEARLY_REVIEW_ENABLED = booleanPreferencesKey("yearly_review_enabled")
     }
 
     val measurementUnit: Flow<String> = context.dataStore.data
@@ -42,6 +43,11 @@ class UserPreferencesRepository @Inject constructor(
             preferences[PreferencesKeys.LAST_BIO_AGE]
         }
 
+    val isYearlyReviewEnabled: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[PreferencesKeys.YEARLY_REVIEW_ENABLED] ?: true
+        }
+
     suspend fun updateMeasurementUnit(unit: String) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.MEASUREMENT_UNIT] = unit
@@ -52,6 +58,12 @@ class UserPreferencesRepository @Inject constructor(
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.LAST_BIO_AGE] = age
             preferences[PreferencesKeys.LAST_BIO_AGE_TIMESTAMP] = System.currentTimeMillis()
+        }
+    }
+
+    suspend fun setYearlyReviewEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.YEARLY_REVIEW_ENABLED] = enabled
         }
     }
 }

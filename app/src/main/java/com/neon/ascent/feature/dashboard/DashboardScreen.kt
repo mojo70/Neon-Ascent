@@ -390,7 +390,7 @@ fun DashboardScreen(
                         triggerGlitch()
                         onStoryClick() 
                     })
-                    CyberActionButton("GOAL SETTING", Color.White, onClick = { 
+                    CyberActionButton("MISSIONS", Color.White, onClick = { 
                         triggerGlitch()
                         onGoalSetClick() 
                     })
@@ -421,7 +421,7 @@ fun DashboardScreen(
             if (state.activeGoals.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(32.dp))
                 Text(
-                    "ACTIVE_QUESTS",
+                    "ACTIVE_MISSIONS",
                     color = Color(0xFFFF006E),
                     style = MaterialTheme.typography.labelLarge.copy(
                         fontWeight = FontWeight.ExtraBold,
@@ -431,7 +431,7 @@ fun DashboardScreen(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
                 state.activeGoals.forEach { goal ->
-                    DashboardGoalCard(goal)
+                    DashboardMissionCard(goal)
                     Spacer(modifier = Modifier.height(12.dp))
                 }
             }
@@ -482,12 +482,18 @@ fun DashboardTaskItem(task: com.neon.ascent.domain.model.Task, onComplete: () ->
 }
 
 @Composable
-fun DashboardGoalCard(goal: com.neon.ascent.domain.model.Goal) {
+fun DashboardMissionCard(goal: com.neon.ascent.domain.model.Goal) {
     CyberFrame(
-        label = "GOAL // ${goal.title.uppercase()}",
+        label = "MISSION // ${goal.title.uppercase()}",
         borderColor = Color(0xFFFF006E).copy(alpha = 0.4f)
     ) {
         Column {
+            Text(
+                goal.objective,
+                color = Color.White.copy(alpha = 0.8f),
+                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
                     "${goal.currentValue} / ${goal.targetValue} ${goal.unit}",

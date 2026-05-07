@@ -29,7 +29,7 @@ import com.neon.ascent.model.*
     GoalEntity::class,
     TaskEntity::class,
     HabitMetricEntity::class
-], version = 37)
+], version = 38)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userCharacterDao(): UserCharacterDao

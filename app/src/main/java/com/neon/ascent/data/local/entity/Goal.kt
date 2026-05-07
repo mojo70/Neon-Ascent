@@ -9,6 +9,7 @@ import java.util.UUID
 data class GoalEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val title: String,
+    val objective: String = "",
     val description: String = "",
     val aspirationLink: String = "",         // Reference to grand aspiration
     val targetValue: Float,

@@ -8,6 +8,7 @@ import java.time.ZoneId
 data class Goal(
     val id: String,
     val title: String,
+    val objective: String,
     val description: String,
     val aspirationLink: String,
     val targetValue: Float,
@@ -21,6 +22,7 @@ data class Goal(
 fun GoalEntity.toDomain() = Goal(
     id = id,
     title = title,
+    objective = objective,
     description = description,
     aspirationLink = aspirationLink,
     targetValue = targetValue,
@@ -34,6 +36,7 @@ fun GoalEntity.toDomain() = Goal(
 fun Goal.toEntity() = GoalEntity(
     id = id,
     title = title,
+    objective = objective,
     description = description,
     aspirationLink = aspirationLink,
     targetValue = targetValue,

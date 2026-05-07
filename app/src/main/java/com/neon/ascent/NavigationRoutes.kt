@@ -56,6 +56,9 @@ sealed interface Screen {
     data object Goals : Screen
 
     @Serializable
+    data object Aspirations : Screen
+
+    @Serializable
     data object Settings : Screen
 
     @Serializable
