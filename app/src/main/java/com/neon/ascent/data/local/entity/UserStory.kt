@@ -9,6 +9,7 @@ data class UserStoryEntity(
     val bio: String = "",                    // Free text story
     val grandAspirations: List<String> = emptyList(),     // JSON array of strings
     val specialAttributes: Map<String, Int> = emptyMap(),    // JSON map e.g. {"Openness": 85, "Focus": 70}
+    val cyberLore: String = "",
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )

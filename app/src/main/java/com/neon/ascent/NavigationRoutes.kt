@@ -29,6 +29,9 @@ sealed interface Screen {
     data object Story : Screen
 
     @Serializable
+    data object StoryIntake : Screen
+
+    @Serializable
     data object Creation : Screen
 
     @Serializable

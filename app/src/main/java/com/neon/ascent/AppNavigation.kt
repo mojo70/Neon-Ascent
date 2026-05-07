@@ -31,6 +31,7 @@ import com.neon.ascent.feature.journal.JournalScreen
 import com.neon.ascent.feature.journal.JournalViewModel
 import com.neon.ascent.feature.attributes.AttributeDetailScreen
 import com.neon.ascent.feature.journal.StoryScreen
+import com.neon.ascent.feature.story.StoryIntakeScreen
 import com.neon.ascent.feature.loading.LoadingScreen
 import com.neon.ascent.feature.library.EReaderScreen
 import com.neon.ascent.feature.settings.DeepNodeScreen
@@ -85,7 +86,7 @@ fun AppNavigation(
                     1 -> DashboardScreen(
                         onAvatarClick = { navController.navigate(Screen.HolographicHub) },
                         onAttributeSetClick = { navController.navigate(Screen.AttributeScan) },
-                        onStoryClick = { navController.navigate(Screen.Story) },
+                        onStoryClick = { navController.navigate(Screen.StoryIntake) },
                         onGoalSetClick = { navController.navigate(Screen.Goals) },
                         onSettingsClick = { navController.navigate(Screen.Settings) },
                         onDeusExMachinaClick = { navController.navigate(Screen.DeepNode("DEUS_EX_MACHINA")) }
@@ -182,6 +183,12 @@ fun AppNavigation(
             StoryScreen(
                 onBack = { navController.popBackStack() },
                 onHackingRequired = { navController.navigate(Screen.SystemBreach) }
+            )
+        }
+
+        composable<Screen.StoryIntake> {
+            StoryIntakeScreen(
+                onComplete = { navController.popBackStack() }
             )
         }
 
