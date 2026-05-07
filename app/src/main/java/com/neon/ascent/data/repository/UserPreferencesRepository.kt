@@ -21,6 +21,8 @@ class UserPreferencesRepository @Inject constructor(
     private object PreferencesKeys {
         val MEASUREMENT_UNIT = stringPreferencesKey("measurement_unit")
         val THEME_MODE = stringPreferencesKey("theme_mode")
+        val LAST_BIO_AGE = floatPreferencesKey("last_bio_age")
+        val LAST_BIO_AGE_TIMESTAMP = longPreferencesKey("last_bio_age_timestamp")
     }
 
     val measurementUnit: Flow<String> = context.dataStore.data
@@ -35,9 +37,21 @@ class UserPreferencesRepository @Inject constructor(
             preferences[PreferencesKeys.MEASUREMENT_UNIT] ?: "Metric"
         }
 
+    val lastBioAge: Flow<Float?> = context.dataStore.data
+        .map { preferences ->
+            preferences[PreferencesKeys.LAST_BIO_AGE]
+        }
+
     suspend fun updateMeasurementUnit(unit: String) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.MEASUREMENT_UNIT] = unit
+        }
+    }
+
+    suspend fun cacheBioAge(age: Float) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.LAST_BIO_AGE] = age
+            preferences[PreferencesKeys.LAST_BIO_AGE_TIMESTAMP] = System.currentTimeMillis()
         }
     }
 }

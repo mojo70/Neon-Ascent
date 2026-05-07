@@ -1,0 +1,38 @@
+{
+  "features": [
+    "LBXSAL",
+    "LBXSCR",
+    "LBXGLU",
+    "LBXHSCRP",
+    "LBXWBCSI",
+    "LBXLYPCT",
+    "LBXMCVSI",
+    "LBXRDW",
+    "LBXSAPSI",
+    "LBXGH",
+    "LBXTC",
+    "LBXTR",
+    "BMXBMI",
+    "RIAGENDR",
+    "LBDLYMNO",
+    "LBXRBCSI"
+  ],
+  "medianValues": {
+    "LBXSAL": 4.1,
+    "LBXSCR": 0.85,
+    "LBXGLU": 95.0,
+    "LBXHSCRP": 1.5,
+    "LBXWBCSI": 6.5,
+    "LBXLYPCT": 30.0,
+    "LBXMCVSI": 90.0,
+    "LBXRDW": 13.0,
+    "LBXSAPSI": 70.0,
+    "LBXGH": 5.4,
+    "LBXTC": 190.0,
+    "LBXTR": 120.0,
+    "BMXBMI": 26.0,
+    "RIAGENDR": 1.0,
+    "LBDLYMNO": 2.0,
+    "LBXRBCSI": 4.8
+  }
+}
