@@ -48,8 +48,27 @@ class CyberdeckViewModel @Inject constructor(
         list.any { it.quantity >= 10 }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    val userCharacter = userCharacterDao.getUserCharacter()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
     val quickHacks = inventoryDao.getQuickHacks()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val equippedQuickHacks: StateFlow<List<QuickHack>> = combine(userCharacter, quickHacks) { user, hacks ->
+        val equippedIds = user?.getQuickhackList() ?: emptyList()
+        hacks.filter { it.id in equippedIds }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val inventoryQuickHacks: StateFlow<List<QuickHack>> = combine(userCharacter, quickHacks) { user, hacks ->
+        val equippedIds = user?.getQuickhackList() ?: emptyList()
+        hacks.filter { it.id !in equippedIds }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun useQuickHack(quickHack: QuickHack) {
+        viewModelScope.launch {
+            inventoryDao.insertQuickHack(quickHack.copy(lastUsedTimestamp = System.currentTimeMillis()))
+        }
+    }
 
     init {
         generateAlerts()

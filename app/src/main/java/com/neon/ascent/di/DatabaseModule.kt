@@ -6,6 +6,7 @@ import com.neon.ascent.data.local.AppDatabase
 import com.neon.ascent.data.local.BenchmarkDao
 import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.BookDao
+import com.neon.ascent.data.local.ChatDao
 import com.neon.ascent.data.local.Converters
 import com.neon.ascent.data.local.DailyPrayerDao
 import com.neon.ascent.data.local.GoalDao
@@ -16,6 +17,7 @@ import com.neon.ascent.data.local.JournalDao
 import com.neon.ascent.data.local.LoreDao
 import com.neon.ascent.data.local.QuestDao
 import com.neon.ascent.data.local.SayingsDao
+import com.neon.ascent.data.local.StockDao
 import com.neon.ascent.data.local.TaskDao
 import com.neon.ascent.data.local.UserCharacterDao
 import com.neon.ascent.data.local.UserStoryDao
@@ -121,5 +123,15 @@ object DatabaseModule {
     @Provides
     fun provideInventoryDao(database: AppDatabase): InventoryDao {
         return database.inventoryDao()
+    }
+
+    @Provides
+    fun provideChatDao(database: AppDatabase): ChatDao {
+        return database.chatDao()
+    }
+
+    @Provides
+    fun provideStockDao(database: AppDatabase): StockDao {
+        return database.stockDao()
     }
 }

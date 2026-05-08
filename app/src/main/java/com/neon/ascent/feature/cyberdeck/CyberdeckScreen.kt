@@ -3,11 +3,13 @@ package com.neon.ascent.feature.cyberdeck
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -39,6 +41,7 @@ fun CyberdeckScreen(
     onDatabaseClick: () -> Unit,
     onIceBreachClick: () -> Unit,
     onCoreClick: () -> Unit,
+    onNetworkClick: () -> Unit = {},
     onExploitsClick: () -> Unit = {},
     tickerMessages: List<String> = emptyList(),
     viewModel: CyberdeckViewModel = hiltViewModel()
@@ -78,9 +81,7 @@ fun CyberdeckScreen(
         AtmosphericHaze()
 
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
+            modifier = Modifier.fillMaxSize()
         ) {
             TopStatusBar(onIceBreachClick)
 
@@ -117,8 +118,8 @@ fun CyberdeckScreen(
                     }
                 }
 
-        // 4. Hexagon Cores (Enhanced 3D Neon)
-                CoreLayout(onWalletClick, onDatabaseClick, onCoreClick, onExploitsClick, aiType, viewModel)
+                // 4. Hexagon Cores (Enhanced 3D Neon)
+                CoreLayout(onWalletClick, onDatabaseClick, onCoreClick, onExploitsClick, onNetworkClick, aiType, viewModel)
             }
 
             // 5. Live Console
@@ -135,7 +136,7 @@ fun CyberdeckScreen(
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
                     .padding(top = 80.dp, end = 16.dp),
-                onClick = { /* Navigate to crafting or open crafting sheet */ }
+                onClick = onExploitsClick
             )
         }
 
@@ -196,7 +197,7 @@ fun AtmosphericHaze() {
 @Composable
 private fun TopStatusBar(onIceBreachClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+        modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -299,18 +300,15 @@ private fun CoreLayout(
     onDatabaseClick: () -> Unit,
     onCoreClick: () -> Unit,
     onExploitsClick: () -> Unit,
+    onNetworkClick: () -> Unit,
     aiType: AiType,
     viewModel: CyberdeckViewModel
 ) {
     Box(Modifier.fillMaxSize()) {
-        // NETWORK
-        HexCore("NETWORK",  Color(0xFF00FF99), Modifier.align(Alignment.TopCenter).padding(top = 80.dp), onClick = {
-            viewModel.startPcapChallenge(DifficultyTier.OPERATIVE, SkillType.ANALYSIS)
-        })
+        // NET CORE
+        HexCore("NET",  Color(0xFF00FF99), Modifier.align(Alignment.TopCenter).padding(top = 80.dp), onClick = onNetworkClick)
         // EXPLOITS
-        HexCore("EXPLOITS", Color(0xFFFF0088), Modifier.align(Alignment.CenterStart).padding(start = 32.dp, bottom = 40.dp), onClick = {
-            viewModel.startPcapChallenge(DifficultyTier.NOVICE, SkillType.ANALYSIS)
-        })
+        HexCore("EXPLOITS", Color(0xFFFF0088), Modifier.align(Alignment.CenterStart).padding(start = 32.dp, bottom = 40.dp), onClick = onExploitsClick)
         
         // CORE_OS / AI Status
         val coreLabel = when (aiType) {
@@ -460,7 +458,7 @@ private fun LiveConsole(viewModel: CyberdeckViewModel) {
         label = "Alpha"
     )
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         combinedFeeds.reversed().forEach { line ->
             val color = when {
                 line.contains("[CRITICAL]") -> Color.Red

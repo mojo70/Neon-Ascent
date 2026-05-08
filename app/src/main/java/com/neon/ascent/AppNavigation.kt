@@ -19,6 +19,8 @@ import com.neon.ascent.feature.charactercreation.CharacterCreationScreen
 import com.neon.ascent.feature.charactercreation.CreationViewModel
 import com.neon.ascent.feature.charactercreation.NeuralScanScreen
 import com.neon.ascent.feature.cyberdeck.CyberdeckScreen
+import com.neon.ascent.feature.cyberdeck.ExploitsScreen
+import com.neon.ascent.feature.cyberdeck.NetworkHubScreen
 import com.neon.ascent.feature.dashboard.DashboardScreen
 import com.neon.ascent.feature.dashboard.DashboardViewModel
 import com.neon.ascent.feature.dashboard.CoreDashboardScreen
@@ -80,8 +82,11 @@ fun AppNavigation(
                         onCoreClick = {
                             navController.navigate(Screen.CoreDashboard)
                         },
+                        onNetworkClick = {
+                            navController.navigate(Screen.NetworkHub)
+                        },
                         onExploitsClick = {
-                            navController.navigate(Screen.CyberChess(returnToDopamine = false))
+                            navController.navigate(Screen.Forge)
                         },
                         tickerMessages = tickerMessages
                     )
@@ -327,6 +332,21 @@ fun AppNavigation(
 
         composable<Screen.CharacterBio> {
             AvatarCaptureScreen(onComplete = { navController.popBackStack() })
+        }
+
+        composable<Screen.NetworkHub> {
+            NetworkHubScreen(
+                onBack = { navController.popBackStack() },
+                onChessClick = { navController.navigate(Screen.CyberChess(false)) },
+                viewModel = hiltViewModel()
+            )
+        }
+
+        composable<Screen.Forge> {
+            ExploitsScreen(
+                onBack = { navController.popBackStack() },
+                viewModel = hiltViewModel()
+            )
         }
 
         composable<Screen.EReader> { backStackEntry ->

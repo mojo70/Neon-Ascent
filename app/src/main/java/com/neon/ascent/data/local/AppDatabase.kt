@@ -30,8 +30,11 @@ import com.neon.ascent.model.*
     TaskEntity::class,
     HabitMetricEntity::class,
     QuickHackComponent::class,
-    QuickHack::class
-], version = 39)
+    QuickHack::class,
+    ChatSession::class,
+    ChatMessage::class,
+    WatchlistItem::class
+], version = 42)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userCharacterDao(): UserCharacterDao
@@ -49,4 +52,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun goalTaskDao(): GoalTaskDao
     abstract fun habitMetricDao(): HabitMetricDao
     abstract fun inventoryDao(): InventoryDao
+    abstract fun chatDao(): ChatDao
+    abstract fun stockDao(): StockDao
 }

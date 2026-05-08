@@ -32,9 +32,11 @@ android {
         
         val weatherKey = localProperties.getProperty("openweather.api.key") ?: "YOUR_OPENWEATHER_API_KEY"
         val geminiKey = localProperties.getProperty("gemini.api.key") ?: "YOUR_GEMINI_API_KEY"
+        val finnhubKey = localProperties.getProperty("finnhub.api.key") ?: "YOUR_FINNHUB_API_KEY"
 
         buildConfigField("String", "OPENWEATHER_API_KEY", "\"$weatherKey\"")
         buildConfigField("String", "GEMINI_API_KEY", "\"$geminiKey\"")
+        buildConfigField("String", "FINNHUB_API_KEY", "\"$finnhubKey\"")
     }
 
     buildTypes {

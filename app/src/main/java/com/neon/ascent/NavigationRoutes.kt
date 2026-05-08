@@ -62,6 +62,12 @@ sealed interface Screen {
     data object Settings : Screen
 
     @Serializable
+    data object NetworkHub : Screen
+
+    @Serializable
+    data object Forge : Screen
+
+    @Serializable
     data class DeepNode(val nodeType: String = "DEUS_EX_MACHINA") : Screen
 
     @Serializable
