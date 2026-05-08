@@ -35,7 +35,14 @@ fun AugmentedAssetsScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var showChat by remember { mutableStateOf(false) }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF020508))
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(16.dp)
+    ) {
         // ... (Header code was here)
         Row(
             modifier = Modifier.fillMaxWidth(),
