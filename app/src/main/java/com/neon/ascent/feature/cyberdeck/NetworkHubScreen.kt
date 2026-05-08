@@ -35,7 +35,8 @@ fun NetworkHubScreen(
     viewModel: CyberdeckViewModel,
     chatViewModel: ChatViewModel = hiltViewModel(),
     hubViewModel: NetworkHubViewModel = hiltViewModel(),
-    stockViewModel: StockViewModel = hiltViewModel()
+    stockViewModel: StockViewModel = hiltViewModel(),
+    netWorthViewModel: NetWorthViewModel = hiltViewModel()
 ) {
     var activeTab by remember { mutableStateOf(NetworkTab.CHATS) }
     var selectedContact by remember { mutableStateOf<String?>(null) }
@@ -87,7 +88,7 @@ fun NetworkHubScreen(
                 when (activeTab) {
                     NetworkTab.CHATS -> ChatListArea(chatViewModel) { selectedContact = it }
                     NetworkTab.SCAN -> NetScanArea(hubViewModel, chatViewModel)
-                    NetworkTab.BIZ -> BizScreenRefined(stockViewModel)
+                    NetworkTab.BIZ -> BizScreen(stockViewModel, netWorthViewModel)
                     NetworkTab.NODES -> CorpoNodesArea(viewModel)
                     NetworkTab.GAMES -> GamesArea(onChessClick)
                 }

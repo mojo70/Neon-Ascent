@@ -32,7 +32,7 @@ import com.neon.ascent.ui.CyberFrame
 import java.util.Locale
 
 @Composable
-fun BizScreen(viewModel: StockViewModel) {
+fun BizScreen(viewModel: StockViewModel, netWorthViewModel: NetWorthViewModel) {
     val watchlist by viewModel.watchlist.collectAsState()
     val quoteData by viewModel.quoteData.collectAsState()
     val selectedSymbol by viewModel.selectedSymbol.collectAsState()
@@ -41,8 +41,16 @@ fun BizScreen(viewModel: StockViewModel) {
     val earnings by viewModel.earnings.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val marketStatus = viewModel.getMarketStatus()
+    
+    val nwSummary by netWorthViewModel.summary.collectAsState()
+    var showingNWDetail by remember { mutableStateOf(false) }
 
-    if (selectedSymbol != null) {
+    if (showingNWDetail) {
+        AugmentedAssetsScreen(
+            viewModel = netWorthViewModel,
+            onBack = { showingNWDetail = false }
+        )
+    } else if (selectedSymbol != null) {
         StockDetailView(
             symbol = selectedSymbol!!,
             candleData = candleData,
@@ -56,45 +64,10 @@ fun BizScreen(viewModel: StockViewModel) {
             watchlist = watchlist,
             quoteData = quoteData,
             marketStatus = marketStatus,
+            nwSummary = nwSummary,
             onSelect = { symbol, isCrypto -> viewModel.selectSymbol(symbol, isCrypto) },
-            onLookup = { symbol -> viewModel.toggleFollow(symbol, symbol) }
-        )
-    }
-}
-
-// Fixing the back navigation in the viewmodel or screen
-@Composable
-fun BizScreenRefined(viewModel: StockViewModel) {
-    val watchlist by viewModel.watchlist.collectAsState()
-    val quoteData by viewModel.quoteData.collectAsState()
-    val selectedSymbol by viewModel.selectedSymbol.collectAsState()
-    val candleData by viewModel.candleData.collectAsState()
-    val financials by viewModel.financials.collectAsState()
-    val earnings by viewModel.earnings.collectAsState()
-    val errorMessage by viewModel.errorMessage.collectAsState()
-    val marketStatus = viewModel.getMarketStatus()
-    
-    var localSelectedSymbol by remember { mutableStateOf<String?>(null) }
-
-    if (localSelectedSymbol != null) {
-        StockDetailView(
-            symbol = localSelectedSymbol!!,
-            candleData = candleData,
-            financials = financials,
-            earnings = earnings,
-            errorMessage = errorMessage,
-            onBack = { localSelectedSymbol = null }
-        )
-    } else {
-        MainBizView(
-            watchlist = watchlist,
-            quoteData = quoteData,
-            marketStatus = marketStatus,
-            onSelect = { symbol, isCrypto -> 
-                viewModel.selectSymbol(symbol, isCrypto)
-                localSelectedSymbol = symbol
-            },
-            onLookup = { symbol -> viewModel.toggleFollow(symbol, symbol) }
+            onLookup = { symbol -> viewModel.toggleFollow(symbol, symbol) },
+            onNWClick = { showingNWDetail = true }
         )
     }
 }
@@ -104,12 +77,16 @@ fun MainBizView(
     watchlist: List<WatchlistItem>,
     quoteData: Map<String, com.neon.ascent.model.StockQuote>,
     marketStatus: com.neon.ascent.model.MarketStatus,
+    nwSummary: com.neon.ascent.model.NetWorthSummary,
     onSelect: (String, Boolean) -> Unit,
-    onLookup: (String) -> Unit
+    onLookup: (String) -> Unit,
+    onNWClick: () -> Unit
 ) {
     var searchSymbol by remember { mutableStateOf("") }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        NetWorthHeader(nwSummary, onNWClick)
+        Spacer(modifier = Modifier.height(24.dp))
         MarketStatusHeader(marketStatus)
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -225,6 +202,48 @@ fun StockDetailView(
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text("The Eurodollar (EDS) is the primary currency of the New United States and Night City. Known colloquially as 'Eddies'.", color = Color.Gray, fontSize = 12.sp)
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun NetWorthHeader(summary: com.neon.ascent.model.NetWorthSummary, onClick: () -> Unit) {
+    CyberFrame(
+        label = "AUGMENTED_ASSETS",
+        modifier = Modifier.clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text("TOTAL_NETWORTH", color = Color.Gray, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                Text(
+                    "$${String.format(Locale.getDefault(), "%,.2f", summary.totalValue)}",
+                    color = Color.White,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+            
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val color = if (summary.isUp) Color(0xFF00FF9F) else Color.Red
+                Icon(
+                    imageVector = if (summary.isUp) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    "${String.format(Locale.getDefault(), "%.1f", summary.changePercentage)}%",
+                    color = color,
+                    fontSize = 14.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }

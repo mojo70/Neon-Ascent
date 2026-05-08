@@ -33,8 +33,10 @@ import com.neon.ascent.model.*
     QuickHack::class,
     ChatSession::class,
     ChatMessage::class,
-    WatchlistItem::class
-], version = 42)
+    WatchlistItem::class,
+    AssetAccount::class,
+    AssetSnapshot::class
+], version = 43)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userCharacterDao(): UserCharacterDao
@@ -54,4 +56,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun inventoryDao(): InventoryDao
     abstract fun chatDao(): ChatDao
     abstract fun stockDao(): StockDao
+    abstract fun netWorthDao(): NetWorthDao
 }
