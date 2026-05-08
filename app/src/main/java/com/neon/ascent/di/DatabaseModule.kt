@@ -11,6 +11,7 @@ import com.neon.ascent.data.local.DailyPrayerDao
 import com.neon.ascent.data.local.GoalDao
 import com.neon.ascent.data.local.GoalTaskDao
 import com.neon.ascent.data.local.HabitMetricDao
+import com.neon.ascent.data.local.InventoryDao
 import com.neon.ascent.data.local.JournalDao
 import com.neon.ascent.data.local.LoreDao
 import com.neon.ascent.data.local.QuestDao
@@ -115,5 +116,10 @@ object DatabaseModule {
     @Provides
     fun provideHabitMetricDao(database: AppDatabase): HabitMetricDao {
         return database.habitMetricDao()
+    }
+
+    @Provides
+    fun provideInventoryDao(database: AppDatabase): InventoryDao {
+        return database.inventoryDao()
     }
 }

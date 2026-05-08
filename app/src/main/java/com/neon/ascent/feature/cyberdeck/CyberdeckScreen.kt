@@ -1,9 +1,7 @@
 package com.neon.ascent.feature.cyberdeck
 
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,6 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.feature.biohacking.AiType
+import com.neon.ascent.model.DifficultyTier
+import com.neon.ascent.model.SkillType
 import com.neon.ascent.ui.CyberFrame
 import kotlinx.coroutines.delay
 import kotlin.math.PI
@@ -44,6 +44,10 @@ fun CyberdeckScreen(
     viewModel: CyberdeckViewModel = hiltViewModel()
 ) {
     val aiType by viewModel.aiType.collectAsState()
+    val currentChallenge by viewModel.currentChallenge.collectAsState()
+    val lastReward by viewModel.lastReward.collectAsState()
+    val isCraftingAvailable by viewModel.isCraftingAvailable.collectAsState()
+
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulsePhase by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -113,8 +117,8 @@ fun CyberdeckScreen(
                     }
                 }
 
-                // 4. Hexagon Cores (Enhanced 3D Neon)
-                CoreLayout(onWalletClick, onDatabaseClick, onCoreClick, onExploitsClick, aiType)
+        // 4. Hexagon Cores (Enhanced 3D Neon)
+                CoreLayout(onWalletClick, onDatabaseClick, onCoreClick, onExploitsClick, aiType, viewModel)
             }
 
             // 5. Live Console
@@ -125,9 +129,36 @@ fun CyberdeckScreen(
             }
         }
 
+        if (isCraftingAvailable) {
+            CraftingBanner(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(top = 80.dp, end = 16.dp),
+                onClick = { /* Navigate to crafting or open crafting sheet */ }
+            )
+        }
+
         // Decorative accents
         Box(Modifier.width(4.dp).fillMaxHeight().background(Color(0xFFFF0088)).align(Alignment.CenterStart))
         Box(Modifier.width(4.dp).fillMaxHeight().background(Color(0xFF00CCFF)).align(Alignment.CenterEnd))
+
+        // 6. Overlays
+        currentChallenge?.let { challenge ->
+            PcapChallengeScreen(
+                challenge = challenge,
+                onFlagSubmitted = { viewModel.submitFlag(it) },
+                onFilterApplied = { /* logic in VM */ },
+                onTimeout = { /* handle timeout */ }
+            )
+        }
+
+        lastReward?.let { reward ->
+            HackingRewardDialog(
+                reward = reward,
+                onDismiss = { viewModel.clearReward() }
+            )
+        }
     }
 }
 
@@ -268,13 +299,18 @@ private fun CoreLayout(
     onDatabaseClick: () -> Unit,
     onCoreClick: () -> Unit,
     onExploitsClick: () -> Unit,
-    aiType: AiType
+    aiType: AiType,
+    viewModel: CyberdeckViewModel
 ) {
     Box(Modifier.fillMaxSize()) {
         // NETWORK
-        HexCore("NETWORK",  Color(0xFF00FF99), Modifier.align(Alignment.TopCenter).padding(top = 80.dp))
+        HexCore("NETWORK",  Color(0xFF00FF99), Modifier.align(Alignment.TopCenter).padding(top = 80.dp), onClick = {
+            viewModel.startPcapChallenge(DifficultyTier.OPERATIVE, SkillType.ANALYSIS)
+        })
         // EXPLOITS
-        HexCore("EXPLOITS", Color(0xFFFF0088), Modifier.align(Alignment.CenterStart).padding(start = 32.dp, bottom = 40.dp), onClick = onExploitsClick)
+        HexCore("EXPLOITS", Color(0xFFFF0088), Modifier.align(Alignment.CenterStart).padding(start = 32.dp, bottom = 40.dp), onClick = {
+            viewModel.startPcapChallenge(DifficultyTier.NOVICE, SkillType.ANALYSIS)
+        })
         
         // CORE_OS / AI Status
         val coreLabel = when (aiType) {
@@ -445,6 +481,36 @@ private fun LiveConsole(viewModel: CyberdeckViewModel) {
             Text("> ", color = Color(0xFF00FF99), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
             Box(Modifier.size(8.dp, 16.dp).background(Color(0xFF00FF99).copy(alpha = cursorAlpha)))
         }
+    }
+}
+
+@Composable
+fun CraftingBanner(modifier: Modifier, onClick: () -> Unit) {
+    val infiniteTransition = rememberInfiniteTransition(label = "CraftingBanner")
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Alpha"
+    )
+
+    Box(
+        modifier = modifier
+            .background(Color(0xFF00FF9F).copy(alpha = 0.1f * alpha))
+            .border(1.dp, Color(0xFF00FF9F).copy(alpha = alpha))
+            .clickable { onClick() }
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = "CRAFTING_AVAILABLE",
+            color = Color(0xFF00FF9F),
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 

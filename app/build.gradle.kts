@@ -68,7 +68,8 @@ android {
 }
 
 room {
-    schemaDirectory("$projectDir/schemas")
+    schemaDirectory(layout.projectDirectory.dir("schemas"))
+    generateKotlin = true
 }
 
 dependencies {
@@ -180,4 +181,9 @@ dependencies {
     
     // Google Fonts
     implementation("androidx.compose.ui:ui-text-google-fonts:1.7.6")
+}
+
+// Workaround for Room Gradle Plugin Always-Run task warning
+tasks.withType<androidx.room.gradle.RoomSchemaCopyTask>().configureEach {
+    outputs.dir(layout.projectDirectory.dir("schemas")).withPropertyName("schemaDirectory")
 }

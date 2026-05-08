@@ -5,6 +5,8 @@ import androidx.room.TypeConverter
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.neon.ascent.domain.model.SpecialType
+import com.neon.ascent.model.QuickHackType
+import com.neon.ascent.model.Rarity
 
 @ProvidedTypeConverter
 class Converters {
@@ -34,4 +36,16 @@ class Converters {
 
     @TypeConverter
     fun toSpecialType(value: String?): SpecialType? = value?.let { SpecialType.valueOf(it) }
+
+    @TypeConverter
+    fun fromRarity(value: Rarity?): String? = value?.name
+
+    @TypeConverter
+    fun toRarity(value: String?): Rarity? = value?.let { Rarity.valueOf(it) }
+
+    @TypeConverter
+    fun fromQuickHackType(value: QuickHackType?): String? = value?.name
+
+    @TypeConverter
+    fun toQuickHackType(value: String?): QuickHackType? = value?.let { QuickHackType.valueOf(it) }
 }
