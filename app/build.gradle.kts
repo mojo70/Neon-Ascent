@@ -157,6 +157,7 @@ dependencies {
     
     // LiteRT LLM (Local Gemma)
     implementation(project(":core:ai-litert"))
+    implementation(project(":core:lore"))
     // implementation("com.google.ai.edge.litertlm:litertlm-android:0.10.0")
 
     // Google AI SDK (Cloud-based Gemini)

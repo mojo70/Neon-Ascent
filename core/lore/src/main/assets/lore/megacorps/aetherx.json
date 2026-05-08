@@ -1,0 +1,81 @@
+{
+  "id": "aetherx",
+  "name": "AetherX",
+  "slogan": "Our Heavy Starship doesn’t pull out. Uranus knows.",
+  "motto": "Elevating Humanity, One Orbit at a Time.",
+  "description": "Founded in 2065 by ex-SpaceX renegades, AetherX is the premier megacorp for aggressive deep-space expansion. We deliver conquest. No safe orbits. No gentle landings. Just raw, unrelenting thrust.",
+  "ceo": {
+    "name": "Dr. Vance 'Thrust' Calder",
+    "title": "The Pilot",
+    "personality": "degen_space_bro",
+    "gemmaPromptPath": "lore/ceo_prompts/aetherx.txt"
+  },
+  "achievements": [
+    {
+      "year": "2065",
+      "title": "Uranus Slingshot",
+      "description": "First successful crewed slingshot around Uranus."
+    },
+    {
+      "year": "2067",
+      "title": "Fleet Deployment",
+      "description": "Deployment of the Heavy Starship-class fleet."
+    },
+    {
+      "year": "2068",
+      "title": "Titania Outpost",
+      "description": "Establishment of New Elysium Outpost on Titania."
+    },
+    {
+      "year": "2069",
+      "title": "Continuous Pounding",
+      "description": "Record 47 consecutive days of continuous orbital pounding."
+    }
+  ],
+  "divisions": [
+    {
+      "name": "Orbital Dominance",
+      "focus": "Space Logistics",
+      "revenueShare": 0.59,
+      "revenue": "§289.4B",
+      "growth": "+62%"
+    },
+    {
+      "name": "Planetary Acquisition",
+      "focus": "Colonization",
+      "revenueShare": 0.20,
+      "revenue": "§98.7B",
+      "growth": "+27%"
+    },
+    {
+      "name": "Deep Thrust R&D",
+      "focus": "Propulsion",
+      "revenueShare": 0.14,
+      "revenue": "§67.2B",
+      "growth": "+81%"
+    },
+    {
+      "name": "Colony & Ent.",
+      "focus": "Hospitality",
+      "revenueShare": 0.07,
+      "revenue": "§32.0B",
+      "growth": "+194%"
+    }
+  ],
+  "stockTicker": {
+    "symbol": "AETX",
+    "price": 387.42,
+    "change": 24.67,
+    "volume": 4750000000
+  },
+  "financials": {
+    "revenue": "§487.3 Billion",
+    "profit": "§214.6 Billion",
+    "eps": "§4.82",
+    "growthYoY": "+38%"
+  },
+  "flavorText": [
+    "The stars are ours for the taking.",
+    "Mars is for tourists. Uranus is for us."
+  ]
+}

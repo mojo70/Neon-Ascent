@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.neon.ascent.data.local.InventoryDao
 import com.neon.ascent.data.local.UserCharacterDao
+import com.neon.ascent.core.lore.data.LoreRepository
+import com.neon.ascent.core.lore.data.Megacorp
 import com.neon.ascent.feature.biohacking.AiProvider
 import com.neon.ascent.feature.biohacking.AiType
 import com.neon.ascent.model.*
@@ -19,7 +21,8 @@ import kotlin.random.Random
 class CyberdeckViewModel @Inject constructor(
     private val aiProvider: AiProvider,
     private val inventoryDao: InventoryDao,
-    private val userCharacterDao: UserCharacterDao
+    private val userCharacterDao: UserCharacterDao,
+    private val loreRepository: LoreRepository
 ) : ViewModel() {
     val aiType: StateFlow<AiType> = aiProvider.activeAiType
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AiType.NONE)
@@ -44,12 +47,115 @@ class CyberdeckViewModel @Inject constructor(
     private val _bypassedBlackIce = MutableStateFlow<Set<String>>(emptySet())
     val bypassedBlackIce: StateFlow<Set<String>> = _bypassedBlackIce.asStateFlow()
 
-    fun bypassBlackIce(corpoName: String, password: String): Boolean {
-        if (corpoName == "AetherX" && password == "PoundUranusNoPullout420.69") {
+    private val _corpoNodes = MutableStateFlow<List<CorpoNode>>(emptyList())
+    val corpoNodes: StateFlow<List<CorpoNode>> = _corpoNodes.asStateFlow()
+
+    init {
+        generateAlerts()
+        loadCorpoNodes()
+    }
+
+    private fun loadCorpoNodes() {
+        viewModelScope.launch {
+            val megacorps = loreRepository.getAllMegacorps()
+            if (megacorps.isNotEmpty()) {
+                _corpoNodes.value = megacorps.map { it.toCorpoNode() }
+            }
+        }
+    }
+
+    private fun Megacorp.toCorpoNode(): CorpoNode {
+        return CorpoNode(
+            name = name,
+            ticker = stockTicker.symbol,
+            slogan = slogan,
+            profile = description,
+            securityTier = if (id == "aetherx") DifficultyTier.BLACK_ICE else DifficultyTier.GHOST,
+            stockPrice = stockTicker.price,
+            stockChange = stockTicker.change,
+            stockChangePercent = if (stockTicker.price != 0.0) (stockTicker.change / (stockTicker.price - stockTicker.change)) * 100 else 0.0,
+            marketCap = "§${String.format("%.1f", (stockTicker.price * stockTicker.volume) / 1_000_000_000_000.0)} Trillion",
+            ceo = ceo.name,
+            highlights = achievements.map { "${it.year} - ${it.title}: ${it.description}" },
+            earningsReport = generateEarningsReport(this),
+            investorDeck = generateInvestorDeck(this)
+        )
+    }
+
+    private fun generateEarningsReport(megacorp: Megacorp): String {
+        return """
+            ${megacorp.name} (${megacorp.stockTicker.symbol}) Q3 2071 Earnings Transmission
+            Net Revenue: ${megacorp.financials?.revenue ?: "N/A"}
+            Profit: ${megacorp.financials?.profit ?: "N/A"}
+            EPS: ${megacorp.financials?.eps ?: "N/A"}
+            
+            [DIVISIONAL PERFORMANCE]
+            ${megacorp.divisions.joinToString("\n") { "• ${it.name}: ${it.revenue ?: "N/A"} (${it.growth ?: "N/A"})" }}
+            
+            [CEO STATEMENT]
+            "${megacorp.ceo.name}: ${megacorp.flavorText.firstOrNull() ?: ""}"
+        """.trimIndent()
+    }
+
+    private fun generateInvestorDeck(megacorp: Megacorp): List<InvestorSlide>? {
+        return when (megacorp.id) {
+            "panopticon" -> listOf(
+                InvestorSlide("PANOPTICON", "We See What You Will Become", "Presented by Dr. Elias Voss – The Eye\nOctober 2071"),
+                InvestorSlide("THE PROBLEM", "The world is drowning in noise.", "Humans lie. Humans forget. Humans hide. We fix that. Panopticon removes uncertainty from existence."),
+                InvestorSlide("OUR SOLUTION", "The Panopticon Mesh", "One single intelligence layer that knows every citizen better than they know themselves.\n\nCore Product: Omniscience as a Service (OaaS)"),
+                InvestorSlide("TRACTION", "We Predicted This", "3.8 billion active Echo Chamber users\n1,247 pre-empted incidents this quarter\n98% global neural implant penetration\nShadow profiles now 400% more detailed than user self-knowledge"),
+                InvestorSlide("MARKET OPPORTUNITY", "Total Addressable Market: §9.3 Trillion by 2080", "Surveillance state contracts: §4.1T\nPersonalized reality licensing: §2.8T\nPre-crime intelligence sales: §1.7T\nBlackLens classified work: §700B"),
+                InvestorSlide("TECHNOLOGY", "DeepMind Succession Protocol", "The AI that replaced the ethics board Dr. Voss personally dissolved in 2048.\n\nVoss Neural Signature: Every decision is logged with his private biometric key."),
+                InvestorSlide("FINANCIAL HIGHLIGHTS", "Revenue: §1.24 Trillion (+47% YoY)", "Adjusted Omniscience Profit: §892 Billion (+62%)\nEPS: §9.87\n\nGuidance Q4: §1.6T+"),
+                InvestorSlide("TEAM", "Dr. Elias Voss – CEO", "The Oversight Committee\nDeepMind AI Core\nBlackLens Intelligence Division"),
+                InvestorSlide("ROADMAP", "What's Next", "Q4 2071 – Pre-Crime Reality Layer launch\n2072 – Full neural thought indexing\n2073 – Interplanetary Mesh extension"),
+                InvestorSlide("THE ASK", "Raising §750 Billion", "55% Expanded Mesh infrastructure\n25% BlackLens wetwork upgrades\n15% EchoForge tuning\n\nJoin the only megacorp that already knows you’ll say yes."),
+                InvestorSlide("PANOPTICON", "Do Evil.", "Thank you. I already knew you would invest.")
+            )
+            "aetherx" -> listOf(
+                InvestorSlide("AETHERX", "Conquering the Outer System", "Presented by Dr. Vance 'Thrust' Calder – CEO & Chief Penetration Officer\nOctober 2071"),
+                InvestorSlide("THE PROBLEM", "The inner system is crowded, regulated, and boring.", "Mars is full of tourists and eco-hippies\nEarth orbit is clogged with debris and lawyers\nGovernments still pretend space belongs to 'humanity'\n\nWe fix that."),
+                InvestorSlide("OUR SOLUTION", "Heavy Starship-class Fleet", "Zero-pullout propulsion\nMassive payload capacity (planets feel it)\nProven on Uranus (multiple times)\n\nCore Offering: Planetary Acquisition as a Service (PAaaS)"),
+                InvestorSlide("TRACTION", "We Don't Just Talk – We Pound", "14 successful Uranus deep-impact missions in Q3 alone\nTitania Pleasure Outpost – 94% occupancy\n47-day continuous orbital record\nAcquired AstroThrust Dynamics in a very hostile takeover"),
+                InvestorSlide("MARKET OPPORTUNITY", "Total Addressable Market: §4.7 Trillion by 2080", "Deep-space conquest: §1.9T\nOrbital 'entertainment' services: §890B\nResource extraction: §1.2T\nGovernment black-budget contracts: §700B"),
+                InvestorSlide("TECHNOLOGY", "Next-Gen 'No-Pullout' Propulsion", "Deep Thrust AI – Optimizes angle, duration, and intensity in real time\nPleasure Dome Hab Modules – Because crews perform better after release"),
+                InvestorSlide("FINANCIAL HIGHLIGHTS", "Revenue: §487.3 Billion (+38% YoY)", "Adjusted Thrust Profit: §214.6 Billion (+51%)\nEPS: §4.82\n\nGuidance Q4: §620B+"),
+                InvestorSlide("TEAM", "Vance 'Thrust' Calder – CEO", "Dr. Nadia 'Velvet' Voss – CTO\nMarcus 'Iron' Kane – Head of Security & Acquisitions\n12,400 highly professionals"),
+                InvestorSlide("ROADMAP", "What's Next", "Q4 2071 – Heavy Starship-8 launch\n2072 – Full Neptune teasing operations\n2073 – First crewed 'extended contact' mission to Pluto"),
+                InvestorSlide("THE ASK", "Raising §450 Billion", "60% More Heavy Starships\n25% Expanded pleasure colonies\n10% Marketing (Uranus memes)\n\nJoin the thrust."),
+                InvestorSlide("AETHERX", "Reach for the stars. Then reach deeper.", "Thank you.\nQuestions? Fire away.")
+            )
+            else -> null
+        }
+    }
+
+    fun bypassBlackIce(corpoName: String, username: String, password: String): Boolean {
+        if (corpoName == "AetherX" && username == "Vance 'Thrust' Calder" && password == "PoundUranusNoPullout420.69") {
+            grantBypassRewards(DifficultyTier.BLACK_ICE)
             _bypassedBlackIce.update { it + corpoName }
             return true
         }
         return false
+    }
+
+    private fun grantBypassRewards(tier: DifficultyTier) {
+        viewModelScope.launch {
+            val challenge = Challenge(
+                id = "bypass_${System.currentTimeMillis()}",
+                tier = tier,
+                type = ChallengeType.WEB_EXPLOIT,
+                focusSkill = SkillType.ANALYSIS,
+                title = "Black ICE Bypass",
+                description = "Credential extraction success.",
+                timeLimitSeconds = 0,
+                bufferSize = 0,
+                packets = emptyList(),
+                correctFlag = "",
+                solutionHint = "",
+                metadata = emptyMap()
+            )
+            processWin(challenge)
+        }
     }
 
     val components = inventoryDao.getComponents()
@@ -79,10 +185,6 @@ class CyberdeckViewModel @Inject constructor(
         viewModelScope.launch {
             inventoryDao.insertQuickHack(quickHack.copy(lastUsedTimestamp = System.currentTimeMillis()))
         }
-    }
-
-    init {
-        generateAlerts()
     }
 
     fun startPcapChallenge(tier: DifficultyTier, skill: SkillType) {

@@ -83,7 +83,7 @@ fun NetworkHubScreen(
                 },
                 onAttack = { viewModel.startPcapChallenge(tier, SkillType.ANALYSIS) },
                 onViewDeck = { showingInvestorDeck = true },
-                onBypass = { pwd -> viewModel.bypassBlackIce(selectedCorpo!!.name, pwd) }
+                onBypass = { user, pwd -> viewModel.bypassBlackIce(selectedCorpo!!.name, user, pwd) }
             )
         } else {
             Column(
@@ -335,7 +335,9 @@ fun NetworkTabItem(label: String, selected: Boolean, modifier: Modifier, onClick
 
 @Composable
 fun CorpoNodesArea(viewModel: CyberdeckViewModel, bypassed: Set<String>, onCorpoClick: (CorpoNode) -> Unit) {
-    val corpos = remember {
+    val corposByVM by viewModel.corpoNodes.collectAsState()
+    
+    val hardcodedCorpos = remember {
         listOf(
             CorpoNode(
                 name = "AetherX",
@@ -388,16 +390,51 @@ fun CorpoNodesArea(viewModel: CyberdeckViewModel, bypassed: Set<String>, onCorpo
             ),
             CorpoNode(
                 name = "Panopticon",
-                ticker = "PNOT",
-                slogan = "Do Evil",
-                profile = "The world's largest surveillance and data collection agency. We don't just see everything; we predict your next thought before you have it. Privacy is a legacy bug we've patched.",
-                securityTier = DifficultyTier.NETRUNNER,
-                stockPrice = 1240.89,
-                stockChange = -15.20,
-                stockChangePercent = -1.2,
+                ticker = "PANO",
+                slogan = "Do Evil.",
+                profile = "The megacorp that doesn’t just watch you — it knows you better than you know yourself. While others sell you products, Panopticon sells omniscience. Your search history, your dreams, your biometric fluctuations, your late-night Grid scrolls… all fuel the machine.",
+                securityTier = DifficultyTier.GHOST,
+                stockPrice = 1284.70,
+                stockChange = 41.33,
+                stockChangePercent = 3.2,
                 marketCap = "§5.2 Trillion",
-                ceo = "The Oversight Committee",
-                highlights = listOf("2062 - Global Neural Integration", "2066 - Predicative Crime Unit launch")
+                ceo = "Dr. Elias Voss",
+                highlights = listOf(
+                    "2051 - Panopticon Index Launch: 8.4 quadrillion queries/sec.",
+                    "2059 - Predictive Behavior Mesh: 94% accuracy 11 days early.",
+                    "2064 - Project Veil: Global telemetry integration.",
+                    "2068 - Consolidation is Caring: Acquired remaining social networks.",
+                    "2070 - Echo Chamber 2.0: Perfectly custom-tailored reality."
+                ),
+                earningsReport = """
+                    PANOPTICON (PANO) Q3 2071 Earnings Transmission
+                    Net Revenue: §1.24 Trillion ▲ +47% YoY
+                    Adjusted Omniscience Profit: §892 Billion ▲ +62%
+                    EPS: §9.87 | Market Reaction: +31% After-Hours
+                    
+                    [DIVISIONAL PERFORMANCE]
+                    • OmniSearch: §612B (+39%)
+                    • ShadowNet: §341B (+71%)
+                    • EchoForge: §198B (+112%)
+                    • NexusID: §67B (+28%)
+                    • BlackLens: §22B (official)
+                    
+                    [CEO STATEMENT - DR. ELIAS VOSS]
+                    "Interesting. You still believe quarterly reports matter. We don’t sell data. We don’t sell predictions. We sell certainty. And this quarter, certainty was extremely profitable. …I already knew you would applaud."
+                """.trimIndent(),
+                investorDeck = listOf(
+                    InvestorSlide("PANOPTICON", "We See What You Will Become", "Presented by Dr. Elias Voss – The Eye\nOctober 2071"),
+                    InvestorSlide("THE PROBLEM", "The world is drowning in noise.", "Humans lie. Humans forget. Humans hide. We fix that. Panopticon removes uncertainty from existence."),
+                    InvestorSlide("OUR SOLUTION", "The Panopticon Mesh", "One single intelligence layer that knows every citizen better than they know themselves.\n\nCore Product: Omniscience as a Service (OaaS)"),
+                    InvestorSlide("TRACTION", "We Predicted This", "3.8 billion active Echo Chamber users\n1,247 pre-empted incidents this quarter\n98% global neural implant penetration\nShadow profiles now 400% more detailed than user self-knowledge"),
+                    InvestorSlide("MARKET OPPORTUNITY", "Total Addressable Market: §9.3 Trillion by 2080", "Surveillance state contracts: §4.1T\nPersonalized reality licensing: §2.8T\nPre-crime intelligence sales: §1.7T\nBlackLens classified work: §700B"),
+                    InvestorSlide("TECHNOLOGY", "DeepMind Succession Protocol", "The AI that replaced the ethics board Dr. Voss personally dissolved in 2048.\n\nVoss Neural Signature: Every decision is logged with his private biometric key."),
+                    InvestorSlide("FINANCIAL HIGHLIGHTS", "Revenue: §1.24 Trillion (+47% YoY)", "Adjusted Omniscience Profit: §892 Billion (+62%)\nEPS: §9.87\n\nGuidance Q4: §1.6T+"),
+                    InvestorSlide("TEAM", "Dr. Elias Voss – CEO", "The Oversight Committee\nDeepMind AI Core\nBlackLens Intelligence Division"),
+                    InvestorSlide("ROADMAP", "What's Next", "Q4 2071 – Pre-Crime Reality Layer launch\n2072 – Full neural thought indexing\n2073 – Interplanetary Mesh extension"),
+                    InvestorSlide("THE ASK", "Raising §750 Billion", "55% Expanded Mesh infrastructure\n25% BlackLens wetwork upgrades\n15% EchoForge tuning\n\nJoin the only megacorp that already knows you’ll say yes."),
+                    InvestorSlide("PANOPTICON", "Do Evil.", "Thank you. I already knew you would invest.")
+                )
             ),
             CorpoNode(
                 name = "Microhard",
@@ -503,8 +540,14 @@ fun CorpoNodesArea(viewModel: CyberdeckViewModel, bypassed: Set<String>, onCorpo
         )
     }
 
+    val displayCorpos = if (corposByVM.isNotEmpty()) {
+        (corposByVM + hardcodedCorpos).distinctBy { it.name }
+    } else {
+        hardcodedCorpos
+    }
+
     LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        items(corpos) { corpo ->
+        items(displayCorpos) { corpo ->
             val isBypassed = corpo.name in bypassed
             val displayTier = if (isBypassed && corpo.securityTier == DifficultyTier.BLACK_ICE) DifficultyTier.GHOST else corpo.securityTier
             
@@ -550,8 +593,9 @@ fun CorpoDetailView(
     onBack: () -> Unit,
     onAttack: () -> Unit,
     onViewDeck: () -> Unit,
-    onBypass: (String) -> Boolean
+    onBypass: (String, String) -> Boolean
 ) {
+    var usernameAttempt by remember { mutableStateOf("") }
     var passwordAttempt by remember { mutableStateOf("") }
     var bypassError by remember { mutableStateOf(false) }
 
@@ -637,6 +681,22 @@ fun CorpoDetailView(
                     Text("STATUS: UNCRACKABLE. ENCRYPTION EXCEEDS HARDWARE LIMITS.", color = Color.Red, fontSize = 10.sp)
                     Spacer(modifier = Modifier.height(12.dp))
                     Text("AUTHORIZATION_REQUIRED", color = Color.Gray, fontSize = 10.sp)
+                    
+                    TextField(
+                        value = usernameAttempt,
+                        onValueChange = { usernameAttempt = it; bypassError = false },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("USERNAME...", color = Color.Gray, fontSize = 12.sp) },
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.White.copy(alpha = 0.05f),
+                            unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        )
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     TextField(
                         value = passwordAttempt,
                         onValueChange = { passwordAttempt = it; bypassError = false },
@@ -651,18 +711,18 @@ fun CorpoDetailView(
                         )
                     )
                     if (bypassError) {
-                        Text("INVALID_KEY // ACCESS_DENIED", color = Color.Red, fontSize = 10.sp)
+                        Text("INVALID_CREDENTIALS // ACCESS_DENIED", color = Color.Red, fontSize = 10.sp)
                     }
                     Button(
                         onClick = {
-                            if (!onBypass(passwordAttempt)) {
+                            if (!onBypass(usernameAttempt, passwordAttempt)) {
                                 bypassError = true
                             }
                         },
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Gray.copy(alpha = 0.2f))
                     ) {
-                        Text("SUBMIT_CREDENTIALS", color = Color.White)
+                        Text("LOGIN_TO_SYSTEM", color = Color.White)
                     }
                 } else {
                     Text("STATUS: VULNERABLE. BREACH_VECTOR_IDENTIFIED.", color = Color(0xFF00FF9F), fontSize = 10.sp)
@@ -712,13 +772,15 @@ fun CorpoDetailView(
 
         Spacer(modifier = Modifier.height(24.dp))
         
-        Button(
-            onClick = onAttack,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.2f)),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color.Red)
-        ) {
-            Text("INITIATE_BREACH", color = Color.Red)
+        if (currentTier != DifficultyTier.BLACK_ICE) {
+            Button(
+                onClick = onAttack,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.2f)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.Red)
+            ) {
+                Text("INITIATE_BREACH", color = Color.Red)
+            }
         }
         
         Spacer(modifier = Modifier.height(40.dp))

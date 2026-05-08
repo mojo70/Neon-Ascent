@@ -1,0 +1,118 @@
+{
+  "id": "panopticon",
+  "name": "Panopticon",
+  "slogan": "Do Evil.",
+  "motto": "All-Seeing. All-Knowing. All-Ours.",
+  "description": "The megacorp that doesn’t just watch you — it knows you better than you know yourself. While others sell you products, Panopticon sells omniscience. Your search history, your dreams, your biometric fluctuations, your late-night Grid scrolls… all fuel the machine.",
+  "ceo": {
+    "name": "Dr. Elias Voss",
+    "title": "The Eye",
+    "personality": "cold_omniscient",
+    "gemmaPromptPath": "lore/ceo_prompts/panopticon.txt"
+  },
+  "achievements": [
+    {
+      "year": "2051",
+      "title": "Panopticon Index Launch",
+      "description": "Now processing 8.4 quadrillion queries per second."
+    },
+    {
+      "year": "2059",
+      "title": "Predictive Behavior Mesh",
+      "description": "Accurately predicted 94% of civil unrest 11 days before it happened (then sold the data to SecuraCorp)."
+    },
+    {
+      "year": "2064",
+      "title": "Project Veil",
+      "description": "Every public AR lens, smart mirror, and neural implant now runs Panopticon telemetry by default."
+    },
+    {
+      "year": "2068",
+      "title": "Independent Social Network Acquisition",
+      "description": "Acquired the remaining independent social networks in a single weekend. Official statement: 'Consolidation is caring.'"
+    },
+    {
+      "year": "2070",
+      "title": "Echo Chamber 2.0",
+      "description": "Now custom-tailors reality so perfectly users thank them for it."
+    }
+  ],
+  "divisions": [
+    {
+      "name": "OmniSearch",
+      "focus": "Search + Recommendation",
+      "revenueShare": 0.49,
+      "tagline": "What you want before you want it",
+      "revenue": "§612B",
+      "growth": "+39%",
+      "notes": "Every query is now a confession"
+    },
+    {
+      "name": "ShadowNet",
+      "focus": "Surveillance as a Service",
+      "revenueShare": 0.27,
+      "tagline": "We see the things you hide",
+      "revenue": "§341B",
+      "growth": "+71%",
+      "notes": "Surveillance-as-a-Service exploding"
+    },
+    {
+      "name": "EchoForge",
+      "focus": "Personalized Reality Engineering",
+      "revenueShare": 0.16,
+      "tagline": "Your truth, our version",
+      "revenue": "§198B",
+      "growth": "+112%",
+      "notes": "Reality engineering margins insane"
+    },
+    {
+      "name": "NexusID",
+      "focus": "Digital Identity & Reputation",
+      "revenueShare": 0.05,
+      "tagline": "You are your data",
+      "revenue": "§67B",
+      "growth": "+28%",
+      "notes": "Reputation scores more valuable than credit"
+    },
+    {
+      "name": "BlackLens",
+      "focus": "Classified / Government contracts",
+      "revenueShare": 0.03,
+      "tagline": "Eyes where others go blind",
+      "revenue": "§22B (official)",
+      "notes": "Governments pay us not to release the rest"
+    }
+  ],
+  "stockTicker": {
+    "symbol": "PANO",
+    "price": 1284.70,
+    "change": 41.33,
+    "volume": 98765432
+  },
+  "financials": {
+    "revenue": "§1.24 Trillion",
+    "profit": "§892 Billion",
+    "eps": "§9.87",
+    "growthYoY": "+47%"
+  },
+  "documents": [
+    {
+      "id": "q3_earnings_2071",
+      "title": "Q3 2071 Earnings Report",
+      "type": "EARNINGS_REPORT",
+      "path": "lore/documents/panopticon/earnings_q3_2071.md"
+    },
+    {
+      "id": "investor_deck_omega",
+      "title": "Omniscience Series Ω Investor Deck",
+      "type": "INVESTOR_DECK",
+      "path": "lore/documents/panopticon/investor_deck.md"
+    }
+  ],
+  "flavorText": [
+    "We don’t just index the world. We own it.",
+    "Privacy is a bug. We fixed it.",
+    "Your data looks better on our servers.",
+    "See everything. Judge everything. Monetize everything."
+  ]
+}
