@@ -43,7 +43,7 @@ enum class ChallengeType { PCAP_ANALYSIS, MEMORY_FORENSICS, CRYPTO_BREAK, WEB_EX
 enum class SkillType { ANALYSIS, STEALTH, CRYPTO, EXPLOITATION }
 
 @Serializable
-enum class DifficultyTier { NOVICE, OPERATIVE, GHOST, NETRUNNER }
+enum class DifficultyTier { NOVICE, OPERATIVE, GHOST, NETRUNNER, BLACK_ICE }
 
 @Serializable
 data class PcapTemplate(

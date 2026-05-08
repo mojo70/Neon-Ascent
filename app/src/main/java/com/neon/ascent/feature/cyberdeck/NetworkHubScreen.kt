@@ -1,6 +1,5 @@
 package com.neon.ascent.feature.cyberdeck
 
-import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -9,6 +8,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -21,6 +22,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -35,6 +37,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.model.ChatSession
 import com.neon.ascent.model.CorpoNode
 import com.neon.ascent.model.DifficultyTier
+import com.neon.ascent.model.InvestorSlide
 import com.neon.ascent.model.SkillType
 import com.neon.ascent.ui.CyberFrame
 import java.util.Locale
@@ -52,9 +55,11 @@ fun NetworkHubScreen(
     var activeTab by remember { mutableStateOf(NetworkTab.CHATS) }
     var selectedContact by remember { mutableStateOf<String?>(null) }
     var selectedCorpo by remember { mutableStateOf<CorpoNode?>(null) }
+    var showingInvestorDeck by remember { mutableStateOf(false) }
     
     val currentChallenge by viewModel.currentChallenge.collectAsState()
     val lastReward by viewModel.lastReward.collectAsState()
+    val bypassed by viewModel.bypassedBlackIce.collectAsState()
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (selectedContact != null) {
@@ -64,10 +69,21 @@ fun NetworkHubScreen(
                 viewModel = chatViewModel
             )
         } else if (selectedCorpo != null) {
+            val tier = if (selectedCorpo!!.name in bypassed && selectedCorpo!!.securityTier == DifficultyTier.BLACK_ICE) {
+                DifficultyTier.GHOST
+            } else {
+                selectedCorpo!!.securityTier
+            }
             CorpoDetailView(
                 corpo = selectedCorpo!!,
-                onBack = { selectedCorpo = null },
-                onAttack = { viewModel.startPcapChallenge(selectedCorpo!!.securityTier, SkillType.ANALYSIS) }
+                currentTier = tier,
+                onBack = { 
+                    selectedCorpo = null
+                    showingInvestorDeck = false
+                },
+                onAttack = { viewModel.startPcapChallenge(tier, SkillType.ANALYSIS) },
+                onViewDeck = { showingInvestorDeck = true },
+                onBypass = { pwd -> viewModel.bypassBlackIce(selectedCorpo!!.name, pwd) }
             )
         } else {
             Column(
@@ -111,7 +127,7 @@ fun NetworkHubScreen(
                         NetworkTab.CHATS -> ChatListArea(chatViewModel) { selectedContact = it }
                         NetworkTab.SCAN -> NetScanArea(hubViewModel, chatViewModel)
                         NetworkTab.BIZ -> BizScreen(stockViewModel, netWorthViewModel)
-                        NetworkTab.NODES -> CorpoNodesArea(viewModel) { selectedCorpo = it }
+                        NetworkTab.NODES -> CorpoNodesArea(viewModel, bypassed) { selectedCorpo = it }
                         NetworkTab.GAMES -> GamesArea(onChessClick)
                     }
                 }
@@ -132,6 +148,13 @@ fun NetworkHubScreen(
             HackingRewardDialog(
                 reward = reward,
                 onDismiss = { viewModel.clearReward() }
+            )
+        }
+
+        if (showingInvestorDeck && selectedCorpo?.investorDeck != null) {
+            InvestorDeckOverlay(
+                slides = selectedCorpo!!.investorDeck!!,
+                onDismiss = { showingInvestorDeck = false }
             )
         }
     }
@@ -311,7 +334,7 @@ fun NetworkTabItem(label: String, selected: Boolean, modifier: Modifier, onClick
 }
 
 @Composable
-fun CorpoNodesArea(viewModel: CyberdeckViewModel, onCorpoClick: (CorpoNode) -> Unit) {
+fun CorpoNodesArea(viewModel: CyberdeckViewModel, bypassed: Set<String>, onCorpoClick: (CorpoNode) -> Unit) {
     val corpos = remember {
         listOf(
             CorpoNode(
@@ -319,7 +342,7 @@ fun CorpoNodesArea(viewModel: CyberdeckViewModel, onCorpoClick: (CorpoNode) -> U
                 ticker = "AETX",
                 slogan = "Our Heavy Starship doesn’t pull out. Uranus knows.",
                 profile = "Founded in 2065 by ex-SpaceX renegades, AetherX is the premier megacorp for aggressive deep-space expansion. We deliver conquest. No safe orbits. No gentle landings. Just raw, unrelenting thrust.",
-                securityTier = DifficultyTier.GHOST,
+                securityTier = DifficultyTier.BLACK_ICE,
                 stockPrice = 387.42,
                 stockChange = 24.67,
                 stockChangePercent = 6.8,
@@ -348,7 +371,20 @@ fun CorpoNodesArea(viewModel: CyberdeckViewModel, onCorpoClick: (CorpoNode) -> U
                     
                     [GUIDANCE]
                     Targeting full colonization of Oberon and Umbriel. 3-for-1 Stock Split projected. Dividend: §0.69 (Nice).
-                """.trimIndent()
+                """.trimIndent(),
+                investorDeck = listOf(
+                    InvestorSlide("AETHERX", "Conquering the Outer System", "Presented by Dr. Vance 'Thrust' Calder – CEO & Chief Penetration Officer\nOctober 2071"),
+                    InvestorSlide("THE PROBLEM", "The inner system is crowded, regulated, and boring.", "Mars is full of tourists and eco-hippies\nEarth orbit is clogged with debris and lawyers\nGovernments still pretend space belongs to 'humanity'\n\nWe fix that."),
+                    InvestorSlide("OUR SOLUTION", "Heavy Starship-class Fleet", "Zero-pullout propulsion\nMassive payload capacity (planets feel it)\nProven on Uranus (multiple times)\n\nCore Offering: Planetary Acquisition as a Service (PAaaS)"),
+                    InvestorSlide("TRACTION", "We Don't Just Talk – We Pound", "14 successful Uranus deep-impact missions in Q3 alone\nTitania Pleasure Outpost – 94% occupancy\n47-day continuous orbital record\nAcquired AstroThrust Dynamics in a very hostile takeover"),
+                    InvestorSlide("MARKET OPPORTUNITY", "Total Addressable Market: §4.7 Trillion by 2080", "Deep-space conquest: §1.9T\nOrbital 'entertainment' services: §890B\nResource extraction: §1.2T\nGovernment black-budget contracts: §700B"),
+                    InvestorSlide("TECHNOLOGY", "Next-Gen 'No-Pullout' Propulsion", "Deep Thrust AI – Optimizes angle, duration, and intensity in real time\nPleasure Dome Hab Modules – Because crews perform better after release"),
+                    InvestorSlide("FINANCIAL HIGHLIGHTS", "Revenue: §487.3 Billion (+38% YoY)", "Adjusted Thrust Profit: §214.6 Billion (+51%)\nEPS: §4.82\n\nGuidance Q4: §620B+"),
+                    InvestorSlide("TEAM", "Vance 'Thrust' Calder – CEO", "Dr. Nadia 'Velvet' Voss – CTO\nMarcus 'Iron' Kane – Head of Security & Acquisitions\n12,400 highly motivated professionals"),
+                    InvestorSlide("ROADMAP", "What's Next", "Q4 2071 – Heavy Starship-8 launch\n2072 – Full Neptune teasing operations\n2073 – First crewed 'extended contact' mission to Pluto"),
+                    InvestorSlide("THE ASK", "Raising §450 Billion", "60% More Heavy Starships\n25% Expanded pleasure colonies\n10% Marketing (Uranus memes)\n\nJoin the thrust."),
+                    InvestorSlide("AETHERX", "Reach for the stars. Then reach deeper.", "Thank you.\nQuestions? Fire away.")
+                )
             ),
             CorpoNode(
                 name = "Panopticon",
@@ -469,6 +505,9 @@ fun CorpoNodesArea(viewModel: CyberdeckViewModel, onCorpoClick: (CorpoNode) -> U
 
     LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         items(corpos) { corpo ->
+            val isBypassed = corpo.name in bypassed
+            val displayTier = if (isBypassed && corpo.securityTier == DifficultyTier.BLACK_ICE) DifficultyTier.GHOST else corpo.securityTier
+            
             CyberFrame(
                 label = corpo.name,
                 modifier = Modifier.clickable { onCorpoClick(corpo) }
@@ -480,18 +519,23 @@ fun CorpoNodesArea(viewModel: CyberdeckViewModel, onCorpoClick: (CorpoNode) -> U
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(corpo.slogan, color = Color.Gray, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
-                        Text("Security: ${corpo.securityTier}", color = when(corpo.securityTier) {
+                        Text("Security: $displayTier", color = when(displayTier) {
                             DifficultyTier.NOVICE -> Color.Green
                             DifficultyTier.OPERATIVE -> Color.Yellow
+                            DifficultyTier.BLACK_ICE -> Color.Magenta
                             else -> Color.Red
                         }, fontSize = 10.sp)
                     }
                     Button(
-                        onClick = { viewModel.startPcapChallenge(corpo.securityTier, SkillType.ANALYSIS) },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.2f)),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.Red)
+                        onClick = { viewModel.startPcapChallenge(displayTier, SkillType.ANALYSIS) },
+                        enabled = displayTier != DifficultyTier.BLACK_ICE,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.Red.copy(alpha = 0.2f),
+                            disabledContainerColor = Color.Gray.copy(alpha = 0.1f)
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, if (displayTier == DifficultyTier.BLACK_ICE) Color.Gray else Color.Red)
                     ) {
-                        Text("ATTACK", color = Color.Red, fontSize = 10.sp)
+                        Text(if (displayTier == DifficultyTier.BLACK_ICE) "LOCKED" else "ATTACK", color = if (displayTier == DifficultyTier.BLACK_ICE) Color.Gray else Color.Red, fontSize = 10.sp)
                     }
                 }
             }
@@ -500,7 +544,17 @@ fun CorpoNodesArea(viewModel: CyberdeckViewModel, onCorpoClick: (CorpoNode) -> U
 }
 
 @Composable
-fun CorpoDetailView(corpo: CorpoNode, onBack: () -> Unit, onAttack: () -> Unit) {
+fun CorpoDetailView(
+    corpo: CorpoNode,
+    currentTier: DifficultyTier,
+    onBack: () -> Unit,
+    onAttack: () -> Unit,
+    onViewDeck: () -> Unit,
+    onBypass: (String) -> Boolean
+) {
+    var passwordAttempt by remember { mutableStateOf("") }
+    var bypassError by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -525,6 +579,26 @@ fun CorpoDetailView(corpo: CorpoNode, onBack: () -> Unit, onAttack: () -> Unit) 
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        if (corpo.investorDeck != null) {
+            CyberFrame(
+                label = "ACCREDITED_INVESTOR_ONLY",
+                borderColor = Color(0xFF00CCFF)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp).clickable { onViewDeck() },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text("INVESTOR_DECK_AVAILABLE", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("Q3 2071 'Deep Thrust' Edition", color = Color(0xFF00CCFF), fontSize = 10.sp)
+                    }
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color(0xFF00CCFF), modifier = Modifier.rotate(180f))
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
         CyberFrame(label = "MARKET_DATA") {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -544,6 +618,55 @@ fun CorpoDetailView(corpo: CorpoNode, onBack: () -> Unit, onAttack: () -> Unit) 
                 Spacer(modifier = Modifier.height(16.dp))
                 // Fake Chart
                 FakeCorpoChart(modifier = Modifier.fillMaxWidth().height(150.dp))
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        CyberFrame(label = "SECURITY_STATUS") {
+            Column(modifier = Modifier.padding(12.dp)) {
+                val color = when(currentTier) {
+                    DifficultyTier.NOVICE -> Color.Green
+                    DifficultyTier.OPERATIVE -> Color.Yellow
+                    DifficultyTier.BLACK_ICE -> Color.Magenta
+                    else -> Color.Red
+                }
+                Text("TIER: ${currentTier.name}", color = color, fontWeight = FontWeight.Bold)
+                
+                if (currentTier == DifficultyTier.BLACK_ICE) {
+                    Text("STATUS: UNCRACKABLE. ENCRYPTION EXCEEDS HARDWARE LIMITS.", color = Color.Red, fontSize = 10.sp)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("AUTHORIZATION_REQUIRED", color = Color.Gray, fontSize = 10.sp)
+                    TextField(
+                        value = passwordAttempt,
+                        onValueChange = { passwordAttempt = it; bypassError = false },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("EXECUTIVE_KEY...", color = Color.Gray, fontSize = 12.sp) },
+                        isError = bypassError,
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.White.copy(alpha = 0.05f),
+                            unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        )
+                    )
+                    if (bypassError) {
+                        Text("INVALID_KEY // ACCESS_DENIED", color = Color.Red, fontSize = 10.sp)
+                    }
+                    Button(
+                        onClick = {
+                            if (!onBypass(passwordAttempt)) {
+                                bypassError = true
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Gray.copy(alpha = 0.2f))
+                    ) {
+                        Text("SUBMIT_CREDENTIALS", color = Color.White)
+                    }
+                } else {
+                    Text("STATUS: VULNERABLE. BREACH_VECTOR_IDENTIFIED.", color = Color(0xFF00FF9F), fontSize = 10.sp)
+                }
             }
         }
 
@@ -648,6 +771,113 @@ fun GamesArea(onChessClick: () -> Unit) {
                 Spacer(modifier = Modifier.width(16.dp))
                 Text("ENTER_MATCHMAKING", color = Color.White)
             }
+        }
+    }
+}
+
+@Composable
+fun InvestorDeckOverlay(
+    slides: List<com.neon.ascent.model.InvestorSlide>,
+    onDismiss: () -> Unit
+) {
+    val pagerState = rememberPagerState(pageCount = { slides.size })
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.9f))
+            .clickable { onDismiss() } // Dimmed background click closes
+            .statusBarsPadding()
+            .navigationBarsPadding()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp)
+                .clickable(enabled = false) { } // Prevent clicks through to background
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "INVESTOR_DECK // SLIDE ${pagerState.currentPage + 1}/${slides.size}",
+                    color = Color(0xFF00CCFF),
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Close", tint = Color.Red)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.weight(1f)
+            ) { index ->
+                val slide = slides[index]
+                CyberFrame(
+                    label = slide.title,
+                    borderColor = Color(0xFF00CCFF).copy(alpha = 0.5f)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        Text(
+                            slide.title,
+                            color = Color(0xFF00CCFF),
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        slide.subtitle?.let {
+                            Text(
+                                it,
+                                color = Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Text(
+                            slide.body,
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontSize = 14.sp,
+                            lineHeight = 22.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Indicator dots
+            Row(
+                Modifier
+                    .height(8.dp)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                repeat(slides.size) { iteration ->
+                    val color = if (pagerState.currentPage == iteration) Color(0xFF00CCFF) else Color.Gray.copy(alpha = 0.5f)
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 4.dp)
+                            .clip(CircleShape)
+                            .background(color)
+                            .size(8.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }

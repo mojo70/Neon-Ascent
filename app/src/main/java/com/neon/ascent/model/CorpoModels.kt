@@ -15,5 +15,13 @@ data class CorpoNode(
     val marketCap: String,
     val highlights: List<String> = emptyList(),
     val ceo: String = "",
-    val earningsReport: String? = null
+    val earningsReport: String? = null,
+    val investorDeck: List<InvestorSlide>? = null
+)
+
+@Serializable
+data class InvestorSlide(
+    val title: String,
+    val subtitle: String? = null,
+    val body: String
 )

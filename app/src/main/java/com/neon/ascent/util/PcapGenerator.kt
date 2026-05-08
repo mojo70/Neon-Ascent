@@ -30,6 +30,7 @@ class PcapGenerator {
             DifficultyTier.OPERATIVE -> 60..90
             DifficultyTier.GHOST -> 140..190
             DifficultyTier.NETRUNNER -> 220..320
+            DifficultyTier.BLACK_ICE -> 400..600
         }.random(random)
 
         val packets = generateBasePackets(packetCount, random)
@@ -73,6 +74,7 @@ class PcapGenerator {
             DifficultyTier.OPERATIVE -> operativeTemplates
             DifficultyTier.GHOST -> ghostTemplates
             DifficultyTier.NETRUNNER -> netrunnerTemplates
+            DifficultyTier.BLACK_ICE -> blackIceTemplates
         }
         return pool.random(random)
     }
@@ -104,6 +106,7 @@ class PcapGenerator {
             DifficultyTier.OPERATIVE -> 12
             DifficultyTier.GHOST -> 16
             DifficultyTier.NETRUNNER -> 24
+            DifficultyTier.BLACK_ICE -> 32
         }
         val chars = ('A'..'Z') + ('0'..'9')
         return prefix + (1..length).map { chars.random(random) }.joinToString("")
@@ -178,6 +181,34 @@ class PcapGenerator {
                     packets[targetPacketIndex + 3] = newHintPacket
                 }
             }
+
+            DifficultyTier.BLACK_ICE -> {
+                // Ultra complex: Fragmented exfil + Multi-layer encryption
+                val xorKey = 0xDE.toByte()
+                val layer1 = base64(flag)
+                val layer2 = layer1.toByteArray().map { (it.toInt() xor xorKey.toInt()).toChar() }.joinToString("")
+                
+                // Fragment across 3 packets
+                val parts = layer2.chunked(layer2.length / 3 + 1)
+                parts.forEachIndexed { index, part ->
+                    val idx = targetPacketIndex + (index * 5)
+                    if (idx < packets.size) {
+                        packets[idx] = packets[idx].copy(
+                            protocol = Protocol.TCP,
+                            summary = "TCP PSH, ACK [Seq=${1000 + index}, Win=64240]",
+                            payload = "data_chunk_${index + 1}: $part"
+                        )
+                    }
+                }
+                
+                // Key hidden in a separate "Decoy" packet
+                val hintIdx = (targetPacketIndex - 10).coerceAtLeast(0)
+                packets[hintIdx] = packets[hintIdx].copy(
+                    protocol = Protocol.HTTP,
+                    summary = "GET /internal/debug/keys/0xDE HTTP/1.1",
+                    payload = "X-Debug-Header: entropy_check_passed"
+                )
+            }
         }
 
         // Fill noise packets with realistic summaries
@@ -225,6 +256,7 @@ class PcapGenerator {
             DifficultyTier.OPERATIVE -> 300
             DifficultyTier.GHOST -> 480
             DifficultyTier.NETRUNNER -> 720
+            DifficultyTier.BLACK_ICE -> 900
         }
         // Skill bonus: every 20 levels in Analysis reduces time by ~8%
         // Assuming focusSkill level check here, but for now we'll just use 0
@@ -239,6 +271,7 @@ class PcapGenerator {
             DifficultyTier.OPERATIVE -> 10
             DifficultyTier.GHOST -> 15
             DifficultyTier.NETRUNNER -> 22
+            DifficultyTier.BLACK_ICE -> 30
         }
     }
 
@@ -281,6 +314,16 @@ class PcapGenerator {
             solutionHint = "Start with DNS, find the key, then decode",
             recommendedFilter = "dns || tls.handshake",
             learningPoint = "Real APTs use multiple obfuscation layers"
+        )
+    )
+
+    private val blackIceTemplates = listOf(
+        PcapTemplate(
+            title = "BLACK ICE: Neural-Net Fragmentation",
+            description = "A military-grade ICE is fragmenting data across multiple streams. Reconstruct it.",
+            solutionHint = "Find the key in HTTP debug logs, then reassemble TCP chunks",
+            recommendedFilter = "tcp.flags.push == 1 || http",
+            learningPoint = "Advanced threats use fragmentation and decoy packets to evade simple filters"
         )
     )
 }

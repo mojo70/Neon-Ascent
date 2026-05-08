@@ -52,8 +52,20 @@ class ChatViewModel @Inject constructor(
             if (session != null) {
                 chatDao.insertChatSession(session.copy(lastMessage = text, lastTimestamp = timestamp, isUnread = false))
                 
-                // If it's a fixer, trigger AI response
-                if (session.isFixer) {
+                // Special case for Thruster's first message
+                if (contactName == "Thruster" && messages.value.size == 1) { // Size 1 because we just inserted the user message
+                    val thrusterGreeting = "Grid connection established. This is Vance ‘Thrust’ Calder, CEO of AetherX. Who the hell is this and why are you pinging my private line? Make it good — I’ve got a Heavy Starship leaving for Uranus in 47 minutes and I’m not in the mood for bullshit."
+                    val greetingTimestamp = System.currentTimeMillis() + 100
+                    val aiMsg = ChatMessage(
+                        contactName = contactName,
+                        senderName = contactName,
+                        text = thrusterGreeting,
+                        timestamp = greetingTimestamp,
+                        isFromUser = false
+                    )
+                    chatDao.insertMessage(aiMsg)
+                    chatDao.insertChatSession(session.copy(lastMessage = thrusterGreeting, lastTimestamp = greetingTimestamp, isUnread = true))
+                } else if (session.isFixer) {
                     generateAiResponse(session, text)
                 }
             }
@@ -82,24 +94,29 @@ class ChatViewModel @Inject constructor(
 
     fun addContact(name: String, isFixer: Boolean = false) {
         viewModelScope.launch {
+            val personality = if (isFixer) PREDEFINED_FIXERS.find { it.name == name }?.personality else "Netrunner colleague."
+            val lastMsg = "CONNECTION_ESTABLISHED"
+
             val session = ChatSession(
                 contactName = name,
-                lastMessage = "CONNECTION_ESTABLISHED",
+                lastMessage = lastMsg,
                 lastTimestamp = System.currentTimeMillis(),
                 isUnread = true,
-                isFixer = isFixer,
-                personalityPrompt = if (isFixer) PREDEFINED_FIXERS.find { it.name == name }?.personality else "Netrunner colleague."
+                isFixer = isFixer || (name == "Thruster"),
+                personalityPrompt = personality ?: if (name == "Thruster") PREDEFINED_FIXERS.find { it.name == "Thruster" }?.personality else null
             )
             chatDao.insertChatSession(session)
         }
     }
 
     init {
-        // Pre-populate with fixers if empty
+        // Pre-populate with fixers if empty (except Thruster)
         viewModelScope.launch {
             if (chatSessions.value.isEmpty()) {
                 PREDEFINED_FIXERS.forEach { fixer ->
-                    addContact(fixer.name, isFixer = true)
+                    if (fixer.name != "Thruster") {
+                        addContact(fixer.name, isFixer = true)
+                    }
                 }
             }
         }

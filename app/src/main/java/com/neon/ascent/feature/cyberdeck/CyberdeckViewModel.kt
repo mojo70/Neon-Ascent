@@ -41,6 +41,17 @@ class CyberdeckViewModel @Inject constructor(
     private val _lastReward = MutableStateFlow<HackingReward?>(null)
     val lastReward: StateFlow<HackingReward?> = _lastReward.asStateFlow()
 
+    private val _bypassedBlackIce = MutableStateFlow<Set<String>>(emptySet())
+    val bypassedBlackIce: StateFlow<Set<String>> = _bypassedBlackIce.asStateFlow()
+
+    fun bypassBlackIce(corpoName: String, password: String): Boolean {
+        if (corpoName == "AetherX" && password == "PoundUranusNoPullout420.69") {
+            _bypassedBlackIce.update { it + corpoName }
+            return true
+        }
+        return false
+    }
+
     val components = inventoryDao.getComponents()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -128,6 +139,7 @@ class CyberdeckViewModel @Inject constructor(
             DifficultyTier.OPERATIVE -> 2
             DifficultyTier.GHOST -> 5
             DifficultyTier.NETRUNNER -> 10
+            DifficultyTier.BLACK_ICE -> 25
         }
 
         val components = mutableListOf<Pair<Rarity, Int>>()
@@ -141,6 +153,10 @@ class CyberdeckViewModel @Inject constructor(
             DifficultyTier.NETRUNNER -> {
                 components.add(Rarity.RARE to Random.nextInt(2, 4))
                 components.add(Rarity.EPIC to Random.nextInt(1, 2))
+            }
+            DifficultyTier.BLACK_ICE -> {
+                components.add(Rarity.EPIC to Random.nextInt(2, 5))
+                components.add(Rarity.LEGENDARY to Random.nextInt(1, 2))
             }
         }
 
