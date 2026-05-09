@@ -46,7 +46,11 @@ fun DiagnosticsScreen(
             specialAttributes = specialState,
             modifier = Modifier
                 .size(220.dp)
-                .align(Alignment.CenterHorizontally)
+                .align(Alignment.CenterHorizontally),
+            onLevelUp = { type ->
+                // Log level-up event in the terminal or play a sound
+                println(">>> SYSTEM_ALERT: $type ATTRIBUTE INCREASE DETECTED <<<")
+            }
         )
 
         Spacer(Modifier.height(32.dp))
