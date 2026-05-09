@@ -3,6 +3,7 @@ package com.neon.ascent.feature.cyberdeck
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.neon.ascent.data.local.ChatDao
+import com.neon.ascent.data.local.LoreDao
 import com.neon.ascent.feature.biohacking.AiProvider
 import com.neon.ascent.core.lore.data.LoreRepository
 import com.neon.ascent.core.lore.data.Megacorp
@@ -18,14 +19,16 @@ import javax.inject.Inject
 class ChatViewModel @Inject constructor(
     private val chatDao: ChatDao,
     private val aiProvider: AiProvider,
-    private val loreRepository: LoreRepository
+    private val loreRepository: LoreRepository,
+    private val loreDao: LoreDao
 ) : ViewModel() {
 
     private val _megacorps = MutableStateFlow<List<Megacorp>>(emptyList())
     val megacorps: StateFlow<List<Megacorp>> = _megacorps.asStateFlow()
 
-    private val _executiveTrust = MutableStateFlow<Map<String, Float>>(emptyMap())
-    val executiveTrust: StateFlow<Map<String, Float>> = _executiveTrust.asStateFlow()
+    val executiveTrust: StateFlow<Map<String, Float>> = loreDao.getAllCorpoTrust()
+        .map { list -> list.associate { it.corpoId to it.trustLevel } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     val chatSessions: StateFlow<List<ChatSession>> = chatDao.getChatSessions()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -131,13 +134,17 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             _megacorps.value = loreRepository.getAllMegacorps()
             
-            // Mock trust levels for demo
-            _executiveTrust.value = mapOf(
-                "aetherx" to 0.45f,
-                "panopticon" to 0.12f,
-                "microhard" to 0.05f,
-                "obsidianveil" to 0.28f
-            )
+            // Seed trust levels if empty
+            val existingTrust = loreDao.getAllCorpoTrust().first()
+            if (existingTrust.isEmpty()) {
+                val initialTrust = listOf(
+                    com.neon.ascent.model.CorpoTrust("aetherx", 0.45f),
+                    com.neon.ascent.model.CorpoTrust("panopticon", 0.12f),
+                    com.neon.ascent.model.CorpoTrust("microhard", 0.05f),
+                    com.neon.ascent.model.CorpoTrust("obsidianveil", 0.28f)
+                )
+                initialTrust.forEach { loreDao.insertCorpoTrust(it) }
+            }
 
             if (chatSessions.value.isEmpty()) {
                 PREDEFINED_FIXERS.forEach { fixer ->

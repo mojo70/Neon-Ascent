@@ -78,5 +78,33 @@
   "flavorText": [
     "The stars are ours for the taking.",
     "Mars is for tourists. Uranus is for us."
-  ]
+  ],
+  "dossier": {
+    "psychProfile": "Cocky, crude, hyper-masculine space-bro. Obsessed with Uranus-themed memes and 'no-pullout' propulsion metaphors. Secretly insecure about his engineering background compared to legacy corps. Collects vintage pre-collapse rocket memorabilia.",
+    "attackVectors": "Susceptible to flattery regarding 'planetary penetration' capabilities. Highly reactive to any mention of the 2065 Uranus slingshot failure (Project: Wet Slap). Responds to urgent board-level data leaks.",
+    "leakedMemos": [
+      "Vance to Board: 'If I hear one more suit call the Heavy Starship 'underpowered' for deep-thrust maneuvers, I'm personally de-orbiting their penthouse.'",
+      "Internal HR: 'Reminder: Using the phrase 'No-Pullout' in official planetary acquisition contracts is strictly encouraged by the CEO.'"
+    ],
+    "rivalShade": [
+      {
+        "targetCorpoId": "panopticon",
+        "intel": "Panopticon is sitting on encrypted logs of our 2068 Titania 'incident'. If those leak, our 'zero-casualty' marketing is dead meat."
+      }
+    ],
+    "quickhackVault": [
+      {
+        "id": "heavy_starship_thrust",
+        "name": "Heavy Starship Thrust",
+        "description": "Massive system stun followed by continuous high-intensity data corruption. Flavor: 'Uranus knows.'",
+        "rarity": "LEGENDARY",
+        "type": "SYSTEM_BURN"
+      }
+    ],
+    "blackmail": [
+      "Leaked holo of Vance Calder in a highly compromised state at the Titania Pleasure Outpost.",
+      "Evidence of AetherX bypass codes being sold to SecuraCorp for private wetwork."
+    ],
+    "executiveBackdoor": "Password: PoundUranusNoPullout420.69. Special effect: Grants 'Planetary Acquisition' admin privileges for 24 hours."
+  }
 }

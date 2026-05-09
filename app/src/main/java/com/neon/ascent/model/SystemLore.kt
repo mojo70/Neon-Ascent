@@ -31,3 +31,9 @@ data class NetWatchAlert(
     val severity: String, // "LOW", "MEDIUM", "CRITICAL"
     val timestamp: Long = System.currentTimeMillis()
 )
+
+@Entity(tableName = "corpo_trust")
+data class CorpoTrust(
+    @PrimaryKey val corpoId: String,
+    val trustLevel: Float = 0f // 0.0 to 1.0
+)

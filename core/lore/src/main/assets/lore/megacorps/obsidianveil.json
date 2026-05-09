@@ -110,5 +110,33 @@
     "ETERNITY PROTOCOL PHASE 3 APPROVED",
     "NEW CHROMEDREAM DROP LIVE",
     "VEILWALKER – STILL EVOLVING"
-  ]
+  ],
+  "dossier": {
+    "psychProfile": "Hypnotically elegant and fundamentally post-human. Seraphine has replaced nearly 90% of her biological matter. She views baseline humanity as 'charming artifacts'. Deep, unresolved sibling rivalry with Elias Voss (TheEye).",
+    "attackVectors": "Vulnerable to philosophical challenges regarding the 'soul' of post-humanity. Responds to rare, pre-collapse genetic sequences. Can be manipulated by playing on her competitive streak with her brother.",
+    "leakedMemos": [
+      "Seraphine to Ascension Team: 'The goal is not to improve the human; it is to replace the concept of humanity entirely.'",
+      "Confidential: 'Subject 47 reported seeing 'obsidian light' during the Lattice rewrite. Increase dosage.'"
+    ],
+    "rivalShade": [
+      {
+        "targetCorpoId": "panopticon",
+        "intel": "My brother's 'Predictive Mesh' has a blind spot in localized nanotech swarms. He can't see what he can't index. I am that blind spot."
+      }
+    ],
+    "quickhackVault": [
+      {
+        "id": "ascension_override",
+        "name": "Ascension Override",
+        "description": "Temporarily rewrites enemy combat subroutines to identify you as 'Admin'. Turn enemies into allies. Flavor: 'Become the upgrade.'",
+        "rarity": "LEGENDARY",
+        "type": "GHOST_PULSE"
+      }
+    ],
+    "blackmail": [
+      "Evidence of 'Project Eternity' subjects being kept in a state of digital limbo against their will.",
+      "Logs showing Seraphine's secret attempts to hack into Panopticon's 'God Mode' protocol."
+    ],
+    "executiveBackdoor": "Password: VeilHasNoFlesh42069. Special effect: Grants 'Obsidian Ghost' status for 1 hour."
+  }
 }

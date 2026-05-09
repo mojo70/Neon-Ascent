@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -57,6 +58,7 @@ fun NetworkHubScreen(
     var activeTab by remember { mutableStateOf(NetworkTab.CHATS) }
     var selectedContact by remember { mutableStateOf<String?>(null) }
     var selectedCorpo by remember { mutableStateOf<CorpoNode?>(null) }
+    var selectedDossierCorpId by remember { mutableStateOf<String?>(null) }
     var showingInvestorDeck by remember { mutableStateOf(false) }
     
     val currentChallenge by viewModel.currentChallenge.collectAsState()
@@ -69,6 +71,11 @@ fun NetworkHubScreen(
                 contactName = selectedContact!!,
                 onBack = { selectedContact = null },
                 viewModel = chatViewModel
+            )
+        } else if (selectedDossierCorpId != null) {
+            MegacorpDossierScreen(
+                corpId = selectedDossierCorpId!!,
+                onBack = { selectedDossierCorpId = null }
             )
         } else if (selectedCorpo != null) {
             val tier = if (selectedCorpo!!.name in bypassed && selectedCorpo!!.securityTier == DifficultyTier.BLACK_ICE) {
@@ -85,6 +92,7 @@ fun NetworkHubScreen(
                 },
                 onAttack = { viewModel.startPcapChallenge(tier, SkillType.ANALYSIS) },
                 onViewDeck = { showingInvestorDeck = true },
+                onViewDossier = { selectedDossierCorpId = selectedCorpo?.name?.lowercase() ?: "" },
                 onBypass = { user, pwd -> viewModel.bypassBlackIce(selectedCorpo!!.name, user, pwd) }
             )
         } else {
@@ -126,7 +134,7 @@ fun NetworkHubScreen(
                 // Content Area
                 Box(modifier = Modifier.weight(1f).padding(horizontal = 16.dp)) {
                     when (activeTab) {
-                        NetworkTab.CHATS -> ChatListArea(chatViewModel) { selectedContact = it }
+                        NetworkTab.CHATS -> ChatListArea(chatViewModel, { selectedContact = it }, { selectedDossierCorpId = it })
                         NetworkTab.SCAN -> NetScanArea(hubViewModel, chatViewModel)
                         NetworkTab.BIZ -> BizScreen(stockViewModel, netWorthViewModel)
                         NetworkTab.NODES -> CorpoNodesArea(viewModel, bypassed) { selectedCorpo = it }
@@ -163,7 +171,11 @@ fun NetworkHubScreen(
 }
 
 @Composable
-fun ChatListArea(viewModel: ChatViewModel, onContactClick: (String) -> Unit) {
+fun ChatListArea(
+    viewModel: ChatViewModel,
+    onContactClick: (String) -> Unit,
+    onDossierClick: (String) -> Unit
+) {
     val sessions by viewModel.chatSessions.collectAsState()
     val megacorps by viewModel.megacorps.collectAsState()
     val trustMap by viewModel.executiveTrust.collectAsState()
@@ -219,7 +231,7 @@ fun ChatListArea(viewModel: ChatViewModel, onContactClick: (String) -> Unit) {
                             viewModel.addContact(handle, isFixer = true)
                             onContactClick(handle)
                         },
-                        onProfileClick = { /* Handle profile click if needed */ }
+                        onProfileClick = { onDossierClick(corp.id) }
                     )
                 }
             }
@@ -690,6 +702,7 @@ fun CorpoDetailView(
     onBack: () -> Unit,
     onAttack: () -> Unit,
     onViewDeck: () -> Unit,
+    onViewDossier: () -> Unit,
     onBypass: (String, String) -> Boolean
 ) {
     var showLoginDialog by remember { mutableStateOf(false) }
@@ -732,20 +745,41 @@ fun CorpoDetailView(
         Spacer(modifier = Modifier.height(16.dp))
 
         if (corpo.investorDeck != null) {
-            CyberFrame(
-                label = "ACCREDITED_INVESTOR_ONLY",
-                borderColor = Color(0xFF00CCFF)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp).clickable { onViewDeck() },
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CyberFrame(
+                    label = "INVESTOR_NET",
+                    borderColor = Color(0xFF00CCFF),
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Column {
-                        Text("INVESTOR_DECK_AVAILABLE", color = Color.White, fontWeight = FontWeight.Bold)
-                        Text("Q3 2071 'Deep Thrust' Edition", color = Color(0xFF00CCFF), fontSize = 10.sp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(8.dp).clickable { onViewDeck() },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text("INVESTOR_DECK", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                            Text("Q3 2071 DATA", color = Color(0xFF00CCFF), fontSize = 8.sp)
+                        }
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color(0xFF00CCFF), modifier = Modifier.rotate(180f).size(16.dp))
                     }
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color(0xFF00CCFF), modifier = Modifier.rotate(180f))
+                }
+                
+                CyberFrame(
+                    label = "SHADOW_NET",
+                    borderColor = Color.Red,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(8.dp).clickable { onViewDossier() },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text("DOSSIER_ACCESS", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                            Text("CLASSIFIED", color = Color.Red, fontSize = 8.sp)
+                        }
+                        Icon(Icons.Default.Terminal, contentDescription = null, tint = Color.Red, modifier = Modifier.size(16.dp))
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
@@ -761,7 +795,7 @@ fun CorpoDetailView(
                     Column(horizontalAlignment = Alignment.End) {
                         val color = if (corpo.stockChange >= 0) Color(0xFF00FF9F) else Color.Red
                         Text("${if (corpo.stockChange >= 0) "+" else ""}${corpo.stockChange}", color = color)
-                        Text("${corpo.stockChangePercent}%", color = color)
+                        Text("${String.format(Locale.getDefault(), "%.2f", corpo.stockChangePercent)}%", color = color)
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))

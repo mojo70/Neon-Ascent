@@ -15,7 +15,34 @@ data class Megacorp(
     val stockTicker: StockData,
     val flavorText: List<String>,      // rotating propaganda lines
     val financials: Financials? = null,
-    val documents: List<LoreDocumentReference> = emptyList()
+    val documents: List<LoreDocumentReference> = emptyList(),
+    val dossier: Dossier? = null
+)
+
+@Serializable
+data class Dossier(
+    val psychProfile: String? = null,
+    val attackVectors: String? = null,
+    val leakedMemos: List<String> = emptyList(),
+    val rivalShade: List<RivalShade> = emptyList(),
+    val quickhackVault: List<QuickhackReward> = emptyList(),
+    val blackmail: List<String> = emptyList(),
+    val executiveBackdoor: String? = null
+)
+
+@Serializable
+data class RivalShade(
+    val targetCorpoId: String,
+    val intel: String
+)
+
+@Serializable
+data class QuickhackReward(
+    val id: String,
+    val name: String,
+    val description: String,
+    val rarity: String,
+    val type: String
 )
 
 @Serializable
