@@ -1,6 +1,6 @@
 package com.neon.ascent.feature.goals
 
-import com.neon.ascent.core.domain.Goal
+import com.neon.ascent.core.domain.goals.models.Goal
 import com.neon.ascent.core.domain.GoalRepository
 import javax.inject.Inject
 

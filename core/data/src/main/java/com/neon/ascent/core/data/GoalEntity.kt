@@ -2,7 +2,7 @@ package com.neon.ascent.core.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import com.neon.ascent.core.domain.AttributeType
+import com.neon.ascent.core.domain.model.SpecialType
 
 @Entity(tableName = "new_goals") // Using a different name to avoid conflict for now
 data class GoalEntity(
@@ -13,7 +13,7 @@ data class GoalEntity(
     val currentProgress: Float,
     val targetProgress: Float,
     val percentile: Int?,
-    val attributeType: AttributeType,
+    val attributeType: SpecialType,
     val frequency: String? = null, // For habits
     val archetype: String? = null, // For missions
     val isCompleted: Boolean = false,
