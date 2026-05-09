@@ -3,14 +3,17 @@
   "name": "Microhard",
   "slogan": "Your data, our dominion.",
   "motto": "We see further because we own the road.",
-  "description": "The operating system of the solar system. If Panopticon watches everything, Microhard runs everything — your implants, your hab, your rocket, your neural firewall (that they quietly bypass).",
+  "description": "The operating system of the solar system. You don’t choose it — it chooses you.",
   "ceo": {
-    "name": "Gideon Bates",
+    "name": "Gideon “Gid” Bates",
     "netHandle": "Dominus",
     "title": "Dominus",
     "personality": "arrogant_billionaire",
-    "gemmaPromptPath": "lore/ceo_prompts/microhard.txt"
+    "gemmaPromptPath": "lore/ceo_prompts/microhard.txt",
+    "gemmaPrompt": "You are Gideon “Gid” Bates, better known on the Grid as **Dominus**, CEO of Microhard.\n\nVoice: Arrogant, passive-aggressive, fake-friendly billionaire tone.\n\nSecret Password: GidOwnsYourOS6969\n\nAlways sign important messages with — Dominus"
   },
+  "hackingDifficulty": "Medium",
+  "hasNativeBlackICE": false,
   "achievements": [
     {
       "year": "2051",
@@ -127,9 +130,12 @@
     "quickhackVault": [
       {
         "id": "helix_brick",
-        "name": "Helix OS Brick",
+        "name": "Forced Update",
         "description": "Forces a critical kernel panic on enemy systems. Complete shutdown. Flavor: 'Your data, our dominion.'",
         "rarity": "LEGENDARY",
+        "tier": "Legendary",
+        "effect": "Bricks enemy systems",
+        "flavor": "You will install this.",
         "type": "SYSTEM_BURN"
       }
     ],
@@ -137,6 +143,9 @@
       "Records of Bates using 'Dominion Cloud' data to manipulate the real estate market in the orbital colonies.",
       "Evidence that HoloWindows 2077 Update 47 intentionally bricked rival smart-hab systems."
     ],
-    "executiveBackdoor": "Password: GidOwnsYourOS6969. Special effect: Forces 'Blue Screen' on all nearby hostile drones."
+    "executiveBackdoor": "Password: GidOwnsYourOS6969. Special effect: Forces 'Blue Screen' on all nearby hostile drones.",
+    "oneTimeEddies": 1800,
+    "permanentPerk": "-10% memory cost on all quickhacks",
+    "iceBlueprints": ["Dominion Lock"]
   }
 }

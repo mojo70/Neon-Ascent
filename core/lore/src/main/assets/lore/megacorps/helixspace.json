@@ -2,15 +2,18 @@
   "id": "helixspace",
   "name": "HelixSpace",
   "slogan": "Spinning the future into orbit.",
-  "motto": "The future is not launched. It is grown.",
-  "description": "The megacorp building the next chapter of human expansion — not with brute force, but with elegant, self-sustaining helical architecture. Orbital habitats that spin for gravity, genetically adapted colonists, and living starships grown from DNA scaffolding.",
+  "motto": "Gravity is optional. Spin is eternal.",
+  "description": "Elegant, self-sustaining orbital habitats and living starships.",
   "ceo": {
     "name": "Dr. Elara Voss",
     "netHandle": "HelixPrime",
     "title": "HelixPrime",
     "personality": "serene_visionary",
-    "gemmaPromptPath": "lore/ceo_prompts/helixspace.txt"
+    "gemmaPromptPath": "lore/ceo_prompts/helixspace.txt",
+    "gemmaPrompt": "You are Dr. Elara Voss, better known on the Grid as **HelixPrime**, CEO of HelixSpace.\n\nVoice: Serene, poetic, patient.\n\nSecret Password: SpinToWinBaby420\n\nAlways sign important messages with — HelixPrime"
   },
+  "hackingDifficulty": "Medium-Easy",
+  "hasNativeBlackICE": false,
   "achievements": [
     {
       "year": "2059",
@@ -132,6 +135,9 @@
         "name": "Helix Spin",
         "description": "Creates a spinning gravity well that disrupts enemy targeting and pulls systems into a collapsing orbit (AoE damage + disorient). Flavor: 'Everything spins. Everything falls into rhythm.'",
         "rarity": "LEGENDARY",
+        "tier": "Legendary",
+        "effect": "AoE gravity well + disorient",
+        "flavor": "Everything spins. Everything falls into rhythm.",
         "type": "GHOST_PULSE"
       },
       {
@@ -146,6 +152,9 @@
       "Private logs of HelixPrime crying while tending her secret Earth garden.",
       "Evidence of secret sabotage against AetherX launch windows to slow their 'crude' expansion."
     ],
-    "executiveBackdoor": "Password: SpinToWinBaby420. Special effect: Grants 'Spin Patron' perk (+25% effectiveness on adaptive/self-repairing ICE)."
+    "executiveBackdoor": "Password: SpinToWinBaby420. Special effect: Grants 'Spin Patron' perk (+25% effectiveness on adaptive/self-repairing ICE).",
+    "oneTimeEddies": 1900,
+    "permanentPerk": "+25% effectiveness on adaptive ICE",
+    "iceBlueprints": ["Living Helix Wall"]
   }
 }

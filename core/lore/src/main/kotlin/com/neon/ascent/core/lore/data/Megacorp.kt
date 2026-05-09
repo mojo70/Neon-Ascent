@@ -10,13 +10,15 @@ data class Megacorp(
     val motto: String?,
     val description: String,
     val ceo: CEO,
-    val achievements: List<Achievement>,
-    val divisions: List<Division>,
+    val achievements: List<Achievement> = emptyList(),
+    val divisions: List<Division> = emptyList(),
     val stockTicker: StockData,
-    val flavorText: List<String>,      // rotating propaganda lines
+    val flavorText: List<String> = emptyList(),      // rotating propaganda lines
     val financials: Financials? = null,
     val documents: List<LoreDocumentReference> = emptyList(),
-    val dossier: Dossier? = null
+    val dossier: Dossier? = null,
+    val hackingDifficulty: String? = null,
+    val hasNativeBlackICE: Boolean = false
 )
 
 @Serializable
@@ -27,7 +29,10 @@ data class Dossier(
     val rivalShade: List<RivalShade> = emptyList(),
     val quickhackVault: List<QuickhackReward> = emptyList(),
     val blackmail: List<String> = emptyList(),
-    val executiveBackdoor: String? = null
+    val executiveBackdoor: String? = null,
+    val oneTimeEddies: Int? = null,
+    val permanentPerk: String? = null,
+    val iceBlueprints: List<String> = emptyList()
 )
 
 @Serializable
@@ -38,11 +43,14 @@ data class RivalShade(
 
 @Serializable
 data class QuickhackReward(
-    val id: String,
+    val id: String? = null,
     val name: String,
-    val description: String,
-    val rarity: String,
-    val type: String
+    val description: String? = null,
+    val effect: String? = null,
+    val rarity: String? = null,
+    val tier: String? = null,
+    val type: String? = null,
+    val flavor: String? = null
 )
 
 @Serializable
@@ -67,7 +75,8 @@ data class CEO(
     val netHandle: String? = null,
     val title: String,
     val personality: String,           // "cold_omniscient", "degen_space_bro"
-    val gemmaPromptPath: String        // assets/lore/ceo_prompts/panopticon.txt
+    val gemmaPromptPath: String? = null, // assets/lore/ceo_prompts/panopticon.txt
+    val gemmaPrompt: String? = null
 )
 
 @Serializable

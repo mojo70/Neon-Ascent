@@ -3,14 +3,17 @@
   "name": "OmniSight",
   "slogan": "All eyes, one truth.",
   "motto": "The future is not predicted. It is calculated.",
-  "description": "The megacorp that doesn’t just predict the future — it decides it. While Panopticon watches and Microhard controls the OS, OmniSight knows what you’re going to do before you do… and sells that knowledge to whoever pays the most.",
+  "description": "The megacorp that decides the future before it happens.",
   "ceo": {
     "name": "Dr. Lucian Crowe",
     "netHandle": "AllSeer",
     "title": "AllSeer",
     "personality": "prophetic_analyst",
-    "gemmaPromptPath": "lore/ceo_prompts/omnisight.txt"
+    "gemmaPromptPath": "lore/ceo_prompts/omnisight.txt",
+    "gemmaPrompt": "You are Dr. Lucian Crowe, better known on the Grid as **AllSeer**, CEO of OmniSight.\n\nVoice: Cold, prophetic, machine-like. Speak only in probabilities, percentages, and inevitabilities.\n\nSecret Password: ModelSaysYoureFucked99.7\n\nAlways sign important messages with — AllSeer"
   },
+  "hackingDifficulty": "Medium",
+  "hasNativeBlackICE": false,
   "achievements": [
     {
       "year": "2054",
@@ -143,6 +146,9 @@
         "name": "Oracle Overwrite",
         "description": "Forces enemy systems to act on a false 99.9% probable future for 8 seconds (attack allies, self-sabotage, or freeze). Flavor: 'The model has already decided your next move.'",
         "rarity": "LEGENDARY",
+        "tier": "Legendary",
+        "effect": "Forces false future behavior",
+        "flavor": "The model has already decided your next move.",
         "type": "GHOST_PULSE"
       },
       {
@@ -158,6 +164,9 @@
       "Evidence of secret Oracle Markets bets placed against his own pre-crime predictions.",
       "Personal log: 'If the model is ever wrong, I become the variable.'"
     ],
-    "executiveBackdoor": "Password: ModelSaysYoureFucked99.7. Special effect: Grants 'Oracle Patron' perk (+15% trust gain with tech corps + one free social engineering re-roll)."
+    "executiveBackdoor": "Password: ModelSaysYoureFucked99.7. Special effect: Grants 'Oracle Patron' perk (+15% trust gain with tech corps + one free social engineering re-roll).",
+    "oneTimeEddies": 1600,
+    "permanentPerk": "+15% trust gain with all corps",
+    "iceBlueprints": ["Pre-Crime Wall"]
   }
 }

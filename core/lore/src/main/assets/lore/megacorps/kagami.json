@@ -2,15 +2,18 @@
   "id": "kagami",
   "name": "Kagami Heavy Industries",
   "slogan": "Honor is obsolete.",
-  "motto": "Strength is the only currency.",
-  "description": "The iron fist of the corporate world. Kagami builds the weapons, the security grids, the black ICE, and the private armies that keep every other megacorp in check. Neo-feudal corporate warriors and augmented yakuza enforcers.",
+  "motto": "Steel remembers.",
+  "description": "The iron fist of corporate warfare.",
   "ceo": {
     "name": "Ryūji 'Kage' Nakamura",
     "netHandle": "Kage",
     "title": "Kage",
-    "personality": "stoic_samurai",
-    "gemmaPromptPath": "lore/ceo_prompts/kagami.txt"
+    "personality": "corporate_samurai",
+    "gemmaPromptPath": "lore/ceo_prompts/kagami.txt",
+    "gemmaPrompt": "You are Ryūji “Kage” Nakamura, better known on the Grid as **Kage**, CEO of Kagami Heavy Industries.\n\nVoice: Quiet, precise, deadly calm.\n\nSecret Password: KageBladeN0Mercy6969\n\nAlways sign important messages with — Kage"
   },
+  "hackingDifficulty": "Very Hard",
+  "hasNativeBlackICE": false,
   "achievements": [
     {
       "year": "2058",
@@ -138,6 +141,9 @@
         "name": "Void Katana Strike",
         "description": "Instant high-damage slash ignoring 70% of enemy ICE + bleeding DoT. Flavor: 'One cut. No mercy.'",
         "rarity": "LEGENDARY",
+        "tier": "Legendary",
+        "effect": "High-damage slash that ignores 70% ICE",
+        "flavor": "One cut. No mercy.",
         "type": "SYSTEM_BURN"
       },
       {
@@ -152,6 +158,9 @@
       "Holo of Kage executing a board member for 'disloyalty'.",
       "Evidence of secret deals with AetherX while publicly shading them."
     ],
-    "executiveBackdoor": "Password: KageBladeN0Mercy6969. Special effect: Grants 'Blade Patron' perk (+30% single-target damage + ICE counter-attack buff)."
+    "executiveBackdoor": "Password: KageBladeN0Mercy6969. Special effect: Grants 'Blade Patron' perk (+30% single-target / slash damage + improved counter-attack success rate on ICE).",
+    "oneTimeEddies": 2700,
+    "permanentPerk": "+30% single-target / slash damage",
+    "iceBlueprints": ["Shadow Grid"]
   }
 }

@@ -56,11 +56,11 @@ class DossierViewModel @Inject constructor(
     fun claimReward(reward: QuickhackReward) {
         viewModelScope.launch {
             val qh = QuickHack(
-                id = reward.id,
+                id = reward.id ?: java.util.UUID.randomUUID().toString(),
                 name = reward.name,
-                description = reward.description,
-                rarity = Rarity.valueOf(reward.rarity),
-                type = QuickHackType.valueOf(reward.type),
+                description = reward.description ?: "A powerful megacorp quickhack.",
+                rarity = Rarity.valueOf(reward.rarity ?: "COMMON"),
+                type = QuickHackType.valueOf(reward.type ?: "ICE_BREAKER"),
                 cooldownHours = 24
             )
             inventoryDao.insertQuickHack(qh)

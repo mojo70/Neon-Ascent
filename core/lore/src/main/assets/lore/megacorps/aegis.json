@@ -2,15 +2,18 @@
   "id": "aegis",
   "name": "Aegis Armaments",
   "slogan": "Shield and Sword. No mercy. No refunds.",
-  "motto": "The galaxy stays safe because we make it dangerous.",
-  "description": "The premier heavy weapons manufacturer and defense contractor. While Kagami and SecuraCorp provide the boots on the ground, Aegis builds the big guns — railguns, orbital strike platforms, next-gen powered armor, and exotic ordnance.",
+  "motto": "We make the galaxy dangerous so it stays safe.",
+  "description": "The premier heavy weapons manufacturer.",
   "ceo": {
     "name": "Colonel Valeria 'Forge' Kane",
     "netHandle": "AegisPrime",
     "title": "AegisPrime",
-    "personality": "battle_hardened_commander",
-    "gemmaPromptPath": "lore/ceo_prompts/aegis.txt"
+    "personality": "battle_hardened",
+    "gemmaPromptPath": "lore/ceo_prompts/aegis.txt",
+    "gemmaPrompt": "You are Colonel Valeria “Forge” Kane, better known on the Grid as **AegisPrime**, CEO of Aegis Armaments.\n\nVoice: Tough, commanding, battle-hardened.\n\nSecret Password: F0rg3d1nF1r3N0R3tr3at_69\n\nAlways sign important messages with — AegisPrime"
   },
+  "hackingDifficulty": "Very Hard",
+  "hasNativeBlackICE": false,
   "achievements": [
     {
       "year": "2057",
@@ -132,6 +135,9 @@
         "name": "Orbital Lance Strike",
         "description": "Precision high-damage orbital beam that pierces multiple layers of ICE. Flavor: 'Firing from the heavens.'",
         "rarity": "LEGENDARY",
+        "tier": "Legendary",
+        "effect": "Precision beam that pierces ICE",
+        "flavor": "Firing from the heavens.",
         "type": "SYSTEM_BURN"
       },
       {
@@ -146,6 +152,9 @@
       "Evidence of Aegis selling restricted weapons to terrorist cells for testing.",
       "Private recordings of Forge testing illegal ordnance on live subjects."
     ],
-    "executiveBackdoor": "Password: F0rg3d1nF1r3N0R3tr3at_69. Special effect: Grants §280,000 Eddies + 'AegisPrime Patron' perk (+25% heavy damage)."
+    "executiveBackdoor": "Password: F0rg3d1nF1r3N0R3tr3at_69. Special effect: Grants §280,000 Eddies + 'AegisPrime Patron' perk (+25% heavy damage).",
+    "oneTimeEddies": 2800,
+    "permanentPerk": "+25% heavy / explosive damage",
+    "iceBlueprints": ["Aegis Fortress"]
   }
 }

@@ -179,6 +179,9 @@ fun MegacorpDossierScreen(
                             title = "QUICKHACK_VAULT",
                             gate = 0.75f,
                             currentTrust = trustLevel,
+                            oneTimeEddies = corp.dossier?.oneTimeEddies,
+                            permanentPerk = corp.dossier?.permanentPerk,
+                            iceBlueprints = corp.dossier?.iceBlueprints ?: emptyList(),
                             rewards = corp.dossier?.quickhackVault ?: emptyList(),
                             onClaim = { viewModel.claimReward(it) }
                         )
@@ -312,6 +315,9 @@ fun DossierVaultSection(
     title: String,
     gate: Float,
     currentTrust: Float,
+    oneTimeEddies: Int? = null,
+    permanentPerk: String? = null,
+    iceBlueprints: List<String> = emptyList(),
     rewards: List<com.neon.ascent.core.lore.data.QuickhackReward>,
     onClaim: (com.neon.ascent.core.lore.data.QuickhackReward) -> Unit
 ) {
@@ -323,6 +329,34 @@ fun DossierVaultSection(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (isUnlocked) {
+                // One-time eddies
+                oneTimeEddies?.let {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("§", color = Color(0xFF00FF9F), fontWeight = FontWeight.Black, fontSize = 18.sp)
+                        Spacer(Modifier.width(8.dp))
+                        Text("LEAKED_FUNDS: §$it", color = Color.White, fontFamily = FontFamily.Monospace)
+                    }
+                }
+
+                // Permanent Perk
+                permanentPerk?.let {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Terminal, null, tint = Color.Magenta, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("PERMANENT_PERK: $it", color = Color.Magenta, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                    }
+                }
+
+                // ICE Blueprints
+                if (iceBlueprints.isNotEmpty()) {
+                    Text("// ICE_BLUEPRINTS", color = Color.Gray, fontSize = 10.sp)
+                    iceBlueprints.forEach { blueprint ->
+                        Text("• $blueprint", color = Color.Cyan, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                    }
+                }
+
+                Divider(color = Color.White.copy(alpha = 0.1f))
+
                 rewards.forEach { reward ->
                     Row(
                         modifier = Modifier
@@ -335,7 +369,7 @@ fun DossierVaultSection(
                         Spacer(Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(reward.name, color = Color.White, fontWeight = FontWeight.Bold)
-                            Text(reward.description, color = Color.Gray, fontSize = 10.sp)
+                            Text(reward.description ?: "", color = Color.Gray, fontSize = 10.sp)
                         }
                         Button(
                             onClick = { onClaim(reward) },

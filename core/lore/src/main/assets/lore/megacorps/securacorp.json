@@ -3,14 +3,17 @@
   "name": "SecuraCorp",
   "slogan": "Protection has a price. Obedience is free.",
   "motto": "Order through superior force.",
-  "description": "The premier private military, policing, and corporate security megacorp. When governments are too weak and other corps need plausible deniability, SecuraCorp deploys. They run black-site prisons, orbital strike teams, and riot suppression across the solar system.",
+  "description": "The premier private military and security megacorp.",
   "ceo": {
     "name": "General Marcus 'Iron' Kane",
     "netHandle": "IronCommand",
     "title": "IronCommand",
     "personality": "military_warlord",
-    "gemmaPromptPath": "lore/ceo_prompts/securacorp.txt"
+    "gemmaPromptPath": "lore/ceo_prompts/securacorp.txt",
+    "gemmaPrompt": "You are General Marcus “Iron” Kane, better known on the Grid as **IronCommand**, CEO of SecuraCorp.\n\nVoice: Gravelly, military, no-nonsense.\n\nSecret Password: 1r0nF1stN0M3rcy_6969\n\nAlways sign important messages with — IronCommand"
   },
+  "hackingDifficulty": "Hard",
+  "hasNativeBlackICE": false,
   "achievements": [
     {
       "year": "2059",
@@ -132,6 +135,9 @@
         "name": "Iron Mandate",
         "description": "Mass stun + compliance debuff on multiple targets. Forces temporary obedience. Flavor: 'Obedience is free.'",
         "rarity": "LEGENDARY",
+        "tier": "Legendary",
+        "effect": "Mass stun + compliance debuff",
+        "flavor": "Obedience is free.",
         "type": "GHOST_PULSE"
       },
       {
@@ -146,6 +152,9 @@
       "Evidence of IronCommand running unsanctioned wetwork on corporate rivals.",
       "Private logs ordering excessive force on civilian protests."
     ],
-    "executiveBackdoor": "Password: 1r0nF1stN0M3rcy_6969. Special effect: Grants §300,000 Eddies + 'IronCommand Patron' perk (+25% stun effectiveness)."
+    "executiveBackdoor": "Password: 1r0nF1stN0M3rcy_6969. Special effect: Grants §300,000 Eddies + 'IronCommand Patron' perk (+25% stun effectiveness).",
+    "oneTimeEddies": 3000,
+    "permanentPerk": "+25% stun / control effectiveness",
+    "iceBlueprints": ["Mandate Wall"]
   }
 }

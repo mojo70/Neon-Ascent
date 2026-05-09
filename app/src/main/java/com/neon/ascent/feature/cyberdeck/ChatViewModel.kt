@@ -108,7 +108,7 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             val megacorp = _megacorps.value.find { it.ceo.netHandle == name }
             val personality = if (megacorp != null) {
-                loreRepository.loadCeoPrompt(megacorp.ceo.gemmaPromptPath)
+                megacorp.ceo.gemmaPromptPath?.let { loreRepository.loadCeoPrompt(it) } ?: megacorp.ceo.personality
             } else if (isFixer) {
                 PREDEFINED_FIXERS.find { it.name == name }?.personality
             } else {
@@ -148,7 +148,8 @@ class ChatViewModel @Inject constructor(
                     com.neon.ascent.model.CorpoTrust("neobank", 0.21f),
                     com.neon.ascent.model.CorpoTrust("vitasynth", 0.18f),
                     com.neon.ascent.model.CorpoTrust("securacorp", 0.05f),
-                    com.neon.ascent.model.CorpoTrust("aegis", 0.11f)
+                    com.neon.ascent.model.CorpoTrust("aegis", 0.11f),
+                    com.neon.ascent.model.CorpoTrust("spectramedia", 0.35f)
                 )
                 initialTrust.forEach { loreDao.insertCorpoTrust(it) }
             }

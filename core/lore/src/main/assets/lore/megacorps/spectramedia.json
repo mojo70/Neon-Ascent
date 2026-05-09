@@ -1,0 +1,124 @@
+{
+  "id": "spectramedia",
+  "name": "SpectraMedia",
+  "slogan": "Reality is our content.",
+  "motto": "Perception is profit.",
+  "description": "The megacorp that owns the narrative. Why live in the slums when you can be a god in our server farms?",
+  "ceo": {
+    "name": "Valentina 'Star' Voss",
+    "netHandle": "SpectraLord",
+    "title": "SpectraLord",
+    "personality": "chaotic_celebrity",
+    "gemmaPrompt": "You are Valentina “Star” Voss, better known on the Grid as **SpectraLord**, CEO of SpectraMedia.\n\nVoice: Dramatic, flirtatious, chaotic, attention-hungry.\n\nSecret Password: 1AmTh3R34l1ty69xX\n\nAlways sign important messages with — SpectraLord ✨"
+  },
+  "hackingDifficulty": "Easiest",
+  "hasNativeBlackICE": false,
+  "achievements": [
+    {
+      "year": "2060",
+      "title": "Dreamfeed Launch",
+      "description": "First direct-to-neural sensory stream reached 100M users."
+    },
+    {
+      "year": "2065",
+      "title": "Braindance Monopoly",
+      "description": "Acquired the top three VR studios in a single week."
+    },
+    {
+      "year": "2070",
+      "title": "Reality OS v1",
+      "description": "Launched the first AR layer that replaces 'ugly' real-world sights with premium content."
+    }
+  ],
+  "divisions": [
+    {
+      "name": "Dreamfeed",
+      "focus": "Sensory streaming",
+      "revenueShare": 0.45,
+      "tagline": "Don't just watch. Feel.",
+      "revenue": "§293B",
+      "growth": "+156%"
+    },
+    {
+      "name": "HoloSprawl",
+      "focus": "AR ad-layers",
+      "revenueShare": 0.30,
+      "tagline": "The sky is a billboard.",
+      "revenue": "§195B",
+      "growth": "+42%"
+    },
+    {
+      "name": "EgoWorks",
+      "focus": "Personal branding & celebrity",
+      "revenueShare": 0.20,
+      "tagline": "Everyone is a star. For a price.",
+      "revenue": "§130B",
+      "growth": "+88%"
+    },
+    {
+      "name": "Sensory Policing",
+      "focus": "Copyright enforcement",
+      "revenueShare": 0.05,
+      "tagline": "Your memories are our IP.",
+      "revenue": "§33B",
+      "growth": "+12%"
+    }
+  ],
+  "stockTicker": {
+    "symbol": "SPEC",
+    "price": 892.20,
+    "change": 44.10,
+    "volume": 142000000
+  },
+  "financials": {
+    "revenue": "§651 Billion",
+    "profit": "§412 Billion",
+    "eps": "§6.82",
+    "growthYoY": "+89%"
+  },
+  "documents": [
+    {
+      "id": "q3_earnings_2071",
+      "title": "Q3 2071 Earnings Report",
+      "type": "EARNINGS_REPORT",
+      "path": "lore/documents/spectramedia/earnings_q3_2071.md"
+    }
+  ],
+  "flavorText": [
+    "REALITY IS A CHOICE",
+    "BE A GOD IN OUR SERVER FARMS",
+    "PERCEPTION IS PROFIT"
+  ],
+  "dossier": {
+    "psychProfile": "Valentina is the chaotic, high-energy center of the media world. She treats her entire life as a 24/7 stream. Obsessed with ratings and relevance. Distant sister to the other Voss CEOs, whom she considers 'boring and gray'.",
+    "attackVectors": "Can be engaged with high-drama proposals or 'exclusive' scoops. Vulnerable to flattery about her 'visionary' content. Responds well to anything that could 'break the Grid'.",
+    "leakedMemos": [
+      "Valentina to Creative: 'If the users aren't crying by the end of the Dreamfeed, it's a failure. Increase the emotional payload.'"
+    ],
+    "rivalShade": [
+      {
+        "targetCorpoId": "panopticon",
+        "intel": "Elias watches reality. I make it. He's just a glorified security guard."
+      }
+    ],
+    "quickhackVault": [
+      {
+        "id": "memetic_cascade",
+        "name": "Memetic Cascade",
+        "description": "Sensory overload + confusion. Makes enemy targeting data glitch based on trending memes. Flavor: 'This just went viral.'",
+        "rarity": "LEGENDARY",
+        "tier": "Legendary",
+        "effect": "Sensory overload + confusion",
+        "flavor": "This just went viral.",
+        "type": "GHOST_PULSE"
+      }
+    ],
+    "blackmail": [
+      "Evidence that Valentina's 'Reality OS' intentionally filters out signs of corporate poverty and dissent."
+    ],
+    "executiveBackdoor": "Password: 1AmTh3R34l1ty69xX. Special effect: Grants 'Grid Celebrity' status (+15% reputation gain).",
+    "oneTimeEddies": 1800,
+    "permanentPerk": "+15% reputation & job payouts",
+    "iceBlueprints": ["Dreamfeed Barrier"]
+  }
+}

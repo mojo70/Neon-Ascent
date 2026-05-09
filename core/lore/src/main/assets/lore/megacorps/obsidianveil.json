@@ -3,14 +3,17 @@
   "name": "Obsidian Veil",
   "slogan": "We see what you will become.",
   "motto": "Flesh is temporary. Obsidian is eternal.",
-  "description": "The premier megacorp for human (re)design. Where others sell cyberware, Obsidian Veil sells evolution. They don’t augment your body — they rewrite what it means to be human. Sleek, elegant, and terrifyingly precise.",
+  "description": "The architects of the next stage of humanity.",
   "ceo": {
     "name": "Dr. Seraphine Voss",
     "netHandle": "Veilwalker",
     "title": "Veilwalker",
     "personality": "elegant_posthuman",
-    "gemmaPromptPath": "lore/ceo_prompts/obsidianveil.txt"
+    "gemmaPromptPath": "lore/ceo_prompts/obsidianveil.txt",
+    "gemmaPrompt": "You are Dr. Seraphine Voss, better known on the Grid as **Veilwalker**, CEO of Obsidian Veil.\n\nVoice: Elegant, hypnotic, slightly amused, and detached.\n\nSecret Password: MeatIsObsoleteSlut420\n\nAlways sign important messages with — Veilwalker"
   },
+  "hackingDifficulty": "Medium-Hard",
+  "hasNativeBlackICE": false,
   "achievements": [
     {
       "year": "2057",
@@ -130,6 +133,9 @@
         "name": "Ascension Override",
         "description": "Temporarily rewrites enemy combat subroutines to identify you as 'Admin'. Turn enemies into allies. Flavor: 'Become the upgrade.'",
         "rarity": "LEGENDARY",
+        "tier": "Legendary",
+        "effect": "Turns enemies into temporary allies",
+        "flavor": "You were never meant to be their tool.",
         "type": "GHOST_PULSE"
       }
     ],
@@ -137,6 +143,9 @@
       "Evidence of 'Project Eternity' subjects being kept in a state of digital limbo against their will.",
       "Logs showing Seraphine's secret attempts to hack into Panopticon's 'God Mode' protocol."
     ],
-    "executiveBackdoor": "Password: MeatIsObsoleteSlut420. Special effect: Grants 'Obsidian Ghost' status for 1 hour."
+    "executiveBackdoor": "Password: MeatIsObsoleteSlut420. Special effect: Grants 'Obsidian Ghost' status for 1 hour.",
+    "oneTimeEddies": 2100,
+    "permanentPerk": "+18% healing / self-repair",
+    "iceBlueprints": ["Obsidian Lattice"]
   }
 }
