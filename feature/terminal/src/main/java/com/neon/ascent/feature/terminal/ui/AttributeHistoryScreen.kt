@@ -1,5 +1,6 @@
 package com.neon.ascent.feature.terminal.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -34,6 +35,8 @@ fun AttributeHistoryScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(Color(0xFF020202))
+            .statusBarsPadding()
             .padding(16.dp)
     ) {
         // Header

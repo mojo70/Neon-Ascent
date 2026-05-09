@@ -1,12 +1,16 @@
 package com.neon.ascent.feature.terminal.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.core.common.NeonCyan
 import com.neon.ascent.core.common.NeonGreen
@@ -34,6 +38,7 @@ fun DiagnosticsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .padding(16.dp)
     ) {
         // Header with Health Status
@@ -41,38 +46,48 @@ fun DiagnosticsScreen(
 
         Spacer(Modifier.height(24.dp))
 
-        // Holographic Avatar
-        HolographicAvatar(
-            specialAttributes = specialState,
-            modifier = Modifier
-                .size(220.dp)
-                .align(Alignment.CenterHorizontally),
-            onLevelUp = { type, delta ->
-                // Log level-up event in the terminal or play a sound (sound/haptic handled by avatar)
-                println(">>> SYSTEM_ALERT: $type ATTRIBUTE INCREASE DETECTED (+${delta}%) <<<")
-            }
+        Text(
+            text = "FULL NEURAL ARCHIVE",
+            style = MaterialTheme.typography.headlineMedium,
+            color = NeonCyan,
+            fontWeight = FontWeight.Black,
+            letterSpacing = 2.sp
+        )
+        
+        Text(
+            text = "Deep progression history & neural integrity logs",
+            style = MaterialTheme.typography.bodySmall,
+            color = Color.White.copy(alpha = 0.5f)
         )
 
         Spacer(Modifier.height(32.dp))
 
-        Text(
-            text = "S.P.E.C.I.A.L. CORE",
-            style = MaterialTheme.typography.headlineMedium,
-            color = NeonCyan
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        // FULL LIVE GRID
-        SpecialGrid(
-            specialAttributes = specialState,
-            modifier = Modifier.weight(1f),
-            onAttributeClick = { type ->
-                onNavigateToHistory(type)
+        // History / Trends section
+        Column(
+            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            SpecialType.entries.forEach { type ->
+                val attribute = specialState[type]
+                ArchiveSummaryItem(
+                    type = type,
+                    percentile = attribute?.percentile ?: 50,
+                    onClick = { onNavigateToHistory(type) }
+                )
             }
-        )
+        }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(24.dp))
+
+        // Re-test section
+        Text(
+            text = "NEURAL RE-CALIBRATION",
+            style = MaterialTheme.typography.labelLarge,
+            color = NeonGreen.copy(alpha = 0.8f),
+            fontWeight = FontWeight.Bold
+        )
+        
+        Spacer(Modifier.height(12.dp))
 
         // Intelligence Test Button
         Button(
@@ -80,17 +95,56 @@ fun DiagnosticsScreen(
                 scope.launch { viewModel.runCognitiveDiagnostic() }
             },
             enabled = !isRunningTest,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = NeonCyan.copy(alpha = 0.2f)),
+            border = androidx.compose.foundation.BorderStroke(1.dp, NeonCyan),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp)
         ) {
-            Text(if (isRunningTest) "RUNNING NEURAL DIAGNOSTIC..." else "RUN ADAPTIVE INTELLIGENCE TEST (~10 min)")
+            Text(
+                if (isRunningTest) "RUNNING NEURAL DIAGNOSTIC..." else "RUN ADAPTIVE INTELLIGENCE TEST",
+                color = NeonCyan
+            )
         }
+
+        Spacer(Modifier.height(12.dp))
 
         // Manual Garmin Sync Button
         OutlinedButton(
             onClick = { healthViewModel.triggerImmediateSync() },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color.Gray.copy(alpha = 0.5f)),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp)
         ) {
-            Text("FORCE GARMIN NEURAL SYNC")
+            Text("FORCE NEURAL ARCHIVE SYNC", color = Color.Gray)
+        }
+    }
+}
+
+@Composable
+private fun ArchiveSummaryItem(
+    type: SpecialType,
+    percentile: Int,
+    onClick: () -> Unit
+) {
+    val color = getNeonColorForAttribute(type)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.3f)),
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, color.copy(alpha = 0.3f)),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(type.getIcon(), color = color, style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text(type.name, color = Color.White, fontWeight = FontWeight.Bold)
+                Text("Trend: Stable", color = Color.Gray, style = MaterialTheme.typography.labelSmall)
+            }
+            Text("$percentile%", color = color, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
         }
     }
 }
