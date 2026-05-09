@@ -6,6 +6,7 @@ import androidx.lifecycle.asFlow
 import androidx.lifecycle.viewModelScope
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import com.neon.ascent.core.data.datastore.HealthPreferencesDataStore
 import com.neon.ascent.core.domain.special.usecases.UpdateSpecialFromHealthUseCase
 import com.neon.ascent.feature.health.data.HealthConnectManager
 import com.neon.ascent.feature.health.data.workers.HealthSyncWorker
@@ -20,7 +21,8 @@ import javax.inject.Inject
 class HealthViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     val healthManager: HealthConnectManager,
-    private val updateSpecialFromHealthUseCase: UpdateSpecialFromHealthUseCase
+    private val updateSpecialFromHealthUseCase: UpdateSpecialFromHealthUseCase,
+    private val healthPrefs: HealthPreferencesDataStore
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HealthUiState())
@@ -39,10 +41,11 @@ class HealthViewModel @Inject constructor(
     private fun checkInitialHealthStatus() {
         viewModelScope.launch {
             val hasPermissions = healthManager.isAvailableAndHasPermissions()
+            val lastSync = healthPrefs.lastSyncTime.first()
             _uiState.update { it.copy(
                 isAvailable = true,
                 hasPermissions = hasPermissions,
-                lastSyncTime = getLastSyncTimestamp()
+                lastSyncTime = lastSync
             ) }
         }
     }
@@ -98,8 +101,11 @@ class HealthViewModel @Inject constructor(
                 // Also run immediate UseCase for instant feedback
                 updateSpecialFromHealthUseCase()
 
+                val now = Instant.now()
+                healthPrefs.updateLastSyncTime(now)
+                
                 _uiState.update { it.copy(
-                    lastSyncTime = Instant.now(),
+                    lastSyncTime = now,
                     syncStatus = SyncStatus.Success
                 ) }
             } catch (e: Exception) {
@@ -115,9 +121,18 @@ class HealthViewModel @Inject constructor(
         _uiState.update { it.copy(showRationale = false) }
     }
 
-    private fun getLastSyncTimestamp(): Instant? {
-        // TODO: Store in DataStore for persistence across restarts
-        return null // placeholder
+    val autoSyncEnabled = healthPrefs.autoSyncEnabled.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), true
+    )
+
+    val syncIntervalHours = healthPrefs.syncIntervalHours.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), 8
+    )
+
+    fun setAutoSyncEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            healthPrefs.setAutoSyncEnabled(enabled)
+        }
     }
 }
 

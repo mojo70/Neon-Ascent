@@ -18,7 +18,7 @@ import com.neon.ascent.core.data.local.converter.TestTypeConverter
         SpecialAttributeEntity::class,
         BenchmarkTestEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 @TypeConverters(

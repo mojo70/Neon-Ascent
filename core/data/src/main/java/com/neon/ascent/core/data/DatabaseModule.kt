@@ -3,6 +3,7 @@ package com.neon.ascent.core.data
 import android.content.Context
 import androidx.room.Room
 import com.neon.ascent.core.data.local.dao.SpecialDao
+import com.neon.ascent.core.data.local.migration.MIGRATION_2_3
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -22,6 +23,7 @@ object DatabaseModule {
             NeonAscentDatabase::class.java,
             "neon_ascent_database"
         )
+        .addMigrations(MIGRATION_2_3)
         .fallbackToDestructiveMigration()
         .build()
     }
