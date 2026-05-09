@@ -27,6 +27,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.feature.settings.SettingsViewModel
+import com.neon.ascent.feature.health.ui.HealthViewModel
+import com.neon.ascent.core.common.*
 import com.neon.ascent.ui.*
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -35,6 +37,7 @@ import java.time.format.DateTimeFormatter
 fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel(),
     settingsViewModel: SettingsViewModel = hiltViewModel(),
+    healthViewModel: HealthViewModel = hiltViewModel(),
     onAvatarClick: () -> Unit,
     onAttributeSetClick: () -> Unit,
     onStoryClick: () -> Unit,
@@ -45,11 +48,11 @@ fun DashboardScreen(
 ) {
     val userCharacter by viewModel.userCharacter.collectAsState()
     val weatherState by viewModel.weatherState.collectAsState()
-    val healthState by viewModel.healthState.collectAsState()
     val biohackingData by viewModel.biohackingData.collectAsState()
     val systemAdvice by viewModel.systemAdvice.collectAsState()
     val state by viewModel.uiState.collectAsState()
     val isReligionShortcutEnabled by settingsViewModel.isReligionShortcutEnabled.collectAsState()
+    val liveMetrics by healthViewModel.liveMetrics.collectAsState()
     val currentTime = remember { mutableStateOf(LocalDateTime.now()) }
     
     val neuralLoad = userCharacter?.neuralLoad ?: 0.2f
@@ -193,8 +196,8 @@ fun DashboardScreen(
                                 modifier = Modifier.cyberGlitch(intensity = if (neuralLoad > 0.9f) 0.2f else 0f)
                             )
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (healthState.isConnected && healthState.heartRate > 0) {
-                                    HeartRatePulse(healthState.heartRate)
+                                if (liveMetrics.heartRate != null && liveMetrics.heartRate!! > 0) {
+                                    HeartRatePulse(liveMetrics.heartRate!!)
                                     Spacer(Modifier.width(8.dp))
                                 }
                                 Box(
@@ -350,23 +353,23 @@ fun DashboardScreen(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 CyberMetricCard(
                     label = "STEPS", 
-                    value = if (healthState.isConnected) healthState.steps.toString() else "8,432",
+                    value = liveMetrics.stepsToday.toString(),
                     subValue = "TARGET: 10K", 
-                    color = Color(0xFF00FFFF),
+                    color = NeonBlue,
                     modifier = Modifier.weight(1f)
                 )
                 CyberMetricCard(
                     label = "CALORIES", 
-                    value = "1,840",
+                    value = liveMetrics.caloriesToday.toInt().toString(),
                     subValue = "TARGET: 2.2K", 
-                    color = Color(0xFFFF006E),
+                    color = NeonOrange,
                     modifier = Modifier.weight(1f)
                 )
                 CyberMetricCard(
                     label = "CONSISTENCY", 
                     value = "${state.totalHabitDays}", 
                     subValue = "DAYS 🔥", 
-                    color = Color(0xFF00FF9C),
+                    color = NeonGreen,
                     modifier = Modifier.weight(1f)
                 )
             }

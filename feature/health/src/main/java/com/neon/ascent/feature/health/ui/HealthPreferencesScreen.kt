@@ -1,5 +1,7 @@
 package com.neon.ascent.feature.health.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -10,9 +12,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.health.connect.client.PermissionController
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.core.common.*
 import com.neon.ascent.core.domain.model.SpecialType
+import kotlinx.coroutines.launch
 
 @Composable
 fun HealthPreferencesScreen(
@@ -23,25 +28,51 @@ fun HealthPreferencesScreen(
     val syncInterval by viewModel.syncIntervalHours.collectAsState()
     val enabledAttributes by viewModel.enabledAttributes.collectAsState()
     val showNotifications by viewModel.showSyncNotification.collectAsState()
+    val scope = rememberCoroutineScope()
+
+    val permissionsLauncher = rememberLauncherForActivityResult(
+        PermissionController.createRequestPermissionResultContract()
+    ) { granted ->
+        viewModel.checkPermissions()
+    }
+
+    if (state.showRationale) {
+        PermissionRationaleDialog(
+            rationale = state.rationale,
+            onConfirm = {
+                viewModel.dismissRationale()
+                scope.launch {
+                    val permissions = viewModel.healthManager.getPermissionsToRequest()
+                    permissionsLauncher.launch(permissions)
+                }
+            },
+            onDismiss = { viewModel.dismissRationale() }
+        )
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(Color(0xFF020202))
+            .statusBarsPadding()
             .verticalScroll(rememberScrollState())
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(28.dp)
     ) {
         // Header
         Text(
-            text = "NEURAL SYNC PROTOCOL",
+            text = "JACK IN HEALTH CONNECT",
             style = MaterialTheme.typography.headlineLarge,
             color = NeonCyan,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Black,
+            letterSpacing = 2.sp
         )
 
         Text(
-            text = "Configure how your real-world biometric data feeds the cyberdeck.",
-            color = Color.White.copy(alpha = 0.75f)
+            text = "NEURAL SYNC PROTOCOL // Configure how your real-world biometric data feeds the cyberdeck.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Color.White.copy(alpha = 0.6f),
+            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
         )
 
         // Auto Sync Toggle
@@ -160,6 +191,14 @@ fun HealthPreferencesScreen(
                     Text("🟢 Health Connect Link Active", color = NeonGreen)
                 } else {
                     Text("⚠️ Permissions Required", color = NeonRed)
+                    Spacer(Modifier.height(8.dp))
+                    Button(
+                        onClick = { viewModel.requestHealthPermissions() },
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonRed.copy(alpha = 0.2f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("ESTABLISH NEURAL LINK", color = NeonRed)
+                    }
                 }
             }
         }
