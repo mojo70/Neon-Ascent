@@ -142,7 +142,10 @@ class ChatViewModel @Inject constructor(
                     com.neon.ascent.model.CorpoTrust("panopticon", 0.12f),
                     com.neon.ascent.model.CorpoTrust("microhard", 0.05f),
                     com.neon.ascent.model.CorpoTrust("obsidianveil", 0.28f),
-                    com.neon.ascent.model.CorpoTrust("omnisight", 0.08f)
+                    com.neon.ascent.model.CorpoTrust("omnisight", 0.08f),
+                    com.neon.ascent.model.CorpoTrust("helixspace", 0.15f),
+                    com.neon.ascent.model.CorpoTrust("kagami", 0.03f),
+                    com.neon.ascent.model.CorpoTrust("neobank", 0.21f)
                 )
                 initialTrust.forEach { loreDao.insertCorpoTrust(it) }
             }

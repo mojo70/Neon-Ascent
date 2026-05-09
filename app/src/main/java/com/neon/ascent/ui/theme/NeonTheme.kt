@@ -22,6 +22,9 @@ data class NeonThemeData(
             "microhard" -> Color(0xFF0088FF)
             "obsidianveil" -> Color(0xFFA020F0) // Deep Purple
             "omnisight" -> Color(0xFFB0B0B0) // Cold Steel
+            "helixspace" -> Color(0xFF00FF9C) // Emerald Green
+            "kagami" -> Color(0xFFFF3131) // Crimson Red
+            "neobank" -> Color(0xFFFFD700) // Gold
             else -> primary
         }
     }

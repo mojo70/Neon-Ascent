@@ -608,25 +608,72 @@ fun CorpoNodesArea(viewModel: CyberdeckViewModel, bypassed: Set<String>, onCorpo
             ),
             CorpoNode(
                 name = "HelixSpace",
-                ticker = "HLXS",
-                slogan = "DNA is just a launchpad",
-                profile = "Bio-integrated space travel. We grow our ships in orbit and our pilots in vats. The final frontier is within.",
+                ticker = "HELX",
+                slogan = "Spinning the future into orbit.",
+                profile = "The megacorp building the next chapter of human expansion — not with brute force, but with elegant, self-sustaining helical architecture. Orbital habitats that spin for gravity, genetically adapted colonists, and living starships grown from DNA scaffolding.",
                 securityTier = DifficultyTier.GHOST,
-                stockPrice = 521.00,
-                stockChange = -2.40,
-                stockChangePercent = -0.4,
-                marketCap = "§2.1 Trillion"
+                stockPrice = 1673.90,
+                stockChange = 48.70,
+                stockChangePercent = 2.99,
+                marketCap = "§2.1 Trillion",
+                ceo = "Dr. Elara Voss",
+                highlights = listOf(
+                    "2059 - First functional Helix Ring Habitat launched.",
+                    "2064 - Launched the Living Ark organic starship program.",
+                    "2068 - Adapted 40,000 radiation-hardened colonists.",
+                    "2070 - Established New Helix Prime orbital city."
+                ),
+                earningsReport = """
+                    HELIXSPACE (HELX) Q3 2071 Earnings Transmission
+                    Net Revenue: §812 Billion ▲ +44% YoY
+                    Adjusted Spin Profit: §537 Billion ▲ +61%
+                    EPS: §9.14 | CEO: HelixPrime
+                    
+                    [DIVISIONAL PERFORMANCE]
+                    • Helix Habitats: §341B (+38%)
+                    • Gene Cradle: §219B (+52%)
+                    • Living Ark: §146B (+21%)
+                    • Spin Dynamics: §73B (+15%)
+                    • Eden Vaults: §33B (+87%)
+                    
+                    [CEO STATEMENT - HELIXPRIME]
+                    "Another cycle completed. Another ring spun. The future is not launched. It is grown."
+                """.trimIndent()
             ),
             CorpoNode(
                 name = "Kagami Heavy Industries",
-                ticker = "KAGM",
-                slogan = "Honor is obsolete",
-                profile = "Manufacturers of high-end combat robotics and urban pacification drones. Precision engineering for a world that needs order.",
-                securityTier = DifficultyTier.NETRUNNER,
-                stockPrice = 612.55,
-                stockChange = -8.30,
-                stockChangePercent = -1.3,
-                marketCap = "§4.8 Trillion"
+                ticker = "KAGI",
+                slogan = "Honor is obsolete.",
+                profile = "The iron fist of the corporate world. Kagami builds the weapons, the security grids, the black ICE, and the private armies that keep every other megacorp in check. Neo-feudal corporate warriors and augmented yakuza enforcers.",
+                securityTier = DifficultyTier.BLACK_ICE,
+                stockPrice = 2347.80,
+                stockChange = 91.20,
+                stockChangePercent = 4.04,
+                marketCap = "§4.8 Trillion",
+                ceo = "Ryūji 'Kage' Nakamura",
+                highlights = listOf(
+                    "2058 - Developed the first Kagami Shadow Grid.",
+                    "2063 - Crushed the Tokyo Sprawl Rebellion in 9 hours.",
+                    "2067 - Launched the Onryō Series combat androids.",
+                    "2069 - Acquired Aegis Armaments heavy weapons division.",
+                    "2070 - Deployed the Void Katana Protocol strike teams."
+                ),
+                earningsReport = """
+                    KAGAMI HEAVY INDUSTRIES (KAGI) Q3 2071 Earnings Transmission
+                    Net Revenue: §1.37 Trillion ▲ +38% YoY
+                    Adjusted Blade Profit: §894 Billion ▲ +52%
+                    EPS: §12.67 | CEO: Kage
+                    
+                    [DIVISIONAL PERFORMANCE]
+                    • Shadow Grid: §534B (+45%)
+                    • Onryō Armaments: §425B (+28%)
+                    • Void Strike: §233B (+112%)
+                    • Iron Code: §110B (+15%)
+                    • Blade Legacy: §68B (+8%)
+                    
+                    [CEO STATEMENT - KAGE]
+                    "Another quarter. Another debt collected. Honor was never profitable."
+                """.trimIndent()
             ),
             CorpoNode(
                 name = "Aegis Armaments",
@@ -642,13 +689,36 @@ fun CorpoNodesArea(viewModel: CyberdeckViewModel, bypassed: Set<String>, onCorpo
             CorpoNode(
                 name = "NeoBank",
                 ticker = "NEOB",
-                slogan = "Your wealth, digitized and weaponized",
-                profile = "The only bank that offers combat-ready asset protection and orbital safety deposits.",
-                securityTier = DifficultyTier.NOVICE,
-                stockPrice = 112.30,
-                stockChange = 0.50,
-                stockChangePercent = 0.4,
-                marketCap = "§800 Billion"
+                slogan = "Your credits, our pleasure.",
+                profile = "The solar system’s premier megabank. They don’t just hold your money — they own it, leverage it, weaponize it, and charge you interest for the privilege. Loans that last generations, credit scores that dictate your legal rights, and “asset repossession” teams that make Kagami look polite.",
+                securityTier = DifficultyTier.BLACK_ICE,
+                stockPrice = 3184.50,
+                stockChange = 112.40,
+                stockChangePercent = 3.66,
+                marketCap = "§5.2 Trillion",
+                ceo = "Lucius 'Ledger' Voss",
+                highlights = listOf(
+                    "2055 - Introduced Eternal Debt Instruments (loans that outlive the borrower).",
+                    "2062 - Rolled out CreditScore-as-ID global identity system.",
+                    "2068 - Acquired three national banks in a single weekend.",
+                    "2070 - Launched NeoVault Zero orbital private banking."
+                ),
+                earningsReport = """
+                    NEOBANK (NEOB) Q3 2071 Earnings Transmission
+                    Net Revenue: §1.68 Trillion ▲ +46% YoY
+                    Adjusted Interest Profit: §1.19 Trillion ▲ +71%
+                    EPS: §14.82 | CEO: VaultLord
+                    
+                    [DIVISIONAL PERFORMANCE]
+                    • Vault Eternal: §688B (+32%)
+                    • Debt Acquisition: §487B (+54%)
+                    • Credit Nexus: §302B (+88%)
+                    • Orbital Finance: §151B (+12%)
+                    • Interest Enf.: §50B (+147%)
+                    
+                    [CEO STATEMENT - VAULTLORD]
+                    "Another quarter of healthy growth… for us. Your continued patronage is appreciated."
+                """.trimIndent()
             ),
             CorpoNode(
                 name = "SpectraMedia",

@@ -1,0 +1,157 @@
+{
+  "id": "kagami",
+  "name": "Kagami Heavy Industries",
+  "slogan": "Honor is obsolete.",
+  "motto": "Strength is the only currency.",
+  "description": "The iron fist of the corporate world. Kagami builds the weapons, the security grids, the black ICE, and the private armies that keep every other megacorp in check. Neo-feudal corporate warriors and augmented yakuza enforcers.",
+  "ceo": {
+    "name": "Ryūji 'Kage' Nakamura",
+    "netHandle": "Kage",
+    "title": "Kage",
+    "personality": "stoic_samurai",
+    "gemmaPromptPath": "lore/ceo_prompts/kagami.txt"
+  },
+  "achievements": [
+    {
+      "year": "2058",
+      "title": "Shadow Grid Development",
+      "description": "Developed the first Kagami Shadow Grid (unbreakable corporate firewall)."
+    },
+    {
+      "year": "2063",
+      "title": "Tokyo Sprawl Rebellion",
+      "description": "Crushed the rebellion in 9 hours with zero public trace."
+    },
+    {
+      "year": "2067",
+      "title": "Onryō Series Launch",
+      "description": "Launched combat androids now standard issue for SecuraCorp."
+    },
+    {
+      "year": "2069",
+      "title": "Aegis Hostile Takeover",
+      "description": "Acquired heavy weapons division in a quiet, bloody takeover."
+    },
+    {
+      "year": "2070",
+      "title": "Void Katana Protocol",
+      "description": "First recorded use of orbital-drop samurai strike teams."
+    }
+  ],
+  "divisions": [
+    {
+      "name": "Shadow Grid",
+      "focus": "Corporate security & ICE",
+      "revenueShare": 0.39,
+      "tagline": "You will never breach us.",
+      "revenue": "§534B",
+      "growth": "+45%"
+    },
+    {
+      "name": "Onryō Armaments",
+      "focus": "Weapons & androids",
+      "revenueShare": 0.31,
+      "tagline": "Honor delivered at 1200 m/s.",
+      "revenue": "§425B",
+      "growth": "+28%"
+    },
+    {
+      "name": "Void Strike Teams",
+      "focus": "Orbital private military",
+      "revenueShare": 0.17,
+      "tagline": "We fall from the sky like judgment.",
+      "revenue": "§233B",
+      "growth": "+112%"
+    },
+    {
+      "name": "Iron Code Finance",
+      "focus": "Corporate raiding",
+      "revenueShare": 0.08,
+      "tagline": "Debt is weakness. We collect.",
+      "revenue": "§110B",
+      "growth": "+15%"
+    },
+    {
+      "name": "Blade Legacy",
+      "focus": "Traditional augmentations",
+      "revenueShare": 0.05,
+      "tagline": "Steel remembers.",
+      "revenue": "§68B",
+      "growth": "+8%"
+    }
+  ],
+  "stockTicker": {
+    "symbol": "KAGI",
+    "price": 2347.80,
+    "change": 91.20,
+    "volume": 38000000
+  },
+  "financials": {
+    "revenue": "§1.37 Trillion",
+    "profit": "§894 Billion",
+    "eps": "§12.67",
+    "growthYoY": "+38%"
+  },
+  "documents": [
+    {
+      "id": "q3_earnings_2071",
+      "title": "Q3 2071 Earnings Report",
+      "type": "EARNINGS_REPORT",
+      "path": "lore/documents/kagami/earnings_q3_2071.md"
+    },
+    {
+      "id": "investor_deck_blade",
+      "title": "Blade Protocol Series Ω Investor Deck",
+      "type": "INVESTOR_DECK",
+      "path": "lore/documents/kagami/investor_deck.md"
+    }
+  ],
+  "flavorText": [
+    "VOID STRIKE SUCCESSFUL",
+    "ONRYŌ SERIES 9.3 LIVE",
+    "KAGE – HONOR IS OBSOLETE"
+  ],
+  "dossier": {
+    "psychProfile": "Ryūji Nakamura is 92% cybernetic; his heart is a micro-fusion reactor. He lives by a personal code he rewrites as needed. A last true corporate samurai who personally executed three boards. Secretly collects ancient Japanese swords and spends hours in dojos.",
+    "attackVectors": "Social engineering strategies: 1. Address him with proper respect ('Kage-sama'). 2. Offer rare pre-collapse katana or historical artifacts. 3. Challenge him to strategic or philosophical tests of worth. 4. Pretend to be a rogue operator swearing temporary loyalty.",
+    "leakedMemos": [
+      "Memo #KG-Ω-0007: 'AetherX’s Thrust has spirit but no discipline. Crush if they overstep.'",
+      "Memo #KG-Ω-0142: 'Loyalty expires when profit ends. Remind the board.'"
+    ],
+    "rivalShade": [
+      {
+        "targetCorpoId": "aetherx",
+        "intel": "Loud barbarian with rockets."
+      },
+      {
+        "targetCorpoId": "securacorp",
+        "intel": "They buy our blades and call themselves warriors."
+      },
+      {
+        "targetCorpoId": "obsidianveil",
+        "intel": "They play at evolution. We perfect destruction."
+      }
+    ],
+    "quickhackVault": [
+      {
+        "id": "void_katana_strike",
+        "name": "Void Katana Strike",
+        "description": "Instant high-damage slash ignoring 70% of enemy ICE + bleeding DoT. Flavor: 'One cut. No mercy.'",
+        "rarity": "LEGENDARY",
+        "type": "SYSTEM_BURN"
+      },
+      {
+        "id": "onryo_swarm",
+        "name": "Onryō Swarm",
+        "description": "Deploys ghostly combat daemons that multiply and overwhelm systems. Flavor: 'The dead do not forgive.'",
+        "rarity": "LEGENDARY",
+        "type": "GHOST_PULSE"
+      }
+    ],
+    "blackmail": [
+      "Holo of Kage executing a board member for 'disloyalty'.",
+      "Evidence of secret deals with AetherX while publicly shading them."
+    ],
+    "executiveBackdoor": "Password: KageBladeN0Mercy6969. Special effect: Grants 'Blade Patron' perk (+30% single-target damage + ICE counter-attack buff)."
+  }
+}

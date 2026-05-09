@@ -130,6 +130,21 @@ class CyberdeckViewModel @Inject constructor(
                 InvestorSlide("THE VISION", "Flesh is temporary. Obsidian is eternal.", "We don't just augment. We rewrite what it means to be human."),
                 InvestorSlide("TRACTION", "The Future is Post-Human", "Veil Lattice adoption up 67%\nProject Eternity achieved 100% client retention\nMidnight Seraph skin set sold out in 11 minutes")
             )
+            "helixspace" -> listOf(
+                InvestorSlide("HELIXSPACE", "Infinite Spin Series Ω", "Presented by Dr. Elara Voss – HelixPrime\nOctober 2071"),
+                InvestorSlide("THE VISION", "The future is not launched. It is grown.", "We build elegant, self-sustaining helical architecture for the stars."),
+                InvestorSlide("OUR SOLUTION", "Helix Ring Habitats", "Orbital habitats with spun gravity, adapted colonists, and living starships grown from DNA scaffolding.")
+            )
+            "neobank" -> listOf(
+                InvestorSlide("NEOBANK", "Ledger Series Ω", "Presented by Lucius “Ledger” Voss – VaultLord\nOctober 2071"),
+                InvestorSlide("THE VISION", "Debt is the truest form of loyalty.", "We don't just bank assets; we bank futures. The solar system's premier weaponized financial institution."),
+                InvestorSlide("OUR SOLUTION", "Eternal Debt + Credit Nexus", "Loans that last generations and credit scores that dictate your legal reality.\n\nCore Offerings: Eternal Debt Instruments & NeoVault Zero")
+            )
+            "kagami" -> listOf(
+                InvestorSlide("KAGAMI HEAVY INDUSTRIES", "Blade Protocol Series Ω", "Presented by Ryūji “Kage” Nakamura\nOctober 2071"),
+                InvestorSlide("THE VISION", "Honor is obsolete.", "The iron fist of the corporate world. We don't just secure assets; we eliminate threats."),
+                InvestorSlide("OUR SOLUTION", "Shadow Grid + Void Strike", "Neo-feudal corporate warriors, monomolecular blades, and orbital-drop strike teams.")
+            )
             "omnisight" -> listOf(
                 InvestorSlide("OMNISIGHT", "Certainty Series Ω", "Presented by Dr. Lucian Crowe – AllSeer\nOctober 2071"),
                 InvestorSlide("THE PROBLEM", "Uncertainty is expensive.", "Chaos is unprofitable. Free will is a liability.\n\nWe fix that."),
@@ -161,7 +176,7 @@ class CyberdeckViewModel @Inject constructor(
     }
 
     fun bypassBlackIce(corpoName: String, username: String, password: String): Boolean {
-        if (corpoName == "AetherX" && username == "Thrust" && password == "PoundUranusNoPullout420.69") {
+        if (corpoName == "AetherX" && username == "Thrust" && password == "P0undUr@nu\$N0Pu110ut420.69") {
             grantBypassRewards(DifficultyTier.BLACK_ICE)
             _bypassedBlackIce.update { it + corpoName }
             return true
@@ -171,18 +186,33 @@ class CyberdeckViewModel @Inject constructor(
             _bypassedBlackIce.update { it + corpoName }
             return true
         }
-        if (corpoName == "Microhard" && username == "Dominus" && password == "DominionHasNoPullout42069") {
+        if (corpoName == "Microhard" && username == "Dominus" && password == "GidOwnsYourOS6969") {
             grantBypassRewards(DifficultyTier.OPERATIVE)
             _bypassedBlackIce.update { it + corpoName }
             return true
         }
-        if (corpoName == "Obsidian Veil" && username == "Veilwalker" && password == "VeilHasNoFlesh42069") {
+        if (corpoName == "Obsidian Veil" && username == "Veilwalker" && password == "MeatIsObsoleteSlut420") {
             grantBypassRewards(DifficultyTier.BLACK_ICE)
             _bypassedBlackIce.update { it + corpoName }
             return true
         }
-        if (corpoName == "OmniSight" && username == "AllSeer" && password == "AllSeerSeesYourMom42069") {
+        if (corpoName == "OmniSight" && username == "AllSeer" && password == "ModelSaysYoureFucked99.7") {
             grantBypassRewards(DifficultyTier.GHOST)
+            _bypassedBlackIce.update { it + corpoName }
+            return true
+        }
+        if (corpoName == "HelixSpace" && username == "HelixPrime" && password == "SpinToWinBaby420") {
+            grantBypassRewards(DifficultyTier.GHOST)
+            _bypassedBlackIce.update { it + corpoName }
+            return true
+        }
+        if (corpoName == "NeoBank" && username == "VaultLord" && password == "Y0urCr3d1t5MyPl34sur3_69") {
+            grantBypassRewards(DifficultyTier.BLACK_ICE)
+            _bypassedBlackIce.update { it + corpoName }
+            return true
+        }
+        if (corpoName == "Kagami Heavy Industries" && username == "Kage" && password == "KageBladeN0Mercy6969") {
+            grantBypassRewards(DifficultyTier.BLACK_ICE)
             _bypassedBlackIce.update { it + corpoName }
             return true
         }

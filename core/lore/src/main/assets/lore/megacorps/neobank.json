@@ -1,0 +1,151 @@
+{
+  "id": "neobank",
+  "name": "NeoBank",
+  "slogan": "Your credits, our pleasure.",
+  "motto": "Debt is the truest form of loyalty.",
+  "description": "The solar system’s premier megabank. They don’t just hold your money — they own it, leverage it, weaponize it, and charge you interest for the privilege. Loans that last generations and credit scores that dictate your legal rights.",
+  "ceo": {
+    "name": "Lucius 'Ledger' Voss",
+    "netHandle": "VaultLord",
+    "title": "VaultLord",
+    "personality": "aristocratic_banker",
+    "gemmaPromptPath": "lore/ceo_prompts/neobank.txt"
+  },
+  "achievements": [
+    {
+      "year": "2055",
+      "title": "Eternal Debt Instruments",
+      "description": "Introduced loans that outlive the borrower."
+    },
+    {
+      "year": "2062",
+      "title": "CreditScore-as-ID",
+      "description": "Your score now determines housing, travel, and legal rights."
+    },
+    {
+      "year": "2068",
+      "title": "National Bank Acquisitions",
+      "description": "Acquired three national banks in a single 'hostile but legal' weekend."
+    },
+    {
+      "year": "2070",
+      "title": "NeoVault Zero",
+      "description": "Launched the most secure (and expensive) private orbital bank vault."
+    }
+  ],
+  "divisions": [
+    {
+      "name": "Vault Eternal",
+      "focus": "Private wealth storage",
+      "revenueShare": 0.41,
+      "tagline": "Your money is safer with us. Mostly.",
+      "revenue": "§688B",
+      "growth": "+32%"
+    },
+    {
+      "name": "Debt Acquisition",
+      "focus": "Loan enforcement",
+      "revenueShare": 0.29,
+      "tagline": "We always collect.",
+      "revenue": "§487B",
+      "growth": "+54%"
+    },
+    {
+      "name": "Credit Nexus",
+      "focus": "Reputation & ID scoring",
+      "revenueShare": 0.18,
+      "tagline": "Your worth, quantified.",
+      "revenue": "§302B",
+      "growth": "+88%"
+    },
+    {
+      "name": "Orbital Finance",
+      "focus": "Wealth transfer",
+      "revenueShare": 0.09,
+      "tagline": "Moving money at lightspeed. Fees apply.",
+      "revenue": "§151B",
+      "growth": "+12%"
+    },
+    {
+      "name": "Interest Enforcement",
+      "focus": "Black ICE collections",
+      "revenueShare": 0.03,
+      "tagline": "Late fees are mandatory.",
+      "revenue": "§50B",
+      "growth": "+147%"
+    }
+  ],
+  "stockTicker": {
+    "symbol": "NEOB",
+    "price": 3184.50,
+    "change": 112.40,
+    "volume": 28000000
+  },
+  "financials": {
+    "revenue": "§1.68 Trillion",
+    "profit": "§1.19 Trillion",
+    "eps": "§14.82",
+    "growthYoY": "+46%"
+  },
+  "documents": [
+    {
+      "id": "q3_earnings_2071",
+      "title": "Q3 2071 Earnings Report",
+      "type": "EARNINGS_REPORT",
+      "path": "lore/documents/neobank/earnings_q3_2071.md"
+    },
+    {
+      "id": "investor_deck_ledger",
+      "title": "Ledger Series Ω Investor Deck",
+      "type": "INVESTOR_DECK",
+      "path": "lore/documents/neobank/investor_deck.md"
+    }
+  ],
+  "flavorText": [
+    "Q3 INTEREST CASCADE RECORD",
+    "NEW ETERNAL DEBT ISSUED",
+    "VAULTLORD – YOUR CREDITS, OUR PLEASURE"
+  ],
+  "dossier": {
+    "psychProfile": "Lucius 'Ledger' Voss is 71% cybernetic with mostly financial implants and golden credit-score tattoos. Smug, aristocratic, and oily. Obsessed with legacy wealth and bloodline debt. Secretly collects pre-collapse physical currency and luxury watches. Distant cousin to the other Voss CEOs.",
+    "attackVectors": "High-success social engineering lines: 1. Pose as ultra-rich with 'special deposit' needs. 2. Mention 'urgent liquidity crisis' or hostile takeover defense. 3. Offer dirt on rivals' financial vulnerabilities. 4. Flatter his 'compounding strategy'.",
+    "leakedMemos": [
+      "Memo #NB-Ω-88420: 'AetherX’s Thrust is behind on docking fees again. Send the repossession team. Make it hurt.'"
+    ],
+    "rivalShade": [
+      {
+        "targetCorpoId": "aetherx",
+        "intel": "Big rockets, small balance sheet."
+      },
+      {
+        "targetCorpoId": "microhard",
+        "intel": "They lock you in. We make you pay forever."
+      },
+      {
+        "targetCorpoId": "helixspace",
+        "intel": "They spin habitats. We spin interest rates."
+      }
+    ],
+    "quickhackVault": [
+      {
+        "id": "interest_cascade",
+        "name": "Interest Cascade",
+        "description": "Drains enemy resources over time + transfers a portion to you (steals credits mid-combat). Flavor: 'Compounding at 400% APR.'",
+        "rarity": "LEGENDARY",
+        "type": "SYSTEM_BURN"
+      },
+      {
+        "id": "credit_blackmail",
+        "name": "Credit Blackmail",
+        "description": "Temporarily lowers enemy ICE effectiveness by attacking their 'credit score'. Flavor: 'Your balance is overdue.'",
+        "rarity": "LEGENDARY",
+        "type": "GHOST_PULSE"
+      }
+    ],
+    "blackmail": [
+      "Holo evidence of VaultLord cooking the books on Eternal Debt portfolios.",
+      "Secret recordings of him laughing while approving predatory loans."
+    ],
+    "executiveBackdoor": "Password: Y0urCr3d1t5MyPl34sur3_69. Special effect: Grants §250,000 Eddies + 'VaultLord Patron' perk (+12% credit gain)."
+  }
+}

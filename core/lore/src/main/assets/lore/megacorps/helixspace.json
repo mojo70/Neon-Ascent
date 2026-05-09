@@ -1,0 +1,151 @@
+{
+  "id": "helixspace",
+  "name": "HelixSpace",
+  "slogan": "Spinning the future into orbit.",
+  "motto": "The future is not launched. It is grown.",
+  "description": "The megacorp building the next chapter of human expansion — not with brute force, but with elegant, self-sustaining helical architecture. Orbital habitats that spin for gravity, genetically adapted colonists, and living starships grown from DNA scaffolding.",
+  "ceo": {
+    "name": "Dr. Elara Voss",
+    "netHandle": "HelixPrime",
+    "title": "HelixPrime",
+    "personality": "serene_visionary",
+    "gemmaPromptPath": "lore/ceo_prompts/helixspace.txt"
+  },
+  "achievements": [
+    {
+      "year": "2059",
+      "title": "Helix Ring Habitat",
+      "description": "First fully functional Helix Ring Habitat (spun gravity at 0.98g for 12,000 residents)."
+    },
+    {
+      "year": "2064",
+      "title": "Living Ark Program",
+      "description": "Launched the Living Ark Program — starships with organic helical hulls that repair themselves."
+    },
+    {
+      "year": "2068",
+      "title": "Gene Cradle Adaptation",
+      "description": "Successfully adapted 40,000 colonists to low-gravity + radiation via Helix Gene Cradle."
+    },
+    {
+      "year": "2070",
+      "title": "New Helix Prime",
+      "description": "Established New Helix Prime orbital city — population 187,000 and growing."
+    }
+  ],
+  "divisions": [
+    {
+      "name": "Helix Habitats",
+      "focus": "Spinning orbital cities",
+      "revenueShare": 0.42,
+      "tagline": "Gravity is optional. Spin is eternal.",
+      "revenue": "§341B",
+      "growth": "+38%"
+    },
+    {
+      "name": "Gene Cradle",
+      "focus": "Space-adapted human lineages",
+      "revenueShare": 0.27,
+      "tagline": "Born for the black.",
+      "revenue": "§219B",
+      "growth": "+52%"
+    },
+    {
+      "name": "Living Ark",
+      "focus": "Organic starships",
+      "revenueShare": 0.18,
+      "tagline": "The ship grows with you.",
+      "revenue": "§146B",
+      "growth": "+21%"
+    },
+    {
+      "name": "Spin Dynamics",
+      "focus": "Next-gen propulsion",
+      "revenueShare": 0.09,
+      "tagline": "We don’t break physics. We braid it.",
+      "revenue": "§73B",
+      "growth": "+15%"
+    },
+    {
+      "name": "Eden Vaults",
+      "focus": "Closed-loop biospheres",
+      "revenueShare": 0.04,
+      "tagline": "Every world we touch becomes home.",
+      "revenue": "§33B",
+      "growth": "+87%"
+    }
+  ],
+  "stockTicker": {
+    "symbol": "HELX",
+    "price": 1673.90,
+    "change": 48.70,
+    "volume": 62000000
+  },
+  "financials": {
+    "revenue": "§812 Billion",
+    "profit": "§537 Billion",
+    "eps": "§9.14",
+    "growthYoY": "+44%"
+  },
+  "documents": [
+    {
+      "id": "q3_earnings_2071",
+      "title": "Q3 2071 Earnings Report",
+      "type": "EARNINGS_REPORT",
+      "path": "lore/documents/helixspace/earnings_q3_2071.md"
+    },
+    {
+      "id": "investor_deck_spin",
+      "title": "Infinite Spin Series Ω Investor Deck",
+      "type": "INVESTOR_DECK",
+      "path": "lore/documents/helixspace/investor_deck.md"
+    }
+  ],
+  "flavorText": [
+    "NEW HELIX RING ONLINE",
+    "40K COLONISTS ADAPTED",
+    "HELIXPRIME – STILL SPINNING"
+  ],
+  "dossier": {
+    "psychProfile": "Dr. Elara Voss is 68% augmented with a living helical neural lattice. She has a deep philosophical rift with her sister Seraphine (Veilwalker), believing Veil’s path is 'beautiful but ultimately sterile'. Secretly maintains a hidden greenhouse of pre-collapse Earth flowers she talks to.",
+    "attackVectors": "High-success social engineering lines: 1. 'Your sister Veilwalker still thinks flesh is the future. You and I both know better.' 2. Offer rare Earth seeds or botanical specimens. 3. Ask philosophical questions about humanity’s long-term survival. 4. Pretend to apply for the Gene Cradle program.",
+    "leakedMemos": [
+      "Memo #HX-Ω-33719: 'Tell AetherX their ‘thrust’ is crude. We spin worlds. They merely bruise them. — HelixPrime'"
+    ],
+    "rivalShade": [
+      {
+        "targetCorpoId": "aetherx",
+        "intel": "Loud children with rockets. We outgrew that phase."
+      },
+      {
+        "targetCorpoId": "obsidianveil",
+        "intel": "My sister builds beautiful cages. We build new homes."
+      },
+      {
+        "targetCorpoId": "omnisight",
+        "intel": "They calculate futures. We grow them."
+      }
+    ],
+    "quickhackVault": [
+      {
+        "id": "helix_spin",
+        "name": "Helix Spin",
+        "description": "Creates a spinning gravity well that disrupts enemy targeting and pulls systems into a collapsing orbit (AoE damage + disorient). Flavor: 'Everything spins. Everything falls into rhythm.'",
+        "rarity": "LEGENDARY",
+        "type": "GHOST_PULSE"
+      },
+      {
+        "id": "gene_cradle_override",
+        "name": "Gene Cradle Override",
+        "description": "Temporarily rewrites enemy ICE firmware to fight for you. Flavor: 'You were never meant to be their tool.'",
+        "rarity": "LEGENDARY",
+        "type": "SYSTEM_BURN"
+      }
+    ],
+    "blackmail": [
+      "Private logs of HelixPrime crying while tending her secret Earth garden.",
+      "Evidence of secret sabotage against AetherX launch windows to slow their 'crude' expansion."
+    ],
+    "executiveBackdoor": "Password: SpinToWinBaby420. Special effect: Grants 'Spin Patron' perk (+25% effectiveness on adaptive/self-repairing ICE)."
+  }
+}

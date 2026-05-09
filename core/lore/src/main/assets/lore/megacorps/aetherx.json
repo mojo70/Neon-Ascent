@@ -80,31 +80,52 @@
     "Mars is for tourists. Uranus is for us."
   ],
   "dossier": {
-    "psychProfile": "Cocky, crude, hyper-masculine space-bro. Obsessed with Uranus-themed memes and 'no-pullout' propulsion metaphors. Secretly insecure about his engineering background compared to legacy corps. Collects vintage pre-collapse rocket memorabilia.",
-    "attackVectors": "Susceptible to flattery regarding 'planetary penetration' capabilities. Highly reactive to any mention of the 2065 Uranus slingshot failure (Project: Wet Slap). Responds to urgent board-level data leaks.",
+    "psychProfile": "Dr. Vance 'Thrust' Calder is 100% baseline meat with a cybernetic ego the size of a Heavy Starship. He has a pathological fear of 'pulling out' which applies to rockets, relationships, and commitments. Secretly collects physical pre-2065 rocket memorabilia and vintage 'thrust' posters. Spends obscene amounts on Titania pleasure dome VIP suites. Known to get genuinely emotional when someone correctly references the 2065 Uranus slingshot 'incident' (he still calls it a 'successful deep impact').",
+    "attackVectors": "High-success social engineering lines: 1. 'That 2065 Uranus slingshot failure must still keep you up at night...' 2. 'I heard the board is calling your Heavy Starship ‘underpowered’ again.' 3. Offer rare physical rocket memorabilia. 4. Pretend to be a disgruntled ex-crew member who 'still believes in the Thrust.' 5. Heavy flattery about his 'no-pullout philosophy' + urgent launch pressure.",
     "leakedMemos": [
-      "Vance to Board: 'If I hear one more suit call the Heavy Starship 'underpowered' for deep-thrust maneuvers, I'm personally de-orbiting their penthouse.'",
-      "Internal HR: 'Reminder: Using the phrase 'No-Pullout' in official planetary acquisition contracts is strictly encouraged by the CEO.'"
+      "Memo #AX-Ω-69420: 'If I see one more analyst say our rockets are ‘compensating,’ I’m naming the next moon after their ex. We keep pounding. — Thrust'",
+      "Memo #AX-Ω-70113: 'Titania pleasure domes at 147% capacity. Tell the crew ‘morale thrusting’ is now a billable expense.'",
+      "Audio Fragment: 'They said we couldn’t do it in one thrust. Uranus knows we did.'"
     ],
     "rivalShade": [
       {
         "targetCorpoId": "panopticon",
-        "intel": "Panopticon is sitting on encrypted logs of our 2068 Titania 'incident'. If those leak, our 'zero-casualty' marketing is dead meat."
+        "intel": "That cold bastard watches everything and still can’t get laid."
+      },
+      {
+        "targetCorpoId": "microhard",
+        "intel": "They force updates. We force planetary conquest. Different kind of domination."
+      },
+      {
+        "targetCorpoId": "obsidianveil",
+        "intel": "They rewrite bodies. We rewrite orbits. One of us actually finishes the job."
+      },
+      {
+        "targetCorpoId": "omnisight",
+        "intel": "He predicts the future. We just go there and fuck it."
       }
     ],
     "quickhackVault": [
       {
-        "id": "heavy_starship_thrust",
-        "name": "Heavy Starship Thrust",
-        "description": "Massive system stun followed by continuous high-intensity data corruption. Flavor: 'Uranus knows.'",
+        "id": "uranus_saturation",
+        "name": "Uranus Saturation",
+        "description": "Continuous high-damage 'pounding' DoT for 12 seconds + massive system lag and stun. Flavor: 'Our Heavy Starship doesn’t pull out. Uranus knows.'",
+        "rarity": "LEGENDARY",
+        "type": "SYSTEM_BURN"
+      },
+      {
+        "id": "no_pullout_overload",
+        "name": "No-Pullout Overload",
+        "description": "Locks enemy ICE into a forced continuous burn — cannot disengage, cannot reboot, escalating damage. Flavor: 'Reach for the stars. Then reach deeper.'",
         "rarity": "LEGENDARY",
         "type": "SYSTEM_BURN"
       }
     ],
     "blackmail": [
-      "Leaked holo of Vance Calder in a highly compromised state at the Titania Pleasure Outpost.",
-      "Evidence of AetherX bypass codes being sold to SecuraCorp for private wetwork."
+      "Private holo of Thrust in a compromised state during a 47-day continuous Uranus operation.",
+      "Evidence of secret personal spending on 'stress relief modules' charged to the company as 'R&D'.",
+      "Personal log: 'If they ever find out how much I actually enjoy the memes… I’m done.'"
     ],
-    "executiveBackdoor": "Password: PoundUranusNoPullout420.69. Special effect: Grants 'Planetary Acquisition' admin privileges for 24 hours."
+    "executiveBackdoor": "Password: P0undUr@nu$N0Pu110ut420.69. Special effect: Grants 'Thrust Patron' perk (+20% damage on continuous DoT quickhacks + one free social engineering re-thrust)."
   }
 }
