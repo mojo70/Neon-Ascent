@@ -47,9 +47,9 @@ fun DiagnosticsScreen(
             modifier = Modifier
                 .size(220.dp)
                 .align(Alignment.CenterHorizontally),
-            onLevelUp = { type ->
-                // Log level-up event in the terminal or play a sound
-                println(">>> SYSTEM_ALERT: $type ATTRIBUTE INCREASE DETECTED <<<")
+            onLevelUp = { type, delta ->
+                // Log level-up event in the terminal or play a sound (sound/haptic handled by avatar)
+                println(">>> SYSTEM_ALERT: $type ATTRIBUTE INCREASE DETECTED (+${delta}%) <<<")
             }
         )
 

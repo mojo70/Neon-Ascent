@@ -24,66 +24,65 @@ import kotlin.random.Random
 fun HolographicAvatar(
     specialAttributes: Map<SpecialType, SpecialAttribute>,
     modifier: Modifier = Modifier,
-    onLevelUp: (SpecialType) -> Unit = {}
+    onLevelUp: (SpecialType, Int) -> Unit = { _, _ -> }
 ) {
-    val intelligence = specialAttributes[SpecialType.INTELLIGENCE] ?: SpecialAttribute(
-        type = SpecialType.INTELLIGENCE,
-        currentValue = 5,
-        percentile = 50
-    )
-    val previousPercentile = remember { mutableStateOf(intelligence.percentile) }
+    val levelUpService = rememberLevelUpService()
+    val previousValues = remember { mutableStateMapOf<SpecialType, Int>() }
 
-    val glowIntensity by animateFloatAsState(
-        targetValue = (intelligence.percentile ?: 50) / 100f,
-        animationSpec = tween(800, easing = FastOutSlowInEasing),
-        label = "glowIntensity"
-    )
-
-    // Level-up trigger
-    LaunchedEffect(intelligence.percentile) {
-        if (intelligence.percentile != null &&
-            previousPercentile.value != null &&
-            intelligence.percentile!! > previousPercentile.value!! + 5) {
-            onLevelUp(SpecialType.INTELLIGENCE)
+    // Detect level-ups across all attributes
+    specialAttributes.forEach { (type, current) ->
+        val previous = previousValues[type]
+        val currentPercentile = current.percentile ?: 50
+        if (previous != null && currentPercentile > previous + 7) {
+            levelUpService.triggerLevelUp(currentPercentile - previous)
+            onLevelUp(type, currentPercentile)
         }
-        previousPercentile.value = intelligence.percentile
+        previousValues[type] = currentPercentile
     }
+
+    val totalPower = if (specialAttributes.isEmpty()) 0.5f else {
+        specialAttributes.values.sumOf { it.percentile ?: 50 }.toFloat() / (specialAttributes.size * 100f)
+    }
+    
+    val globalIntensity by animateFloatAsState(
+        targetValue = totalPower.coerceIn(0.3f, 1f),
+        animationSpec = tween(1000, easing = FastOutSlowInEasing),
+        label = "globalIntensity"
+    )
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         // Base holographic figure
         Canvas(modifier = Modifier.fillMaxSize()) {
-            drawBaseHologram(glowIntensity)
+            drawBaseHologram(globalIntensity)
         }
 
-        // Particle system
-        ParticleSystem(
-            intensity = glowIntensity,
+        // Multi-attribute reactive particles
+        MultiAttributeParticleSystem(
+            attributes = specialAttributes,
+            globalIntensity = globalIntensity,
             modifier = Modifier.fillMaxSize()
         )
 
-        // Level-up burst overlay
-        LevelUpBurstOverlay(
-            trigger = intelligence.percentile ?: 50,
-            modifier = Modifier.fillMaxSize()
-        )
-
-        // Center Icon Placeholder
+        // Center Icon Placeholder (Reactive to dominant attribute)
+        val dominantType = specialAttributes.maxByOrNull { it.value.percentile ?: 0 }?.key ?: SpecialType.INTELLIGENCE
+        val neonColor = getNeonColorForAttribute(dominantType)
+        
         Text(
-            text = "◉",
-            style = MaterialTheme.typography.displayLarge.copy(fontSize = 80.sp),
-            color = NeonCyan.copy(alpha = 0.4f + glowIntensity * 0.6f)
+            text = dominantType.getIcon(),
+            style = MaterialTheme.typography.displayLarge.copy(fontSize = 60.sp),
+            color = neonColor.copy(alpha = 0.4f + globalIntensity * 0.6f)
         )
     }
 }
 
-private fun DrawScope.drawBaseHologram(glowIntensity: Float) {
+private fun DrawScope.drawBaseHologram(intensity: Float) {
     val center = Offset(size.width / 2, size.height / 2)
     val radius = size.minDimension / 3
 
     // Inner glow
     drawCircle(
         brush = Brush.radialGradient(
-            colors = listOf(NeonCyan.copy(alpha = 0.2f * glowIntensity), Color.Transparent),
+            colors = listOf(NeonCyan.copy(alpha = 0.2f * intensity), Color.Transparent),
             center = center,
             radius = radius * 1.5f
         ),
@@ -100,37 +99,37 @@ private fun DrawScope.drawBaseHologram(glowIntensity: Float) {
     )
 }
 
-// ==================== PARTICLE SYSTEM ====================
-
 @Composable
-private fun ParticleSystem(
-    intensity: Float,
+private fun MultiAttributeParticleSystem(
+    attributes: Map<SpecialType, SpecialAttribute>,
+    globalIntensity: Float,
     modifier: Modifier = Modifier
 ) {
-    val particles = remember { mutableStateListOf<Particle>() }
-    val density = (intensity * 45).toInt().coerceIn(8, 45)
+    val particles = remember { mutableStateListOf<AttributeParticle>() }
 
-    LaunchedEffect(density) {
+    LaunchedEffect(globalIntensity) {
         while (true) {
-            if (particles.size < density) {
-                particles.add(Particle.random())
+            val targetCount = (globalIntensity * 45).toInt().coerceIn(12, 60)
+            if (particles.size < targetCount) {
+                // Pick a type to represent based on its percentile weight
+                val types = attributes.keys.toList().ifEmpty { listOf(SpecialType.INTELLIGENCE) }
+                val randomType = types.random()
+                particles.add(AttributeParticle.random(randomType))
             }
-            delay(16) // ~60fps
+            delay(16)
         }
     }
 
     Canvas(modifier = modifier) {
-        particles.forEach { particle ->
-            particle.update()
-            drawParticle(particle)
+        particles.forEach { p ->
+            p.update()
+            drawAttributeParticle(p)
         }
-
-        // Remove dead particles
-        particles.removeAll { it.alpha <= 0f }
+        particles.removeAll { it.alpha <= 0.05f }
     }
 }
 
-private data class Particle(
+private data class AttributeParticle(
     var x: Float,
     var y: Float,
     var vx: Float,
@@ -140,15 +139,15 @@ private data class Particle(
     val color: Color
 ) {
     companion object {
-        fun random(): Particle {
-            return Particle(
-                x = Random.nextFloat() * 800f - 200f, // Random start X
-                y = Random.nextFloat() * 600f,        // Random start Y
-                vx = Random.nextFloat() * 1.2f - 0.6f,
-                vy = -Random.nextFloat() * 2.5f - 0.5f, // upward drift
+        fun random(type: SpecialType): AttributeParticle {
+            return AttributeParticle(
+                x = Random.nextFloat() * 800f - 200f,
+                y = Random.nextFloat() * 600f,
+                vx = Random.nextFloat() * 1.5f - 0.75f,
+                vy = -Random.nextFloat() * 2.5f - 0.5f,
                 alpha = Random.nextFloat() * 0.8f + 0.4f,
                 size = Random.nextFloat() * 4f + 2f,
-                color = listOf(NeonCyan, NeonPink, NeonBlue).random()
+                color = getNeonColorForAttribute(type)
             )
         }
     }
@@ -156,75 +155,21 @@ private data class Particle(
     fun update() {
         x += vx
         y += vy
-        vy += 0.08f // gravity-like pull down
-        alpha -= 0.018f
+        vy += 0.07f
+        alpha -= 0.015f
         size *= 0.985f
     }
 }
 
-private fun DrawScope.drawParticle(p: Particle) {
+private fun DrawScope.drawAttributeParticle(p: AttributeParticle) {
     drawCircle(
         color = p.color.copy(alpha = p.alpha),
         radius = p.size,
         center = Offset(p.x, p.y)
     )
-    // Optional neon glow layer
     drawCircle(
         color = p.color.copy(alpha = p.alpha * 0.3f),
         radius = p.size * 2.2f,
         center = Offset(p.x, p.y)
     )
-}
-
-@Composable
-private fun LevelUpBurstOverlay(
-    trigger: Int,
-    modifier: Modifier = Modifier
-) {
-    var burstProgress by remember { mutableFloatStateOf(0f) }
-    var showBurst by remember { mutableStateOf(false) }
-
-    LaunchedEffect(trigger) {
-        if (trigger > 0 && trigger % 10 == 0) { // every 10 percentile jump
-            showBurst = true
-            burstProgress = 0f
-            // Animate burst progress
-            animate(
-                initialValue = 0f,
-                targetValue = 1f,
-                animationSpec = tween(1000)
-            ) { value, _ ->
-                burstProgress = value
-            }
-            showBurst = false
-        }
-    }
-
-    if (showBurst) {
-        Canvas(modifier = modifier) {
-            val center = Offset(size.width / 2, size.height / 2)
-
-            // Energy ring
-            drawCircle(
-                color = NeonCyan.copy(alpha = (1 - burstProgress) * 0.6f),
-                radius = 80f + burstProgress * 200f,
-                center = center,
-                style = Stroke(width = 6f)
-            )
-
-            // Particle explosion burst
-            for (i in 0..24) {
-                val angle = (i * 15f)
-                val dist = 40f + burstProgress * 250f
-                drawCircle(
-                    color = NeonPink.copy(alpha = (1 - burstProgress) * 0.9f),
-                    radius = 4f,
-                    center = Offset(
-                        center.x + dist * kotlin.math.cos(Math.toRadians(angle.toDouble())).toFloat(),
-                        center.y + dist * kotlin.math.sin(Math.toRadians(angle.toDouble())).toFloat()
-                    )
-                )
-            }
-        }
-    }
 }
