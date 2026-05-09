@@ -17,6 +17,7 @@ import androidx.health.connect.client.PermissionController
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.feature.dashboard.DashboardViewModel
 import com.neon.ascent.data.repository.HealthRepository
+import com.neon.ascent.feature.health.data.workers.HealthSyncWorker
 import com.neon.ascent.ui.theme.NeonAscentTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -30,6 +31,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        
+        // Schedule daily health sync
+        HealthSyncWorker.scheduleDailySync(this)
+
         setContent {
             NeonAscentTheme {
                 val context = LocalContext.current

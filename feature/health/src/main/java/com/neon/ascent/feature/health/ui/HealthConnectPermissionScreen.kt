@@ -26,7 +26,7 @@ fun HealthConnectPermissionScreen(
     val scope = rememberCoroutineScope()
 
     val permissionsLauncher = rememberLauncherForActivityResult(
-        PermissionController.createActivityResultContract()
+        PermissionController.createRequestPermissionResultContract()
     ) { granted ->
         if (granted.containsAll(rationale.keys)) { // This is a simplification
             viewModel.checkPermissions()
