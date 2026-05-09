@@ -5,18 +5,19 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.core.common.NeonCyan
-import com.neon.ascent.core.common.NeonPink
-import com.neon.ascent.core.common.NeonPurple
-import com.neon.ascent.core.domain.model.SpecialAttribute
-import com.neon.ascent.core.domain.model.SpecialType
+import com.neon.ascent.core.common.NeonGreen
+import com.neon.ascent.core.common.NeonRed
+import com.neon.ascent.feature.health.ui.HealthUiState
 import com.neon.ascent.feature.health.ui.HealthViewModel
 import com.neon.ascent.feature.health.ui.SyncStatus
+import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun DiagnosticsScreen(
@@ -24,100 +25,94 @@ fun DiagnosticsScreen(
     healthViewModel: HealthViewModel = hiltViewModel()
 ) {
     val specialState by viewModel.specialState.collectAsState()
-    val isRunningTest by viewModel.isRunningTest.collectAsState()
-    val lastTestResult by viewModel.lastTestResult.collectAsState()
     val healthState by healthViewModel.uiState.collectAsState()
+    val isRunningTest by viewModel.isRunningTest.collectAsState()
+    val scope = rememberCoroutineScope()
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // Background holographic avatar (semi-transparent when testing)
+        // Header with Health Status
+        HealthStatusBanner(healthState)
+
+        Spacer(Modifier.height(24.dp))
+
+        // Holographic Avatar
         HolographicAvatar(
             specialAttributes = specialState,
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .size(280.dp)
-                .alpha(if (isRunningTest) 0.4f else 1f)
+                .size(220.dp)
+                .align(Alignment.CenterHorizontally)
         )
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = 320.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+        Spacer(Modifier.height(32.dp))
+
+        Text(
+            text = "S.P.E.C.I.A.L. CORE",
+            style = MaterialTheme.typography.headlineMedium,
+            color = NeonCyan
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        // FULL LIVE GRID
+        SpecialGrid(
+            specialAttributes = specialState,
+            modifier = Modifier.weight(1f),
+            onAttributeClick = { type ->
+                // Future: Open detailed history
+            }
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        // Intelligence Test Button
+        Button(
+            onClick = {
+                scope.launch { viewModel.runCognitiveDiagnostic() }
+            },
+            enabled = !isRunningTest,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text(
-                text = "NEURAL DIAGNOSTICS",
-                style = MaterialTheme.typography.headlineMedium,
-                color = NeonCyan,
-                fontWeight = FontWeight.Bold
-            )
+            Text(if (isRunningTest) "RUNNING NEURAL DIAGNOSTIC..." else "RUN ADAPTIVE INTELLIGENCE TEST (~10 min)")
+        }
 
-            // Current S.P.E.C.I.A.L. Overview
-            SpecialGrid(specialState)
-
-            // Intelligence Focus Card
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1A0033)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text("INTELLIGENCE CORE", color = NeonPink, fontWeight = FontWeight.Bold)
-                    Text(
-                        "Last cognitive diagnostic: ${lastTestResult?.estimatedPercentile ?: "--"}th percentile",
-                        color = Color.White.copy(alpha = 0.7f)
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Button(
-                        onClick = {
-                            viewModel.runCognitiveDiagnostic()
-                        },
-                        enabled = !isRunningTest,
-                        colors = ButtonDefaults.buttonColors(containerColor = NeonPurple),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(if (isRunningTest) "RUNNING DIAGNOSTIC..." else "RUN ADAPTIVE INTELLIGENCE TEST (≈10 min)")
-                    }
-                }
-            }
-
-            // Full Diagnostics Button (expand later for other attributes)
-            Button(
-                onClick = { healthViewModel.triggerImmediateSync() },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = healthState.syncStatus != SyncStatus.Syncing
-            ) {
-                Text(
-                    if (healthState.syncStatus == SyncStatus.Syncing) "SYNCING NEURAL DATA..."
-                    else "FORCE NEURAL SYNC (Garmin + Physical)"
-                )
-            }
-
-            if (healthState.error != null) {
-                Text(text = healthState.error!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-            }
+        // Manual Garmin Sync Button
+        OutlinedButton(
+            onClick = { healthViewModel.triggerImmediateSync() },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("FORCE GARMIN NEURAL SYNC")
         }
     }
 }
 
 @Composable
-fun SpecialGrid(specialAttributes: Map<SpecialType, SpecialAttribute>) {
-    // Placeholder for S.P.E.C.I.A.L. grid
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly
+private fun HealthStatusBanner(healthState: HealthUiState) {
+    val formatter = DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault())
+    val lastSync = healthState.lastSyncTime?.let {
+        "Last sync: ${formatter.format(it)}"
+    } ?: "No sync yet"
+
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (healthState.hasPermissions)
+                Color(0xFF00220A) else Color(0xFF220A00)
+        )
     ) {
-        SpecialType.entries.forEach { type ->
-            val attr = specialAttributes[type]
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = type.name.take(3), color = NeonCyan, style = MaterialTheme.typography.labelSmall)
-                Text(text = "${attr?.currentValue ?: "-"}", color = Color.White, fontWeight = FontWeight.Bold)
-            }
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (healthState.hasPermissions) "🟢 NEURAL LINK ACTIVE" else "⚠️ HEALTH LINK OFFLINE",
+                color = if (healthState.hasPermissions) NeonGreen else NeonRed,
+                style = MaterialTheme.typography.labelMedium
+            )
+            Spacer(Modifier.weight(1f))
+            Text(lastSync, style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.7f))
         }
     }
 }
