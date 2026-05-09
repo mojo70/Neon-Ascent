@@ -13,7 +13,16 @@
             <option value="$PROJECT_DIR$/app" />
             <option value="$PROJECT_DIR$/core" />
             <option value="$PROJECT_DIR$/core/ai-litert" />
+            <option value="$PROJECT_DIR$/core/common" />
+            <option value="$PROJECT_DIR$/core/data" />
+            <option value="$PROJECT_DIR$/core/domain" />
             <option value="$PROJECT_DIR$/core/lore" />
+            <option value="$PROJECT_DIR$/feature" />
+            <option value="$PROJECT_DIR$/feature/biohacking" />
+            <option value="$PROJECT_DIR$/feature/goals" />
+            <option value="$PROJECT_DIR$/feature/habits" />
+            <option value="$PROJECT_DIR$/feature/health" />
+            <option value="$PROJECT_DIR$/feature/notifications" />
           </set>
         </option>
       </GradleProjectSettings>
