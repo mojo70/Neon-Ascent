@@ -137,25 +137,15 @@ class ChatViewModel @Inject constructor(
             // Seed trust levels if empty
             val existingTrust = loreDao.getAllCorpoTrust().first()
             if (existingTrust.isEmpty()) {
-                val initialTrust = listOf(
-                    com.neon.ascent.model.CorpoTrust("aetherx", 0.45f),
-                    com.neon.ascent.model.CorpoTrust("panopticon", 0.12f),
-                    com.neon.ascent.model.CorpoTrust("microhard", 0.05f),
-                    com.neon.ascent.model.CorpoTrust("obsidianveil", 0.28f),
-                    com.neon.ascent.model.CorpoTrust("omnisight", 0.08f),
-                    com.neon.ascent.model.CorpoTrust("helixspace", 0.15f),
-                    com.neon.ascent.model.CorpoTrust("kagami", 0.03f),
-                    com.neon.ascent.model.CorpoTrust("neobank", 0.21f),
-                    com.neon.ascent.model.CorpoTrust("vitasynth", 0.18f),
-                    com.neon.ascent.model.CorpoTrust("securacorp", 0.05f),
-                    com.neon.ascent.model.CorpoTrust("aegis", 0.11f),
-                    com.neon.ascent.model.CorpoTrust("spectramedia", 0.35f)
-                )
+                val initialTrust = _megacorps.value.map { 
+                    com.neon.ascent.model.CorpoTrust(it.id, 0.0f)
+                }
                 initialTrust.forEach { loreDao.insertCorpoTrust(it) }
             }
 
             if (chatSessions.value.isEmpty()) {
                 PREDEFINED_FIXERS.forEach { fixer ->
+                    // Only add street fixers, not corporate CEOs
                     if (fixer.name != "Thrust") {
                         addContact(fixer.name, isFixer = true)
                     }

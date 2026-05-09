@@ -92,7 +92,28 @@ fun NetworkHubScreen(
                 },
                 onAttack = { viewModel.startPcapChallenge(tier, SkillType.ANALYSIS) },
                 onViewDeck = { showingInvestorDeck = true },
-                onViewDossier = { selectedDossierCorpId = selectedCorpo?.name?.lowercase() ?: "" },
+                onViewDossier = { selectedDossierCorpId = selectedCorpo?.name?.lowercase()?.replace(" ", "") ?: "" },
+                onConnectCeo = { 
+                    val corpId = selectedCorpo?.name?.lowercase()?.replace(" ", "") ?: ""
+                    val handle = when(corpId) {
+                        "aetherx" -> "Thrust"
+                        "panopticon" -> "TheEye"
+                        "microhard" -> "Dominus"
+                        "obsidianveil" -> "Veilwalker"
+                        "omnisight" -> "AllSeer"
+                        "helixspace" -> "HelixPrime"
+                        "kagamiheavyindustries" -> "Kage"
+                        "neobank" -> "VaultLord"
+                        "spectramedia" -> "SpectraLord"
+                        "vitasynth" -> "VitalLord"
+                        "securacorp" -> "IronCommand"
+                        "aegisarmaments" -> "AegisPrime"
+                        else -> null
+                    }
+                    if (handle != null) {
+                        chatViewModel.addContact(handle, isFixer = true)
+                    }
+                },
                 onBypass = { user, pwd -> viewModel.bypassBlackIce(selectedCorpo!!.name, user, pwd) }
             )
         } else {
@@ -211,7 +232,11 @@ fun ChatListArea(
         }
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (megacorps.isNotEmpty()) {
+            val sessionsWithCorps = megacorps.filter { corp ->
+                sessions.any { it.contactName == corp.ceo.netHandle }
+            }
+            
+            if (sessionsWithCorps.isNotEmpty()) {
                 item {
                     Text(
                         "// EXECUTIVE_CONTACTS",
@@ -222,13 +247,12 @@ fun ChatListArea(
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
                 }
-                items(megacorps) { corp ->
+                items(sessionsWithCorps) { corp ->
                     CeoContactCard(
                         megacorp = corp,
                         trustLevel = trustMap[corp.id] ?: 0f,
                         onMessageClick = { 
                             val handle = corp.ceo.netHandle ?: "UNKNOWN"
-                            viewModel.addContact(handle, isFixer = true)
                             onContactClick(handle)
                         },
                         onProfileClick = { onDossierClick(corp.id) }
@@ -247,7 +271,11 @@ fun ChatListArea(
                 )
             }
 
-            items(sessions) { session ->
+            val otherSessions = sessions.filter { session ->
+                megacorps.none { it.ceo.netHandle == session.contactName }
+            }
+
+            items(otherSessions) { session ->
                 ChatSessionItem(session) { onContactClick(session.contactName) }
             }
         }
@@ -880,6 +908,7 @@ fun CorpoDetailView(
     onAttack: () -> Unit,
     onViewDeck: () -> Unit,
     onViewDossier: () -> Unit,
+    onConnectCeo: () -> Unit,
     onBypass: (String, String) -> Boolean
 ) {
     var showLoginDialog by remember { mutableStateOf(false) }
@@ -1026,7 +1055,20 @@ fun CorpoDetailView(
                 Text(corpo.profile, color = Color.White, fontSize = 12.sp)
                 if (corpo.ceo.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("CEO: ${corpo.ceo}", color = Color(0xFF00CCFF), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("CEO: ${corpo.ceo}", color = Color(0xFF00CCFF), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Button(
+                            onClick = onConnectCeo,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9F).copy(alpha = 0.2f)),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF00FF9F))
+                        ) {
+                            Text("CONNECT_GRID", color = Color(0xFF00FF9F), fontSize = 10.sp)
+                        }
+                    }
                 }
             }
         }
