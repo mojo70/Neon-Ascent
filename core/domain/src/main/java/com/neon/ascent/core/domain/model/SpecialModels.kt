@@ -13,7 +13,17 @@ data class SpecialAttribute(
 )
 
 enum class SpecialType {
-    STRENGTH, PERCEPTION, ENDURANCE, CHARISMA, INTELLIGENCE, AGILITY, LUCK
+    STRENGTH, PERCEPTION, ENDURANCE, CHARISMA, INTELLIGENCE, AGILITY, LUCK;
+
+    fun getIcon(): String = when (this) {
+        STRENGTH -> "💪"
+        PERCEPTION -> "👁"
+        ENDURANCE -> "🛡️"
+        CHARISMA -> "🗣"
+        INTELLIGENCE -> "🧠"
+        AGILITY -> "⚡"
+        LUCK -> "🍀"
+    }
 }
 
 /** Raw benchmark / test result - stored for history & re-testing */

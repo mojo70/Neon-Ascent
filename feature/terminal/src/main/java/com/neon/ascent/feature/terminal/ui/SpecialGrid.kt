@@ -88,7 +88,7 @@ private fun SpecialAttributeCard(
                 // Attribute Name + Icon
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = getAttributeIcon(attribute.type),
+                        text = attribute.type.getIcon(),
                         style = MaterialTheme.typography.titleLarge,
                         color = neonColor
                     )
@@ -144,16 +144,6 @@ private fun getNeonColorForAttribute(type: SpecialType): Color = when (type) {
     SpecialType.INTELLIGENCE -> NeonCyan
     SpecialType.AGILITY -> NeonBlue
     SpecialType.LUCK -> NeonYellow
-}
-
-private fun getAttributeIcon(type: SpecialType): String = when (type) {
-    SpecialType.STRENGTH -> "💪"
-    SpecialType.PERCEPTION -> "👁"
-    SpecialType.ENDURANCE -> "🛡️"
-    SpecialType.CHARISMA -> "🗣"
-    SpecialType.INTELLIGENCE -> "🧠"
-    SpecialType.AGILITY -> "⚡"
-    SpecialType.LUCK -> "🍀"
 }
 
 private fun defaultAttribute(type: SpecialType) = SpecialAttribute(

@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.neon.ascent.core.data.datastore.HealthPreferencesDataStore
+import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.core.domain.special.usecases.UpdateSpecialFromHealthUseCase
 import com.neon.ascent.feature.health.data.HealthConnectManager
 import com.neon.ascent.feature.health.data.workers.HealthSyncWorker
@@ -129,9 +130,40 @@ class HealthViewModel @Inject constructor(
         viewModelScope, SharingStarted.WhileSubscribed(5000), 8
     )
 
+    val enabledAttributes = healthPrefs.enabledAttributes.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet()
+    )
+
+    val showSyncNotification = healthPrefs.showSyncNotification.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), false
+    )
+
     fun setAutoSyncEnabled(enabled: Boolean) {
         viewModelScope.launch {
             healthPrefs.setAutoSyncEnabled(enabled)
+            if (enabled) {
+                HealthSyncWorker.scheduleDailySync(context)
+            }
+        }
+    }
+
+    fun setSyncIntervalHours(hours: Int) {
+        viewModelScope.launch { healthPrefs.setSyncIntervalHours(hours) }
+    }
+
+    fun setEnabledAttributes(attributes: Set<SpecialType>) {
+        viewModelScope.launch { healthPrefs.setEnabledAttributes(attributes) }
+    }
+
+    fun setShowSyncNotification(enabled: Boolean) {
+        viewModelScope.launch { healthPrefs.setShowSyncNotification(enabled) }
+    }
+
+    fun resetHealthPreferences() {
+        viewModelScope.launch {
+            healthPrefs.clearAll()
+            _uiState.update { HealthUiState() }
+            checkInitialHealthStatus()
         }
     }
 }

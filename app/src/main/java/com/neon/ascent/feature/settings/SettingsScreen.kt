@@ -78,7 +78,8 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     onBack: () -> Unit,
     onResetComplete: () -> Unit,
-    onDeepNodeUnlock: () -> Unit
+    onDeepNodeUnlock: () -> Unit,
+    onNavigateToHealthPreferences: () -> Unit
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -226,6 +227,11 @@ fun SettingsScreen(
                     } else {
                         DeviceStatusCard("HEALTH_CONNECT_API", "OPTIMAL", "CONNECTED // SYNCED")
                     }
+
+                    SettingsItem("HEALTH & BIOMETRICS CONFIG", onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onNavigateToHealthPreferences()
+                    })
                     
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(

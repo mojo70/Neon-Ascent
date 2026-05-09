@@ -78,4 +78,7 @@ sealed interface Screen {
 
     @Serializable
     data class AttributeDetail(val attributeName: String) : Screen
+
+    @Serializable
+    data object HealthPreferences : Screen
 }

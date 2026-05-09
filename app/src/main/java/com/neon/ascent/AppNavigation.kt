@@ -40,6 +40,7 @@ import com.neon.ascent.feature.loading.LoadingScreen
 import com.neon.ascent.feature.library.EReaderScreen
 import com.neon.ascent.feature.settings.DeepNodeScreen
 import com.neon.ascent.feature.settings.SettingsScreen
+import com.neon.ascent.feature.health.ui.HealthPreferencesScreen
 import com.neon.ascent.feature.wallet.EurodollarWalletScreen
 import com.neon.ascent.ui.cyberGlitch
 
@@ -279,8 +280,15 @@ fun AppNavigation(
                 },
                 onDeepNodeUnlock = {
                     navController.navigate(Screen.DeepNode("ROOT"))
+                },
+                onNavigateToHealthPreferences = {
+                    navController.navigate(Screen.HealthPreferences)
                 }
             )
+        }
+
+        composable<Screen.HealthPreferences> {
+            HealthPreferencesScreen()
         }
 
         composable<Screen.DeepNode> { backStackEntry ->
