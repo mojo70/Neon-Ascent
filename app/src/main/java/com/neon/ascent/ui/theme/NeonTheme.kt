@@ -25,6 +25,9 @@ data class NeonThemeData(
             "helixspace" -> Color(0xFF00FF9C) // Emerald Green
             "kagami" -> Color(0xFFFF3131) // Crimson Red
             "neobank" -> Color(0xFFFFD700) // Gold
+            "vitasynth" -> Color(0xFF00FF9F) // Neon Green / Vital
+            "securacorp" -> Color(0xFF555555) // Iron Gray
+            "aegis" -> Color(0xFFFF8C00) // Dark Orange / Forge
             else -> primary
         }
     }

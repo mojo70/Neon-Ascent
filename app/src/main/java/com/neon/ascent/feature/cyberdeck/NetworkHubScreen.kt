@@ -678,13 +678,36 @@ fun CorpoNodesArea(viewModel: CyberdeckViewModel, bypassed: Set<String>, onCorpo
             CorpoNode(
                 name = "Aegis Armaments",
                 ticker = "AEGS",
-                slogan = "Total Protection through Superior Firepower",
-                profile = "Personal and corporate defense solutions. If it doesn't fire 6000 rounds per minute, it's not Aegis. Protecting your assets with hot lead.",
+                slogan = "Shield and Sword. No mercy. No refunds.",
+                profile = "The premier heavy weapons manufacturer and defense contractor for the solar system. While Kagami and SecuraCorp provide the boots on the ground, Aegis builds the big guns — railguns, orbital strike platforms, and powered armor.",
                 securityTier = DifficultyTier.OPERATIVE,
-                stockPrice = 275.90,
-                stockChange = 12.45,
-                stockChangePercent = 4.7,
-                marketCap = "§1.2 Trillion"
+                stockPrice = 2945.70,
+                stockChange = 104.30,
+                stockChangePercent = 3.67,
+                marketCap = "§5.8 Trillion",
+                ceo = "Col. Valeria 'Forge' Kane",
+                highlights = listOf(
+                    "2057 - Deployed first Titan-Class powered armor.",
+                    "2063 - Developed Orbital Lance railgun network.",
+                    "2068 - Supplied both sides of the 'Phobos Incident'.",
+                    "2070 - Launched Warforge on-demand weapon printing."
+                ),
+                earningsReport = """
+                    AEGIS ARMAMENTS (AEGS) Q3 2071 Earnings Transmission
+                    Net Revenue: §1.52 Trillion ▲ +43% YoY
+                    Adjusted Destruction Profit: §1.08 Trillion ▲ +66%
+                    EPS: §14.21 | CEO: AegisPrime
+                    
+                    [DIVISIONAL PERFORMANCE]
+                    • Titan Forge: §623B (+61%)
+                    • Orbital Lance: §425B (+12%)
+                    • Warforge Systems: §258B (+84%)
+                    • Exotic Ordnance: §152B (+21%)
+                    • Client Retention: §61B (+5%)
+                    
+                    [CEO STATEMENT - AEGISPRIME]
+                    "Another quarter of superior firepower. The galaxy stays safe because we make it dangerous."
+                """.trimIndent()
             ),
             CorpoNode(
                 name = "NeoBank",
@@ -734,24 +757,71 @@ fun CorpoNodesArea(viewModel: CyberdeckViewModel, bypassed: Set<String>, onCorpo
             CorpoNode(
                 name = "VitaSynth",
                 ticker = "VITA",
-                slogan = "Synthesizing a Better You",
-                profile = "Genetic modifications and synthetic organ replacement. Dying is now a subscription service.",
+                slogan = "Live longer. Pay forever.",
+                profile = "The megacorp that turned death into a subscription service. VitaSynth doesn’t just sell medicine — they sell extended life, designer neurotransmitters, black-market augmentations, and proprietary organ reprints.",
                 securityTier = DifficultyTier.GHOST,
-                stockPrice = 432.15,
-                stockChange = 21.60,
-                stockChangePercent = 5.3,
-                marketCap = "§1.9 Trillion"
+                stockPrice = 2874.60,
+                stockChange = 98.40,
+                stockChangePercent = 3.54,
+                marketCap = "§4.2 Trillion",
+                ceo = "Dr. Isolde 'Eternal' Voss",
+                highlights = listOf(
+                    "2054 - Longevity Serum v1 released (adds 40 years).",
+                    "2061 - Launched OrganForge cloned organ printing.",
+                    "2066 - Developed NeuroBliss designer emotion line.",
+                    "2069 - Integrated IP from three rival pharma corps.",
+                    "2070 - Rolled out Eternal Youth Protocol for elite clients."
+                ),
+                earningsReport = """
+                    VITASYNTH (VITA) Q3 2071 Earnings Transmission
+                    Net Revenue: §1.41 Trillion ▲ +49% YoY
+                    Adjusted Lifespan Profit: §983 Billion ▲ +64%
+                    EPS: §13.91 | CEO: VitalLord
+                    
+                    [DIVISIONAL PERFORMANCE]
+                    • Longevity Labs: §648B (+52%)
+                    • OrganForge: §381B (+44%)
+                    • NeuroBliss: §211B (+12%)
+                    • Augment Int.: §127B (+22%)
+                    • Eternal Care: §42B (+95%)
+                    
+                    [CEO STATEMENT - VITALLORD]
+                    "Another quarter of extended profitability. Your continued survival is important to our bottom line."
+                """.trimIndent()
             ),
             CorpoNode(
                 name = "SecuraCorp",
                 ticker = "SECU",
-                slogan = "Safe. Secure. Silent.",
-                profile = "High-end private security and 'cleanup' operations. We don't just protect; we erase the problem.",
-                securityTier = DifficultyTier.NETRUNNER,
-                stockPrice = 754.30,
-                stockChange = -2.10,
-                stockChangePercent = -0.3,
-                marketCap = "§2.8 Trillion"
+                slogan = "Protection has a price. Obedience is free.",
+                profile = "The premier private military, policing, and corporate security megacorp. When governments are too weak and other corps need plausible deniability, SecuraCorp deploys. They run black-site prisons, orbital strike teams, and riot suppression across the solar system.",
+                securityTier = DifficultyTier.BLACK_ICE,
+                stockPrice = 2671.40,
+                stockChange = 84.70,
+                stockChangePercent = 3.27,
+                marketCap = "§5.8 Trillion",
+                ceo = "General Marcus 'Iron' Kane",
+                highlights = listOf(
+                    "2059 - Crushed the Berlin Sprawl Uprising in 72 hours.",
+                    "2064 - Established the first Orbital Penitentiary Network.",
+                    "2068 - Acquired Aegis Armaments’ ground forces division.",
+                    "2070 - Deployed Iron Mandate Protocol in 19 city-states."
+                ),
+                earningsReport = """
+                    SECURECORP (SECU) Q3 2071 Earnings Transmission
+                    Net Revenue: §1.29 Trillion ▲ +41% YoY
+                    Adjusted Pacification Profit: §847 Billion ▲ +59%
+                    EPS: §11.84 | CEO: IronCommand
+                    
+                    [DIVISIONAL PERFORMANCE]
+                    • Iron Mandate: §554B (+45%)
+                    • Void Strike: §374B (+32%)
+                    • Black-Site Mgmt: §193B (+12%)
+                    • Asset Protection: §116B (+21%)
+                    • Compliance Tech: §52B (+95%)
+                    
+                    [CEO STATEMENT - IRONCOMMAND]
+                    "Another quarter of restored order. The streets are quiet because we made them quiet."
+                """.trimIndent()
             )
         )
     }

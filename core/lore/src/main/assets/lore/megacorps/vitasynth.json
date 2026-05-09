@@ -1,0 +1,156 @@
+{
+  "id": "vitasynth",
+  "name": "VitaSynth",
+  "slogan": "Live longer. Pay forever.",
+  "motto": "The patch for your biological expiration date.",
+  "description": "The megacorp that turned death into a subscription service. VitaSynth doesn’t just sell medicine — they sell extended life, designer neurotransmitters, and proprietary organ reprints.",
+  "ceo": {
+    "name": "Dr. Isolde 'Eternal' Voss",
+    "netHandle": "VitalLord",
+    "title": "VitalLord",
+    "personality": "clinical_seductive",
+    "gemmaPromptPath": "lore/ceo_prompts/vitasynth.txt"
+  },
+  "achievements": [
+    {
+      "year": "2054",
+      "title": "Longevity Serum v1",
+      "description": "Added 40 years to average lifespan."
+    },
+    {
+      "year": "2061",
+      "title": "OrganForge Launch",
+      "description": "On-demand cloned organs with subscription upgrades."
+    },
+    {
+      "year": "2066",
+      "title": "NeuroBliss Line",
+      "description": "Developed designer emotions legal in 41 jurisdictions."
+    },
+    {
+      "year": "2069",
+      "title": "Pharma Consolidation",
+      "description": "Acquired three rival pharma corps and integrated their research IP."
+    },
+    {
+      "year": "2070",
+      "title": "Eternal Youth Protocol",
+      "description": "Rolled out the Eternal Youth Protocol for elite clients."
+    }
+  ],
+  "divisions": [
+    {
+      "name": "Longevity Labs",
+      "focus": "Life extension & anti-aging",
+      "revenueShare": 0.46,
+      "tagline": "Death is optional.",
+      "revenue": "§648B",
+      "growth": "+52%"
+    },
+    {
+      "name": "OrganForge",
+      "focus": "Custom organ & limb printing",
+      "revenueShare": 0.27,
+      "tagline": "Grow what you need.",
+      "revenue": "§381B",
+      "growth": "+44%"
+    },
+    {
+      "name": "NeuroBliss",
+      "focus": "Designer drugs & mood sculpting",
+      "revenueShare": 0.15,
+      "tagline": "Feel exactly what we want.",
+      "revenue": "§211B",
+      "growth": "+12%"
+    },
+    {
+      "name": "Augment Integration",
+      "focus": "Biotech synergy",
+      "revenueShare": 0.09,
+      "tagline": "Meat and chrome, perfected.",
+      "revenue": "§127B",
+      "growth": "+22%"
+    },
+    {
+      "name": "Eternal Care",
+      "focus": "Subscription healthcare",
+      "revenueShare": 0.03,
+      "tagline": "Cancel anytime… if you dare.",
+      "revenue": "§42B",
+      "growth": "+95%"
+    }
+  ],
+  "stockTicker": {
+    "symbol": "VITA",
+    "price": 2874.60,
+    "change": 98.40,
+    "volume": 31000000
+  },
+  "financials": {
+    "revenue": "§1.41 Trillion",
+    "profit": "§983 Billion",
+    "eps": "§13.91",
+    "growthYoY": "+49%"
+  },
+  "documents": [
+    {
+      "id": "q3_earnings_2071",
+      "title": "Q3 2071 Earnings Report",
+      "type": "EARNINGS_REPORT",
+      "path": "lore/documents/vitasynth/earnings_q3_2071.md"
+    },
+    {
+      "id": "investor_deck_immortality",
+      "title": "Immortality Series Ω Investor Deck",
+      "type": "INVESTOR_DECK",
+      "path": "lore/documents/vitasynth/investor_deck.md"
+    }
+  ],
+  "flavorText": [
+    "ETERNAL YOUTH v4.2 LIVE",
+    "ORGANFORGE BACKORDERS FULL",
+    "VITALLORD – LIVE LONGER. PAY FOREVER"
+  ],
+  "dossier": {
+    "psychProfile": "Dr. Isolde Voss is 94% augmented with proprietary VitaSynth organs. Claims she hasn’t aged since 2051. Obsessed with legacy and perfecting the human vessel. Secretly maintains a private collection of pre-collapse human remains for 'research'. Sibling rivalry with Seraphine and Elara.",
+    "attackVectors": "High-success social engineering lines: 1. Pose as ultra-wealthy seeking Eternal Youth. 2. Offer rare pre-collapse DNA samples. 3. Discuss philosophical questions about true immortality. 4. Reference her siblings in a flattering way.",
+    "leakedMemos": [
+      "Memo #VS-Ω-42069: 'AetherX crews keep dying young. Offer them discounted Longevity contracts post-mission. High margin.'"
+    ],
+    "rivalShade": [
+      {
+        "targetCorpoId": "obsidianveil",
+        "intel": "My sister makes them pretty. I make them last."
+      },
+      {
+        "targetCorpoId": "helixspace",
+        "intel": "They grow habitats. We grow lifespans."
+      },
+      {
+        "targetCorpoId": "neobank",
+        "intel": "They own your money. We own your remaining heartbeats."
+      }
+    ],
+    "quickhackVault": [
+      {
+        "id": "neurobliss_overdose",
+        "name": "NeuroBliss Overdose",
+        "description": "Floods enemy systems with euphoria (massive stun + random behavior + self-damage over time). Flavor: 'This will feel wonderful… for about 8 seconds.'",
+        "rarity": "LEGENDARY",
+        "type": "SYSTEM_BURN"
+      },
+      {
+        "id": "organforge_rewrite",
+        "name": "OrganForge Rewrite",
+        "description": "Temporarily hijacks enemy cyberware/organs to work against them. Flavor: 'Your body is now property of VitaSynth.'",
+        "rarity": "LEGENDARY",
+        "type": "GHOST_PULSE"
+      }
+    ],
+    "blackmail": [
+      "Evidence that VitalLord shortening lifespans of 'unprofitable' clients.",
+      "Private logs of her experimenting on Voss family members."
+    ],
+    "executiveBackdoor": "Password: L1v3L0ng3rP4yF0r3v3r_69. Special effect: Grants §220,000 Eddies + 'VitalLord Patron' perk (+20% healing)."
+  }
+}

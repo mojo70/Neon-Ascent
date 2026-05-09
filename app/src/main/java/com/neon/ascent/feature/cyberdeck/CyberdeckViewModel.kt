@@ -140,10 +140,25 @@ class CyberdeckViewModel @Inject constructor(
                 InvestorSlide("THE VISION", "Debt is the truest form of loyalty.", "We don't just bank assets; we bank futures. The solar system's premier weaponized financial institution."),
                 InvestorSlide("OUR SOLUTION", "Eternal Debt + Credit Nexus", "Loans that last generations and credit scores that dictate your legal reality.\n\nCore Offerings: Eternal Debt Instruments & NeoVault Zero")
             )
+            "vitasynth" -> listOf(
+                InvestorSlide("VITASYNTH", "Immortality Series Ω", "Presented by Dr. Isolde “Eternal” Voss – VitalLord\nOctober 2071"),
+                InvestorSlide("THE VISION", "Death is a bug.", "We don't just sell medicine; we sell time. The premier destination for the post-biological elite."),
+                InvestorSlide("OUR SOLUTION", "Longevity + OrganForge", "Longevity Serum, high-performance reprints, and NeuroBliss mood sculpting.")
+            )
             "kagami" -> listOf(
                 InvestorSlide("KAGAMI HEAVY INDUSTRIES", "Blade Protocol Series Ω", "Presented by Ryūji “Kage” Nakamura\nOctober 2071"),
                 InvestorSlide("THE VISION", "Honor is obsolete.", "The iron fist of the corporate world. We don't just secure assets; we eliminate threats."),
                 InvestorSlide("OUR SOLUTION", "Shadow Grid + Void Strike", "Neo-feudal corporate warriors, monomolecular blades, and orbital-drop strike teams.")
+            )
+            "securacorp" -> listOf(
+                InvestorSlide("SECURECORP", "Pacification Series Ω", "Presented by General Marcus “Iron” Kane – IronCommand\nOctober 2071"),
+                InvestorSlide("THE VISION", "Protection has a price. Obedience is free.", "Order through superior force. Freedom is a security risk. The solar system's premier private military force."),
+                InvestorSlide("OUR SOLUTION", "Iron Mandate + Void Strike", "Private policing, orbital rapid deployment, and asset protection.")
+            )
+            "aegis" -> listOf(
+                InvestorSlide("AEGIS ARMAMENTS", "Firepower Series Ω", "Presented by Colonel Valeria “Forge” Kane – AegisPrime\nOctober 2071"),
+                InvestorSlide("THE VISION", "Shield and Sword. No mercy. No refunds.", "The premier heavy weapons manufacturer. We fund conflicts just to sell solutions."),
+                InvestorSlide("OUR SOLUTION", "The Titan Forge + Orbital Lance", "Titan-Class warframes, Orbital Lance railgun platforms, and Warforge weapon printing.")
             )
             "omnisight" -> listOf(
                 InvestorSlide("OMNISIGHT", "Certainty Series Ω", "Presented by Dr. Lucian Crowe – AllSeer\nOctober 2071"),
@@ -211,8 +226,23 @@ class CyberdeckViewModel @Inject constructor(
             _bypassedBlackIce.update { it + corpoName }
             return true
         }
+        if (corpoName == "VitaSynth" && username == "VitalLord" && password == "L1v3L0ng3rP4yF0r3v3r_69") {
+            grantBypassRewards(DifficultyTier.GHOST)
+            _bypassedBlackIce.update { it + corpoName }
+            return true
+        }
         if (corpoName == "Kagami Heavy Industries" && username == "Kage" && password == "KageBladeN0Mercy6969") {
             grantBypassRewards(DifficultyTier.BLACK_ICE)
+            _bypassedBlackIce.update { it + corpoName }
+            return true
+        }
+        if (corpoName == "SecuraCorp" && username == "IronCommand" && password == "1r0nF1stN0M3rcy_6969") {
+            grantBypassRewards(DifficultyTier.BLACK_ICE)
+            _bypassedBlackIce.update { it + corpoName }
+            return true
+        }
+        if (corpoName == "Aegis Armaments" && username == "AegisPrime" && password == "F0rg3d1nF1r3N0R3tr3at_69") {
+            grantBypassRewards(DifficultyTier.OPERATIVE)
             _bypassedBlackIce.update { it + corpoName }
             return true
         }

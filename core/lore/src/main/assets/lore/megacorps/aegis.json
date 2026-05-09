@@ -1,0 +1,151 @@
+{
+  "id": "aegis",
+  "name": "Aegis Armaments",
+  "slogan": "Shield and Sword. No mercy. No refunds.",
+  "motto": "The galaxy stays safe because we make it dangerous.",
+  "description": "The premier heavy weapons manufacturer and defense contractor. While Kagami and SecuraCorp provide the boots on the ground, Aegis builds the big guns — railguns, orbital strike platforms, next-gen powered armor, and exotic ordnance.",
+  "ceo": {
+    "name": "Colonel Valeria 'Forge' Kane",
+    "netHandle": "AegisPrime",
+    "title": "AegisPrime",
+    "personality": "battle_hardened_commander",
+    "gemmaPromptPath": "lore/ceo_prompts/aegis.txt"
+  },
+  "achievements": [
+    {
+      "year": "2057",
+      "title": "Titan-Class Deployment",
+      "description": "Deployed the first Aegis Titan-Class powered armor suits."
+    },
+    {
+      "year": "2063",
+      "title": "Orbital Lance Development",
+      "description": "Developed the Orbital Lance railgun platform (now in orbit around 7 major colonies)."
+    },
+    {
+      "year": "2068",
+      "title": "Phobos Incident Supply",
+      "description": "Supplied both sides of the 'Phobos Incident' (maximum profit, zero questions)."
+    },
+    {
+      "year": "2070",
+      "title": "Warforge Initiative",
+      "description": "Launched on-demand weapon printing for corporate clients."
+    }
+  ],
+  "divisions": [
+    {
+      "name": "Titan Forge",
+      "focus": "Powered armor & warframes",
+      "revenueShare": 0.41,
+      "tagline": "Wear victory.",
+      "revenue": "§623B",
+      "growth": "+61%"
+    },
+    {
+      "name": "Orbital Lance",
+      "focus": "Space-to-ground weaponry",
+      "revenueShare": 0.28,
+      "tagline": "We strike from heaven.",
+      "revenue": "§425B",
+      "growth": "+12%"
+    },
+    {
+      "name": "Warforge Systems",
+      "focus": "Rapid-deployment printers",
+      "revenueShare": 0.17,
+      "tagline": "Need it yesterday? Print it now.",
+      "revenue": "§258B",
+      "growth": "+84%"
+    },
+    {
+      "name": "Exotic Ordnance",
+      "focus": "Experimental tech",
+      "revenueShare": 0.10,
+      "tagline": "Too dangerous for most. Perfect for us.",
+      "revenue": "§152B",
+      "growth": "+21%"
+    },
+    {
+      "name": "Client Retention",
+      "focus": "Arms deals",
+      "revenueShare": 0.04,
+      "tagline": "Peace is bad for business.",
+      "revenue": "§61B",
+      "growth": "+5%"
+    }
+  ],
+  "stockTicker": {
+    "symbol": "AEGS",
+    "price": 2945.70,
+    "change": 104.30,
+    "volume": 48000000
+  },
+  "financials": {
+    "revenue": "§1.52 Trillion",
+    "profit": "§1.08 Trillion",
+    "eps": "§14.21",
+    "growthYoY": "+43%"
+  },
+  "documents": [
+    {
+      "id": "q3_earnings_2071",
+      "title": "Q3 2071 Earnings Report",
+      "type": "EARNINGS_REPORT",
+      "path": "lore/documents/aegis/earnings_q3_2071.md"
+    },
+    {
+      "id": "investor_deck_firepower",
+      "title": "Firepower Series Ω Investor Deck",
+      "type": "INVESTOR_DECK",
+      "path": "lore/documents/aegis/investor_deck.md"
+    }
+  ],
+  "flavorText": [
+    "TITAN SUIT v9.1 SOLD OUT",
+    "ORBITAL LANCE RECHARGED",
+    "AEGISPRIME – SHIELD AND SWORD"
+  ],
+  "dossier": {
+    "psychProfile": "Colonel Valeria 'Forge' Kane is 87% military cyberware with a modular weapon platform for a right arm. Hardened ex-SecuraCorp commander. Intense sibling rivalry with Marcus 'Iron' Kane. Collects and tests banned/experimental weapons in private arenas.",
+    "attackVectors": "Social engineering strategies: 1. Show deep weapons tech knowledge. 2. Offer rare pre-collapse military prototypes. 3. Poke at sibling rivalry with IronCommand. 4. Pose as high-volume black-market dealer.",
+    "leakedMemos": [
+      "Memo #AA-Ω-7742: 'Sell to both sides. War is profitable. Loyalty is expensive.'"
+    ],
+    "rivalShade": [
+      {
+        "targetCorpoId": "kagami",
+        "intel": "They sell honor. We sell results."
+      },
+      {
+        "targetCorpoId": "securacorp",
+        "intel": "My brother plays at security. We build the real weapons."
+      },
+      {
+        "targetCorpoId": "aetherx",
+        "intel": "Rockets are cute. Try a railgun."
+      }
+    ],
+    "quickhackVault": [
+      {
+        "id": "orbital_lance_strike",
+        "name": "Orbital Lance Strike",
+        "description": "Precision high-damage orbital beam that pierces multiple layers of ICE. Flavor: 'Firing from the heavens.'",
+        "rarity": "LEGENDARY",
+        "type": "SYSTEM_BURN"
+      },
+      {
+        "id": "titan_overload",
+        "name": "Titan Overload",
+        "description": "Temporarily turns enemy cyberware against them (overheats weapons, forces self-fire). Flavor: 'Your armor betrays you.'",
+        "rarity": "LEGENDARY",
+        "type": "GHOST_PULSE"
+      }
+    ],
+    "blackmail": [
+      "Evidence of Aegis selling restricted weapons to terrorist cells for testing.",
+      "Private recordings of Forge testing illegal ordnance on live subjects."
+    ],
+    "executiveBackdoor": "Password: F0rg3d1nF1r3N0R3tr3at_69. Special effect: Grants §280,000 Eddies + 'AegisPrime Patron' perk (+25% heavy damage)."
+  }
+}

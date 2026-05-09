@@ -1,0 +1,151 @@
+{
+  "id": "securacorp",
+  "name": "SecuraCorp",
+  "slogan": "Protection has a price. Obedience is free.",
+  "motto": "Order through superior force.",
+  "description": "The premier private military, policing, and corporate security megacorp. When governments are too weak and other corps need plausible deniability, SecuraCorp deploys. They run black-site prisons, orbital strike teams, and riot suppression across the solar system.",
+  "ceo": {
+    "name": "General Marcus 'Iron' Kane",
+    "netHandle": "IronCommand",
+    "title": "IronCommand",
+    "personality": "military_warlord",
+    "gemmaPromptPath": "lore/ceo_prompts/securacorp.txt"
+  },
+  "achievements": [
+    {
+      "year": "2059",
+      "title": "Berlin Sprawl Uprising",
+      "description": "Crushed the uprising in 72 hours."
+    },
+    {
+      "year": "2064",
+      "title": "Orbital Penitentiary Network",
+      "description": "Established the first network with zero escapes officially."
+    },
+    {
+      "year": "2068",
+      "title": "Aegis Acquisition",
+      "description": "Acquired Aegis Armaments’ ground forces division."
+    },
+    {
+      "year": "2070",
+      "title": "Iron Mandate Protocol",
+      "description": "Deployed as the de-facto police force for 19 major city-states."
+    }
+  ],
+  "divisions": [
+    {
+      "name": "Iron Mandate",
+      "focus": "Private policing",
+      "revenueShare": 0.43,
+      "tagline": "Order through superior force.",
+      "revenue": "§554B",
+      "growth": "+45%"
+    },
+    {
+      "name": "Void Strike",
+      "focus": "Orbital rapid deployment",
+      "revenueShare": 0.29,
+      "tagline": "We drop from heaven. You drop to hell.",
+      "revenue": "§374B",
+      "growth": "+32%"
+    },
+    {
+      "name": "Black-Site Management",
+      "focus": "Prisons & interrogation",
+      "revenueShare": 0.15,
+      "tagline": "No one leaves unchanged.",
+      "revenue": "§193B",
+      "growth": "+12%"
+    },
+    {
+      "name": "Asset Protection",
+      "focus": "Corporate security",
+      "revenueShare": 0.09,
+      "tagline": "Your property. Our bullets.",
+      "revenue": "§116B",
+      "growth": "+21%"
+    },
+    {
+      "name": "Compliance Tech",
+      "focus": "Surveillance drones",
+      "revenueShare": 0.04,
+      "tagline": "Freedom is a security risk.",
+      "revenue": "§52B",
+      "growth": "+95%"
+    }
+  ],
+  "stockTicker": {
+    "symbol": "SECU",
+    "price": 2671.40,
+    "change": 84.70,
+    "volume": 55000000
+  },
+  "financials": {
+    "revenue": "§1.29 Trillion",
+    "profit": "§847 Billion",
+    "eps": "§11.84",
+    "growthYoY": "+41%"
+  },
+  "documents": [
+    {
+      "id": "q3_earnings_2071",
+      "title": "Q3 2071 Earnings Report",
+      "type": "EARNINGS_REPORT",
+      "path": "lore/documents/securacorp/earnings_q3_2071.md"
+    },
+    {
+      "id": "investor_deck_pacification",
+      "title": "Pacification Series Ω Investor Deck",
+      "type": "INVESTOR_DECK",
+      "path": "lore/documents/securacorp/investor_deck.md"
+    }
+  ],
+  "flavorText": [
+    "RIOT SUPPRESSION SUCCESS",
+    "NEW BLACK-SITE ONLINE",
+    "IRONCOMMAND – PROTECTION HAS A PRICE"
+  ],
+  "dossier": {
+    "psychProfile": "General Marcus 'Iron' Kane is 89% military-grade cyberware. Grizzled ex-Palantir veteran with a zero-tolerance policy for weakness. Believes society is one step from total chaos and that the only good runner is a liquidated one. Secretly collects vintage firearms and war memorabilia.",
+    "attackVectors": "Social engineering tactics: 1. Address him as 'General' or 'Sir'. 2. Offer high-value tactical intel on Kagami or AetherX. 3. Pose as a burned operator selling loyalty. 4. Challenge his strategies with better tactical suggestions.",
+    "leakedMemos": [
+      "Memo #SC-Ω-0017: 'AetherX’s Thrust is becoming a liability. Prepare contingency pacification plan.'"
+    ],
+    "rivalShade": [
+      {
+        "targetCorpoId": "kagami",
+        "intel": "They sell blades. We use them."
+      },
+      {
+        "targetCorpoId": "aetherx",
+        "intel": "Loud cowboys in rockets. Needs discipline."
+      },
+      {
+        "targetCorpoId": "panopticon",
+        "intel": "They watch. We act."
+      }
+    ],
+    "quickhackVault": [
+      {
+        "id": "iron_mandate",
+        "name": "Iron Mandate",
+        "description": "Mass stun + compliance debuff on multiple targets. Forces temporary obedience. Flavor: 'Obedience is free.'",
+        "rarity": "LEGENDARY",
+        "type": "GHOST_PULSE"
+      },
+      {
+        "id": "void_strike",
+        "name": "Void Strike",
+        "description": "Orbital precision strike that bypasses 60% of enemy ICE with massive damage. Flavor: 'Dropping from heaven.'",
+        "rarity": "LEGENDARY",
+        "type": "SYSTEM_BURN"
+      }
+    ],
+    "blackmail": [
+      "Evidence of IronCommand running unsanctioned wetwork on corporate rivals.",
+      "Private logs ordering excessive force on civilian protests."
+    ],
+    "executiveBackdoor": "Password: 1r0nF1stN0M3rcy_6969. Special effect: Grants §300,000 Eddies + 'IronCommand Patron' perk (+25% stun effectiveness)."
+  }
+}
