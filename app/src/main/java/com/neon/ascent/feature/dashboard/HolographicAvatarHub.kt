@@ -30,7 +30,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.draw.scale
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.neon.ascent.core.common.*
+import com.neon.ascent.feature.health.ui.HealthViewModel
+import com.neon.ascent.feature.terminal.ui.TerminalViewModel
 import com.neon.ascent.model.UserCharacter
 import com.neon.ascent.ui.*
 import kotlinx.coroutines.delay
@@ -39,15 +43,21 @@ import java.time.format.DateTimeFormatter
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.random.Random
 
 @Composable
 fun HolographicAvatarHub(
     viewModel: DashboardViewModel = hiltViewModel(),
+    terminalViewModel: TerminalViewModel = hiltViewModel(),
+    healthViewModel: HealthViewModel = hiltViewModel(),
     onBack: () -> Unit,
-    onUpgradeClick: (String) -> Unit
+    onUpgradeClick: (String) -> Unit,
+    onNavigateToDiagnostics: () -> Unit
 ) {
     val userCharacter by viewModel.userCharacter.collectAsState()
+    val specialState by terminalViewModel.specialState.collectAsState()
     val healthState by viewModel.healthState.collectAsState()
+    val liveMetrics by healthViewModel.liveMetrics.collectAsState()
     val isNetrunnerMode by viewModel.isNetrunnerMode.collectAsState()
     val isReligionEnabled by viewModel.isReligionShortcutEnabled.collectAsState()
 
@@ -203,6 +213,29 @@ fun HolographicAvatarHub(
                     glitchBurstIntensity = 0.3f
                 }
                 
+                // Live HR Badge (Top Right)
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.End
+                ) {
+                    LiveHeartRateBadge(
+                        bpm = liveMetrics.heartRate,
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    HeartbeatTrace(
+                        bpm = liveMetrics.heartRate,
+                        modifier = Modifier
+                            .width(120.dp)
+                            .height(40.dp)
+                            .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                    )
+                }
+
                 // Load Gauge Overlay (Small/Minimal)
                 Box(modifier = Modifier.align(Alignment.CenterStart).padding(16.dp)) {
                     NeuralLoadGauge(load = displayLoad, modifier = Modifier.size(100.dp))
@@ -237,32 +270,26 @@ fun HolographicAvatarHub(
                         modifier = Modifier.weight(1f).padding(end = 8.dp),
                         verticalArrangement = Arrangement.Center
                     ) {
-                        val attributes = listOf(
-                            "STRENGTH" to (userCharacter?.strength ?: 0),
-                            "PERCEPTION" to (userCharacter?.perception ?: 0),
-                            "ENDURANCE" to (userCharacter?.endurance ?: 0),
-                            "CHARISMA" to (userCharacter?.charisma ?: 0),
-                            "INTELLIGENCE" to (userCharacter?.intelligence ?: 0),
-                            "AGILITY" to (userCharacter?.agility ?: 0),
-                            "LUCK" to (userCharacter?.luck ?: 0)
-                        )
+                        val attributes = com.neon.ascent.core.domain.model.SpecialType.entries
 
-                        attributes.forEach { (name, value) ->
+                        attributes.forEach { type ->
+                            val attr = specialState[type]
+                            val value = attr?.currentValue ?: 5
                             Text(
-                                text = "[${name[0]}] ${name.padEnd(12)}: $value",
+                                text = "[${type.name[0]}] ${type.name.padEnd(12)}: $value",
                                 color = Color.White,
                                 fontSize = 11.sp,
                                 fontFamily = FontFamily.Monospace,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { onUpgradeClick(name) }
+                                    .clickable { onUpgradeClick(type.name) }
                                     .padding(vertical = 1.dp)
                             )
                         }
                         
                         val rank = userCharacter?.getChessRank() ?: "GHOST_IN_SHELL"
                         Text(
-                            "RANK: $rank // HR: ${healthState.heartRate} BPM",
+                            "RANK: $rank // HR: ${liveMetrics.heartRate ?: healthState.heartRate} BPM",
                             color = Color(0xFF00FF9C).copy(alpha = 0.7f),
                             fontSize = 10.sp,
                             fontFamily = FontFamily.Monospace,
@@ -283,17 +310,39 @@ fun HolographicAvatarHub(
 
                     AttributeRadarChart(
                         stats = mapOf(
-                            "STR" to (userCharacter?.strength ?: 0),
-                            "AGI" to (userCharacter?.agility ?: 0),
-                            "END" to (userCharacter?.endurance ?: 0),
-                            "PER" to (userCharacter?.perception ?: 0),
-                            "INT" to (userCharacter?.intelligence ?: 0),
-                            "CHA" to (userCharacter?.charisma ?: 0),
-                            "LUC" to (userCharacter?.luck ?: 0)
+                            "STR" to (specialState[com.neon.ascent.core.domain.model.SpecialType.STRENGTH]?.currentValue ?: 5),
+                            "AGI" to (specialState[com.neon.ascent.core.domain.model.SpecialType.AGILITY]?.currentValue ?: 5),
+                            "END" to (specialState[com.neon.ascent.core.domain.model.SpecialType.ENDURANCE]?.currentValue ?: 5),
+                            "PER" to (specialState[com.neon.ascent.core.domain.model.SpecialType.PERCEPTION]?.currentValue ?: 5),
+                            "INT" to (specialState[com.neon.ascent.core.domain.model.SpecialType.INTELLIGENCE]?.currentValue ?: 5),
+                            "CHA" to (specialState[com.neon.ascent.core.domain.model.SpecialType.CHARISMA]?.currentValue ?: 5),
+                            "LUC" to (specialState[com.neon.ascent.core.domain.model.SpecialType.LUCK]?.currentValue ?: 5)
                         ),
                         modifier = Modifier.size(150.dp)
                     )
                 }
+            }
+
+            // Big neon button: "VIEW FULL NEURAL ARCHIVE →"
+            Button(
+                onClick = onNavigateToDiagnostics,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp)
+                    .height(48.dp)
+                    .neonBorder(Color(0xFF00FFFF), cornerRadius = 4.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FFFF).copy(alpha = 0.1f)),
+                shape = RoundedCornerShape(4.dp)
+            ) {
+                Text(
+                    "VIEW FULL NEURAL ARCHIVE →",
+                    color = Color(0xFF00FFFF),
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 2.sp
+                    )
+                )
             }
 
             Spacer(Modifier.height(8.dp))
@@ -552,6 +601,112 @@ fun AttributeRadarChart(stats: Map<String, Int>, modifier: Modifier) {
         dataPath.close()
         drawPath(dataPath, Color(0xFF00FF9C).copy(alpha = 0.3f))
         drawPath(dataPath, Color(0xFF00FF9C), style = Stroke(2f))
+    }
+}
+
+@Composable
+fun LiveHeartRateBadge(bpm: Int?, modifier: Modifier = Modifier) {
+    val pulseScale by animateFloatAsState(
+        targetValue = if (bpm != null && bpm > 60) 1.25f else 1f,
+        animationSpec = infiniteRepeatable(tween(480), RepeatMode.Reverse),
+        label = "pulse"
+    )
+
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.Favorite,
+            contentDescription = null,
+            tint = NeonRed,
+            modifier = Modifier
+                .size(32.dp)
+                .scale(pulseScale)
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = "${bpm ?: "--"} BPM",
+            style = MaterialTheme.typography.headlineMedium,
+            color = NeonRed,
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Monospace
+        )
+        if (bpm != null) {
+            Text(
+                " LIVE",
+                color = NeonRed.copy(alpha = 0.6f),
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.padding(start = 4.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun HeartbeatTrace(bpm: Int?, modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "EKG")
+    val xOffset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "xOffset"
+    )
+
+    val baseBpm = bpm?.toFloat() ?: 70f
+    
+    Canvas(modifier = modifier) {
+        val width = size.width
+        val height = size.height
+        val step = 4.dp.toPx()
+        
+        val path = Path()
+        var currentX = 0f
+        
+        while (currentX < width) {
+            val relativeX = (currentX / width + xOffset) % 1f
+            val phase = (relativeX * baseBpm / 10f) % 1f
+            
+            val y = if (phase in 0.1f..0.2f) {
+                // The QRS complex spike
+                val spikePhase = (phase - 0.1f) / 0.1f
+                val spikeY = if (spikePhase < 0.5f) {
+                    -height * 0.4f * (spikePhase * 2)
+                } else {
+                    -height * 0.4f * (1 - (spikePhase - 0.5f) * 2)
+                }
+                height / 2f + spikeY
+            } else if (phase in 0.4f..0.6f) {
+                // The T wave
+                val tPhase = (phase - 0.4f) / 0.2f
+                val tY = -height * 0.15f * sin(tPhase * PI.toFloat())
+                height / 2f + tY
+            } else {
+                height / 2f + (Random.nextFloat() - 0.5f) * 4f // Ambient noise
+            }
+            
+            if (currentX == 0f) path.moveTo(currentX, y) else path.lineTo(currentX, y)
+            currentX += step
+        }
+        
+        drawPath(
+            path = path,
+            color = NeonRed.copy(alpha = 0.8f),
+            style = Stroke(
+                width = 2.dp.toPx(),
+                pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(2f, 10f), 0f)
+            )
+        )
+        
+        // Leading glow dot
+        drawCircle(
+            color = NeonRed,
+            radius = 3.dp.toPx(),
+            center = Offset(width, height / 2f)
+        )
     }
 }
 

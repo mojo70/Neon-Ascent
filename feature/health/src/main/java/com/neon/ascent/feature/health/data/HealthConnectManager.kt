@@ -29,7 +29,8 @@ class HealthConnectManager @Inject constructor(
         HealthPermission.getReadPermission(SleepSessionRecord::class),
         HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class),
         HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),   // for Strength
-        HealthPermission.getReadPermission(DistanceRecord::class)         // Agility support
+        HealthPermission.getReadPermission(DistanceRecord::class),         // Agility support
+        HealthPermission.getReadPermission(HeartRateRecord::class)
     )
 
     /** Check if Health Connect is available and permissions are granted */
@@ -61,7 +62,8 @@ class HealthConnectManager @Inject constructor(
         SleepSessionRecord::class.simpleName!! to "Sleep duration & stages directly improve your Endurance stat.",
         HeartRateVariabilityRmssdRecord::class.simpleName!! to "HRV reflects recovery quality and feeds Endurance + biohacking nodes.",
         ActiveCaloriesBurnedRecord::class.simpleName!! to "Active calories contribute to Strength and real-world benchmarks.",
-        DistanceRecord::class.simpleName!! to "Distance walked/run boosts Agility progression."
+        DistanceRecord::class.simpleName!! to "Distance walked/run boosts Agility progression.",
+        HeartRateRecord::class.simpleName!! to "Real-time heart rate monitoring for your neural link stability."
     )
 
     /** Read data from the last N days (default 7) */
@@ -90,6 +92,38 @@ class HealthConnectManager @Inject constructor(
         if (!isAvailableAndHasPermissions()) return
         // This will be triggered by a WorkManager or manual sync
     }
+
+    /** Reactive flow for real-time dashboard updates */
+    fun liveMetricsFlow(): kotlinx.coroutines.flow.Flow<LiveMetrics> = kotlinx.coroutines.flow.flow {
+        while (true) {
+            if (isAvailableAndHasPermissions()) {
+                val now = Instant.now()
+                val startOfDay = now.atZone(java.time.ZoneId.systemDefault()).toLocalDate().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()
+
+                val steps = try {
+                    readRecords<StepsRecord>(startOfDay).sumOf { it.count }
+                } catch (e: Exception) { 0L }
+
+                val calories = try {
+                    readRecords<ActiveCaloriesBurnedRecord>(startOfDay).sumOf { it.energy.inKilocalories }
+                } catch (e: Exception) { 0.0 }
+                
+                // For HR, we get the latest entry in the last 5 minutes
+                val recentHR = try {
+                    readRecords<HeartRateRecord>(now.minusSeconds(300))
+                        .flatMap { it.samples }
+                        .lastOrNull()?.beatsPerMinute?.toInt()
+                } catch (e: Exception) { null }
+
+                emit(LiveMetrics(
+                    heartRate = recentHR,
+                    stepsToday = steps,
+                    caloriesToday = calories
+                ))
+            }
+            kotlinx.coroutines.delay(30000) // 30s update
+        }
+    }
 }
 
 /** Simple container for batched data */
@@ -99,4 +133,10 @@ data class HealthDataSnapshot(
     val hrv: List<HeartRateVariabilityRmssdRecord>,
     val activeCalories: List<ActiveCaloriesBurnedRecord>,
     val distance: List<DistanceRecord>
+)
+
+data class LiveMetrics(
+    val heartRate: Int? = null,
+    val stepsToday: Long = 0,
+    val caloriesToday: Double = 0.0
 )

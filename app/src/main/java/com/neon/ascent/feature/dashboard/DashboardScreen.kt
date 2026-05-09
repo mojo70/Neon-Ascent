@@ -350,16 +350,16 @@ fun DashboardScreen(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 CyberMetricCard(
                     label = "STEPS", 
-                    value = if (healthState.isConnected) healthState.steps.toString() else "8,432", 
+                    value = if (healthState.isConnected) healthState.steps.toString() else "8,432",
                     subValue = "TARGET: 10K", 
-                    color = Color(0xFF00FFFF), 
+                    color = Color(0xFF00FFFF),
                     modifier = Modifier.weight(1f)
                 )
                 CyberMetricCard(
                     label = "CALORIES", 
-                    value = "1,840", 
+                    value = "1,840",
                     subValue = "TARGET: 2.2K", 
-                    color = Color(0xFFFF006E), 
+                    color = Color(0xFFFF006E),
                     modifier = Modifier.weight(1f)
                 )
                 CyberMetricCard(

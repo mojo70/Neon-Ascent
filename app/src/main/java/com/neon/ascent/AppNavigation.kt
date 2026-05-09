@@ -113,6 +113,9 @@ fun AppNavigation(
                 onBack = { navController.popBackStack() },
                 onUpgradeClick = { attrName ->
                     navController.navigate(Screen.AttributeDetail(attrName))
+                },
+                onNavigateToDiagnostics = {
+                    navController.navigate(Screen.Diagnostics)
                 }
             )
         }

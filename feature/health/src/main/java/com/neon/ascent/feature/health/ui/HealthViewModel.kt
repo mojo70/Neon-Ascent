@@ -10,6 +10,7 @@ import com.neon.ascent.core.data.datastore.HealthPreferencesDataStore
 import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.feature.health.HealthSyncUseCase
 import com.neon.ascent.feature.health.data.HealthConnectManager
+import com.neon.ascent.feature.health.data.LiveMetrics
 import com.neon.ascent.feature.health.data.workers.HealthSyncWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -28,6 +29,9 @@ class HealthViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(HealthUiState())
     val uiState: StateFlow<HealthUiState> = _uiState.asStateFlow()
+
+    val liveMetrics = healthManager.liveMetricsFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), LiveMetrics())
 
     // Backward compatibility for existing screen
     val hasPermissions: StateFlow<Boolean> = _uiState
