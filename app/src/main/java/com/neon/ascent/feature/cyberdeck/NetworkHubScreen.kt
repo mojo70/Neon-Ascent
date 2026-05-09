@@ -595,9 +595,20 @@ fun CorpoDetailView(
     onViewDeck: () -> Unit,
     onBypass: (String, String) -> Boolean
 ) {
-    var usernameAttempt by remember { mutableStateOf("") }
-    var passwordAttempt by remember { mutableStateOf("") }
-    var bypassError by remember { mutableStateOf(false) }
+    var showLoginDialog by remember { mutableStateOf(false) }
+
+    if (showLoginDialog) {
+        CorpoLoginDialog(
+            corpoName = corpo.name,
+            onDismiss = { showLoginDialog = false },
+            onLogin = { user, pwd -> 
+                if (onBypass(user, pwd)) {
+                    showLoginDialog = false
+                    true
+                } else false
+            }
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -681,51 +692,19 @@ fun CorpoDetailView(
                     Text("STATUS: UNCRACKABLE. ENCRYPTION EXCEEDS HARDWARE LIMITS.", color = Color.Red, fontSize = 10.sp)
                     Spacer(modifier = Modifier.height(12.dp))
                     Text("AUTHORIZATION_REQUIRED", color = Color.Gray, fontSize = 10.sp)
-                    
-                    TextField(
-                        value = usernameAttempt,
-                        onValueChange = { usernameAttempt = it; bypassError = false },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("USERNAME...", color = Color.Gray, fontSize = 12.sp) },
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.White.copy(alpha = 0.05f),
-                            unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
-                        )
-                    )
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    TextField(
-                        value = passwordAttempt,
-                        onValueChange = { passwordAttempt = it; bypassError = false },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("EXECUTIVE_KEY...", color = Color.Gray, fontSize = 12.sp) },
-                        isError = bypassError,
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.White.copy(alpha = 0.05f),
-                            unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
-                        )
-                    )
-                    if (bypassError) {
-                        Text("INVALID_CREDENTIALS // ACCESS_DENIED", color = Color.Red, fontSize = 10.sp)
-                    }
-                    Button(
-                        onClick = {
-                            if (!onBypass(usernameAttempt, passwordAttempt)) {
-                                bypassError = true
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Gray.copy(alpha = 0.2f))
-                    ) {
-                        Text("LOGIN_TO_SYSTEM", color = Color.White)
-                    }
                 } else {
                     Text("STATUS: VULNERABLE. BREACH_VECTOR_IDENTIFIED.", color = Color(0xFF00FF9F), fontSize = 10.sp)
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                Button(
+                    onClick = { showLoginDialog = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00CCFF).copy(alpha = 0.2f)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF00CCFF))
+                ) {
+                    Text("SYSTEM_LOGIN", color = Color(0xFF00CCFF))
                 }
             }
         }
@@ -832,6 +811,100 @@ fun GamesArea(onChessClick: () -> Unit) {
                 Icon(Icons.Default.Casino, contentDescription = null, tint = Color(0xFF00FF9F))
                 Spacer(modifier = Modifier.width(16.dp))
                 Text("ENTER_MATCHMAKING", color = Color.White)
+            }
+        }
+    }
+}
+
+@Composable
+fun CorpoLoginDialog(
+    corpoName: String,
+    onDismiss: () -> Unit,
+    onLogin: (String, String) -> Boolean
+) {
+    var user by remember { mutableStateOf("") }
+    var pass by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf(false) }
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        CyberFrame(label = "SECURE_LOGIN // $corpoName") {
+            Column(
+                modifier = Modifier
+                    .background(Color(0xFF020508))
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    "AUTHORIZED_PERSONNEL_ONLY",
+                    color = Color.Red,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+                
+                Spacer(modifier = Modifier.height(24.dp))
+
+                TextField(
+                    value = user,
+                    onValueChange = { user = it; error = false },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("USERNAME", color = Color.Gray) },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.White.copy(alpha = 0.05f),
+                        unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                TextField(
+                    value = pass,
+                    onValueChange = { pass = it; error = false },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("EXECUTIVE_KEY", color = Color.Gray) },
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.White.copy(alpha = 0.05f),
+                        unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    )
+                )
+
+                if (error) {
+                    Text(
+                        "INVALID_CREDENTIALS",
+                        color = Color.Red,
+                        fontSize = 10.sp,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Gray.copy(alpha = 0.2f))
+                    ) {
+                        Text("CANCEL")
+                    }
+                    Button(
+                        onClick = {
+                            if (!onLogin(user, pass)) {
+                                error = true
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9F).copy(alpha = 0.2f)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF00FF9F))
+                    ) {
+                        Text("LOGIN", color = Color(0xFF00FF9F))
+                    }
+                }
             }
         }
     }

@@ -130,8 +130,13 @@ class CyberdeckViewModel @Inject constructor(
     }
 
     fun bypassBlackIce(corpoName: String, username: String, password: String): Boolean {
-        if (corpoName == "AetherX" && username == "Vance 'Thrust' Calder" && password == "PoundUranusNoPullout420.69") {
+        if (corpoName == "AetherX" && username == "Thrust" && password == "PoundUranusNoPullout420.69") {
             grantBypassRewards(DifficultyTier.BLACK_ICE)
+            _bypassedBlackIce.update { it + corpoName }
+            return true
+        }
+        if (corpoName == "Panopticon" && username == "TheEye" && password == "EyeSeeYouPullingOut89ur6") {
+            grantBypassRewards(DifficultyTier.GHOST)
             _bypassedBlackIce.update { it + corpoName }
             return true
         }
