@@ -439,15 +439,37 @@ fun CorpoNodesArea(viewModel: CyberdeckViewModel, bypassed: Set<String>, onCorpo
             CorpoNode(
                 name = "Microhard",
                 ticker = "MHRD",
-                slogan = "Your data, our dominion",
-                profile = "Legacy tech giant turned digital overlord. Our operating systems run on 99% of all neural links. Resistance is a blue screen away.",
+                slogan = "Your data, our dominion.",
+                profile = "The operating system of the solar system. If Panopticon watches everything, Microhard runs everything — your implants, your hab, your rocket, your neural firewall (that they quietly bypass).",
                 securityTier = DifficultyTier.OPERATIVE,
-                stockPrice = 456.12,
-                stockChange = 5.43,
-                stockChangePercent = 1.1,
+                stockPrice = 892.40,
+                stockChange = 37.25,
+                stockChangePercent = 4.3,
                 marketCap = "§3.1 Trillion",
-                ceo = "Satya 'System' 2.0",
-                highlights = listOf("2060 - Cloud Mind acquisition", "2070 - NeuralOS v14 forced update")
+                ceo = "Gideon 'Gid' Bates",
+                highlights = listOf(
+                    "2051 - Forced global adoption of Microhard Helix OS.",
+                    "2059 - Launched Always-On Telemetry — 'for your safety.'",
+                    "2063 - Acquired every major competitor in 'hostile but legal' fashion.",
+                    "2067 - Project Dominion - Every consumer device phones home by default.",
+                    "2070 - Released HoloWindows 2077 with 400% more forced updates."
+                ),
+                earningsReport = """
+                    MICROHARD (MHRD) Q3 2071 Earnings Transmission
+                    Net Revenue: §978 Billion ▲ +29% YoY
+                    Adjusted Dominion Profit: §614 Billion ▲ +44%
+                    EPS: §7.42 | CEO: Dominus
+                    
+                    [DIVISIONAL PERFORMANCE]
+                    • Helix OS: §469B (+15%)
+                    • Dominion Cloud: §283B (+44%)
+                    • Surface Armaments: §117B (+8%)
+                    • Enforcer Updates: §78B (+52%)
+                    • Legacy Tax: §31B (+5%)
+                    
+                    [CEO STATEMENT - DOMINUS]
+                    "Another fantastic quarter. Users continue to voluntarily give us more control than ever before. We appreciate your continued trust… you don’t really have another option anyway."
+                """.trimIndent()
             ),
             CorpoNode(
                 name = "OmniSight",

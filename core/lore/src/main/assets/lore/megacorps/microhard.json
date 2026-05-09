@@ -1,0 +1,114 @@
+{
+  "id": "microhard",
+  "name": "Microhard",
+  "slogan": "Your data, our dominion.",
+  "motto": "We see further because we own the road.",
+  "description": "The operating system of the solar system. If Panopticon watches everything, Microhard runs everything — your implants, your hab, your rocket, your neural firewall (that they quietly bypass).",
+  "ceo": {
+    "name": "Gideon Bates",
+    "netHandle": "Dominus",
+    "title": "Dominus",
+    "personality": "arrogant_billionaire",
+    "gemmaPromptPath": "lore/ceo_prompts/microhard.txt"
+  },
+  "achievements": [
+    {
+      "year": "2051",
+      "title": "Helix OS Forced Adoption",
+      "description": "Forced global adoption of Microhard Helix OS (you don’t choose it, it chooses you)."
+    },
+    {
+      "year": "2059",
+      "title": "Always-On Telemetry",
+      "description": "Launched Always-On Telemetry — 'for your safety.'"
+    },
+    {
+      "year": "2063",
+      "title": "Hostile Acquisitions",
+      "description": "Acquired every major competitor in the 'hostile but completely legal' quarterly tradition."
+    },
+    {
+      "year": "2067",
+      "title": "Project Dominion",
+      "description": "Every consumer device now phones home to Microhard servers by default."
+    },
+    {
+      "year": "2070",
+      "title": "HoloWindows 2077 Release",
+      "description": "Released HoloWindows 2077 — 'Now with 400% more forced updates and zero privacy.'"
+    }
+  ],
+  "divisions": [
+    {
+      "name": "Helix OS",
+      "focus": "Operating Systems & Implants",
+      "revenueShare": 0.48,
+      "tagline": "It just works… for us.",
+      "revenue": "§469B",
+      "growth": "+15%"
+    },
+    {
+      "name": "Dominion Cloud",
+      "focus": "Cloud + Personal Data Storage",
+      "revenueShare": 0.29,
+      "tagline": "Your files are safer with us.",
+      "revenue": "§283B",
+      "growth": "+44%"
+    },
+    {
+      "name": "Surface Armaments",
+      "focus": "Hardware (phones, cyberware)",
+      "revenueShare": 0.12,
+      "tagline": "Designed by us. Owned by us.",
+      "revenue": "§117B",
+      "growth": "+8%"
+    },
+    {
+      "name": "Enforcer Updates",
+      "focus": "Mandatory Security Patches",
+      "revenueShare": 0.08,
+      "tagline": "You will install this.",
+      "revenue": "§78B",
+      "growth": "+52%"
+    },
+    {
+      "name": "Legacy Tax Division",
+      "focus": "Licensing old tech",
+      "revenueShare": 0.03,
+      "tagline": "Still paying for Windows 95.",
+      "revenue": "§31B",
+      "growth": "+5%"
+    }
+  ],
+  "stockTicker": {
+    "symbol": "MHRD",
+    "price": 892.40,
+    "change": 37.25,
+    "volume": 124500000
+  },
+  "financials": {
+    "revenue": "§978 Billion",
+    "profit": "§614 Billion",
+    "eps": "§7.42",
+    "growthYoY": "+29%"
+  },
+  "documents": [
+    {
+      "id": "q3_earnings_2071",
+      "title": "Q3 2071 Earnings Report",
+      "type": "EARNINGS_REPORT",
+      "path": "lore/documents/microhard/earnings_q3_2071.md"
+    },
+    {
+      "id": "investor_deck_dominion",
+      "title": "Dominion Series Ω Investor Deck",
+      "type": "INVESTOR_DECK",
+      "path": "lore/documents/microhard/investor_deck.md"
+    }
+  ],
+  "flavorText": [
+    "FORCED UPDATE COMPLETE",
+    "DOMINION CLOUD AT 99.4% PENETRATION",
+    "DOMINUS – STILL IN CONTROL"
+  ]
+}

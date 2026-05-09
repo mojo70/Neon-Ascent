@@ -37,6 +37,7 @@ data class LoreDocumentReference(
 @Serializable
 data class CEO(
     val name: String,
+    val netHandle: String? = null,
     val title: String,
     val personality: String,           // "cold_omniscient", "degen_space_bro"
     val gemmaPromptPath: String        // assets/lore/ceo_prompts/panopticon.txt

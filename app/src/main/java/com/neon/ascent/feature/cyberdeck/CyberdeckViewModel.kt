@@ -140,6 +140,11 @@ class CyberdeckViewModel @Inject constructor(
             _bypassedBlackIce.update { it + corpoName }
             return true
         }
+        if (corpoName == "Microhard" && username == "Dominus" && password == "DominionHasNoPullout42069") {
+            grantBypassRewards(DifficultyTier.OPERATIVE)
+            _bypassedBlackIce.update { it + corpoName }
+            return true
+        }
         return false
     }
 
