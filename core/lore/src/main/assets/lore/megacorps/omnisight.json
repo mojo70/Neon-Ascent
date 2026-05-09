@@ -1,0 +1,142 @@
+{
+  "id": "omnisight",
+  "name": "OmniSight",
+  "slogan": "All eyes, one truth.",
+  "motto": "The future is not predicted. It is calculated.",
+  "description": "The megacorp that doesn’t just predict the future — it decides it. While Panopticon watches and Microhard controls the OS, OmniSight knows what you’re going to do before you do… and sells that knowledge to whoever pays the most.",
+  "ceo": {
+    "name": "Dr. Lucian Crowe",
+    "netHandle": "AllSeer",
+    "title": "AllSeer",
+    "personality": "prophetic_analyst",
+    "gemmaPromptPath": "lore/ceo_prompts/omnisight.txt"
+  },
+  "achievements": [
+    {
+      "year": "2054",
+      "title": "Probability Engine Launch",
+      "description": "First successful Pre-Crime Probability Engine (98.7% accuracy)."
+    },
+    {
+      "year": "2061",
+      "title": "Fusion Lattice Deployment",
+      "description": "Deployed Total Data Fusion Lattice across 47 city-states."
+    },
+    {
+      "year": "2065",
+      "title": "Singapore Incident",
+      "description": "Prevented (or caused) the 'Singapore Incident' 19 days early."
+    },
+    {
+      "year": "2068",
+      "title": "Project Oracle",
+      "description": "Every government now pays a subscription to know what citizens will do next."
+    },
+    {
+      "year": "2070",
+      "title": "Analytics Consolidation",
+      "description": "Acquired three rival firms and deleted their 'inaccurate' models."
+    }
+  ],
+  "divisions": [
+    {
+      "name": "Predictive Core",
+      "focus": "Pre-crime & Behavior Forecasting",
+      "revenueShare": 0.51,
+      "tagline": "We know what you will choose.",
+      "revenue": "§556B",
+      "growth": "+58%"
+    },
+    {
+      "name": "Fusion Lattice",
+      "focus": "Total data integration",
+      "revenueShare": 0.28,
+      "tagline": "All sources. One truth.",
+      "revenue": "§305B",
+      "growth": "+42%"
+    },
+    {
+      "name": "Shadow Analytics",
+      "focus": "Black-budget contracts",
+      "revenueShare": 0.14,
+      "tagline": "You will never see us watching.",
+      "revenue": "§153B",
+      "growth": "+15%"
+    },
+    {
+      "name": "Oracle Markets",
+      "focus": "Human behavior futures",
+      "revenueShare": 0.05,
+      "tagline": "The market already priced in your betrayal.",
+      "revenue": "§54B",
+      "growth": "+112%"
+    },
+    {
+      "name": "Certainty Enforcement",
+      "focus": "Reality correction",
+      "revenueShare": 0.02,
+      "tagline": "Sometimes the future needs help.",
+      "revenue": "§22B",
+      "growth": "+204%"
+    }
+  ],
+  "stockTicker": {
+    "symbol": "OMSI",
+    "price": 2184.60,
+    "change": 73.40,
+    "volume": 42000000
+  },
+  "financials": {
+    "revenue": "§1.09 Trillion",
+    "profit": "§781 Billion",
+    "eps": "§11.24",
+    "growthYoY": "+53%"
+  },
+  "documents": [
+    {
+      "id": "q3_earnings_2071",
+      "title": "Q3 2071 Earnings Report",
+      "type": "EARNINGS_REPORT",
+      "path": "lore/documents/omnisight/earnings_q3_2071.md"
+    },
+    {
+      "id": "investor_deck_certainty",
+      "title": "Certainty Series Ω Investor Deck",
+      "type": "INVESTOR_DECK",
+      "path": "lore/documents/omnisight/investor_deck.md"
+    }
+  ],
+  "flavorText": [
+    "PRE-CRIME ACCURACY +0.4%",
+    "FUSION LATTICE v9 DEPLOYED",
+    "ALLSEER – THE FUTURE IS CERTAIN"
+  ],
+  "dossier": {
+    "psychProfile": "Machine-like, prophetic, and absolute. Crowe speaks only in certainties. He views human agency as a rounding error. Irrational need to be proven correct at all times. Former Palantir black-ops.",
+    "attackVectors": "Can be engaged by offering new 'unseen variables' to feed the Oracle Engine. Responds to challenges of his predictions with real-time counter-data (cannot resist correcting you). Susceptible to flattery about model perfection.",
+    "leakedMemos": [
+      "Crowe to Analysts: 'If the model deviates from reality by more than 0.02%, reality is incorrect. Dispatch Enforcement.'",
+      "Classified: 'Certainty Protocol Phase 4: We are now shorting the lives of individuals with a 99.1% success rate.'"
+    ],
+    "rivalShade": [
+      {
+        "targetCorpoId": "microhard",
+        "intel": "Microhard's Helix OS has a predictive telemetry leak we've been harvesting for years. They think they own the OS; we own the data they generate."
+      }
+    ],
+    "quickhackVault": [
+      {
+        "id": "oracle_overwrite",
+        "name": "Oracle Overwrite",
+        "description": "Force-recalculates enemy combat logic, making them anticipate an attack that never comes. Massive stun + confusion. Flavor: 'The model has already accounted for this.'",
+        "rarity": "LEGENDARY",
+        "type": "GHOST_PULSE"
+      }
+    ],
+    "blackmail": [
+      "Evidence that the 2065 'Singapore Incident' was manually triggered by OmniSight to validate their Q4 projections.",
+      "Logs showing AllSeer predicting his own death with a 100% probability on a specific date in 2082."
+    ],
+    "executiveBackdoor": "Password: AllSeerSeesYourMom42069. Special effect: Grants 'Universal Probability Access' for 24 hours."
+  }
+}

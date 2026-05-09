@@ -21,6 +21,7 @@ data class NeonThemeData(
             "panopticon" -> Color(0xFFFF006E)
             "microhard" -> Color(0xFF0088FF)
             "obsidianveil" -> Color(0xFFA020F0) // Deep Purple
+            "omnisight" -> Color(0xFFB0B0B0) // Cold Steel
             else -> primary
         }
     }

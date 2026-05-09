@@ -130,6 +130,19 @@ class CyberdeckViewModel @Inject constructor(
                 InvestorSlide("THE VISION", "Flesh is temporary. Obsidian is eternal.", "We don't just augment. We rewrite what it means to be human."),
                 InvestorSlide("TRACTION", "The Future is Post-Human", "Veil Lattice adoption up 67%\nProject Eternity achieved 100% client retention\nMidnight Seraph skin set sold out in 11 minutes")
             )
+            "omnisight" -> listOf(
+                InvestorSlide("OMNISIGHT", "Certainty Series Ω", "Presented by Dr. Lucian Crowe – AllSeer\nOctober 2071"),
+                InvestorSlide("THE PROBLEM", "Uncertainty is expensive.", "Chaos is unprofitable. Free will is a liability.\n\nWe fix that."),
+                InvestorSlide("OUR SOLUTION", "The Oracle Engine", "One unified predictive model that knows every variable before it exists."),
+                InvestorSlide("TRACTION", "The Future is Calculated", "99.3% pre-crime accuracy.\n14.8 exabytes of fused data per second.\nContracts with 41 governments."),
+                InvestorSlide("MARKET OPPORTUNITY", "Total Addressable Market: §11.2 Trillion by 2080", "We already control 71% of predictive analytics. The remaining 29% is merely future market share."),
+                InvestorSlide("TECHNOLOGY", "Oracle Kernel", "Crowe’s Personal Probability Weighting: Only the CEO can override the model.\nBehavioral Backdoor: Subtle influence vectors hidden in every prediction.\nWeakness: AllSeer has an irrational need to be proven correct."),
+                InvestorSlide("FINANCIAL HIGHLIGHTS", "Revenue: §1.09 Trillion (+53% YoY)", "Adjusted Certainty Profit: §781 Billion (+67%)\nGuidance Q4: §1.45T+"),
+                InvestorSlide("TEAM", "Dr. Lucian Crowe – AllSeer", "The man who turned probability into profit. Never wrong. Never uncertain.\n\nTriggers: perfection flattery, new 'unseen variables', challenging predictions."),
+                InvestorSlide("ROADMAP", "The Singularity of Certainty", "Q4 2071 – Full orbital pre-crime coverage\n2072 – Personal Oracle implants\n2073 – Inter-corp certainty trading"),
+                InvestorSlide("THE ASK", "Raising §920 Billion", "Raising §920 Billion at §2,241/share.\n\nJoin the only megacorp that already knows you will invest."),
+                InvestorSlide("OMNISIGHT", "All eyes, one truth.", "Thank you. Your attendance was 100% probable.\n— AllSeer")
+            )
             "microhard" -> listOf(
                 InvestorSlide("MICROHARD", "Dominion Series Ω", "Presented by Gideon “Gid” Bates – Dominus\nOctober 2071"),
                 InvestorSlide("THE PROBLEM", "The solar system runs on chaos.", "Fragmented OS. Insecure implants. Users who think they own their own hardware.\n\nWe fix that."),
@@ -165,6 +178,11 @@ class CyberdeckViewModel @Inject constructor(
         }
         if (corpoName == "Obsidian Veil" && username == "Veilwalker" && password == "VeilHasNoFlesh42069") {
             grantBypassRewards(DifficultyTier.BLACK_ICE)
+            _bypassedBlackIce.update { it + corpoName }
+            return true
+        }
+        if (corpoName == "OmniSight" && username == "AllSeer" && password == "AllSeerSeesYourMom42069") {
+            grantBypassRewards(DifficultyTier.GHOST)
             _bypassedBlackIce.update { it + corpoName }
             return true
         }

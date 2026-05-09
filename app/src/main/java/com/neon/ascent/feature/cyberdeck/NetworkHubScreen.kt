@@ -573,14 +573,38 @@ fun CorpoNodesArea(viewModel: CyberdeckViewModel, bypassed: Set<String>, onCorpo
             ),
             CorpoNode(
                 name = "OmniSight",
-                ticker = "OMNI",
-                slogan = "All eyes, one truth",
-                profile = "Global news and perception management. If we didn't report it, it didn't happen. Truth is what we broadcast.",
-                securityTier = DifficultyTier.OPERATIVE,
-                stockPrice = 189.45,
-                stockChange = 12.30,
-                stockChangePercent = 6.9,
-                marketCap = "§1.5 Trillion"
+                ticker = "OMSI",
+                slogan = "All eyes, one truth.",
+                profile = "The megacorp that doesn’t just predict the future — it decides it. While Panopticon watches and Microhard controls the OS, OmniSight knows what you’re going to do before you do… and sells that knowledge to whoever pays the most.",
+                securityTier = DifficultyTier.GHOST,
+                stockPrice = 2184.60,
+                stockChange = 73.40,
+                stockChangePercent = 3.48,
+                marketCap = "§4.8 Trillion",
+                ceo = "Dr. Lucian Crowe",
+                highlights = listOf(
+                    "2054 - First successful Pre-Crime Probability Engine.",
+                    "2061 - Deployed Total Data Fusion Lattice across 47 city-states.",
+                    "2065 - Prevented the Singapore Incident 19 days early.",
+                    "2068 - Project Oracle went live for global governments.",
+                    "2070 - Acquired and deleted rival 'inaccurate' models."
+                ),
+                earningsReport = """
+                    OMNISIGHT (OMSI) Q3 2071 Earnings Transmission
+                    Net Revenue: §1.09 Trillion ▲ +53% YoY
+                    Adjusted Certainty Profit: §781 Billion ▲ +67%
+                    EPS: §11.24 | CEO: AllSeer
+                    
+                    [DIVISIONAL PERFORMANCE]
+                    • Predictive Core: §556B (+58%)
+                    • Fusion Lattice: §305B (+42%)
+                    • Shadow Analytics: §153B (+15%)
+                    • Oracle Markets: §54B (+112%)
+                    • Certainty Enf.: §22B (+204%)
+                    
+                    [CEO STATEMENT - ALLSEER]
+                    "The probability of this quarter exceeding expectations was 97.4%. It has now been realized."
+                """.trimIndent()
             ),
             CorpoNode(
                 name = "HelixSpace",
