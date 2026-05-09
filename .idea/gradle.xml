@@ -23,6 +23,7 @@
             <option value="$PROJECT_DIR$/feature/habits" />
             <option value="$PROJECT_DIR$/feature/health" />
             <option value="$PROJECT_DIR$/feature/notifications" />
+            <option value="$PROJECT_DIR$/feature/terminal" />
           </set>
         </option>
       </GradleProjectSettings>

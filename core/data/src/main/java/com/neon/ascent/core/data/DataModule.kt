@@ -1,6 +1,7 @@
 package com.neon.ascent.core.data
 
 import com.neon.ascent.core.domain.GoalRepository
+import com.neon.ascent.core.domain.SpecialRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -16,4 +17,10 @@ abstract class DataModule {
     abstract fun bindGoalRepository(
         goalRepositoryImpl: GoalRepositoryImpl
     ): GoalRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSpecialRepository(
+        specialRepositoryImpl: SpecialRepositoryImpl
+    ): SpecialRepository
 }
