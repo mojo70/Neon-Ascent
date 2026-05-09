@@ -40,6 +40,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            isMinifyEnabled = false
+            // Disable PNG crunching for debug builds
+            isCrunchPngs = false
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
