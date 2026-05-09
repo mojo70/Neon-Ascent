@@ -11,6 +11,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.core.common.NeonCyan
 import com.neon.ascent.core.common.NeonGreen
 import com.neon.ascent.core.common.NeonRed
+import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.feature.health.ui.HealthUiState
 import com.neon.ascent.feature.health.ui.HealthViewModel
 import com.neon.ascent.feature.health.ui.SyncStatus
@@ -21,6 +22,7 @@ import java.time.format.DateTimeFormatter
 
 @Composable
 fun DiagnosticsScreen(
+    onNavigateToHistory: (SpecialType) -> Unit,
     viewModel: DiagnosticsViewModel = hiltViewModel(),
     healthViewModel: HealthViewModel = hiltViewModel()
 ) {
@@ -62,7 +64,7 @@ fun DiagnosticsScreen(
             specialAttributes = specialState,
             modifier = Modifier.weight(1f),
             onAttributeClick = { type ->
-                // Future: Open detailed history
+                onNavigateToHistory(type)
             }
         )
 

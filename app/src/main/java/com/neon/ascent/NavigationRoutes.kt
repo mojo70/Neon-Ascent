@@ -81,4 +81,10 @@ sealed interface Screen {
 
     @Serializable
     data object HealthPreferences : Screen
+
+    @Serializable
+    data class AttributeHistory(val attributeType: String) : Screen
+
+    @Serializable
+    data object Diagnostics : Screen
 }

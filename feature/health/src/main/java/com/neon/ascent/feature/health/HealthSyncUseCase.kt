@@ -1,19 +1,30 @@
 package com.neon.ascent.feature.health
 
-import com.neon.ascent.core.domain.GoalRepository
-import com.neon.ascent.core.domain.GoalProgress
-import com.neon.ascent.core.domain.AttributeType
+import android.content.Context
+import com.neon.ascent.core.data.datastore.HealthPreferencesDataStore
+import com.neon.ascent.core.domain.special.usecases.UpdateSpecialFromHealthUseCase
+import com.neon.ascent.feature.health.data.workers.HealthSyncWorker
+import dagger.hilt.android.qualifiers.ApplicationContext
+import java.time.Instant
 import javax.inject.Inject
 
+/**
+ * Orchestrates a health data sync from Health Connect.
+ * Triggers both a background worker for robustness and an immediate UseCase for UI feedback.
+ */
 class HealthSyncUseCase @Inject constructor(
-    private val goalRepository: GoalRepository,
-    // private val healthRepository: HealthRepository // Will need to move/inject this
+    @ApplicationContext private val context: Context,
+    private val updateSpecialFromHealthUseCase: UpdateSpecialFromHealthUseCase,
+    private val healthPrefs: HealthPreferencesDataStore
 ) {
-    suspend fun syncHealthData() {
-        // 1. Fetch data from Health Connect
-        // 2. Map to relevant goals
-        // Example: If user has a "Fitness" aspiration, update it with steps data
-        
-        // This is a stub for now
+    suspend operator fun invoke() {
+        // 1. One-time manual sync via Worker (background robustness)
+        HealthSyncWorker.triggerImmediateSync(context)
+
+        // 2. Run immediate UseCase for instant feedback in the current session
+        updateSpecialFromHealthUseCase()
+
+        // 3. Update the last sync time tracking
+        healthPrefs.updateLastSyncTime(Instant.now())
     }
 }

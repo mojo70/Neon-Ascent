@@ -8,7 +8,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.neon.ascent.core.data.datastore.HealthPreferencesDataStore
 import com.neon.ascent.core.domain.model.SpecialType
-import com.neon.ascent.core.domain.special.usecases.UpdateSpecialFromHealthUseCase
+import com.neon.ascent.feature.health.HealthSyncUseCase
 import com.neon.ascent.feature.health.data.HealthConnectManager
 import com.neon.ascent.feature.health.data.workers.HealthSyncWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,7 +22,7 @@ import javax.inject.Inject
 class HealthViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     val healthManager: HealthConnectManager,
-    private val updateSpecialFromHealthUseCase: UpdateSpecialFromHealthUseCase,
+    private val healthSyncUseCase: HealthSyncUseCase,
     private val healthPrefs: HealthPreferencesDataStore
 ) : ViewModel() {
 
@@ -96,17 +96,10 @@ class HealthViewModel @Inject constructor(
             _uiState.update { it.copy(syncStatus = SyncStatus.Syncing) }
 
             try {
-                // One-time manual sync
-                HealthSyncWorker.triggerImmediateSync(context)
-
-                // Also run immediate UseCase for instant feedback
-                updateSpecialFromHealthUseCase()
-
-                val now = Instant.now()
-                healthPrefs.updateLastSyncTime(now)
+                healthSyncUseCase()
                 
                 _uiState.update { it.copy(
-                    lastSyncTime = now,
+                    lastSyncTime = Instant.now(),
                     syncStatus = SyncStatus.Success
                 ) }
             } catch (e: Exception) {

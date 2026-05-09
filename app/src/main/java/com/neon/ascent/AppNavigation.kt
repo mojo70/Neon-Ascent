@@ -41,7 +41,10 @@ import com.neon.ascent.feature.library.EReaderScreen
 import com.neon.ascent.feature.settings.DeepNodeScreen
 import com.neon.ascent.feature.settings.SettingsScreen
 import com.neon.ascent.feature.health.ui.HealthPreferencesScreen
+import com.neon.ascent.feature.terminal.ui.AttributeHistoryScreen
+import com.neon.ascent.feature.terminal.ui.DiagnosticsScreen
 import com.neon.ascent.feature.wallet.EurodollarWalletScreen
+import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.ui.cyberGlitch
 
 @Composable
@@ -97,6 +100,7 @@ fun AppNavigation(
                         onStoryClick = { navController.navigate(Screen.StoryIntake) },
                         onGoalSetClick = { navController.navigate(Screen.Goals) },
                         onSettingsClick = { navController.navigate(Screen.Settings) },
+                        onDiagnosticsClick = { navController.navigate(Screen.Diagnostics) },
                         onDeusExMachinaClick = { navController.navigate(Screen.DeepNode("DEUS_EX_MACHINA")) }
                     )
                     2 -> BiohackingScreen(onBack = { /* Handled by pager */ })
@@ -289,6 +293,23 @@ fun AppNavigation(
 
         composable<Screen.HealthPreferences> {
             HealthPreferencesScreen()
+        }
+
+        composable<Screen.AttributeHistory> { backStackEntry ->
+            val route = backStackEntry.toRoute<Screen.AttributeHistory>()
+            val type = SpecialType.valueOf(route.attributeType)
+            AttributeHistoryScreen(
+                attributeType = type,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable<Screen.Diagnostics> {
+            DiagnosticsScreen(
+                onNavigateToHistory = { historyType ->
+                    navController.navigate(Screen.AttributeHistory(historyType.name))
+                }
+            )
         }
 
         composable<Screen.DeepNode> { backStackEntry ->
