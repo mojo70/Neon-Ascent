@@ -1,34 +1,43 @@
 package com.neon.ascent.core.data
 
+import com.neon.ascent.core.data.local.dao.SpecialDao
+import com.neon.ascent.core.data.local.entity.toDomain
+import com.neon.ascent.core.data.local.entity.toEntity
 import com.neon.ascent.core.domain.SpecialRepository
 import com.neon.ascent.core.domain.model.BenchmarkTest
 import com.neon.ascent.core.domain.model.SpecialAttribute
 import com.neon.ascent.core.domain.model.SpecialType
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
+import javax.inject.Singleton
 
-class SpecialRepositoryImpl @Inject constructor() : SpecialRepository {
+@Singleton
+class SpecialRepositoryImpl @Inject constructor(
+    private val dao: SpecialDao
+) : SpecialRepository {
+
     override suspend fun updateSpecialAttribute(attribute: SpecialAttribute) {
-        // TODO: Implement Room persistence
+        dao.upsertSpecialAttribute(attribute.toEntity())
     }
 
     override fun getSpecialAttribute(type: SpecialType): Flow<SpecialAttribute?> {
-        // TODO: Implement Room persistence
-        return flowOf(null)
+        return dao.getSpecialAttribute(type.name).map { it?.toDomain() }
     }
 
     override fun getAllSpecialAttributes(): Flow<List<SpecialAttribute>> {
-        // TODO: Implement Room persistence
-        return flowOf(emptyList())
+        return dao.getAllSpecialAttributes().map { entities ->
+            entities.map { it.toDomain() }
+        }
     }
 
     override suspend fun saveBenchmark(test: BenchmarkTest) {
-        // TODO: Implement Room persistence
+        dao.insertBenchmark(test.toEntity())
     }
 
     override fun getBenchmarkHistory(attribute: SpecialType): Flow<List<BenchmarkTest>> {
-        // TODO: Implement Room persistence
-        return flowOf(emptyList())
+        return dao.getBenchmarkHistory(attribute.name).map { entities ->
+            entities.map { it.toDomain() }
+        }
     }
 }

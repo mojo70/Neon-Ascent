@@ -2,6 +2,7 @@ package com.neon.ascent.core.data
 
 import android.content.Context
 import androidx.room.Room
+import com.neon.ascent.core.data.local.dao.SpecialDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -15,16 +16,23 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    fun provideGoalDatabase(@ApplicationContext context: Context): GoalDatabase {
+    fun provideDatabase(@ApplicationContext context: Context): NeonAscentDatabase {
         return Room.databaseBuilder(
             context,
-            GoalDatabase::class.java,
-            "goal_database"
-        ).build()
+            NeonAscentDatabase::class.java,
+            "neon_ascent_database"
+        )
+        .fallbackToDestructiveMigration()
+        .build()
     }
 
     @Provides
-    fun provideGoalDao(database: GoalDatabase): NewGoalDao {
+    fun provideGoalDao(database: NeonAscentDatabase): NewGoalDao {
         return database.goalDao()
+    }
+
+    @Provides
+    fun provideSpecialDao(database: NeonAscentDatabase): SpecialDao {
+        return database.specialDao()
     }
 }
