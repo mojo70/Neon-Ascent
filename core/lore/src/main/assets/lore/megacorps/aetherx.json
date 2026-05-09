@@ -6,6 +6,7 @@
   "description": "Founded in 2065 by ex-SpaceX renegades, AetherX is the premier megacorp for aggressive deep-space expansion. We deliver conquest. No safe orbits. No gentle landings. Just raw, unrelenting thrust.",
   "ceo": {
     "name": "Dr. Vance 'Thrust' Calder",
+    "netHandle": "Thrust",
     "title": "The Pilot",
     "personality": "degen_space_bro",
     "gemmaPromptPath": "lore/ceo_prompts/aetherx.txt"

@@ -40,6 +40,8 @@ import com.neon.ascent.model.DifficultyTier
 import com.neon.ascent.model.InvestorSlide
 import com.neon.ascent.model.SkillType
 import com.neon.ascent.ui.CyberFrame
+import com.neon.ascent.ui.components.CeoContactCard
+import com.neon.ascent.ui.theme.LocalNeonTheme
 import java.util.Locale
 
 @Composable
@@ -163,6 +165,8 @@ fun NetworkHubScreen(
 @Composable
 fun ChatListArea(viewModel: ChatViewModel, onContactClick: (String) -> Unit) {
     val sessions by viewModel.chatSessions.collectAsState()
+    val megacorps by viewModel.megacorps.collectAsState()
+    val trustMap by viewModel.executiveTrust.collectAsState()
     var lookupText by remember { mutableStateOf("") }
 
     Column {
@@ -195,6 +199,42 @@ fun ChatListArea(viewModel: ChatViewModel, onContactClick: (String) -> Unit) {
         }
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (megacorps.isNotEmpty()) {
+                item {
+                    Text(
+                        "// EXECUTIVE_CONTACTS",
+                        color = Color(0xFFFF006E),
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+                items(megacorps) { corp ->
+                    CeoContactCard(
+                        megacorp = corp,
+                        trustLevel = trustMap[corp.id] ?: 0f,
+                        onMessageClick = { 
+                            val handle = corp.ceo.netHandle ?: "UNKNOWN"
+                            viewModel.addContact(handle, isFixer = true)
+                            onContactClick(handle)
+                        },
+                        onProfileClick = { /* Handle profile click if needed */ }
+                    )
+                }
+            }
+
+            item {
+                Text(
+                    "// ACTIVE_SESSIONS",
+                    color = Color(0xFF00FF9F),
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+
             items(sessions) { session ->
                 ChatSessionItem(session) { onContactClick(session.contactName) }
             }

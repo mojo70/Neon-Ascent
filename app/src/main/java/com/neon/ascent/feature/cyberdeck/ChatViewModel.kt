@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.neon.ascent.data.local.ChatDao
 import com.neon.ascent.feature.biohacking.AiProvider
+import com.neon.ascent.core.lore.data.LoreRepository
+import com.neon.ascent.core.lore.data.Megacorp
 import com.neon.ascent.model.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -15,8 +17,15 @@ import javax.inject.Inject
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val chatDao: ChatDao,
-    private val aiProvider: AiProvider
+    private val aiProvider: AiProvider,
+    private val loreRepository: LoreRepository
 ) : ViewModel() {
+
+    private val _megacorps = MutableStateFlow<List<Megacorp>>(emptyList())
+    val megacorps: StateFlow<List<Megacorp>> = _megacorps.asStateFlow()
+
+    private val _executiveTrust = MutableStateFlow<Map<String, Float>>(emptyMap())
+    val executiveTrust: StateFlow<Map<String, Float>> = _executiveTrust.asStateFlow()
 
     val chatSessions: StateFlow<List<ChatSession>> = chatDao.getChatSessions()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -52,8 +61,8 @@ class ChatViewModel @Inject constructor(
             if (session != null) {
                 chatDao.insertChatSession(session.copy(lastMessage = text, lastTimestamp = timestamp, isUnread = false))
                 
-                // Special case for Thruster's first message
-                if (contactName == "Thruster" && messages.value.size == 1) { // Size 1 because we just inserted the user message
+                // Special case for Thrust's first message
+                if (contactName == "Thrust" && messages.value.size == 1) { // Size 1 because we just inserted the user message
                     val thrusterGreeting = "Grid connection established. This is Vance ‘Thrust’ Calder, CEO of AetherX. Who the hell is this and why are you pinging my private line? Make it good — I’ve got a Heavy Starship leaving for Uranus in 47 minutes and I’m not in the mood for bullshit."
                     val greetingTimestamp = System.currentTimeMillis() + 100
                     val aiMsg = ChatMessage(
@@ -94,7 +103,15 @@ class ChatViewModel @Inject constructor(
 
     fun addContact(name: String, isFixer: Boolean = false) {
         viewModelScope.launch {
-            val personality = if (isFixer) PREDEFINED_FIXERS.find { it.name == name }?.personality else "Netrunner colleague."
+            val megacorp = _megacorps.value.find { it.ceo.netHandle == name }
+            val personality = if (megacorp != null) {
+                loreRepository.loadCeoPrompt(megacorp.ceo.gemmaPromptPath)
+            } else if (isFixer) {
+                PREDEFINED_FIXERS.find { it.name == name }?.personality
+            } else {
+                "Netrunner colleague."
+            }
+            
             val lastMsg = "CONNECTION_ESTABLISHED"
 
             val session = ChatSession(
@@ -102,19 +119,28 @@ class ChatViewModel @Inject constructor(
                 lastMessage = lastMsg,
                 lastTimestamp = System.currentTimeMillis(),
                 isUnread = true,
-                isFixer = isFixer || (name == "Thruster"),
-                personalityPrompt = personality ?: if (name == "Thruster") PREDEFINED_FIXERS.find { it.name == "Thruster" }?.personality else null
+                isFixer = isFixer || (megacorp != null) || (name == "Thrust"),
+                personalityPrompt = personality
             )
             chatDao.insertChatSession(session)
         }
     }
 
     init {
-        // Pre-populate with fixers if empty (except Thruster)
+        // Pre-populate with fixers if empty (except Thrust)
         viewModelScope.launch {
+            _megacorps.value = loreRepository.getAllMegacorps()
+            
+            // Mock trust levels for demo
+            _executiveTrust.value = mapOf(
+                "aetherx" to 0.45f,
+                "panopticon" to 0.12f,
+                "microhard" to 0.05f
+            )
+
             if (chatSessions.value.isEmpty()) {
                 PREDEFINED_FIXERS.forEach { fixer ->
-                    if (fixer.name != "Thruster") {
+                    if (fixer.name != "Thrust") {
                         addContact(fixer.name, isFixer = true)
                     }
                 }

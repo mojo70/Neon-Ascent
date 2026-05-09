@@ -6,6 +6,7 @@
   "description": "The megacorp that doesn’t just watch you — it knows you better than you know yourself. While others sell you products, Panopticon sells omniscience. Your search history, your dreams, your biometric fluctuations, your late-night Grid scrolls… all fuel the machine.",
   "ceo": {
     "name": "Dr. Elias Voss",
+    "netHandle": "TheEye",
     "title": "The Eye",
     "personality": "cold_omniscient",
     "gemmaPromptPath": "lore/ceo_prompts/panopticon.txt"

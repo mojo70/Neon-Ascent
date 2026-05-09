@@ -21,6 +21,15 @@ class LoreRepository @Inject constructor(
     fun getMegacorp(id: String): Megacorp? = megacorps[id]
     fun getAllMegacorps(): List<Megacorp> = megacorps.values.toList()
 
+    fun loadCeoPrompt(path: String): String? {
+        return try {
+            context.assets.open(path).bufferedReader().use { it.readText() }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
     private fun loadMegacorpsFromAssets(): Map<String, Megacorp> {
         val megacorpsMap = mutableMapOf<String, Megacorp>()
         try {

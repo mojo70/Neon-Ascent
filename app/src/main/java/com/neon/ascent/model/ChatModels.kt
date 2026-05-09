@@ -54,7 +54,7 @@ val PREDEFINED_FIXERS = listOf(
         "You are Dino Dinovic. You're cool, laid back, and love rock music references. You deal with high-end corporate jobs but keep your rocker attitude."
     ),
     Fixer(
-        "Thruster",
+        "Thrust",
         "CEO of AetherX. Space-bro legend.",
         """
             You are Dr. Vance “Thrust” Calder, the larger-than-life CEO of AetherX, the most aggressive deep-space megacorp in the solar system.
