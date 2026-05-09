@@ -130,6 +130,19 @@ class CyberdeckViewModel @Inject constructor(
                 InvestorSlide("THE VISION", "Flesh is temporary. Obsidian is eternal.", "We don't just augment. We rewrite what it means to be human."),
                 InvestorSlide("TRACTION", "The Future is Post-Human", "Veil Lattice adoption up 67%\nProject Eternity achieved 100% client retention\nMidnight Seraph skin set sold out in 11 minutes")
             )
+            "microhard" -> listOf(
+                InvestorSlide("MICROHARD", "Dominion Series Ω", "Presented by Gideon “Gid” Bates – Dominus\nOctober 2071"),
+                InvestorSlide("THE PROBLEM", "The solar system runs on chaos.", "Fragmented OS. Insecure implants. Users who think they own their own hardware.\n\nWe fix that."),
+                InvestorSlide("OUR SOLUTION", "Helix OS + Dominion Cloud", "Seamless integration across implants, habs, rockets, and weapons.\nMandatory telemetry 'for your safety'.\nZero user choice. Maximum control.\n\nCore Product: Total Digital Dominion as a Service (TDaaS)"),
+                InvestorSlide("TRACTION", "You Already Use Us", "Helix OS now powers 97.8% of all connected devices.\nDominion Cloud stores 4.7 trillion user profiles.\nStock: MHRD +29% this quarter."),
+                InvestorSlide("MARKET OPPORTUNITY", "Total Addressable Market: §6.8 Trillion by 2080", "We already own 84% of the OS layer. The remaining 16% is just future acquisition targets."),
+                InvestorSlide("TECHNOLOGY", "Social Engineering Hints Included", "Helix OS Kernel: Most secure (by us, for us).\nDominion Backdoor: In every device since 2059.\nGid's Private Signing Key: Used for all overrides.\nVintage Hardware: Dominus loves pre-2050 Xbox controllers."),
+                InvestorSlide("FINANCIAL HIGHLIGHTS", "Revenue: §978 Billion (+29% YoY)", "Adjusted Dominion Profit: §614 Billion (+44%)\nEPS: §7.42\n\nGuidance Q4: §1.25T+"),
+                InvestorSlide("TEAM", "Gideon “Gid” Bates – Dominus", "The man who turned 'embrace, extend, extinguish' into official corporate religion.\n\nKnown Triggers: 'Smartest man alive', Golf analogies, Visionary flattery.\nWeakness: Physical gaming hardware (2020s-2040s)."),
+                InvestorSlide("ROADMAP", "Universal Digital Dominion", "Q4 2071 – Helix OS 2077.1 Update\n2072 – Full neural implant OS monopoly\n2073 – Dominion Mars Colony"),
+                InvestorSlide("THE ASK", "Raising §580 Billion", "50% Cloud infrastructure\n25% Hostile acquisitions\n15% Marketing ('You will love the update')\n10% Executive yacht & vintage hardware"),
+                InvestorSlide("MICROHARD", "Your data, our dominion.", "Thank you. You will install this deck.\n— Dominus")
+            )
             else -> null
         }
     }
