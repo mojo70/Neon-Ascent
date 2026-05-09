@@ -125,6 +125,11 @@ class CyberdeckViewModel @Inject constructor(
                 InvestorSlide("THE ASK", "Raising §450 Billion", "60% More Heavy Starships\n25% Expanded pleasure colonies\n10% Marketing (Uranus memes)\n\nJoin the thrust."),
                 InvestorSlide("AETHERX", "Reach for the stars. Then reach deeper.", "Thank you.\nQuestions? Fire away.")
             )
+            "obsidianveil" -> listOf(
+                InvestorSlide("OBSIDIAN VEIL", "Ascension Series Ω", "Presented by Dr. Seraphine Voss – Veilwalker\nOctober 2071"),
+                InvestorSlide("THE VISION", "Flesh is temporary. Obsidian is eternal.", "We don't just augment. We rewrite what it means to be human."),
+                InvestorSlide("TRACTION", "The Future is Post-Human", "Veil Lattice adoption up 67%\nProject Eternity achieved 100% client retention\nMidnight Seraph skin set sold out in 11 minutes")
+            )
             else -> null
         }
     }
@@ -142,6 +147,11 @@ class CyberdeckViewModel @Inject constructor(
         }
         if (corpoName == "Microhard" && username == "Dominus" && password == "DominionHasNoPullout42069") {
             grantBypassRewards(DifficultyTier.OPERATIVE)
+            _bypassedBlackIce.update { it + corpoName }
+            return true
+        }
+        if (corpoName == "Obsidian Veil" && username == "Veilwalker" && password == "VeilHasNoFlesh42069") {
+            grantBypassRewards(DifficultyTier.BLACK_ICE)
             _bypassedBlackIce.update { it + corpoName }
             return true
         }

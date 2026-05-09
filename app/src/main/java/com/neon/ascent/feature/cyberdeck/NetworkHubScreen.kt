@@ -477,6 +477,41 @@ fun CorpoNodesArea(viewModel: CyberdeckViewModel, bypassed: Set<String>, onCorpo
                 )
             ),
             CorpoNode(
+                name = "Obsidian Veil",
+                ticker = "OBSV",
+                slogan = "We see what you will become.",
+                profile = "The premier megacorp for human (re)design. Where others sell cyberware, Obsidian Veil sells evolution. They don’t augment your body — they rewrite what it means to be human. Sleek, elegant, and terrifyingly precise.",
+                securityTier = DifficultyTier.BLACK_ICE,
+                stockPrice = 1467.80,
+                stockChange = 52.40,
+                stockChangePercent = 3.7,
+                marketCap = "§2.4 Trillion",
+                ceo = "Dr. Seraphine Voss",
+                highlights = listOf(
+                    "2057 - First successful full-body Obsidian Conversion.",
+                    "2062 - Launched the Veil Lattice for real-time DNA rewriting.",
+                    "2066 - Project Eternity achieved biological age 147.",
+                    "2069 - Released luxury Chromedream augmentation line.",
+                    "2070 - Integrated Panopticon telemetry into new augs."
+                ),
+                earningsReport = """
+                    OBSIDIAN VEIL (OBSV) Q3 2071 Earnings Transmission
+                    Net Revenue: §743 Billion ▲ +41% YoY
+                    Adjusted Evolution Profit: §519 Billion ▲ +58%
+                    EPS: §8.91 | CEO: Veilwalker
+                    
+                    [DIVISIONAL PERFORMANCE]
+                    • Veil Lattice: §327B (+48%)
+                    • Obsidian Aesthetics: §230B (+35%)
+                    • Eternity Labs: §111B (+12%)
+                    • Shadowform: §52B (+22%)
+                    • Ascension Clinics: §23B (+95%)
+                    
+                    [CEO STATEMENT - VEILWALKER]
+                    "Another cycle completed. Another step closer to perfection. You still cling to that fragile meat. How… endearing."
+                """.trimIndent()
+            ),
+            CorpoNode(
                 name = "Microhard",
                 ticker = "MHRD",
                 slogan = "Your data, our dominion.",

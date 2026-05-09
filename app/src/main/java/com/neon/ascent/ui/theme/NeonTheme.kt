@@ -20,6 +20,7 @@ data class NeonThemeData(
             "aetherx" -> Color(0xFF00FFFF)
             "panopticon" -> Color(0xFFFF006E)
             "microhard" -> Color(0xFF0088FF)
+            "obsidianveil" -> Color(0xFFA020F0) // Deep Purple
             else -> primary
         }
     }

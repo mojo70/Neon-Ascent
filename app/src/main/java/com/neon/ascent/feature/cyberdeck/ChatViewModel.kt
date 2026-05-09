@@ -135,7 +135,8 @@ class ChatViewModel @Inject constructor(
             _executiveTrust.value = mapOf(
                 "aetherx" to 0.45f,
                 "panopticon" to 0.12f,
-                "microhard" to 0.05f
+                "microhard" to 0.05f,
+                "obsidianveil" to 0.28f
             )
 
             if (chatSessions.value.isEmpty()) {

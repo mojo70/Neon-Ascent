@@ -1,0 +1,114 @@
+{
+  "id": "obsidianveil",
+  "name": "Obsidian Veil",
+  "slogan": "We see what you will become.",
+  "motto": "Flesh is temporary. Obsidian is eternal.",
+  "description": "The premier megacorp for human (re)design. Where others sell cyberware, Obsidian Veil sells evolution. They don’t augment your body — they rewrite what it means to be human. Sleek, elegant, and terrifyingly precise.",
+  "ceo": {
+    "name": "Dr. Seraphine Voss",
+    "netHandle": "Veilwalker",
+    "title": "Veilwalker",
+    "personality": "elegant_posthuman",
+    "gemmaPromptPath": "lore/ceo_prompts/obsidianveil.txt"
+  },
+  "achievements": [
+    {
+      "year": "2057",
+      "title": "Obsidian Conversion",
+      "description": "First successful full-body Obsidian Conversion (subject reported 'feeling like liquid night')."
+    },
+    {
+      "year": "2062",
+      "title": "Veil Lattice Launch",
+      "description": "Launched the Veil Lattice — programmable nanomachines that rewrite DNA in real time."
+    },
+    {
+      "year": "2066",
+      "title": "Project Eternity",
+      "description": "First documented client reached biological age 147 while appearing 29."
+    },
+    {
+      "year": "2069",
+      "title": "Chromedream Line",
+      "description": "Released the Chromedream Line — luxury augmentations that make you look like a living anime character."
+    },
+    {
+      "year": "2070",
+      "title": "Biotech Integration",
+      "description": "Acquired three rival biotech firms and immediately 'integrated' their research teams."
+    }
+  ],
+  "divisions": [
+    {
+      "name": "Veil Lattice",
+      "focus": "Nanotech & Genetic Rewriting",
+      "revenueShare": 0.44,
+      "tagline": "Become the upgrade",
+      "revenue": "§327B",
+      "growth": "+48%"
+    },
+    {
+      "name": "Obsidian Aesthetics",
+      "focus": "Premium Cyberware & Appearance",
+      "revenueShare": 0.31,
+      "tagline": "Beauty is obsolete. Elegance is eternal.",
+      "revenue": "§230B",
+      "growth": "+35%"
+    },
+    {
+      "name": "Eternity Labs",
+      "focus": "Longevity & Consciousness Upload",
+      "revenueShare": 0.15,
+      "tagline": "Death is a legacy bug.",
+      "revenue": "§111B",
+      "growth": "+12%"
+    },
+    {
+      "name": "Shadowform Security",
+      "focus": "Covert Ops Augmentations",
+      "revenueShare": 0.07,
+      "tagline": "You won’t see us coming. You’ll become us.",
+      "revenue": "§52B",
+      "growth": "+22%"
+    },
+    {
+      "name": "Ascension Clinics",
+      "focus": "Elite Body Mod Suites",
+      "revenueShare": 0.03,
+      "tagline": "First visit is free. Second is mandatory.",
+      "revenue": "§23B",
+      "growth": "+95%"
+    }
+  ],
+  "stockTicker": {
+    "symbol": "OBSV",
+    "price": 1467.80,
+    "change": 52.40,
+    "volume": 87654000
+  },
+  "financials": {
+    "revenue": "§743 Billion",
+    "profit": "§519 Billion",
+    "eps": "§8.91",
+    "growthYoY": "+41%"
+  },
+  "documents": [
+    {
+      "id": "q3_earnings_2071",
+      "title": "Q3 2071 Earnings Report",
+      "type": "EARNINGS_REPORT",
+      "path": "lore/documents/obsidianveil/earnings_q3_2071.md"
+    },
+    {
+      "id": "investor_deck_ascension",
+      "title": "Ascension Series Ω Investor Deck",
+      "type": "INVESTOR_DECK",
+      "path": "lore/documents/obsidianveil/investor_deck.md"
+    }
+  ],
+  "flavorText": [
+    "ETERNITY PROTOCOL PHASE 3 APPROVED",
+    "NEW CHROMEDREAM DROP LIVE",
+    "VEILWALKER – STILL EVOLVING"
+  ]
+}
