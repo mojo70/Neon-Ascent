@@ -15,14 +15,18 @@ import com.neon.ascent.core.common.NeonPink
 import com.neon.ascent.core.common.NeonPurple
 import com.neon.ascent.core.domain.model.SpecialAttribute
 import com.neon.ascent.core.domain.model.SpecialType
+import com.neon.ascent.feature.health.ui.HealthViewModel
+import com.neon.ascent.feature.health.ui.SyncStatus
 
 @Composable
 fun DiagnosticsScreen(
-    viewModel: DiagnosticsViewModel = hiltViewModel()
+    viewModel: DiagnosticsViewModel = hiltViewModel(),
+    healthViewModel: HealthViewModel = hiltViewModel()
 ) {
     val specialState by viewModel.specialState.collectAsState()
     val isRunningTest by viewModel.isRunningTest.collectAsState()
     val lastTestResult by viewModel.lastTestResult.collectAsState()
+    val healthState by healthViewModel.uiState.collectAsState()
 
     Box(
         modifier = Modifier
@@ -84,10 +88,18 @@ fun DiagnosticsScreen(
 
             // Full Diagnostics Button (expand later for other attributes)
             Button(
-                onClick = { /* TODO: Full physical + wearable sync diagnostics */ },
-                modifier = Modifier.fillMaxWidth()
+                onClick = { healthViewModel.triggerImmediateSync() },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = healthState.syncStatus != SyncStatus.Syncing
             ) {
-                Text("RUN FULL SYSTEM DIAGNOSTICS (Garmin + Physical)")
+                Text(
+                    if (healthState.syncStatus == SyncStatus.Syncing) "SYNCING NEURAL DATA..."
+                    else "FORCE NEURAL SYNC (Garmin + Physical)"
+                )
+            }
+
+            if (healthState.error != null) {
+                Text(text = healthState.error!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
         }
     }

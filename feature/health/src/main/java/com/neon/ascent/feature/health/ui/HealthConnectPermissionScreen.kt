@@ -2,6 +2,8 @@ package com.neon.ascent.feature.health.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.*
@@ -21,29 +23,41 @@ fun HealthConnectPermissionScreen(
     viewModel: HealthViewModel = hiltViewModel(),
     onPermissionsGranted: () -> Unit
 ) {
-    val hasPermissions by viewModel.hasPermissions.collectAsState()
-    val rationale = viewModel.healthManager.getPermissionRationale()
+    val state by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
 
     val permissionsLauncher = rememberLauncherForActivityResult(
         PermissionController.createRequestPermissionResultContract()
     ) { granted ->
-        if (granted.containsAll(rationale.keys)) { // This is a simplification
-            viewModel.checkPermissions()
+        viewModel.checkPermissions()
+        // We'll let the LaunchedEffect handle onPermissionsGranted if successful
+    }
+
+    LaunchedEffect(state.hasPermissions) {
+        if (state.hasPermissions) {
             onPermissionsGranted()
         }
     }
 
-    LaunchedEffect(hasPermissions) {
-        if (hasPermissions) {
-            onPermissionsGranted()
-        }
+    if (state.showRationale) {
+        PermissionRationaleDialog(
+            rationale = state.rationale,
+            onConfirm = {
+                viewModel.dismissRationale()
+                scope.launch {
+                    val permissions = viewModel.healthManager.getPermissionsToRequest()
+                    permissionsLauncher.launch(permissions)
+                }
+            },
+            onDismiss = { viewModel.dismissRationale() }
+        )
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(24.dp)
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(32.dp)
     ) {
         Text(
@@ -58,7 +72,7 @@ fun HealthConnectPermissionScreen(
             color = Color.White.copy(alpha = 0.8f)
         )
 
-        rationale.forEach { (_, explanation) ->
+        state.rationale.ifEmpty { viewModel.healthManager.getPermissionRationale() }.forEach { (_, explanation) ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Security, contentDescription = null, tint = NeonPink)
                 Spacer(Modifier.width(12.dp))
@@ -68,18 +82,30 @@ fun HealthConnectPermissionScreen(
 
         Button(
             onClick = {
-                scope.launch {
-                    val permissions = viewModel.healthManager.getPermissionsToRequest()
-                    if (permissions.isNotEmpty()) {
-                        permissionsLauncher.launch(permissions)
-                    } else {
-                        onPermissionsGranted()
-                    }
-                }
+                viewModel.requestHealthPermissions()
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !state.isLoading
         ) {
-            Text("CONNECT TO HEALTH VAULT")
+            if (state.isLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.Black)
+            } else {
+                Text("CONNECT TO HEALTH VAULT")
+            }
+        }
+
+        if (state.hasPermissions) {
+            Button(
+                onClick = { viewModel.triggerImmediateSync() },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
+            ) {
+                Text("FORCE NEURAL SYNC (GARMIN)")
+            }
+        }
+
+        state.error?.let {
+            Text(text = it, color = MaterialTheme.colorScheme.error)
         }
 
         Text(
@@ -88,4 +114,35 @@ fun HealthConnectPermissionScreen(
             color = Color.Gray
         )
     }
+}
+
+@Composable
+fun PermissionRationaleDialog(
+    rationale: Map<String, String>,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Neural Access Required", color = NeonCyan) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Establishing a neural link requires access to the following biometric streams:")
+                rationale.forEach { (type, explanation) ->
+                    Text("• $explanation", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("ESTABLISH LINK", color = NeonPink)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("CANCEL", color = Color.Gray)
+            }
+        },
+        containerColor = Color(0xFF1A1A1A)
+    )
 }
