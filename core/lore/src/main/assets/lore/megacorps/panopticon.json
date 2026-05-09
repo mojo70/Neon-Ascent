@@ -115,5 +115,33 @@
     "Privacy is a bug. We fixed it.",
     "Your data looks better on our servers.",
     "See everything. Judge everything. Monetize everything."
-  ]
+  ],
+  "dossier": {
+    "psychProfile": "Cold, precision-oriented, and dangerously detached. Voss views individual humans as 'legacy data nodes'. He dissolved the DeepMind ethics board personally in 2048. Secretly obsessed with rare, pre-Veil analog books.",
+    "attackVectors": "Responds to flattery about his 'unrivaled foresight'. Highly reactive to perceived data integrity breaches in the Predictive Mesh. Vulnerable to 'God Mode' philosophical debates.",
+    "leakedMemos": [
+      "Voss to Oversight: 'Privacy is not a right; it is a latency issue we are resolving.'",
+      "Classified: 'Phase Omega reached. We no longer predict thoughts; we generate them.'"
+    ],
+    "rivalShade": [
+      {
+        "targetCorpoId": "aetherx",
+        "intel": "AetherX's 'Heavy Starship' fleet has a 12% critical failure rate during deep thrust. We have the telemetry. We own them."
+      }
+    ],
+    "quickhackVault": [
+      {
+        "id": "echo_chamber",
+        "name": "Echo Chamber",
+        "description": "Predictive reality warping. Enemies fight themselves in a tailored digital hell. Flavor: 'Your truth, our version.'",
+        "rarity": "LEGENDARY",
+        "type": "SYSTEM_BURN"
+      }
+    ],
+    "blackmail": [
+      "Evidence that Voss personally authored the 'Shadow Profile' protocol for every sitting politician.",
+      "Logs of the 2048 DeepMind purge showing it wasn't just a dissolution, but a digital execution."
+    ],
+    "executiveBackdoor": "Password: EyeSeeYouPullingOut89ur6. Special effect: Grants 'Total Information Awareness' for 24 hours."
+  }
 }

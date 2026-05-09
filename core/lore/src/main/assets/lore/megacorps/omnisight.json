@@ -112,31 +112,52 @@
     "ALLSEER – THE FUTURE IS CERTAIN"
   ],
   "dossier": {
-    "psychProfile": "Machine-like, prophetic, and absolute. Crowe speaks only in certainties. He views human agency as a rounding error. Irrational need to be proven correct at all times. Former Palantir black-ops.",
-    "attackVectors": "Can be engaged by offering new 'unseen variables' to feed the Oracle Engine. Responds to challenges of his predictions with real-time counter-data (cannot resist correcting you). Susceptible to flattery about model perfection.",
+    "psychProfile": "Dr. Lucian Crowe is a baseline human with 43% neural augmentation. He claims he 'no longer dreams — only runs probability simulations.' He has a pathological need to be proven correct; any successful counter-prediction triggers visible irritation. Secretly collects physical 'pre-Oracle' paper books on chaos theory. Distant cousin to Panopticon’s Elias Voss — they haven’t spoken since the 2062 'probability schism'.",
+    "attackVectors": "High-success social engineering lines: 1. Offer raw datasets from missed variables. 2. Ask him to update weights on unlikely contacts. 3. Provide 'unseen variables' from rival corps. 4. Pretend to be a government liaison with 'black swan' data. 5. Flatter the Oracle while questioning one specific prediction.",
     "leakedMemos": [
-      "Crowe to Analysts: 'If the model deviates from reality by more than 0.02%, reality is incorrect. Dispatch Enforcement.'",
-      "Classified: 'Certainty Protocol Phase 4: We are now shorting the lives of individuals with a 99.1% success rate.'"
+      "Memo #Ω-7742: 'Probability of runner cracking this node: 2.7%. If they reach this memo, recalibrate the model. — AllSeer'",
+      "Memo #Ω-7919: 'AetherX’s Uranus initiative has introduced 14% more chaos than projected. Recommend selling short on their next launch window.'",
+      "Audio Fragment: 'The model has already accounted for your betrayal. It is… disappointing.'"
     ],
     "rivalShade": [
       {
+        "targetCorpoId": "panopticon",
+        "intel": "My brother still believes watching is enough. Cute."
+      },
+      {
         "targetCorpoId": "microhard",
-        "intel": "Microhard's Helix OS has a predictive telemetry leak we've been harvesting for years. They think they own the OS; we own the data they generate."
+        "intel": "They sell certainty through lock-in. We sell it through inevitability."
+      },
+      {
+        "targetCorpoId": "aetherx",
+        "intel": "Their 'no pullout' philosophy is statistically the least efficient use of thrust vectors in recorded history."
+      },
+      {
+        "targetCorpoId": "obsidianveil",
+        "intel": "They rewrite bodies. We rewrite futures. One of us is obsolete."
       }
     ],
     "quickhackVault": [
       {
         "id": "oracle_overwrite",
         "name": "Oracle Overwrite",
-        "description": "Force-recalculates enemy combat logic, making them anticipate an attack that never comes. Massive stun + confusion. Flavor: 'The model has already accounted for this.'",
+        "description": "Forces enemy systems to act on a false 99.9% probable future for 8 seconds (attack allies, self-sabotage, or freeze). Flavor: 'The model has already decided your next move.'",
         "rarity": "LEGENDARY",
         "type": "GHOST_PULSE"
+      },
+      {
+        "id": "certainty_cascade",
+        "name": "Certainty Cascade",
+        "description": "Chains predictive damage — each hit increases the probability of the next hit landing critically (starts 67%, caps 100%). Flavor: 'One truth: you were never going to survive this.'",
+        "rarity": "LEGENDARY",
+        "type": "SYSTEM_BURN"
       }
     ],
     "blackmail": [
-      "Evidence that the 2065 'Singapore Incident' was manually triggered by OmniSight to validate their Q4 projections.",
-      "Logs showing AllSeer predicting his own death with a 100% probability on a specific date in 2082."
+      "Holo-recording of AllSeer manually overriding the Oracle to save his own reputation during the Singapore Incident.",
+      "Evidence of secret Oracle Markets bets placed against his own pre-crime predictions.",
+      "Personal log: 'If the model is ever wrong, I become the variable.'"
     ],
-    "executiveBackdoor": "Password: AllSeerSeesYourMom42069. Special effect: Grants 'Universal Probability Access' for 24 hours."
+    "executiveBackdoor": "Password: AllSeerSeesYourMom42069. Special effect: Grants 'Oracle Patron' perk (+15% trust gain with tech corps + one free social engineering re-roll)."
   }
 }
