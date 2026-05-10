@@ -11,6 +11,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
+import com.neon.ascent.Screen
 import com.neon.ascent.core.common.*
 import com.neon.ascent.core.domain.goals.models.Aspiration
 import com.neon.ascent.core.domain.goals.models.Mission
@@ -19,6 +21,7 @@ import com.neon.ascent.core.domain.goals.models.Mission
 @Composable
 fun AspirationDetailScreen(
     aspirationId: String,
+    navController: NavController,
     viewModel: AspirationDetailViewModel = hiltViewModel(),
     onBack: () -> Unit
 ) {
@@ -111,7 +114,9 @@ fun AspirationDetailScreen(
             }
 
             items(linkedMissions) { mission ->
-                MissionDetailCard(mission)
+                MissionDetailCard(mission) {
+                    navController.navigate(Screen.MissionDetail(mission.id))
+                }
             }
 
             // Action Buttons
@@ -150,8 +155,9 @@ fun AspirationDetailScreen(
 }
 
 @Composable
-private fun MissionDetailCard(mission: Mission) {
+private fun MissionDetailCard(mission: Mission, onClick: () -> Unit) {
     Card(
+        onClick = onClick,
         colors = CardDefaults.cardColors(containerColor = Color(0xFF0F001A)),
         modifier = Modifier.fillMaxWidth()
     ) {

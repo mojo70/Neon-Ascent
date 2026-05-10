@@ -32,7 +32,6 @@ import com.neon.ascent.feature.games.IceBreachScreen
 import com.neon.ascent.feature.games.BlackIceBreachScreen
 import com.neon.ascent.feature.games.CyberChessScreen
 import com.neon.ascent.feature.games.CyberPongScreen
-import com.neon.ascent.feature.journal.JournalScreen
 import com.neon.ascent.feature.journal.JournalViewModel
 import com.neon.ascent.feature.attributes.AttributeDetailScreen
 import com.neon.ascent.feature.journal.StoryScreen
@@ -40,6 +39,7 @@ import com.neon.ascent.feature.goals.GoalIntakeScreen
 import com.neon.ascent.feature.goals.AspirationsScreen
 import com.neon.ascent.feature.goals.ui.AspirationCreationScreen
 import com.neon.ascent.feature.goals.ui.AspirationDetailScreen
+import com.neon.ascent.feature.goals.ui.MissionDetailScreen
 import com.neon.ascent.feature.goals.ui.DatabaseCoreScreen
 import com.neon.ascent.feature.story.StoryIntakeScreen
 import com.neon.ascent.feature.loading.LoadingScreen
@@ -115,7 +115,14 @@ fun AppNavigation(
                     1 -> DashboardScreen(
                         onAvatarClick = { navController.navigate(Screen.HolographicHub) },
                         onAttributeSetClick = { navController.navigate(Screen.AttributeScan) },
-                        onStoryClick = { navController.navigate(Screen.StoryIntake) },
+                        onStoryClick = {
+                            val target = if (dashboardViewModel.uiState.value.userStory.bio.isNotBlank()) {
+                                Screen.Story
+                            } else {
+                                Screen.StoryIntake
+                            }
+                            navController.navigate(target)
+                        },
                         onGoalSetClick = { navController.navigate(Screen.Goals) },
                         onSettingsClick = { navController.navigate(Screen.Settings) },
                         onDiagnosticsClick = { navController.navigate(Screen.Diagnostics) },
@@ -204,7 +211,8 @@ fun AppNavigation(
         }
 
         composable<Screen.Journal> {
-            JournalScreen(
+            DatabaseCoreScreen(
+                navController = navController,
                 onEntryClick = { /* TODO: Navigate to entry detail */ },
                 onStoryClick = { navController.navigate(Screen.Story) },
                 onBack = { navController.popBackStack() },
@@ -312,7 +320,11 @@ fun AppNavigation(
 
         composable<Screen.DatabaseCore> {
             DatabaseCoreScreen(
-                navController = navController
+                navController = navController,
+                onEntryClick = { /* TODO: Navigate to entry detail */ },
+                onStoryClick = { navController.navigate(Screen.Story) },
+                onBack = { navController.popBackStack() },
+                onHackingRequired = { navController.navigate(Screen.SystemBreach) }
             )
         }
 
@@ -327,7 +339,17 @@ fun AppNavigation(
             val detail = backStackEntry.toRoute<Screen.AspirationDetail>()
             AspirationDetailScreen(
                 aspirationId = detail.id,
+                navController = navController,
                 onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable<Screen.MissionDetail> { backStackEntry ->
+            val detail = backStackEntry.toRoute<Screen.MissionDetail>()
+            MissionDetailScreen(
+                missionId = detail.id,
+                onBack = { navController.popBackStack() },
+                onCompleteMission = { navController.popBackStack() }
             )
         }
 

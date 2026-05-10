@@ -74,6 +74,9 @@ sealed interface Screen {
     data class AspirationDetail(val id: String) : Screen
 
     @Serializable
+    data class MissionDetail(val id: String) : Screen
+
+    @Serializable
     data object Settings : Screen
 
     @Serializable
