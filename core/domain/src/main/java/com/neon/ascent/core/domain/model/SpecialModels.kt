@@ -55,12 +55,13 @@ enum class DataSource {
 /** Cognitive test item (fluid intelligence focused) */
 data class CognitiveItem(
     val id: String,
-    val type: CognitiveSubTest,
-    val difficulty: Int,           // 1-10
-    val question: String,          // Text or describe visual (we'll render accordingly)
+    val subTest: CognitiveSubTest,
+    val difficulty: Double,      // b parameter (item difficulty)
+    val discrimination: Double,  // a parameter (how well it differentiates ability)
+    val question: String,        // Text or description for UI rendering
     val options: List<String>? = null,
     val correctAnswer: String,
-    val explanation: String? = null // for post-test feedback
+    val explanation: String? = null
 )
 
 enum class CognitiveSubTest {

@@ -49,6 +49,7 @@ import com.neon.ascent.feature.settings.SettingsScreen
 import com.neon.ascent.feature.health.ui.HealthPreferencesScreen
 import com.neon.ascent.feature.terminal.ui.AttributeHistoryScreen
 import com.neon.ascent.feature.terminal.ui.DiagnosticsScreen
+import com.neon.ascent.feature.terminal.ui.CognitiveTestScreen
 import com.neon.ascent.feature.notifications.ui.NeuralPingPermissionScreen
 import com.neon.ascent.feature.notifications.ui.NotificationPermissionViewModel
 import com.neon.ascent.feature.notifications.ui.NotificationPreferencesScreen
@@ -141,6 +142,9 @@ fun AppNavigation(
                 },
                 onNavigateToDiagnostics = {
                     navController.navigate(Screen.Diagnostics)
+                },
+                onRunCognitiveTest = {
+                    navController.navigate(Screen.CognitiveTest)
                 }
             )
         }
@@ -390,6 +394,17 @@ fun AppNavigation(
             DiagnosticsScreen(
                 onNavigateToHistory = { historyType ->
                     navController.navigate(Screen.AttributeHistory(historyType.name))
+                },
+                onRunDiagnostic = {
+                    navController.navigate(Screen.CognitiveTest)
+                }
+            )
+        }
+
+        composable<Screen.CognitiveTest> {
+            CognitiveTestScreen(
+                onTestComplete = {
+                    navController.popBackStack()
                 }
             )
         }

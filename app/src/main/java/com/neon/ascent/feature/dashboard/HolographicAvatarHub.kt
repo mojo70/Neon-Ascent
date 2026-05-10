@@ -52,7 +52,8 @@ fun HolographicAvatarHub(
     healthViewModel: HealthViewModel = hiltViewModel(),
     onBack: () -> Unit,
     onUpgradeClick: (String) -> Unit,
-    onNavigateToDiagnostics: () -> Unit
+    onNavigateToDiagnostics: () -> Unit,
+    onRunCognitiveTest: () -> Unit = {}
 ) {
     val userCharacter by viewModel.userCharacter.collectAsState()
     val specialState by terminalViewModel.specialState.collectAsState()
@@ -323,26 +324,48 @@ fun HolographicAvatarHub(
                 }
             }
 
-            // Big neon button: "VIEW FULL NEURAL ARCHIVE →"
-            Button(
-                onClick = onNavigateToDiagnostics,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp)
-                    .height(48.dp)
-                    .neonBorder(Color(0xFF00FFFF), cornerRadius = 4.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FFFF).copy(alpha = 0.1f)),
-                shape = RoundedCornerShape(4.dp)
+            // Intelligence Test & Neural Archive Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    "VIEW FULL NEURAL ARCHIVE →",
-                    color = Color(0xFF00FFFF),
-                    style = MaterialTheme.typography.labelLarge.copy(
+                Button(
+                    onClick = onRunCognitiveTest,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .neonBorder(NeonPink, cornerRadius = 4.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonPink.copy(alpha = 0.1f)),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        "NEURAL TEST",
+                        color = NeonPink,
+                        fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 2.sp
+                        letterSpacing = 1.sp
                     )
-                )
+                }
+
+                Button(
+                    onClick = onNavigateToDiagnostics,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .neonBorder(Color(0xFF00FFFF), cornerRadius = 4.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FFFF).copy(alpha = 0.1f)),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        "FULL ARCHIVE",
+                        color = Color(0xFF00FFFF),
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                }
             }
 
             Spacer(Modifier.height(8.dp))

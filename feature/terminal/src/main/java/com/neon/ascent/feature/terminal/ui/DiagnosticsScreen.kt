@@ -29,13 +29,12 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun DiagnosticsScreen(
     onNavigateToHistory: (SpecialType) -> Unit,
+    onRunDiagnostic: () -> Unit,
     viewModel: DiagnosticsViewModel = hiltViewModel(),
     healthViewModel: HealthViewModel = hiltViewModel()
 ) {
     val specialState by viewModel.specialState.collectAsState()
     val healthState by healthViewModel.uiState.collectAsState()
-    val isRunningTest by viewModel.isRunningTest.collectAsState()
-    val scope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier
@@ -94,17 +93,14 @@ fun DiagnosticsScreen(
 
         // Intelligence Test Button
         Button(
-            onClick = {
-                scope.launch { viewModel.runCognitiveDiagnostic() }
-            },
-            enabled = !isRunningTest,
+            onClick = onRunDiagnostic,
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = NeonCyan.copy(alpha = 0.2f)),
             border = androidx.compose.foundation.BorderStroke(1.dp, NeonCyan),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp)
         ) {
             Text(
-                if (isRunningTest) "RUNNING NEURAL DIAGNOSTIC..." else "RUN ADAPTIVE INTELLIGENCE TEST",
+                "RUN ADAPTIVE INTELLIGENCE TEST",
                 color = NeonCyan
             )
         }

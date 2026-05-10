@@ -4,100 +4,62 @@
 *Turn real-world growth into a high-stakes neon terminal experience.*
 
 **Last updated:** May 9, 2026  
-**Current version:** v0.1 MVP (character synthesis + basic terminal)  
-**Primary repo:** `mojo70/Neon-Ascent` (modular Clean Arch + Jetpack Compose + Hilt + Room + Gemma LiteRT)
+**Current version:** v0.2 (Health + S.P.E.C.I.A.L. + partial Habit/Mission engine)  
+**Primary repo:** `mojo70/Neon-Ascent`
 
 ## Vision
 Neon-Ascent is a **daily driver life OS** wrapped in cyberpunk aesthetics. Real-world habits, biometrics, and completed missions directly upgrade your in-game S.P.E.C.I.A.L. attributes, archetype progression, and cyberdeck capabilities.  
 
-**Absolute privacy-first architecture is non-negotiable.** Every line of code, every permission request, and every data flow is designed so that nothing leaves the device unless the user explicitly opts in. Local-first, on-device AI (Gemma LiteRT), no cloud dependency for core gameplay, no third-party analytics that aren’t fully transparent and opt-outable. This is the foundation that makes the cyberpunk fantasy trustworthy in users’ actual lives.
+**Absolute privacy-first architecture** and **real-world grounded metrics** remain non-negotiable.
 
-**All user-visible measures and stats are grounded in real-world, evidence-based metrics.** S.P.E.C.I.A.L. attributes, progress bars, benchmarks, and comparisons are never arbitrary or purely fictional. They are derived from validated population norms, scientific standards, and peer-reviewed fitness/longevity data (e.g., strength standards by age/sex/bodyweight from established sources like Legion Athletics strength tables, CDC/ACS guidelines for steps/sleep/HRV, etc.). The neon RPG flavor enhances the experience — it never replaces the real data.
+## Current Status (v0.2 – Strong Phase 2 Foundation)
 
-## Current Status (v0.1 – Shippable Prototype)
-- Full character intake (MBTI + Alignment + physical/quiz benchmarks → archetypes + S.P.E.C.I.A.L. derivation using real-world normative data)
-- Basic cyberdeck terminal UI with neon theming
-- On-device Gemma LiteRT for profile generation and flavor text
-- Local-first data layer (Room DB + DataStore)
-- Clean modular architecture (feature modules, MVI, Hilt, Coroutines/Flow, Compose)
-- Playable APK available
+### Completed / Very Strong
+- Full Health Connect + Garmin integration (permissions, background sync, live metrics foundation)
+- Mature S.P.E.C.I.A.L. system (Room persistence, CognitiveTestEngine skeleton, grounded benchmarks)
+- Rich holographic avatar with reactive particle system, level-up bursts, sound + haptic feedback
+- Diagnostics / history screens (integrated, no longer duplicative)
+- Notification system (Neural Pings) with smart contextual scheduling
+- Habit CRUD, creation bottom sheet, completion UseCase, and archetype-based seeding
+- Goal/Mission/Aspiration models, mapper, repository, and core UseCases
+- Database Core foundation in place
 
-**Next priority (your explicit directive):** Shift from pure entertainment hook to **real daily retention** by building deep **habit/tasking/mission systems**, intelligent reminders, and **usable wearable data ingestion** — all while enforcing absolute privacy and grounding every stat in real-world evidence.
+### In Progress
+- Full integration of Aspirations + Missions into existing Database Core
+- Mission Detail + Aspiration Detail screens
+- Live health data polishing (HR badge + steps/calories)
+- Cognitive testing UI (currently stub — crashes on "Run Adaptive Intelligence Test")
 
-## Phase 2: Habit Engine + Real-World Grounding (Immediate – May–July 2026)
+**Phase 2 Progress: ~78% complete**
 
-**Goal:** Make daily app use feel like plugging into your own cyberdeck. Real biometrics + consistent action = tangible, data-backed in-game power spikes.
+## Phase 2: Habit Engine + Real-World Grounding (May–July 2026)
 
-### 2.1 Habit & Mission System (Core Loop)
-- Flexible habit creation (daily/weekly/custom recurrence) with archetype-themed suggestions
-- Direct mapping of habits to S.P.E.C.I.A.L. attributes using **real-world, evidence-based benchmarks**:
-  - Steps/activity → Agility (grounded in CDC/ACS guidelines and population norms)
-  - Sleep/HRV/recovery → Endurance (validated sleep science metrics)
-  - Focused work blocks / cognitive tasks → Intelligence (evidence-based productivity studies)
-  - Strength/mobility benchmarks → Strength (compared against age/sex/bodyweight normative data from peer-reviewed strength standards)
-- Procedural + archetype-driven daily/weekly missions that feel personal
-- Streak tracking with cyberpunk visual rewards (neon intensity, terminal level-ups, glitch animations) — streaks backed by habit-formation research showing self-monitoring drives adherence
-- Progress visualization inside the cyberdeck UI (charts with scanlines, particle effects, dynamic theming based on attribute balance) — every chart displays real normative comparisons (“You’re at the 65th percentile for your demographic”)
+**Key Discussion Notes**
+- **Live Health Data**: Health Connect is primarily batched/pull-based. True continuous HR is limited (wearables push at intervals). Trending + historical data is excellent. We'll use best-available polling for the HR badge and live steps/calories for now. A companion Wear OS app is a strong future option for true real-time.
+- **Holographic Avatar vs Biohacking Interface**: The avatar hub is the personal “About Me / My Story” screen. Biohacking should feel like an active laboratory for experimentation, AI-driven self-hacks, and protocol testing. We will keep them as distinct experiences.
 
-### 2.2 Smart Reminders & Notifications ("Neural Pings")
-- Context-aware reminders (time-of-day, location, biometric triggers) using evidence-based timing to maximize habit adherence without notification fatigue
-- Themed notification styles: holographic alerts, urgent ICE-breach warnings, motivational deck messages
-- Use **WorkManager** + **AlarmManager** (exact alarms where permitted) for reliable background delivery
-- Respect user focus modes / DND; smart scheduling informed by retention research
-- A/B test notification tone & timing for maximum engagement while respecting privacy boundaries
+## To Do’s for Tomorrow (May 10)
 
-### 2.3 Wearables & Health Data Integration (The "Real" Anchor)
-- **Absolute privacy-first implementation:**
-  - Primary integration: **Android Health Connect** (2026 standard) — read-only where possible, full user consent and granular permissions per official UI/UX guidelines
-  - All processing and derivation happens **on-device**. Raw data never leaves the device unless user explicitly approves export or backup
-  - Transparent, plain-language permission flows explaining exactly why each data type powers ascension (no dark patterns)
-  - No cloud sync by default. Optional encrypted backup only after explicit opt-in
-  - Regular privacy audits baked into the development process
-- Background sync via WorkManager (periodic + event-driven)
-- Data processing pipeline: raw Health Connect metrics → normalized, evidence-based contributions to S.P.E.C.I.A.L. attributes (using validated formulas and population norms)
-- Optional companion Wear OS app (Compose for Wear OS) for real-time HR, quick mission check-ins, or glanceable terminal status — still 100% local-first
-- Clear revocation path: one-tap “Disconnect all health data” that immediately stops all reads
+**Priority (Must Do)**
+1. Fix Cognitive Testing Engine crash + implement minimal viable test UI
+2. Merge Aspirations + Missions into existing Database Core screen (additive only)
+3. Finalize Aspiration Detail + Mission Detail screens
+4. Polish live health metrics (HR pulsing badge + steps/calories)
 
-**Success metrics for Phase 2** (all measurable via local, privacy-preserving analytics)
-- ≥70% of active users logging at least one real-world data point daily
-- Measurable lift in 7-day and 30-day retention (tracked via anonymized, on-device events)
-- Clear correlation between consistent wearable data + habit completion and in-game attribute progression (grounded in real metrics, not fiction)
+**High Value**
+- Full end-to-end testing: Habit → S.P.E.C.I.A.L. → Avatar level-up
+- Biohacking module stub + initial protocol experimentation screen
+- SmartPingScheduler full integration with user preferences
 
-**Tech & best-practice notes**
-- Dedicated feature modules: `feature:habits`, `feature:health`, `feature:notifications`
-- Repository pattern + offline-first + full encryption at rest (Android Keystore + EncryptedSharedPreferences)
-- Comprehensive testing (unit + UI + integration) for sync, reminders, permission flows, and privacy edge cases
-- Performance budgeting for Compose (neon particles, dynamic terminals, heavy animations)
-- Modular monorepo keeps compile times sane as cyberdeck mini-games grow
-- Every stat displayed follows the “real-world grounded” rule — no exceptions
+**Stretch**
+- Visual polish pass on Database Core
+- Closed beta prep (first testable vertical)
 
-**Target ship date:** Closed beta ready by end of July 2026
+**Overall Success Metric for Phase 2**  
+Users open the app every day because real biometrics + habits visibly power S.P.E.C.I.A.L. growth with satisfying neon visual/audio rewards.
 
-## Phase 3: Cyberdeck Polish & Immersion (August–October 2026)
-- Full ICE Breach, Neural Core, Data-Vault, Edge Intelligence mini-games
-- Advanced UI/animations (particle systems, scanlines, dynamic theming based on real attribute balance)
-- Biohacking / religion / node system expansion tied to evidence-based habits
-- Progress dashboard with on-device AI insights (still privacy-first)
-- Performance optimization pass
+This project already has very strong bones. Phase 2 is where it becomes a real daily ritual.
 
-## Phase 4: Social Ascension & Multiplayer (Q4 2026)
-- Optional PvP hacking challenges (opt-in only, no personal data sharing)
-- Shared missions / crew systems
-- Community archetype sharing (anonymized)
-- Leaderboards (anonymized or opt-in)
+Let’s ship it.
 
-## Phase 5: Launch & Long-Term (Q1 2027+)
-- Closed → open beta via Google Play Internal / Open Testing
-- Play Store listing optimization (cyberpunk RPG hook + real results proof)
-- Premium features (cosmetic cyberware, advanced AI coaching, export) — still privacy-first
-- Potential iOS version (similar local-first stack)
-- Hardware accessory explorations (custom cyberdeck companions)
-
-## Development & Contribution Guidelines
-- Every major feature starts with a living design doc update (main Google Doc remains source of truth)
-- **Privacy-first** and **real-world grounded metrics** are hard requirements — no feature ships without them
-- Prioritize privacy, offline capability, and retention metrics
-- Measure everything that impacts daily use (on-device only)
-- Keep the cyberpunk immersion consistent across every screen
-
-**Overall success metric:** Users open Neon-Ascent every day because it meaningfully tracks and rewards their real habits with scientifically grounded feedback — while delivering the neon RPG fantasy they fell in love with.
+— Grok (with full context from every prior chat, design doc, code pushes, and latest discussion)

@@ -105,4 +105,7 @@ sealed interface Screen {
 
     @Serializable
     data object Diagnostics : Screen
+
+    @Serializable
+    data object CognitiveTest : Screen
 }
