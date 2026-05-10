@@ -44,6 +44,9 @@ sealed interface Screen {
     data object AttributeScan : Screen
 
     @Serializable
+    data object NotificationPermission : Screen
+
+    @Serializable
     data object Wallet : Screen
 
     @Serializable

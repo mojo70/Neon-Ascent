@@ -26,6 +26,15 @@ class GoalRepositoryImpl @Inject constructor(
             entities.map { mapper.toHabit(it) }
         }
 
+    override fun getDueHabits(): Flow<List<Habit>> =
+        getHabits().map { habits ->
+            val startOfDay = java.time.LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()
+            habits.filter { habit ->
+                val lastCompleted = habit.lastCompleted
+                lastCompleted == null || lastCompleted.isBefore(startOfDay)
+            }
+        }
+
     override fun getActiveMissions(): Flow<List<Mission>> =
         goalDao.getActiveMissions().map { entities ->
             entities.map { mapper.toMission(it) }

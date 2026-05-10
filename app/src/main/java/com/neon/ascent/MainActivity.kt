@@ -2,12 +2,14 @@ package com.neon.ascent
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -18,6 +20,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.feature.dashboard.DashboardViewModel
 import com.neon.ascent.data.repository.HealthRepository
 import com.neon.ascent.feature.health.data.workers.HealthSyncWorker
+import com.neon.ascent.feature.notifications.ui.NotificationPermissionViewModel
 import com.neon.ascent.ui.theme.NeonAscentTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -28,12 +31,24 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var healthRepository: HealthRepository
 
+    private val notificationViewModel: NotificationPermissionViewModel by viewModels()
+
+    // ActivityResultLauncher for POST_NOTIFICATIONS permission
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        notificationViewModel.onPermissionResult(isGranted)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         
         // Schedule daily health sync
         HealthSyncWorker.scheduleDailySync(this)
+
+        // Check and request notification permission
+        checkAndRequestNotificationPermission()
 
         setContent {
             NeonAscentTheme {
@@ -77,8 +92,38 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                AppNavigation()
+                AppNavigation(notificationViewModel = notificationViewModel)
             }
+        }
+    }
+
+    private fun checkAndRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return // No permission needed
+        }
+
+        val hasPermission = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.POST_NOTIFICATIONS
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (hasPermission) {
+            notificationViewModel.onPermissionResult(true)
+            return
+        }
+
+        // Show rationale screen first if needed
+        if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+            notificationViewModel.showRationale()
+        } else {
+            // Direct request
+            requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 }

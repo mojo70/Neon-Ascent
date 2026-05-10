@@ -43,6 +43,8 @@ import com.neon.ascent.feature.settings.SettingsScreen
 import com.neon.ascent.feature.health.ui.HealthPreferencesScreen
 import com.neon.ascent.feature.terminal.ui.AttributeHistoryScreen
 import com.neon.ascent.feature.terminal.ui.DiagnosticsScreen
+import com.neon.ascent.feature.notifications.ui.NeuralPingPermissionScreen
+import com.neon.ascent.feature.notifications.ui.NotificationPermissionViewModel
 import com.neon.ascent.feature.wallet.EurodollarWalletScreen
 import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.ui.cyberGlitch
@@ -51,11 +53,19 @@ import com.neon.ascent.util.derivePersonalityArchetype
 @Composable
 fun AppNavigation(
     creationViewModel: CreationViewModel = hiltViewModel(),
-    dashboardViewModel: DashboardViewModel = hiltViewModel()
+    dashboardViewModel: DashboardViewModel = hiltViewModel(),
+    notificationViewModel: NotificationPermissionViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
     val userCharacter by dashboardViewModel.userCharacter.collectAsState()
     val tickerMessages by dashboardViewModel.tickerMessages.collectAsState()
+    val showRationale by notificationViewModel.showRationale.collectAsState()
+
+    LaunchedEffect(showRationale) {
+        if (showRationale) {
+            navController.navigate(Screen.NotificationPermission)
+        }
+    }
 
     NavHost(
         navController = navController, 
@@ -261,6 +271,14 @@ fun AppNavigation(
             AttributeScanScreen(onComplete = { navController.popBackStack() })
         }
 
+        composable<Screen.NotificationPermission> {
+            NeuralPingPermissionScreen(
+                onGranted = { navController.popBackStack() },
+                onDismiss = { navController.popBackStack() },
+                viewModel = notificationViewModel
+            )
+        }
+
         composable<Screen.Wallet> {
             EurodollarWalletScreen(onBack = { navController.popBackStack() })
         }
@@ -292,6 +310,9 @@ fun AppNavigation(
                 },
                 onNavigateToHealthPreferences = {
                     navController.navigate(Screen.HealthPreferences)
+                },
+                onNavigateToNotificationPermission = {
+                    navController.navigate(Screen.NotificationPermission)
                 }
             )
         }

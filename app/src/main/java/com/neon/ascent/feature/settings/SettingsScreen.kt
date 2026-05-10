@@ -79,7 +79,8 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onResetComplete: () -> Unit,
     onDeepNodeUnlock: () -> Unit,
-    onNavigateToHealthPreferences: () -> Unit
+    onNavigateToHealthPreferences: () -> Unit,
+    onNavigateToNotificationPermission: () -> Unit
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -231,6 +232,11 @@ fun SettingsScreen(
                     SettingsItem("HEALTH & BIOMETRICS CONFIG", onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onNavigateToHealthPreferences()
+                    })
+
+                    SettingsItem("NEURAL PING PROTOCOLS", onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onNavigateToNotificationPermission()
                     })
                     
                     Row(verticalAlignment = Alignment.CenterVertically) {
