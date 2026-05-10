@@ -84,7 +84,13 @@ fun MainBizView(
 ) {
     var searchSymbol by remember { mutableStateOf("") }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF020202))
+            .statusBarsPadding()
+            .padding(16.dp)
+    ) {
         NetWorthHeader(nwSummary, onNWClick)
         Spacer(modifier = Modifier.height(24.dp))
         MarketStatusHeader(marketStatus)

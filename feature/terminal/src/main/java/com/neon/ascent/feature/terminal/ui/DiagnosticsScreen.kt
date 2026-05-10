@@ -1,5 +1,6 @@
 package com.neon.ascent.feature.terminal.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -15,6 +16,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.core.common.NeonCyan
 import com.neon.ascent.core.common.NeonGreen
 import com.neon.ascent.core.common.NeonRed
+import com.neon.ascent.core.common.getNeonColorForAttribute
 import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.feature.health.ui.HealthUiState
 import com.neon.ascent.feature.health.ui.HealthViewModel
@@ -38,6 +40,7 @@ fun DiagnosticsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(Color(0xFF020202))
             .statusBarsPadding()
             .padding(16.dp)
     ) {

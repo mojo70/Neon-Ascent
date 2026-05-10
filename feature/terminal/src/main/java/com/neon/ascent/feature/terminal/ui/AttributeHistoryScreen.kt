@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.core.common.NeonCyan
 import com.neon.ascent.core.common.NeonPink
+import com.neon.ascent.core.common.getNeonColorForAttribute
 import com.neon.ascent.core.domain.model.BenchmarkTest
 import com.neon.ascent.core.domain.model.SpecialType
 import com.patrykandpatrick.vico.compose.chart.Chart

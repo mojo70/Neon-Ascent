@@ -1,6 +1,7 @@
 package com.neon.ascent.feature.health.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -56,6 +57,8 @@ fun HealthConnectPermissionScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(Color(0xFF020202))
+            .statusBarsPadding()
             .padding(24.dp)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(32.dp)

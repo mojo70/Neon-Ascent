@@ -10,21 +10,32 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import com.neon.ascent.core.domain.effects.LevelUpEffectService
+import com.neon.ascent.core.domain.model.SpecialType
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class LevelUpEffectService(private val context: Context) {
+@Singleton
+class AndroidLevelUpEffectService @Inject constructor(
+    @ApplicationContext private val context: Context
+) : LevelUpEffectService {
 
     private val soundPool = SoundPool.Builder().setMaxStreams(3).build()
     private var levelUpSoundId: Int? = null
 
     init {
-        // Load cyberpunk-style level-up sound if it exists
         val resId = context.resources.getIdentifier("level_up", "raw", context.packageName)
         if (resId != 0) {
             levelUpSoundId = soundPool.load(context, resId, 1)
         }
     }
 
-    fun triggerLevelUp(delta: Int) {
+    override fun triggerLevelUp(type: SpecialType, xpGained: Int) {
+        triggerLevelUp(xpGained / 2) // Approximate delta for sound/haptic
+    }
+
+    override fun triggerLevelUp(delta: Int) {
         // Haptic feedback
         val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
@@ -51,8 +62,7 @@ class LevelUpEffectService(private val context: Context) {
 
         // Sound
         levelUpSoundId?.let { id ->
-            // Amplitude scales with delta (percentile jump)
-            val volume = (0.5f + (delta / 20f)).coerceIn(0.5f, 1.0f)
+            val volume = (0.5f + (delta / 50f)).coerceIn(0.5f, 1.0f)
             soundPool.play(id, volume, volume, 1, 0, 1.0f)
         }
     }
@@ -65,7 +75,7 @@ class LevelUpEffectService(private val context: Context) {
 @Composable
 fun rememberLevelUpService(): LevelUpEffectService {
     val context = LocalContext.current
-    val service = remember { LevelUpEffectService(context) }
+    val service = remember { AndroidLevelUpEffectService(context) }
     DisposableEffect(Unit) {
         onDispose { service.release() }
     }

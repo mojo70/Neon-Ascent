@@ -1,21 +1,43 @@
 package com.neon.ascent.core.data
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.neon.ascent.core.domain.model.SpecialType
 
-@Entity(tableName = "new_goals") // Using a different name to avoid conflict for now
+@Entity(
+    tableName = "goals",
+    indices = [
+        Index("type"),
+        Index("parentAspirationId"),
+        Index("expiresAtMillis"),
+        Index("lastCompletedMillis")
+    ]
+)
 data class GoalEntity(
     @PrimaryKey val id: String,
-    val type: String, // ASPIRATION, MISSION, TASK, HABIT
+    val type: String,
     val title: String,
     val description: String,
-    val currentProgress: Float,
-    val targetProgress: Float,
-    val percentile: Int?,
-    val attributeType: SpecialType,
-    val frequency: String? = null, // For habits
-    val archetype: String? = null, // For missions
-    val isCompleted: Boolean = false,
-    val parentGoalId: String? = null // For linking
+    val linkedAttributes: List<SpecialType>,
+    val progressCurrent: Double,
+    val progressTarget: Double,
+    val xpContributed: Int = 0,
+    
+    // Aspiration specific
+    val targetDateMillis: Long? = null,
+    val status: String? = "ACTIVE",
+    
+    // Mission specific
+    val expiresAtMillis: Long? = null,
+    val parentAspirationId: String? = null,
+    
+    // Habit specific
+    val recurrenceType: String? = null,
+    val recurrenceDays: List<String>? = null,
+    val streak: Int = 0,
+    val lastCompletedMillis: Long? = null,
+    
+    // Task specific
+    val parentGoalId: String? = null
 )

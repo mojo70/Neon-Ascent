@@ -84,7 +84,10 @@ fun CyberChessScreen(
                 AtmosphericHaze()
                 
                 Column(
-                    modifier = Modifier.fillMaxSize().padding(16.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding()
+                        .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     // Header
@@ -482,7 +485,13 @@ private fun createPiecePath(type: PieceType, size: Size): Path {
 
 @Composable
 fun ModeSelectionScreen(onModeSelect: (GameMode) -> Unit, onBack: () -> Unit) {
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .statusBarsPadding(),
+        contentAlignment = Alignment.Center
+    ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
             GlowingText("SELECT_LINK_PROTOCOL", Color(0xFF00FF9F), style = MaterialTheme.typography.headlineMedium)
             ModeButton(label = "SINGLE_PLAYER // VS AETHER_NULL", color = Color(0xFFFF0088)) { onModeSelect(GameMode.SINGLE_PLAYER) }

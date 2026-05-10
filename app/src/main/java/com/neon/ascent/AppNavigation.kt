@@ -46,6 +46,7 @@ import com.neon.ascent.feature.terminal.ui.DiagnosticsScreen
 import com.neon.ascent.feature.wallet.EurodollarWalletScreen
 import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.ui.cyberGlitch
+import com.neon.ascent.util.derivePersonalityArchetype
 
 @Composable
 fun AppNavigation(
@@ -238,7 +239,8 @@ fun AppNavigation(
                     }
                     val alignment = if (alignmentLaw == "Neutral" && alignmentMorality == "Neutral") "True Neutral" else "$alignmentLaw $alignmentMorality"
 
-                    creationViewModel.updatePersonality(mbti, alignment, "OPERATIVE")
+                    val (archetype, _) = derivePersonalityArchetype(mbti, alignment)
+                    creationViewModel.updatePersonality(mbti, alignment, archetype)
                     navController.navigate(Screen.AvatarCapture)
                 }
             )

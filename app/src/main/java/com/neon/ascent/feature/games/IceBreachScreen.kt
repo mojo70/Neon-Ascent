@@ -73,24 +73,32 @@ fun IceBreachScreen(
             }
         }
 
-        when (val state = uiState) {
-            is IceBreachUiState.Initializing -> {
-                Text("INITIALIZING BREACH PROTOCOL...", color = Color(0xFF00FF9C), fontFamily = FontFamily.Monospace)
-            }
-            is IceBreachUiState.Phase1 -> {
-                Phase1Screen(state, viewModel)
-            }
-            is IceBreachUiState.Phase2 -> {
-                Phase2Screen(state, viewModel)
-            }
-            is IceBreachUiState.Phase3 -> {
-                Phase3Screen(state, viewModel)
-            }
-            is IceBreachUiState.Success -> {
-                SuccessScreen(state, onBreachSuccess)
-            }
-            is IceBreachUiState.Failed -> {
-                FailedScreen(state, onCancel)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            when (val state = uiState) {
+                is IceBreachUiState.Initializing -> {
+                    Text("INITIALIZING BREACH PROTOCOL...", color = Color(0xFF00FF9C), fontFamily = FontFamily.Monospace)
+                }
+                is IceBreachUiState.Phase1 -> {
+                    Phase1Screen(state, viewModel)
+                }
+                is IceBreachUiState.Phase2 -> {
+                    Phase2Screen(state, viewModel)
+                }
+                is IceBreachUiState.Phase3 -> {
+                    Phase3Screen(state, viewModel)
+                }
+                is IceBreachUiState.Success -> {
+                    SuccessScreen(state, onBreachSuccess)
+                }
+                is IceBreachUiState.Failed -> {
+                    FailedScreen(state, onCancel)
+                }
             }
         }
 

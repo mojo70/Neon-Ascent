@@ -1,97 +1,73 @@
 package com.neon.ascent.core.data
 
+import com.neon.ascent.core.data.local.dao.GoalDao
+import com.neon.ascent.core.data.mapper.GoalMapper
 import com.neon.ascent.core.domain.GoalRepository
 import com.neon.ascent.core.domain.goals.models.*
-import com.neon.ascent.core.domain.model.SpecialType
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import java.time.Instant
 import javax.inject.Inject
+import javax.inject.Singleton
 
+@Singleton
 class GoalRepositoryImpl @Inject constructor(
-    private val goalDao: NewGoalDao
+    private val goalDao: GoalDao,
+    private val mapper: GoalMapper
 ) : GoalRepository {
 
-    override fun getAllGoals(): Flow<List<Goal>> {
-        return goalDao.getAllGoals().map { entities ->
-            entities.map { it.toDomain() }
+    override fun getAllGoals(): Flow<List<Goal>> =
+        goalDao.getAllGoals().map { entities ->
+            entities.map { mapper.toDomain(it) }
         }
+
+    override fun getHabits(): Flow<List<Habit>> =
+        goalDao.getAllHabits().map { entities ->
+            entities.map { mapper.toHabit(it) }
+        }
+
+    override fun getActiveMissions(): Flow<List<Mission>> =
+        goalDao.getActiveMissions().map { entities ->
+            entities.map { mapper.toMission(it) }
+        }
+
+    override fun getGoalById(id: String): Flow<Goal?> =
+        goalDao.getGoalById(id).map { it?.let { mapper.toDomain(it) } }
+
+    override fun getHabitById(id: String): Flow<Habit?> =
+        goalDao.getGoalById(id).map { it?.let { mapper.toHabit(it) } }
+
+    override suspend fun saveGoal(goal: Goal) {
+        goalDao.insertGoal(mapper.toEntity(goal))
     }
 
-    override fun getActiveMissions(): Flow<List<Mission>> {
-        return goalDao.getGoalsByType("MISSION").map { entities ->
-            entities.map { it.toMission() }
-        }
+    override suspend fun saveHabit(habit: Habit) {
+        goalDao.insertGoal(mapper.toEntity(habit))
     }
 
-    override fun getHabits(): Flow<List<Habit>> {
-        return goalDao.getGoalsByType("HABIT").map { entities ->
-            entities.map { it.toHabit() }
-        }
-    }
-
-    override suspend fun updateGoalProgress(goalId: String, progress: GoalProgress) {
-        goalDao.updateProgress(goalId, progress.current)
+    override suspend fun saveMission(mission: Mission) {
+        goalDao.insertGoal(mapper.toEntity(mission))
     }
 
     override suspend fun completeHabit(habitId: String, data: CompletionData) {
-        goalDao.markCompleted(habitId)
-        // Additional logic to update parent goals could go here using 'data'
+        val current = goalDao.getGoalById(habitId).first() ?: return
+        val updatedEntity = mapper.updateHabitWithCompletion(current, data)
+        goalDao.completeHabitTransaction(habitId, updatedEntity)
     }
 
     override suspend fun createAspiration(aspiration: Aspiration) {
-        // Implementation for creating aspiration in DB
+        goalDao.insertGoal(mapper.toEntity(aspiration))
+    }
+
+    override suspend fun updateGoalProgress(goalId: String, progress: GoalProgress) {
+        goalDao.updateProgress(goalId, progress.current.toDouble())
     }
 
     override suspend fun linkHabitToMission(habitId: String, missionId: String) {
-        // Implementation for linking
+        // TODO: Implementation for linking logic
+    }
+
+    override suspend fun deleteGoal(id: String) {
+        goalDao.deleteGoal(id)
     }
 }
-
-// Extension mappers
-fun GoalEntity.toDomain(): Goal = when (type) {
-    "ASPIRATION" -> toAspiration()
-    "MISSION" -> toMission()
-    "HABIT" -> toHabit()
-    else -> toTask()
-}
-
-fun GoalEntity.toAspiration() = Aspiration(
-    id = id,
-    title = title,
-    description = description,
-    targetDate = null, // Needs DB field
-    linkedAttributes = listOf(attributeType),
-    progress = GoalProgress(currentProgress, targetProgress, percentile),
-    status = if (isCompleted) GoalStatus.COMPLETED else GoalStatus.ACTIVE
-)
-
-fun GoalEntity.toMission() = Mission(
-    id = id,
-    title = title,
-    description = description,
-    expiresAt = Instant.now(), // Needs DB field
-    linkedAttributes = listOf(attributeType),
-    progress = GoalProgress(currentProgress, targetProgress, percentile),
-    parentAspirationId = parentGoalId
-)
-
-fun GoalEntity.toHabit() = Habit(
-    id = id,
-    title = title,
-    description = description,
-    recurrence = Recurrence(if (frequency == "WEEKLY") RecurrenceType.WEEKLY else RecurrenceType.DAILY),
-    linkedAttributes = listOf(attributeType),
-    progress = GoalProgress(currentProgress, targetProgress, percentile),
-    streak = 0, // Needs DB field
-    lastCompleted = null // Needs DB field
-)
-
-fun GoalEntity.toTask() = Task(
-    id = id,
-    title = title,
-    description = description,
-    linkedAttributes = listOf(attributeType),
-    progress = GoalProgress(currentProgress, targetProgress, percentile),
-    parentGoalId = parentGoalId ?: ""
-)

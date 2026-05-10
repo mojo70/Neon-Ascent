@@ -55,3 +55,19 @@ class StringMapConverter {
         } ?: emptyMap()
     }
 }
+
+class SpecialTypeListConverter {
+    @TypeConverter
+    fun fromList(list: List<SpecialType>): String = list.joinToString(",") { it.name }
+
+    @TypeConverter
+    fun toList(data: String): List<SpecialType> = if (data.isBlank()) emptyList() else data.split(",").map { SpecialType.valueOf(it) }
+}
+
+class StringListConverter {
+    @TypeConverter
+    fun fromList(list: List<String>?): String? = list?.joinToString(",")
+
+    @TypeConverter
+    fun toList(data: String?): List<String>? = data?.split(",")?.filter { it.isNotBlank() }
+}

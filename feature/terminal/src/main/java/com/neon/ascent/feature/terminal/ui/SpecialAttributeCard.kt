@@ -101,13 +101,3 @@ fun SpecialAttributeCard(
         }
     }
 }
-
-fun getNeonColorForAttribute(type: SpecialType): Color = when (type) {
-    SpecialType.STRENGTH -> NeonRed
-    SpecialType.PERCEPTION -> NeonPurple
-    SpecialType.ENDURANCE -> NeonGreen
-    SpecialType.CHARISMA -> NeonPink
-    SpecialType.INTELLIGENCE -> NeonCyan
-    SpecialType.AGILITY -> NeonBlue
-    SpecialType.LUCK -> NeonYellow
-}

@@ -4,13 +4,11 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.neon.ascent.core.data.local.dao.SpecialDao
+import com.neon.ascent.core.data.local.dao.GoalDao
 import com.neon.ascent.core.data.local.entity.BenchmarkTestEntity
 import com.neon.ascent.core.data.local.entity.SpecialAttributeEntity
-import com.neon.ascent.core.data.local.converter.DataSourceConverter
-import com.neon.ascent.core.data.local.converter.InstantConverter
-import com.neon.ascent.core.data.local.converter.SpecialTypeConverter
-import com.neon.ascent.core.data.local.converter.StringMapConverter
-import com.neon.ascent.core.data.local.converter.TestTypeConverter
+import com.neon.ascent.core.data.local.converter.*
+import com.neon.ascent.core.data.local.migration.MIGRATION_3_4
 
 @Database(
     entities = [
@@ -18,7 +16,7 @@ import com.neon.ascent.core.data.local.converter.TestTypeConverter
         SpecialAttributeEntity::class,
         BenchmarkTestEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 @TypeConverters(
@@ -26,9 +24,11 @@ import com.neon.ascent.core.data.local.converter.TestTypeConverter
     SpecialTypeConverter::class,
     TestTypeConverter::class,
     DataSourceConverter::class,
-    StringMapConverter::class
+    StringMapConverter::class,
+    SpecialTypeListConverter::class,
+    StringListConverter::class
 )
 abstract class NeonAscentDatabase : RoomDatabase() {
-    abstract fun goalDao(): NewGoalDao
+    abstract fun goalDao(): GoalDao
     abstract fun specialDao(): SpecialDao
 }

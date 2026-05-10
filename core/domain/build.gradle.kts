@@ -13,7 +13,6 @@ android {
 }
 
 dependencies {
-    implementation(project(":core:common"))
     implementation(libs.hilt.android)
     implementation(libs.androidx.health.connect.client)
     ksp(libs.hilt.compiler)

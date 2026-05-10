@@ -53,6 +53,7 @@ fun PcapChallengeScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF0A0A0F)) // Deep cyberpunk black
+            .statusBarsPadding()
             .padding(12.dp)
     ) {
         // Header - Terminal Style

@@ -70,5 +70,7 @@ enum class RecurrenceType { DAILY, WEEKLY, CUSTOM }
 
 data class CompletionData(
     val timestamp: Instant = Instant.now(),
+    val progressDelta: Float = 1f,
+    val attributeContributions: Map<SpecialType, Long> = emptyMap(),
     val metadata: Map<String, String> = emptyMap()
 )
