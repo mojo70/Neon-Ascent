@@ -12,13 +12,8 @@ import java.time.Instant
 import javax.inject.Inject
 
 /**
- * Orchestrates the full chain reaction when a user completes (or logs) a habit.
- *
- * Flow:
- * 1. Update Habit (streak + progress)
- * 2. Update linked S.P.E.C.I.A.L. attributes (real grounded XP)
- * 3. Advance parent Missions and Aspirations
- * 4. Trigger neon level-up effects on the holographic avatar
+ * Fully integrated habit completion engine.
+ * Orchestrates the chain reaction: progress -> streak -> S.P.E.C.I.A.L. XP -> mission advancement.
  */
 class CompleteHabitAndUpdateGoalsUseCase @Inject constructor(
     private val goalRepository: GoalRepository,
@@ -29,31 +24,27 @@ class CompleteHabitAndUpdateGoalsUseCase @Inject constructor(
     suspend operator fun invoke(habitId: String, completionData: CompletionData) {
         val habit = goalRepository.getGoalById(habitId).first() as? Habit ?: return
 
-        // 1. Update the Habit itself
-        val updatedHabit = updateHabitProgress(habit, completionData)
+        // 1. Update Habit (progress + streak)
+        val updatedHabit = updateHabit(habit, completionData)
         goalRepository.saveHabit(updatedHabit)
 
         // 2. Apply real S.P.E.C.I.A.L. progression
-        val attributeUpdates = applySpecialProgress(habit, completionData)
+        val attributeUpdates = applySpecialProgress(updatedHabit, completionData)
 
-        // 3. Cascade to parent Missions & Aspirations
-        advanceParentGoals(habit)
+        // 3. Cascade progress to parent Missions & Aspirations
+        advanceParentGoals(updatedHabit)
 
-        // 4. Visual + Audio feedback (this is what makes it addictive)
-        attributeUpdates.forEach { (type, xpGained) ->
-            if (xpGained >= 20) {
-                levelUpEffectService.triggerLevelUp(type, xpGained.toInt())
-            }
-        }
+        // 4. Trigger visual + haptic feedback
+        triggerLevelUpEffects(attributeUpdates)
     }
 
-    private fun updateHabitProgress(habit: Habit, data: CompletionData): Habit {
+    private fun updateHabit(habit: Habit, data: CompletionData): Habit {
         val newProgress = (habit.progress.current + data.progressDelta).coerceAtMost(1f)
-        val isCompletion = newProgress >= 1f && habit.progress.current < 1f
+        val isNewCompletion = newProgress >= 1f && habit.progress.current < 1f
 
         return habit.copy(
             progress = habit.progress.copy(current = newProgress),
-            streak = if (isCompletion) habit.streak + 1 else habit.streak,
+            streak = if (isNewCompletion) habit.streak + 1 else habit.streak,
             lastCompleted = Instant.now()
         )
     }
@@ -64,37 +55,37 @@ class CompleteHabitAndUpdateGoalsUseCase @Inject constructor(
     ): Map<SpecialType, Long> {
         val updates = mutableMapOf<SpecialType, Long>()
 
-        habit.linkedAttributes.forEach { attributeType ->
-            val baseXp = data.attributeContributions[attributeType] ?: 25L
+        habit.linkedAttributes.forEach { type ->
+            val baseXp = data.attributeContributions[type] ?: 25L
+            val streakBonus = (habit.streak * 5L)
+            val totalXp = baseXp + streakBonus
 
-            val currentAttr = specialRepository.getSpecialAttribute(attributeType).first()
-                ?: SpecialAttribute(type = attributeType, currentValue = 5, percentile = 50)
+            val currentAttr = specialRepository.getSpecialAttribute(type).first()
+                ?: SpecialAttribute(type = type, currentValue = 5, percentile = 50)
 
-            val xpToAdd = baseXp + (habit.streak * 5L) // streak bonus
-            val newValue = (currentAttr.currentValue + (xpToAdd / 28).toInt()).coerceIn(1, 10)
+            val newValue = (currentAttr.currentValue + (totalXp / 28).toInt()).coerceIn(1, 10)
             val newPercentile = calculatePercentile(newValue)
 
             val updatedAttr = currentAttr.copy(
                 currentValue = newValue,
                 percentile = newPercentile,
-                totalXp = currentAttr.totalXp + xpToAdd,
+                totalXp = currentAttr.totalXp + totalXp,
                 lastUpdated = Instant.now()
             )
 
             specialRepository.updateSpecialAttribute(updatedAttr)
-            updates[attributeType] = xpToAdd
+            updates[type] = totalXp
         }
 
         return updates
     }
 
     private suspend fun advanceParentGoals(habit: Habit) {
-        // Advance any active missions this habit contributes to
         val activeMissions = goalRepository.getActiveMissions().first()
 
         activeMissions.forEach { mission ->
-            if (mission.linkedAttributes.intersect(habit.linkedAttributes).isNotEmpty()) {
-                val newProgress = (mission.progress.current + 0.18f).coerceAtMost(1f)
+            if (mission.linkedAttributes.any { it in habit.linkedAttributes }) {
+                val newProgress = (mission.progress.current + 0.2f).coerceAtMost(1f)
 
                 val updatedMission = mission.copy(
                     progress = mission.progress.copy(current = newProgress)
@@ -109,7 +100,15 @@ class CompleteHabitAndUpdateGoalsUseCase @Inject constructor(
     }
 
     private fun advanceAspiration(aspirationId: String) {
-        // TODO: Full aspiration completion logic + big celebration
+        // Placeholder for full aspiration completion logic + major celebration
+    }
+
+    private fun triggerLevelUpEffects(updates: Map<SpecialType, Long>) {
+        updates.forEach { (type, xp) ->
+            if (xp >= 20) {
+                levelUpEffectService.triggerLevelUp(type, xp.toInt())
+            }
+        }
     }
 
     private fun calculatePercentile(value: Int): Int = when (value) {
