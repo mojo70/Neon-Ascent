@@ -21,6 +21,7 @@ dependencies {
     implementation(project(":core:domain"))
     implementation(project(":feature:goals"))
     implementation(project(":feature:habits"))
+    implementation(project(":feature:health"))
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

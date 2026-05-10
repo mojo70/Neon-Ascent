@@ -10,6 +10,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -20,6 +22,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.feature.dashboard.DashboardViewModel
 import com.neon.ascent.data.repository.HealthRepository
 import com.neon.ascent.feature.health.data.workers.HealthSyncWorker
+import com.neon.ascent.feature.notifications.data.SmartPingScheduler
 import com.neon.ascent.feature.notifications.ui.NotificationPermissionViewModel
 import com.neon.ascent.ui.theme.NeonAscentTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -30,6 +33,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var healthRepository: HealthRepository
+
+    @Inject
+    lateinit var smartPingScheduler: SmartPingScheduler
 
     private val notificationViewModel: NotificationPermissionViewModel by viewModels()
 
@@ -46,6 +52,11 @@ class MainActivity : ComponentActivity() {
         
         // Schedule daily health sync
         HealthSyncWorker.scheduleDailySync(this)
+
+        // Initialize smart notification scheduling
+        lifecycleScope.launch {
+            smartPingScheduler.scheduleSmartPings()
+        }
 
         // Check and request notification permission
         checkAndRequestNotificationPermission()
