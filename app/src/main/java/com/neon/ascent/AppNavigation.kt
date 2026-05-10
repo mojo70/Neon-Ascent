@@ -39,6 +39,7 @@ import com.neon.ascent.feature.journal.StoryScreen
 import com.neon.ascent.feature.goals.GoalIntakeScreen
 import com.neon.ascent.feature.goals.AspirationsScreen
 import com.neon.ascent.feature.goals.ui.AspirationCreationScreen
+import com.neon.ascent.feature.goals.ui.AspirationDetailScreen
 import com.neon.ascent.feature.goals.ui.DatabaseCoreScreen
 import com.neon.ascent.feature.story.StoryIntakeScreen
 import com.neon.ascent.feature.loading.LoadingScreen
@@ -324,10 +325,10 @@ fun AppNavigation(
 
         composable<Screen.AspirationDetail> { backStackEntry ->
             val detail = backStackEntry.toRoute<Screen.AspirationDetail>()
-            // Placeholder Detail Screen
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Aspiration Detail: ${detail.id}", color = Color.White)
-            }
+            AspirationDetailScreen(
+                aspirationId = detail.id,
+                onBack = { navController.popBackStack() }
+            )
         }
 
         composable<Screen.Settings> {
