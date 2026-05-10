@@ -65,6 +65,15 @@ sealed interface Screen {
     data object Aspirations : Screen
 
     @Serializable
+    data object DatabaseCore : Screen
+
+    @Serializable
+    data object AspirationCreation : Screen
+
+    @Serializable
+    data class AspirationDetail(val id: String) : Screen
+
+    @Serializable
     data object Settings : Screen
 
     @Serializable

@@ -5,8 +5,11 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -35,6 +38,8 @@ import com.neon.ascent.feature.attributes.AttributeDetailScreen
 import com.neon.ascent.feature.journal.StoryScreen
 import com.neon.ascent.feature.goals.GoalIntakeScreen
 import com.neon.ascent.feature.goals.AspirationsScreen
+import com.neon.ascent.feature.goals.ui.AspirationCreationScreen
+import com.neon.ascent.feature.goals.ui.DatabaseCoreScreen
 import com.neon.ascent.feature.story.StoryIntakeScreen
 import com.neon.ascent.feature.loading.LoadingScreen
 import com.neon.ascent.feature.library.EReaderScreen
@@ -91,7 +96,7 @@ fun AppNavigation(
                 when (page) {
                     0 -> CyberdeckScreen(
                         onWalletClick = { navController.navigate(Screen.Wallet) },
-                        onDatabaseClick = { navController.navigate(Screen.Journal) },
+                        onDatabaseClick = { navController.navigate(Screen.DatabaseCore) },
                         onIceBreachClick = { 
                             navController.navigate(Screen.IceBreach("ROOT"))
                         },
@@ -302,6 +307,27 @@ fun AppNavigation(
             AspirationsScreen(
                 onBack = { navController.popBackStack() }
             )
+        }
+
+        composable<Screen.DatabaseCore> {
+            DatabaseCoreScreen(
+                navController = navController
+            )
+        }
+
+        composable<Screen.AspirationCreation> {
+            AspirationCreationScreen(
+                onCreated = { navController.popBackStack() },
+                onCancel = { navController.popBackStack() }
+            )
+        }
+
+        composable<Screen.AspirationDetail> { backStackEntry ->
+            val detail = backStackEntry.toRoute<Screen.AspirationDetail>()
+            // Placeholder Detail Screen
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Aspiration Detail: ${detail.id}", color = Color.White)
+            }
         }
 
         composable<Screen.Settings> {
