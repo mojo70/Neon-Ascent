@@ -10,6 +10,8 @@ interface GoalRepository {
     fun getGoalById(id: String): Flow<Goal?>
     fun getHabitById(id: String): Flow<Habit?>
     fun getDueHabits(): Flow<List<Habit>>
+    fun getAllAspirations(): Flow<List<Aspiration>>
+    fun getMissionsForAspiration(aspirationId: String): Flow<List<Mission>>
     
     suspend fun saveGoal(goal: Goal)
     suspend fun saveHabit(habit: Habit)

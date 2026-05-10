@@ -45,6 +45,7 @@ import com.neon.ascent.feature.terminal.ui.AttributeHistoryScreen
 import com.neon.ascent.feature.terminal.ui.DiagnosticsScreen
 import com.neon.ascent.feature.notifications.ui.NeuralPingPermissionScreen
 import com.neon.ascent.feature.notifications.ui.NotificationPermissionViewModel
+import com.neon.ascent.feature.notifications.ui.NotificationPreferencesScreen
 import com.neon.ascent.feature.wallet.EurodollarWalletScreen
 import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.ui.cyberGlitch
@@ -279,6 +280,12 @@ fun AppNavigation(
             )
         }
 
+        composable<Screen.NotificationPreferences> {
+            NotificationPreferencesScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
         composable<Screen.Wallet> {
             EurodollarWalletScreen(onBack = { navController.popBackStack() })
         }
@@ -311,8 +318,8 @@ fun AppNavigation(
                 onNavigateToHealthPreferences = {
                     navController.navigate(Screen.HealthPreferences)
                 },
-                onNavigateToNotificationPermission = {
-                    navController.navigate(Screen.NotificationPermission)
+                onNavigateToNotificationPreferences = {
+                    navController.navigate(Screen.NotificationPreferences)
                 }
             )
         }

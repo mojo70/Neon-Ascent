@@ -25,6 +25,12 @@ interface GoalDao {
     @Query("SELECT * FROM goals WHERE id = :id")
     fun getGoalById(id: String): Flow<GoalEntity?>
 
+    @Query("SELECT * FROM goals WHERE type = 'ASPIRATION'")
+    fun getAllAspirations(): Flow<List<GoalEntity>>
+
+    @Query("SELECT * FROM goals WHERE type = 'MISSION' AND parentAspirationId = :aspirationId")
+    fun getMissionsForAspiration(aspirationId: String): Flow<List<GoalEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertGoal(goal: GoalEntity)
 

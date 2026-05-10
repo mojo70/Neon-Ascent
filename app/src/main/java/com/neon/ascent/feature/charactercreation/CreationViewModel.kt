@@ -9,7 +9,7 @@ import com.google.ai.client.generativeai.type.content
 import com.neon.ascent.BuildConfig
 import com.neon.ascent.data.repository.CharacterRepository
 import com.neon.ascent.data.repository.UserPreferencesRepository
-import com.neon.ascent.core.domain.goals.usecases.SeedStarterHabitsUseCase
+import com.neon.ascent.domain.onboarding.OnboardingCompletionUseCase
 import com.neon.ascent.model.UserCharacter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,7 +27,7 @@ import javax.inject.Inject
 class CreationViewModel @Inject constructor(
     private val characterRepository: CharacterRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
-    private val seedStarterHabitsUseCase: SeedStarterHabitsUseCase,
+    private val onboardingCompletionUseCase: OnboardingCompletionUseCase,
     application: Application
 ) : AndroidViewModel(application) {
 
@@ -122,9 +122,9 @@ class CreationViewModel @Inject constructor(
                     )
                     characterRepository.saveCharacter(finalCharacter)
 
-                    // Seed starter habits based on the chosen archetype
+                    // Seed starter habits and schedule Neural Pings
                     finalCharacter.archetype?.let { archetype ->
-                        seedStarterHabitsUseCase(archetype)
+                        onboardingCompletionUseCase(archetype)
                     }
 
                     _uiState.value = CreationUiState.Success

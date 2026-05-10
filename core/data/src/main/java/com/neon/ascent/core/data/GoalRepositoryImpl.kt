@@ -35,6 +35,16 @@ class GoalRepositoryImpl @Inject constructor(
             }
         }
 
+    override fun getAllAspirations(): Flow<List<Aspiration>> =
+        goalDao.getAllAspirations().map { entities ->
+            entities.map { mapper.toAspiration(it) }
+        }
+
+    override fun getMissionsForAspiration(aspirationId: String): Flow<List<Mission>> =
+        goalDao.getMissionsForAspiration(aspirationId).map { entities ->
+            entities.map { mapper.toMission(it) }
+        }
+
     override fun getActiveMissions(): Flow<List<Mission>> =
         goalDao.getActiveMissions().map { entities ->
             entities.map { mapper.toMission(it) }

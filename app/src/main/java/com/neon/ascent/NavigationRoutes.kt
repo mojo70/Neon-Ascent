@@ -47,6 +47,9 @@ sealed interface Screen {
     data object NotificationPermission : Screen
 
     @Serializable
+    data object NotificationPreferences : Screen
+
+    @Serializable
     data object Wallet : Screen
 
     @Serializable
