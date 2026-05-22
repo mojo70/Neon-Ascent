@@ -49,6 +49,7 @@ import java.util.Locale
 fun NetworkHubScreen(
     onBack: () -> Unit,
     onChessClick: () -> Unit,
+    onPersonalDossierClick: () -> Unit = {},
     viewModel: CyberdeckViewModel,
     chatViewModel: ChatViewModel = hiltViewModel(),
     hubViewModel: NetworkHubViewModel = hiltViewModel(),
@@ -155,7 +156,12 @@ fun NetworkHubScreen(
                 // Content Area
                 Box(modifier = Modifier.weight(1f).padding(horizontal = 16.dp)) {
                     when (activeTab) {
-                        NetworkTab.CHATS -> ChatListArea(chatViewModel, { selectedContact = it }, { selectedDossierCorpId = it })
+                        NetworkTab.CHATS -> ChatListArea(
+                            chatViewModel, 
+                            { selectedContact = it }, 
+                            { selectedDossierCorpId = it },
+                            onPersonalDossierClick
+                        )
                         NetworkTab.SCAN -> NetScanArea(hubViewModel, chatViewModel)
                         NetworkTab.BIZ -> BizScreen(stockViewModel, netWorthViewModel)
                         NetworkTab.NODES -> CorpoNodesArea(viewModel, bypassed) { selectedCorpo = it }
@@ -195,14 +201,21 @@ fun NetworkHubScreen(
 fun ChatListArea(
     viewModel: ChatViewModel,
     onContactClick: (String) -> Unit,
-    onDossierClick: (String) -> Unit
+    onDossierClick: (String) -> Unit,
+    onPersonalDossierClick: () -> Unit
 ) {
     val sessions by viewModel.chatSessions.collectAsState()
     val megacorps by viewModel.megacorps.collectAsState()
     val trustMap by viewModel.executiveTrust.collectAsState()
+    val userCharacter by viewModel.userCharacter.collectAsState(null)
     var lookupText by remember { mutableStateOf("") }
 
     Column {
+        // Personal Dossier Card
+        UserDossierCard(userCharacter, onPersonalDossierClick)
+        
+        Spacer(modifier = Modifier.height(16.dp))
+
         // Netrunner Lookup
         Row(
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
@@ -1162,6 +1175,40 @@ fun GamesArea(onChessClick: () -> Unit) {
                 Spacer(modifier = Modifier.width(16.dp))
                 Text("ENTER_MATCHMAKING", color = Color.White)
             }
+        }
+    }
+}
+
+@Composable
+fun UserDossierCard(
+    character: com.neon.ascent.model.UserCharacter?,
+    onDossierClick: () -> Unit
+) {
+    CyberFrame(
+        label = "PERSONAL_DOSSIER // ${character?.netrunnerName ?: "RUNNER"}",
+        borderColor = Color(0xFF00FF9F),
+        modifier = Modifier.clickable { onDossierClick() }
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .border(1.dp, Color(0xFF00FF9F), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                com.neon.ascent.ui.AvatarImage(character, modifier = Modifier.fillMaxSize(), alpha = 1f)
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text("RANK_0${character?.level ?: 1} OPERATIVE", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("NETWATCH_STATUS: UNDER_SURVEILLANCE", color = Color.Yellow, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            Icon(Icons.Default.Terminal, contentDescription = null, tint = Color(0xFF00FF9F), modifier = Modifier.size(20.dp))
         }
     }
 }

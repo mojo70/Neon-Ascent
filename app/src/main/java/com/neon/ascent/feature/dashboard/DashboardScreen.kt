@@ -43,7 +43,8 @@ fun DashboardScreen(
     onStoryClick: () -> Unit,
     onGoalSetClick: () -> Unit,
     onSettingsClick: () -> Unit,
-    onDeusExMachinaClick: () -> Unit
+    onDeusExMachinaClick: () -> Unit,
+    onLoreClick: () -> Unit
 ) {
     val userCharacter by viewModel.userCharacter.collectAsState()
     val weatherState by viewModel.weatherState.collectAsState()
@@ -377,11 +378,37 @@ fun DashboardScreen(
                             triggerGlitch()
                             onStoryClick()
                         })
+                    } else {
+                        CyberActionButton("VIEW LORE", Color(0xFF00FF9C), onClick = {
+                            triggerGlitch()
+                            onLoreClick()
+                        })
                     }
                     CyberActionButton("MISSIONS", Color.White, onClick = { 
                         triggerGlitch()
                         onGoalSetClick() 
                     })
+                }
+            }
+
+            if (state.userStory.cyberLore.isNotBlank()) {
+                Spacer(modifier = Modifier.height(24.dp))
+                CyberFrame(
+                    label = "NEURAL_LEGEND // DATA_STREAM",
+                    borderColor = systemColor.copy(alpha = 0.6f),
+                    modifier = Modifier.clickable { onLoreClick() }
+                ) {
+                    Text(
+                        text = state.userStory.cyberLore,
+                        color = Color.White.copy(alpha = 0.8f),
+                        maxLines = 4,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontStyle = FontStyle.Italic
+                        ),
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
                 }
             }
 

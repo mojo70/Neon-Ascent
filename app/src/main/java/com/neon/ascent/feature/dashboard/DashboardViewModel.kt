@@ -137,9 +137,13 @@ class DashboardViewModel @Inject constructor(
                 val bioAge = array[4] as com.neon.ascent.model.BioAgeResult?
                 val totalCompletedDays = array[5] as Int
 
-                val lore = if (story.bio.isNotBlank()) {
-                    generateCyberLoreUseCase.generateLore(emptyMap()) 
-                } else "Your cyber lore is still being written..."
+                val lore = if (story.cyberLore.isNotBlank()) {
+                    story.cyberLore
+                } else if (story.bio.isNotBlank()) {
+                    "Your cyber lore is being synthesized..."
+                } else {
+                    "Your cyber lore is still being written..."
+                }
 
                 val today = LocalDate.now()
                 val startOfToday = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()

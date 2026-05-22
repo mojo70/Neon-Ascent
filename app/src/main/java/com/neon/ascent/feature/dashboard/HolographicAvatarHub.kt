@@ -53,7 +53,8 @@ fun HolographicAvatarHub(
     healthViewModel: HealthViewModel = hiltViewModel(),
     onBack: () -> Unit,
     onUpgradeClick: (String) -> Unit,
-    onNavigateToDiagnostics: () -> Unit
+    onNavigateToDiagnostics: () -> Unit,
+    onLoreClick: () -> Unit = {}
 ) {
     val userCharacter by viewModel.userCharacter.collectAsState()
     val state by viewModel.uiState.collectAsState()
@@ -331,7 +332,8 @@ fun HolographicAvatarHub(
                 CyberFrame(
                     label = "CYBER_LORE // PROTOCOL_LOG",
                     accentColor = Color(0xFFFF006E),
-                    borderColor = Color(0xFFFF006E).copy(alpha = 0.6f)
+                    borderColor = Color(0xFFFF006E).copy(alpha = 0.6f),
+                    modifier = Modifier.clickable { onLoreClick() }
                 ) {
                     Text(
                         text = state.cyberLoreSnippet,

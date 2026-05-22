@@ -7,6 +7,7 @@ import com.neon.ascent.data.local.LoreDao
 import com.neon.ascent.feature.biohacking.AiProvider
 import com.neon.ascent.core.lore.data.LoreRepository
 import com.neon.ascent.core.lore.data.Megacorp
+import com.neon.ascent.data.repository.CharacterRepository
 import com.neon.ascent.model.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -20,8 +21,12 @@ class ChatViewModel @Inject constructor(
     private val chatDao: ChatDao,
     private val aiProvider: AiProvider,
     private val loreRepository: LoreRepository,
-    private val loreDao: LoreDao
+    private val loreDao: LoreDao,
+    private val characterRepository: CharacterRepository
 ) : ViewModel() {
+
+    val userCharacter: StateFlow<UserCharacter?> = characterRepository.getUserCharacter()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private val _megacorps = MutableStateFlow<List<Megacorp>>(emptyList())
     val megacorps: StateFlow<List<Megacorp>> = _megacorps.asStateFlow()

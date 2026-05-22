@@ -24,6 +24,7 @@ import com.neon.ascent.feature.charactercreation.NeuralScanScreen
 import com.neon.ascent.feature.cyberdeck.CyberdeckScreen
 import com.neon.ascent.feature.cyberdeck.ExploitsScreen
 import com.neon.ascent.feature.cyberdeck.NetworkHubScreen
+import com.neon.ascent.feature.cyberdeck.UserDossierScreen
 import com.neon.ascent.feature.dashboard.DashboardScreen
 import com.neon.ascent.feature.dashboard.DashboardViewModel
 import com.neon.ascent.feature.dashboard.CoreDashboardScreen
@@ -50,6 +51,7 @@ import com.neon.ascent.feature.health.ui.HealthPreferencesScreen
 import com.neon.ascent.feature.terminal.ui.AttributeHistoryScreen
 import com.neon.ascent.feature.terminal.ui.DiagnosticsScreen
 import com.neon.ascent.feature.terminal.ui.CognitiveTestScreen
+import com.neon.ascent.feature.lore.LoreScreen
 import com.neon.ascent.feature.notifications.ui.NeuralPingPermissionScreen
 import com.neon.ascent.feature.notifications.ui.NotificationPermissionViewModel
 import com.neon.ascent.feature.notifications.ui.NotificationPreferencesScreen
@@ -108,6 +110,9 @@ fun AppNavigation(
                         onNetworkClick = {
                             navController.navigate(Screen.NetworkHub)
                         },
+                        onDossierClick = {
+                            navController.navigate(Screen.UserDossier)
+                        },
                         onExploitsClick = {
                             navController.navigate(Screen.Forge)
                         },
@@ -118,12 +123,13 @@ fun AppNavigation(
                         onAttributeSetClick = { navController.navigate(Screen.AttributeScan) },
                         onStoryClick = {
                             val target = if (dashboardViewModel.uiState.value.userStory.bio.isNotBlank()) {
-                                Screen.Story
+                                Screen.Lore
                             } else {
                                 Screen.StoryIntake
                             }
                             navController.navigate(target)
                         },
+                        onLoreClick = { navController.navigate(Screen.Lore) },
                         onGoalSetClick = { navController.navigate(Screen.Goals) },
                         onSettingsClick = { navController.navigate(Screen.Settings) },
                         onDeusExMachinaClick = { navController.navigate(Screen.DeepNode("DEUS_EX_MACHINA")) }
@@ -141,7 +147,8 @@ fun AppNavigation(
                 },
                 onNavigateToDiagnostics = {
                     navController.navigate(Screen.Diagnostics)
-                }
+                },
+                onLoreClick = { navController.navigate(Screen.Lore) }
             )
         }
 
@@ -408,6 +415,14 @@ fun AppNavigation(
             )
         }
 
+        composable<Screen.Lore> {
+            LoreScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable<Screen.UserDossier> {
+            UserDossierScreen(onBack = { navController.popBackStack() })
+        }
+
         composable<Screen.DeepNode> { backStackEntry ->
             val deepNode = backStackEntry.toRoute<Screen.DeepNode>()
             DeepNodeScreen(
@@ -463,6 +478,7 @@ fun AppNavigation(
             NetworkHubScreen(
                 onBack = { navController.popBackStack() },
                 onChessClick = { navController.navigate(Screen.CyberChess(false)) },
+                onPersonalDossierClick = { navController.navigate(Screen.UserDossier) },
                 viewModel = hiltViewModel()
             )
         }
