@@ -2,7 +2,7 @@ package com.neon.ascent.feature.goals.ui.ascension
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.neon.ascent.core.domain.goals.models.AscensionTaskCompletion
+import com.neon.ascent.core.domain.goals.models.*
 import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.feature.goals.domain.usecases.ExportNeuralLogUseCase
 import com.neon.ascent.feature.goals.domain.usecases.NeonMentorUseCase
@@ -13,6 +13,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.IsoFields
+import java.util.UUID
 import javax.inject.Inject
 
 data class TerminalRitualUiState(
@@ -21,7 +22,10 @@ data class TerminalRitualUiState(
     val heatmapData: Map<LocalDate, Int> = emptyMap(),
     val isLoading: Boolean = true,
     val currentQuarter: Int = 0,
-    val currentYear: Int = 0
+    val currentYear: Int = 0,
+    val directives: List<AscensionDirective> = emptyList(),
+    val missions: List<AscensionMission> = emptyList(),
+    val tasks: List<AscensionTask> = emptyList()
 )
 
 @HiltViewModel
@@ -51,29 +55,41 @@ class TerminalRitualViewModel @Inject constructor(
             .atStartOfDay(ZoneId.systemDefault()).toInstant()
 
         viewModelScope.launch {
-            repository.getCompletionsInRange(startOfQuarter).collect { history ->
+            combine(
+                repository.getCompletionsInRange(startOfQuarter),
+                repository.getAllDirectives(),
+                repository.getActiveMissions(),
+                repository.getAllRecurringTasks()
+            ) { history, dirs, mis, tsk ->
                 val heatmap = history.groupBy { 
                     it.timestamp.atZone(ZoneId.systemDefault()).toLocalDate() 
                 }.mapValues { it.value.size }
 
-                _uiState.update { it.copy(
+                TerminalRitualUiState(
                     completionHistory = history,
                     heatmapData = heatmap,
                     currentQuarter = quarter,
                     currentYear = year,
-                    isLoading = history.isEmpty() // If history is empty, maybe still loading or no data
-                ) }
+                    directives = dirs,
+                    missions = mis,
+                    tasks = tsk,
+                    isLoading = false
+                )
+            }.collect { updatedState ->
+                _uiState.update { current ->
+                    updatedState.copy(
+                        ritualAnalysis = current.ritualAnalysis ?: updatedState.ritualAnalysis
+                    )
+                }
 
-                if (history.isNotEmpty() && _uiState.value.ritualAnalysis == null) {
-                    val analysis = mentorUseCase.getTerminalRitualAnalysis(history)
+                if (updatedState.completionHistory.isNotEmpty() && _uiState.value.ritualAnalysis == null) {
+                    val analysis = mentorUseCase.getTerminalRitualAnalysis(updatedState.completionHistory)
                     repository.insertNeuralLog(
                         title = "TERMINAL_RITUAL_Q${quarter}_$year",
                         content = analysis,
                         type = "RITUAL_SYNTHESIS"
                     )
-                    _uiState.update { it.copy(ritualAnalysis = analysis, isLoading = false) }
-                } else if (history.isEmpty()) {
-                    _uiState.update { it.copy(isLoading = false) }
+                    _uiState.update { it.copy(ritualAnalysis = analysis) }
                 }
             }
         }
@@ -83,6 +99,25 @@ class TerminalRitualViewModel @Inject constructor(
         viewModelScope.launch {
             val logContent = exportNeuralLogUseCase()
             _exportEvent.emit(logContent)
+        }
+    }
+
+    fun createProposedDirective(title: String, description: String, visionStatement: String?) {
+        viewModelScope.launch {
+            val directive = AscensionDirective(
+                id = UUID.randomUUID().toString(),
+                title = title,
+                description = description,
+                visionStatement = visionStatement,
+                isQuarterly = true,
+                targetEndDate = LocalDate.now().plusMonths(3)
+            )
+            repository.insertDirective(directive)
+            repository.insertNeuralLog(
+                title = "New Quarterly Directive Deployed",
+                content = "Directive deployed in planning review: $title",
+                type = "DIRECTIVE_DEPLOY"
+            )
         }
     }
 }

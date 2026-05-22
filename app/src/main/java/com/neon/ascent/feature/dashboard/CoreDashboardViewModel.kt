@@ -7,18 +7,14 @@ import com.neon.ascent.data.local.SayingsDao
 import com.neon.ascent.data.local.UserCharacterDao
 import com.neon.ascent.data.repository.SettingsRepository
 import com.neon.ascent.feature.biohacking.AiProvider
+import com.neon.ascent.core.data.local.dao.NeuralMemoryDao
+import com.neon.ascent.core.data.local.entity.NeuralMemory
 import com.neon.ascent.model.Saying
 import com.neon.ascent.model.UserCharacter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.random.Random
@@ -29,11 +25,15 @@ class CoreDashboardViewModel @Inject constructor(
     private val sayingsDao: SayingsDao,
     private val journalDao: JournalDao,
     private val settingsRepository: SettingsRepository,
-    private val aiProvider: AiProvider
+    private val aiProvider: AiProvider,
+    private val neuralMemoryDao: NeuralMemoryDao
 ) : ViewModel() {
 
     val userCharacter: StateFlow<UserCharacter?> = userCharacterDao.getUserCharacter()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val neuralMemories: StateFlow<List<NeuralMemory>> = neuralMemoryDao.getAllMemories()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val nanoTemperature = settingsRepository.nanoTemperature
     val cloudFallbackThreshold = settingsRepository.cloudFallbackThreshold

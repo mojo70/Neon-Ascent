@@ -17,6 +17,9 @@ class DopamineCoordinator @Inject constructor(
             CelebrationLevel.SUBTLE -> hapticService.heartbeat()
             CelebrationLevel.SYNC -> hapticService.syncSuccess()
             CelebrationLevel.ASCENSION -> hapticService.ascensionBurst()
+            CelebrationLevel.STREAK_RECOVERY -> hapticService.syncSuccess()
+            CelebrationLevel.MISSION_COMPLETE -> hapticService.ascensionBurst()
+            CelebrationLevel.DIRECTIVE_MILESTONE -> hapticService.ascensionBurst()
         }
         _events.emit(event)
     }
@@ -31,5 +34,17 @@ class DopamineCoordinator @Inject constructor(
 
     suspend fun triggerAscension(title: String, xp: Int = 100) {
         trigger(DopamineEvent(CelebrationLevel.ASCENSION, message = title, xpGained = xp))
+    }
+
+    suspend fun triggerStreakRecovery(streak: Int, xp: Int = 15) {
+        trigger(DopamineEvent(CelebrationLevel.STREAK_RECOVERY, streakCount = streak, isGraceRecovery = true, xpGained = xp))
+    }
+
+    suspend fun triggerMissionComplete(missionTitle: String, xp: Int = 50) {
+        trigger(DopamineEvent(CelebrationLevel.MISSION_COMPLETE, message = missionTitle, xpGained = xp))
+    }
+
+    suspend fun triggerDirectiveMilestone(directiveTitle: String, progress: Float, xp: Int = 150) {
+        trigger(DopamineEvent(CelebrationLevel.DIRECTIVE_MILESTONE, message = directiveTitle, directiveProgress = progress, xpGained = xp))
     }
 }

@@ -8,32 +8,53 @@ data class AscensionDirective(
     val id: String,
     val title: String,
     val description: String,
-    val archetypeTag: String? = null,
+    val visionStatement: String? = null,
     val status: DirectiveStatus = DirectiveStatus.ACTIVE,
     val targetEndDate: LocalDate? = null,
+    val isQuarterly: Boolean = false,
+    val createdAt: Instant = Instant.now(),
+    val archivedAt: Instant? = null,
     val currentProgress: Float = 0f,
     val totalXPContributed: Long = 0L,
+    val xpTarget: Long? = null,
+    val archetypeTag: String? = null,
+    val tags: List<String> = emptyList(),
+    val aiMentorMode: MentorMode = MentorMode.REVIEW,
+    val aiGenerated: Boolean = false,
     val notes: String? = null,
-    val createdAt: Instant = Instant.now()
+    val completionHistorySummary: String? = null,
+    val lastReviewDate: LocalDate? = null
 )
 
-enum class DirectiveStatus { ACTIVE, PAUSED, COMPLETED }
+enum class DirectiveStatus { ACTIVE, PAUSED, COMPLETED, ARCHIVED }
+
+enum class MentorMode { REVIEW, SOUNDING_BOARD, GUIDE }
 
 data class AscensionMission(
     val id: String,
     val directiveId: String?,
     val title: String,
     val description: String,
-    val deadline: Instant? = null,
-    val progress: Float = 0f,
-    val xpPool: Int = 100,
+    val objective: String? = null,
     val status: AscensionMissionStatus = AscensionMissionStatus.ACTIVE,
+    val startDate: LocalDate = LocalDate.now(),
+    val targetEndDate: LocalDate? = null,
+    val createdAt: Instant = Instant.now(),
+    val completedAt: Instant? = null,
+    val archivedAt: Instant? = null,
+    val progress: Float = 0f,
+    val totalXPContributed: Long = 0L,
+    val xpTarget: Long? = null,
+    val aiMentorMode: MentorMode = MentorMode.REVIEW,
     val aiGenerated: Boolean = false,
-    val mentorModeEnabled: Boolean = false,
-    val isRecovery: Boolean = false
+    val notes: String? = null,
+    val successCriteria: String? = null,
+    val completionHistorySummary: String? = null,
+    val tags: List<String> = emptyList(),
+    val linkedArchetype: String? = null
 )
 
-enum class AscensionMissionStatus { ACTIVE, COMPLETED, FAILED }
+enum class AscensionMissionStatus { ACTIVE, PAUSED, COMPLETED, ARCHIVED, RECOVERY }
 
 data class AscensionTask(
     val id: String,

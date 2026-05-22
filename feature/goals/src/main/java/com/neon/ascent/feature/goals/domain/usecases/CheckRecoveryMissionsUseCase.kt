@@ -19,10 +19,10 @@ class CheckRecoveryMissionsUseCase @Inject constructor(
         tasks.forEach { task ->
             if (isTaskMissed(task, today)) {
                 val activeMissions = repository.getActiveMissions().first()
-                val hasRecovery = activeMissions.any { it.isRecovery && it.title.contains(task.title, ignoreCase = true) }
+                val hasRecovery = activeMissions.any { it.status == AscensionMissionStatus.RECOVERY && it.title.contains(task.title, ignoreCase = true) }
                 
                 if (!hasRecovery) {
-                    val recoveryMission = mentorUseCase.generateRecoveryMission(task).copy(isRecovery = true)
+                    val recoveryMission = mentorUseCase.generateRecoveryMission(task).copy(status = AscensionMissionStatus.RECOVERY)
                     repository.insertMission(recoveryMission)
                     
                     val recoveryTask = AscensionTask(

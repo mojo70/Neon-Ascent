@@ -125,6 +125,9 @@ sealed interface Screen {
     data class DirectiveDetail(val id: String) : Screen
 
     @Serializable
+    data class AscensionMissionDetail(val id: String) : Screen
+
+    @Serializable
     data class TaskDetail(val id: String) : Screen
 
     @Serializable

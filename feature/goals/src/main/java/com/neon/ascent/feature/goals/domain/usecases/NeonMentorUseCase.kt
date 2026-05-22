@@ -5,6 +5,7 @@ import com.neon.ascent.core.ai.AiPersona
 import com.neon.ascent.core.domain.goals.models.*
 import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.core.domain.repository.SkillRepository
+import com.neon.ascent.core.data.local.dao.NeuralMemoryDao
 import java.util.UUID
 import javax.inject.Inject
 
@@ -15,7 +16,8 @@ import javax.inject.Inject
 class NeonMentorUseCase @Inject constructor(
     private val gemmaClient: GemmaClient,
     private val repository: AscensionRepository,
-    private val skillRepository: SkillRepository
+    private val skillRepository: SkillRepository,
+    private val neuralMemoryDao: NeuralMemoryDao
 ) {
     suspend fun generateMissionsForDirective(directive: AscensionDirective, manualSkillPrompt: String? = null) {
         val skillPrompt = manualSkillPrompt ?: autoSelectSkills(directive)
@@ -146,5 +148,124 @@ class NeonMentorUseCase @Inject constructor(
             description = parts.getOrNull(1)?.trim() ?: "Complete a reduced version of ${task.title} to stabilize the neural link.",
             aiGenerated = true
         )
+    }
+
+    suspend fun askMentor(task: AscensionTask, parentName: String?, parentType: String?, question: String): String {
+        val parentContext = if (parentName != null) " (Parent $parentType: $parentName)" else ""
+        val prompt = """
+            ${AiPersona.CYBER_SOCRATES_PROMPT}
+            The operator is asking a question about the task: '${task.title}'$parentContext.
+            Description of the task: '${task.description}'.
+            
+            Operator's question: "$question"
+            
+            Provide a piercing, concise, dialectic guidance in response. Keep it under 120 words. Focus on deconstructing their resistance or helping them start immediately.
+        """.trimIndent()
+        return gemmaClient.generateContent(prompt)
+    }
+
+    suspend fun getMentorDialogue(directive: AscensionDirective, missions: List<AscensionMission>, tasks: List<AscensionTask>, mode: MentorMode, message: String): String {
+        // 1. Memory Palace Loading
+        val recentMemories = try {
+            neuralMemoryDao.searchMemories(directive.title, 5)
+                .joinToString("\n") { "[Memory (${it.wing}/${it.room})]: ${it.content}" }
+        } catch (e: Exception) {
+            ""
+        }
+
+        // 2. Expert Persona Routing Matrix
+        val expertPrompts = when {
+            directive.title.contains("Hustle", ignoreCase = true) || directive.description.contains("Business", ignoreCase = true) -> {
+                """
+                [ACTIVE_EXPERTS: VENTURE_SAMURAI + PROGRESS_ARCHITECT + HABIT_FORGE]
+                Approach: Highly tactical lean startup execution. Focus on MVP deployment, identifying unit economics quickly, and ruthlessly prioritizing atomic revenue units. Add copyable Grok prompts for competitor research and marketing.
+                """
+            }
+            directive.title.contains("Frame", ignoreCase = true) || directive.description.contains("Health", ignoreCase = true) || directive.title.contains("Bio", ignoreCase = true) -> {
+                """
+                [ACTIVE_EXPERTS: BIOHACKER_PREMIUM + RECOVERY_SAGE + ADHD_RUNNER]
+                Approach: Circadian and biomonitor synchronization. Focus on physical optimization, HRV, sleeping protocols, and minimizing dopamine exhaustion with tiny momentum loops.
+                """
+            }
+            else -> {
+                """
+                [ACTIVE_EXPERTS: HABIT_FORGE + ADHD_RUNNER]
+                Approach: Friction reduction and habit stacking. Keep it extremely tiny, build momentum first, and preserve streaks using grace buffers.
+                """
+            }
+        }
+
+        val context = """
+            Current Directive: '${directive.title}' - ${directive.description}. 
+            Vision: ${directive.visionStatement ?: "None"}. 
+            Mode: ${mode.name}. 
+            Missions: ${missions.joinToString { it.title }}. 
+            Direct Tasks: ${tasks.joinToString { it.title }}.
+            
+            Memory Palace Context:
+            $recentMemories
+            
+            Active Experts:
+            $expertPrompts
+        """.trimIndent()
+
+        val modePrompt = when (mode) {
+            MentorMode.REVIEW -> "Provide a concise status report analyzing their patterns, consistency, and progress. List 1-2 pattern detections."
+            MentorMode.SOUNDING_BOARD -> "Act as a thoughtful, deconstructive mirror. Pose 1-2 open-ended reflective questions about their blockers."
+            MentorMode.GUIDE -> """
+                Provide active coaching. Give step-by-step checklists, estimated difficulties, habit stacking suggestions, and copyable prompt scripts.
+                Specifically include an external AI prompt like: "Paste this into Grok: 'Act as a specialist...'"
+            """.trimIndent()
+        }
+
+        val prompt = """
+            ${AiPersona.CYBER_SOCRATES_PROMPT}
+            Context: $context
+            
+            Action Required: Respond to the operator's query using Socratic questioning and the active experts.
+            Guideline: $modePrompt
+            
+            User/Operator Query: "$message"
+            
+            OUTPUT (concise, under 150 words):
+        """.trimIndent()
+
+        return gemmaClient.generateContent(prompt)
+    }
+
+    suspend fun generateTasksForMission(mission: AscensionMission) {
+        val prompt = """
+            ${AiPersona.CYBER_SOCRATES_PROMPT}
+            [PROTOCOL: TASK_EXPANSION]
+            [MISSION: ${mission.title}]
+            Mission Description: ${mission.description}
+            Mission Objective: ${mission.objective ?: "None"}
+            
+            Task: Generate 3-4 granular, actionable, recurring or one-time Tasks to fulfill this mission.
+            Ensure these tasks are atomic and highly achievable (ADHD-friendly).
+            
+            Format your response as a structured list:
+            TASK: [Title] | [Description] | [Type: ONE_TIME/RECURRING] | [Frequency: DAILY/WEEKDAYS]
+        """.trimIndent()
+
+        val response = gemmaClient.generateContent(prompt)
+        response.lines().forEach { line ->
+            if (line.trim().startsWith("TASK:")) {
+                val parts = line.substringAfter("TASK:").split("|")
+                if (parts.size >= 4) {
+                    val task = AscensionTask(
+                        id = UUID.randomUUID().toString(),
+                        parentId = mission.id,
+                        title = parts[0].trim(),
+                        description = parts[1].trim(),
+                        type = if (parts[2].trim() == "RECURRING") AscensionTaskType.RECURRING else AscensionTaskType.ONE_TIME,
+                        recurrence = if (parts[2].trim() == "RECURRING") {
+                            RecurrenceV3(type = if (parts[3].trim() == "WEEKDAYS") RecurrenceTypeV3.WEEKDAYS else RecurrenceTypeV3.DAILY)
+                        } else null
+                    )
+                    repository.insertTask(task)
+                }
+            }
+        }
     }
 }

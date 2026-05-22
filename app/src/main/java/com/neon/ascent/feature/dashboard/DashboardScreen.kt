@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
@@ -39,6 +40,7 @@ import com.neon.ascent.feature.health.ui.HealthViewModel
 import com.neon.ascent.feature.biohacking.BiohackingViewModel
 import com.neon.ascent.core.common.*
 import com.neon.ascent.core.domain.goals.models.*
+import com.neon.ascent.feature.goals.ui.ascension.QuickTaskBottomSheet
 import com.neon.ascent.core.common.CelebrationOverlay
 import com.neon.ascent.ui.*
 import java.time.LocalDateTime
@@ -125,6 +127,7 @@ fun DashboardScreen(
     }
 
     var isTerminalExpanded by rememberSaveable { mutableStateOf(false) }
+    var showQuickTaskSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         while(true) {
@@ -160,17 +163,40 @@ fun DashboardScreen(
         
         HudCornerAccents(color = systemColor.copy(alpha = 0.2f))
 
-        FloatingActionButton(
-            onClick = { viewModel.generateTodaysTasks() },
-            containerColor = systemColor,
-            contentColor = Color.Black,
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(24.dp)
-                .neonBorder(systemColor, cornerRadius = 16.dp),
-            shape = RoundedCornerShape(16.dp)
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.End
         ) {
-            Icon(Icons.Default.Refresh, contentDescription = "RECALIBRATE_TASKS")
+            SmallFloatingActionButton(
+                onClick = { viewModel.generateTodaysTasks() },
+                containerColor = Color.Black.copy(alpha = 0.6f),
+                contentColor = systemColor,
+                modifier = Modifier
+                    .neonBorder(systemColor.copy(alpha = 0.6f), cornerRadius = 8.dp),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Icon(Icons.Default.Refresh, contentDescription = "RECALIBRATE_TASKS")
+            }
+
+            FloatingActionButton(
+                onClick = { showQuickTaskSheet = true },
+                containerColor = systemColor,
+                contentColor = Color.Black,
+                modifier = Modifier
+                    .neonBorder(systemColor, cornerRadius = 16.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "QUICK_TASK_CREATION")
+            }
+        }
+
+        if (showQuickTaskSheet) {
+            QuickTaskBottomSheet(
+                onDismiss = { showQuickTaskSheet = false }
+            )
         }
 
         Column(
@@ -520,7 +546,7 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.height(32.dp))
                 
                 // Show Recovery Missions first
-                val recoveryMissions = state.activeMissions.filter { it.isRecovery }
+                val recoveryMissions = state.activeMissions.filter { it.status == com.neon.ascent.core.domain.goals.models.AscensionMissionStatus.RECOVERY }
                 if (recoveryMissions.isNotEmpty()) {
                     Text(
                         "RECOVERY_PROTOCOLS",
@@ -538,7 +564,7 @@ fun DashboardScreen(
                     }
                 }
 
-                val standardMissions = state.activeMissions.filter { !it.isRecovery }
+                val standardMissions = state.activeMissions.filter { it.status != com.neon.ascent.core.domain.goals.models.AscensionMissionStatus.RECOVERY }
                 if (standardMissions.isNotEmpty()) {
                     Text(
                         "ACTIVE_MISSIONS",

@@ -15,13 +15,22 @@ data class AscensionDirectiveEntity(
     @PrimaryKey val id: String,
     val title: String,
     val description: String,
-    val archetypeTag: String?,
+    val visionStatement: String?,
     val status: String,
     val targetEndDate: LocalDate?,
+    val isQuarterly: Boolean,
+    val createdAt: Instant,
+    val archivedAt: Instant?,
     val currentProgress: Float,
     val totalXPContributed: Long,
+    val xpTarget: Long?,
+    val archetypeTag: String?,
+    val tags: List<String>,
+    val aiMentorMode: String,
+    val aiGenerated: Boolean,
     val notes: String?,
-    val createdAt: Instant
+    val completionHistorySummary: String?,
+    val lastReviewDate: LocalDate?
 )
 
 @Entity(
@@ -41,13 +50,23 @@ data class AscensionMissionEntity(
     val directiveId: String?,
     val title: String,
     val description: String,
-    val deadline: Instant?,
-    val progress: Float,
-    val xpPool: Int,
+    val objective: String?,
     val status: String,
+    val startDate: LocalDate,
+    val targetEndDate: LocalDate?,
+    val createdAt: Instant,
+    val completedAt: Instant?,
+    val archivedAt: Instant?,
+    val progress: Float,
+    val totalXPContributed: Long,
+    val xpTarget: Long?,
+    val aiMentorMode: String,
     val aiGenerated: Boolean,
-    val mentorModeEnabled: Boolean,
-    val isRecovery: Boolean
+    val notes: String?,
+    val successCriteria: String?,
+    val completionHistorySummary: String?,
+    val tags: List<String>,
+    val linkedArchetype: String?
 )
 
 @Entity(

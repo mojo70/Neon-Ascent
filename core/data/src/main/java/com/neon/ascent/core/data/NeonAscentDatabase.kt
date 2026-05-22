@@ -22,7 +22,7 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_3_4
         NeuralLogEntity::class,
         NeuralMemory::class
     ],
-    version = 9,
+    version = 11,
     exportSchema = true
 )
 @TypeConverters(

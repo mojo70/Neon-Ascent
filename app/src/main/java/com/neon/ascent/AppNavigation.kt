@@ -46,6 +46,8 @@ import com.neon.ascent.feature.goals.ui.ascension.AscensionTerminalScreen
 import com.neon.ascent.feature.goals.ui.ascension.AscensionForgeScreen
 import com.neon.ascent.feature.goals.ui.ascension.AscensionReviewScreen
 import com.neon.ascent.feature.goals.ui.ascension.AscensionTaskDetailScreen
+import com.neon.ascent.feature.goals.ui.ascension.AscensionDirectiveDetailScreen
+import com.neon.ascent.feature.goals.ui.ascension.AscensionMissionDetailScreen
 import com.neon.ascent.feature.goals.ui.ascension.TerminalRitualScreen
 import com.neon.ascent.feature.story.StoryIntakeScreen
 import com.neon.ascent.feature.loading.LoadingScreen
@@ -452,6 +454,24 @@ fun AppNavigation(
         composable<Screen.AscensionForge> {
             AscensionForgeScreen(
                 onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable<Screen.DirectiveDetail> { backStackEntry ->
+            val directiveDetail = backStackEntry.toRoute<Screen.DirectiveDetail>()
+            AscensionDirectiveDetailScreen(
+                directiveId = directiveDetail.id,
+                onBack = { navController.popBackStack() },
+                onMissionClick = { id -> navController.navigate(Screen.AscensionMissionDetail(id)) }
+            )
+        }
+
+        composable<Screen.AscensionMissionDetail> { backStackEntry ->
+            val missionDetail = backStackEntry.toRoute<Screen.AscensionMissionDetail>()
+            AscensionMissionDetailScreen(
+                missionId = missionDetail.id,
+                onBack = { navController.popBackStack() },
+                onTaskClick = { id -> navController.navigate(Screen.TaskDetail(id)) }
             )
         }
 

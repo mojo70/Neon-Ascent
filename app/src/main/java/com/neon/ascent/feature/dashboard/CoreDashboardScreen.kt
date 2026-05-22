@@ -17,6 +17,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropUp
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Warning
@@ -643,6 +645,89 @@ fun AiParametersPanel(viewModel: CoreDashboardViewModel) {
                     }
                     Button(onClick = {}, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00CCFF))) {
                         Text("RUN_CLOUD", color = Color.Black, fontSize = 10.sp)
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+        
+        val neuralMemories by viewModel.neuralMemories.collectAsState()
+        var isMemoriesExpanded by remember { mutableStateOf(false) }
+        
+        CyberFrame(label = "MEMORY_PALACE // NEURAL_MEMORIES") {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { isMemoriesExpanded = !isMemoriesExpanded }
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "${neuralMemories.size} FRAGMENTS DETECTED",
+                        color = Color(0xFF00FF9C),
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Icon(
+                        imageVector = if (isMemoriesExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                        contentDescription = null,
+                        tint = Color(0xFF00FF9C),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                
+                AnimatedVisibility(visible = isMemoriesExpanded) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (neuralMemories.isEmpty()) {
+                            Text(
+                                "NO_FRAGMENTS_CAPTURED_YET",
+                                color = Color.Gray,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        } else {
+                            neuralMemories.forEach { memory ->
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color.White.copy(alpha = 0.02f))
+                                        .border(1.dp, Color.White.copy(alpha = 0.05f))
+                                        .padding(10.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            "[WING_${memory.wing}] Room: ${memory.room}",
+                                            color = Color(0xFF00FF9C),
+                                            fontSize = 9.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        val df = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.US)
+                                        Text(
+                                            df.format(java.util.Date(memory.timestamp)),
+                                            color = Color.Gray,
+                                            fontSize = 8.sp,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        memory.content,
+                                        color = Color.LightGray,
+                                        fontSize = 11.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        lineHeight = 14.sp
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

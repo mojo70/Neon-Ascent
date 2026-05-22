@@ -24,6 +24,10 @@ data class AscensionForgeUiState(
     val title: String = "",
     val description: String = "",
     // Directive specific
+    val visionStatement: String = "",
+    val isQuarterly: Boolean = false,
+    val selectedArchetype: String? = null,
+    val aiMentorMode: MentorMode = MentorMode.REVIEW,
     val linkedAttributes: List<SpecialType> = emptyList(),
     val useAiMentor: Boolean = true,
     val selectedSkill: String? = null,
@@ -47,6 +51,10 @@ class AscensionForgeViewModel @Inject constructor(
     fun updateType(type: ForgeType) = _uiState.update { it.copy(forgeType = type) }
     fun updateTitle(title: String) = _uiState.update { it.copy(title = title) }
     fun updateDescription(desc: String) = _uiState.update { it.copy(description = desc) }
+    fun updateVisionStatement(vision: String) = _uiState.update { it.copy(visionStatement = vision) }
+    fun updateIsQuarterly(quarterly: Boolean) = _uiState.update { it.copy(isQuarterly = quarterly) }
+    fun updateSelectedArchetype(archetype: String?) = _uiState.update { it.copy(selectedArchetype = archetype) }
+    fun updateAiMentorMode(mode: MentorMode) = _uiState.update { it.copy(aiMentorMode = mode) }
     fun updateSelectedSkill(skill: String?) = _uiState.update { it.copy(selectedSkill = skill) }
     
     fun toggleAttribute(type: SpecialType) = _uiState.update { state ->
@@ -78,6 +86,10 @@ class AscensionForgeViewModel @Inject constructor(
                     id = UUID.randomUUID().toString(),
                     title = state.title,
                     description = state.description,
+                    visionStatement = state.visionStatement.takeIf { it.isNotBlank() },
+                    isQuarterly = state.isQuarterly,
+                    archetypeTag = state.selectedArchetype,
+                    aiMentorMode = state.aiMentorMode,
                     createdAt = Instant.now()
                 )
                 repository.insertDirective(directive)
