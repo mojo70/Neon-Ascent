@@ -330,25 +330,6 @@ fun DashboardScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            if (state.cyberLoreSnippet.isNotBlank()) {
-                CyberFrame(
-                    label = "CYBER_LORE // PROTOCOL_LOG",
-                    accentColor = Color(0xFFFF006E),
-                    borderColor = Color(0xFFFF006E).copy(alpha = 0.6f)
-                ) {
-                    Text(
-                        text = state.cyberLoreSnippet,
-                        color = Color.White.copy(alpha = 0.9f),
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            lineHeight = 16.sp
-                        ),
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 CyberMetricCard(
                     label = "STEPS", 
@@ -391,10 +372,12 @@ fun DashboardScreen(
                             onAttributeSetClick()
                         })
                     }
-                    CyberActionButton("YOUR STORY", Color(0xFFFF006E), onClick = { 
-                        triggerGlitch()
-                        onStoryClick() 
-                    })
+                    if (state.userStory.bio.isBlank()) {
+                        CyberActionButton("YOUR STORY", Color(0xFFFF006E), onClick = {
+                            triggerGlitch()
+                            onStoryClick()
+                        })
+                    }
                     CyberActionButton("MISSIONS", Color.White, onClick = { 
                         triggerGlitch()
                         onGoalSetClick() 

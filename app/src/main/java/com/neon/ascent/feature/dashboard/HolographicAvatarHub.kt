@@ -36,6 +36,7 @@ import com.neon.ascent.core.common.*
 import com.neon.ascent.feature.health.ui.HealthViewModel
 import com.neon.ascent.feature.terminal.ui.TerminalViewModel
 import com.neon.ascent.model.UserCharacter
+import com.neon.ascent.domain.model.UserStory
 import com.neon.ascent.ui.*
 import kotlinx.coroutines.delay
 import java.time.LocalTime
@@ -55,6 +56,7 @@ fun HolographicAvatarHub(
     onNavigateToDiagnostics: () -> Unit
 ) {
     val userCharacter by viewModel.userCharacter.collectAsState()
+    val state by viewModel.uiState.collectAsState()
     val specialState by terminalViewModel.specialState.collectAsState()
     val healthState by viewModel.healthState.collectAsState()
     val liveMetrics by healthViewModel.liveMetrics.collectAsState()
@@ -321,6 +323,27 @@ fun HolographicAvatarHub(
                         modifier = Modifier.size(150.dp)
                     )
                 }
+            }
+
+            // Cyber Lore Section
+            if (state.userStory.bio.isNotBlank() && state.cyberLoreSnippet.isNotBlank()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                CyberFrame(
+                    label = "CYBER_LORE // PROTOCOL_LOG",
+                    accentColor = Color(0xFFFF006E),
+                    borderColor = Color(0xFFFF006E).copy(alpha = 0.6f)
+                ) {
+                    Text(
+                        text = state.cyberLoreSnippet,
+                        color = Color.White.copy(alpha = 0.9f),
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            lineHeight = 16.sp
+                        ),
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
             // Intelligence Test & Neural Archive Buttons
