@@ -2,6 +2,9 @@ package com.neon.ascent.feature.goals.ui.ascension
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.neon.ascent.core.common.DopamineCoordinator
+import com.neon.ascent.core.common.DopamineEvent
+import com.neon.ascent.core.common.CelebrationLevel
 import com.neon.ascent.core.domain.goals.models.*
 import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.feature.goals.domain.usecases.NeonMentorUseCase
@@ -16,17 +19,31 @@ data class TaskDetailUiState(
     val reflectionText: String? = null,
     val isCompletedToday: Boolean = false,
     val isLoading: Boolean = true,
-    val showReflection: Boolean = false
+    val showReflection: Boolean = false,
+    val dopamineEvent: DopamineEvent? = null
 )
 
 @HiltViewModel
 class AscensionTaskDetailViewModel @Inject constructor(
     private val repository: AscensionRepository,
-    private val mentorUseCase: NeonMentorUseCase
+    private val mentorUseCase: NeonMentorUseCase,
+    private val dopamineCoordinator: DopamineCoordinator
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TaskDetailUiState())
     val uiState = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            dopamineCoordinator.events.collect { event ->
+                _uiState.update { it.copy(dopamineEvent = event) }
+            }
+        }
+    }
+
+    fun clearDopamineEvent() {
+        _uiState.update { it.copy(dopamineEvent = null) }
+    }
 
     fun loadTask(taskId: String) {
         viewModelScope.launch {
@@ -50,6 +67,13 @@ class AscensionTaskDetailViewModel @Inject constructor(
             repository.completeTask(currentTask, notes, mood, null)
             _uiState.update { it.copy(isCompletedToday = true, showReflection = true) }
             
+            // Trigger Dopamine Menu
+            if (currentTask.type == AscensionTaskType.RECURRING) {
+                dopamineCoordinator.triggerSync(xp = currentTask.xpValue)
+            } else {
+                dopamineCoordinator.triggerSubtle(xp = currentTask.xpValue)
+            }
+
             // Generate Dialectic Reflection
             val reflection = mentorUseCase.getReflection(currentTask, notes)
             _uiState.update { it.copy(reflectionText = reflection) }

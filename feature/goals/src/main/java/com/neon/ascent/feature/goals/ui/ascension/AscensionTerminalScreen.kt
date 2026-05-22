@@ -12,7 +12,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.filled.Terminal
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.core.domain.goals.models.*
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.ui.graphics.Color
 import com.neon.ascent.core.common.NeonCyan
+import com.neon.ascent.core.common.CelebrationOverlay
 import androidx.compose.material.icons.filled.Psychology
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,44 +48,64 @@ fun AscensionTerminalScreen(
             }
         }
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item {
-                Text("ACTIVE DIRECTIVES", style = MaterialTheme.typography.titleLarge)
-            }
-            
-            items(uiState.directives) { directive ->
-                DirectiveCard(
-                    directive = directive, 
-                    onClick = { onDirectiveClick(directive.id) },
-                    onReviewClick = { onReviewClick(directive.id) }
-                )
+        Box(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item {
+                    Text("ACTIVE DIRECTIVES", style = MaterialTheme.typography.titleLarge)
+                }
+                
+                items(uiState.directives.filter { it.status == DirectiveStatus.ACTIVE }) { directive ->
+                    DirectiveCard(
+                        directive = directive, 
+                        onClick = { onDirectiveClick(directive.id) },
+                        onReviewClick = { onReviewClick(directive.id) },
+                        onCompleteClick = { viewModel.markDirectiveCompleted(directive) }
+                    )
+                }
+
+                item {
+                    Text("MISSION LOG", style = MaterialTheme.typography.titleLarge)
+                }
+
+                items(uiState.activeMissions) { mission ->
+                    MissionCard(mission = mission)
+                }
             }
 
-            item {
-                Text("MISSION LOG", style = MaterialTheme.typography.titleLarge)
-            }
-
-            items(uiState.activeMissions) { mission ->
-                MissionCard(mission = mission)
-            }
+            CelebrationOverlay(
+                event = uiState.dopamineEvent,
+                onFinished = { viewModel.clearDopamineEvent() }
+            )
         }
     }
 }
 
 @Composable
-fun DirectiveCard(directive: AscensionDirective, onClick: () -> Unit, onReviewClick: () -> Unit) {
+fun DirectiveCard(
+    directive: AscensionDirective, 
+    onClick: () -> Unit, 
+    onReviewClick: () -> Unit,
+    onCompleteClick: () -> Unit
+) {
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(directive.title, style = MaterialTheme.typography.titleMedium)
-                IconButton(onClick = onReviewClick) {
-                    Icon(Icons.Default.Psychology, contentDescription = "DIALECTIC_REVIEW", tint = NeonCyan)
+                Row {
+                    IconButton(onClick = onReviewClick) {
+                        Icon(Icons.Default.Psychology, contentDescription = "DIALECTIC_REVIEW", tint = NeonCyan)
+                    }
+                    if (directive.currentProgress >= 0.9f) {
+                        IconButton(onClick = onCompleteClick) {
+                            Icon(Icons.Default.Check, contentDescription = "COMPLETE_DIRECTIVE", tint = Color.Green)
+                        }
+                    }
                 }
             }
             LinearProgressIndicator(

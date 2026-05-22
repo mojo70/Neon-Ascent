@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.core.common.NeonCyan
 import com.neon.ascent.core.common.NeonPink
+import com.neon.ascent.core.common.CelebrationOverlay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,19 +51,21 @@ fun AscensionTaskDetailScreen(
             )
         }
     ) { padding ->
-        if (uiState.isLoading) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = NeonCyan)
-            }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(20.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(24.dp)
-            ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (uiState.isLoading) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = NeonCyan)
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(20.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                ) {
+                    // ... rest of the column ...
                 // Task Header
                 Column {
                     Text(
@@ -158,12 +161,18 @@ fun AscensionTaskDetailScreen(
                     }
                 }
                 
-                if (uiState.isCompletedToday && !uiState.showReflection) {
-                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        Text("PROTOCOL_EXECUTED_FOR_TODAY", color = Color.Green, fontFamily = FontFamily.Monospace)
+                    if (uiState.isCompletedToday && !uiState.showReflection) {
+                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Text("PROTOCOL_EXECUTED_FOR_TODAY", color = Color.Green, fontFamily = FontFamily.Monospace)
+                        }
                     }
                 }
             }
+
+            CelebrationOverlay(
+                event = uiState.dopamineEvent,
+                onFinished = { viewModel.clearDopamineEvent() }
+            )
         }
     }
 }

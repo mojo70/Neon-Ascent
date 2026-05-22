@@ -1,24 +1,172 @@
 package com.neon.ascent.core.common
 
+import androidx.compose.animation.Animatable
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.expandVertically
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlin.math.pow
 import kotlin.random.Random
+
+/**
+ * Celebration Overlay for Dopamine Menu V3
+ */
+@Composable
+fun CelebrationOverlay(
+    event: DopamineEvent?,
+    onFinished: () -> Unit,
+) {
+    if (event == null) return
+
+    // Auto-dismiss
+    LaunchedEffect(event) {
+        val duration = when(event.level) {
+            CelebrationLevel.SUBTLE -> 2000L
+            CelebrationLevel.SYNC -> 3000L
+            CelebrationLevel.ASCENSION -> 5000L
+        }
+        delay(duration)
+        onFinished()
+    }
+
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        when (event.level) {
+            CelebrationLevel.SUBTLE -> SubtleCelebration(event)
+            CelebrationLevel.SYNC -> SyncCelebration(event)
+            CelebrationLevel.ASCENSION -> AscensionCelebration(event)
+        }
+    }
+}
+
+@Composable
+private fun SubtleCelebration(event: DopamineEvent) {
+    val anim = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        anim.animateTo(1f, animationSpec = tween(1500, easing = LinearOutSlowInEasing))
+    }
+    
+    val alpha = 1f - anim.value
+    val yOffset = (-40).dp * anim.value
+
+    Text(
+        text = "+${event.xpGained} XP",
+        color = NeonCyan,
+        fontSize = 18.sp,
+        fontFamily = FontFamily.Monospace,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier
+            .offset(y = yOffset)
+            .alpha(alpha)
+    )
+}
+
+@Composable
+private fun SyncCelebration(event: DopamineEvent) {
+    val scale = remember { Animatable(0.5f) }
+    val alpha = remember { Animatable(1f) }
+    
+    LaunchedEffect(Unit) {
+        scale.animateTo(1.2f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy))
+        delay(1000)
+        alpha.animateTo(0f, animationSpec = tween(1000))
+    }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.scale(scale.value).alpha(alpha.value)
+    ) {
+        Text(
+            text = "NEURAL_SYNC_SUCCESS",
+            color = NeonCyan,
+            fontSize = 24.sp,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Black
+        )
+        Text(
+            text = "+${event.xpGained} XP // STREAK_INTACT",
+            color = NeonCyan.copy(alpha = 0.7f),
+            fontSize = 14.sp,
+            fontFamily = FontFamily.Monospace
+        )
+    }
+}
+
+@Composable
+private fun AscensionCelebration(event: DopamineEvent) {
+    var glitchIntensity by remember { mutableFloatStateOf(0.1f) }
+    val ringScale = remember { Animatable(0f) }
+    val ringAlpha = remember { Animatable(1f) }
+    
+    LaunchedEffect(Unit) {
+        glitchIntensity = 0.8f
+        delay(200)
+        glitchIntensity = 0.2f
+        ringScale.animateTo(4f, animationSpec = tween(2000, easing = LinearOutSlowInEasing))
+        ringAlpha.animateTo(0f, animationSpec = tween(2000))
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawCircle(
+                color = NeonPink,
+                radius = 100.dp.toPx() * ringScale.value,
+                style = Stroke(width = 4.dp.toPx()),
+                alpha = ringAlpha.value
+            )
+        }
+        
+        Column(
+            modifier = Modifier.align(Alignment.Center).cyberGlitch(glitchIntensity),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = ">>> ASCENSION_COMPLETE <<<",
+                color = NeonPink,
+                fontSize = 32.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Black
+            )
+            Text(
+                text = event.message ?: "PROTOCOL_MASTERED",
+                color = Color.White,
+                fontSize = 16.sp,
+                fontFamily = FontFamily.Monospace
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = "+${event.xpGained} XP",
+                color = NeonPink,
+                fontSize = 24.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
 
 /**
  * Reusable neon glow border modifier.
@@ -37,7 +185,7 @@ fun Modifier.neonBorder(
 
     for (i in 0..6) {
         val f = i.toFloat()
-        val alphaVal = ((0.25f - f * 0.03f).coerceAtLeast(0f) * glowIntensity).coerceIn(0f, 1f)
+        val alphaVal = ((0.25f - (f * 0.03f)).coerceAtLeast(0f) * glowIntensity).coerceIn(0f, 1f)
         if (alphaVal > 0f) {
             drawRoundRect(
                 color = color.copy(alpha = alphaVal),
@@ -62,8 +210,6 @@ fun Modifier.neonBorder(
 
 /**
  * Amplified Glitch Effect Modifier.
- * - Reactive: Glitch violence scales exponentially with intensity.
- * - Silent: Completely stops when intensity is 0.
  */
 fun Modifier.cyberGlitch(
     intensity: Float = 0f
@@ -72,7 +218,6 @@ fun Modifier.cyberGlitch(
 
     var tick by remember { mutableLongStateOf(0L) }
     
-    // Tick control: Frequency increases with intensity
     LaunchedEffect(intensity) {
         while (true) {
             withFrameNanos { tick = it }
@@ -87,8 +232,6 @@ fun Modifier.cyberGlitch(
 
     this.drawWithContent {
         val random = Random(tick)
-        
-        // Load-based Stress: Probability scales cubed
         val loadProb = (intensity.pow(3f) * 0.9f).coerceIn(0f, 0.95f)
         val isGlitching = random.nextFloat() < loadProb
 
@@ -97,14 +240,11 @@ fun Modifier.cyberGlitch(
             return@drawWithContent
         }
 
-        // Glitch magnitude
         val visualIntensity = (intensity.pow(1.5f)).coerceAtLeast(0.05f)
 
-        // --- APPLY GLITCH TRANSFORMS ---
         val shiftX = (random.nextFloat() - 0.5f) * 60f * visualIntensity
         val shiftY = (random.nextFloat() - 0.5f) * 20f * visualIntensity
 
-        // 1. Color splits
         withTransform({ translate(left = shiftX, top = shiftY) }) {
             this@drawWithContent.drawContent()
             drawRect(color = Color.Cyan.copy(alpha = 0.4f * visualIntensity), blendMode = BlendMode.Screen)
@@ -115,7 +255,6 @@ fun Modifier.cyberGlitch(
             drawRect(color = Color.Magenta.copy(alpha = 0.4f * visualIntensity), blendMode = BlendMode.Screen)
         }
 
-        // 2. Horizontal Slice Distortion
         if (random.nextFloat() < visualIntensity * 1.8f) {
             repeat((3 * visualIntensity + 1).toInt()) {
                 val sliceY = random.nextFloat() * size.height
@@ -131,7 +270,6 @@ fun Modifier.cyberGlitch(
             }
         }
 
-        // 3. Overall HUD Jitter
         val jitterX = (random.nextFloat() - 0.5f) * 8f * visualIntensity
         withTransform({ translate(left = jitterX) }) {
             this@drawWithContent.drawContent()
@@ -202,7 +340,6 @@ fun StaticNoise(intensity: Float = 0.1f) {
 
     Canvas(modifier = Modifier.fillMaxSize()) {
         val random = Random(tick)
-        // Baseline noise always present but sparse at low load
         val dotCount = (1200 * intensity.pow(2.5f)).toInt().coerceAtLeast(8)
         val opacity = (intensity.pow(2f) * 0.7f).coerceIn(0.02f, 0.9f)
         
@@ -223,31 +360,6 @@ fun StaticNoise(intensity: Float = 0.1f) {
                 size = Size(w, 1.5f),
                 alpha = random.nextFloat() * opacity
             )
-        }
-        
-        // Random background "pop" bands occur rarely even at low load
-        if (random.nextFloat() < 0.015f + (intensity * 0.1f)) {
-             drawRect(
-                color = Color.White,
-                topLeft = Offset(0f, random.nextFloat() * size.height),
-                size = Size(size.width, 2.dp.toPx()),
-                alpha = 0.05f.coerceAtLeast(intensity * 0.1f)
-            )
-        }
-
-        // Heavy bands at high stress
-        if (intensity > 0.6f && random.nextFloat() < (intensity - 0.5f) * 1.5f) {
-            repeat(((intensity - 0.5f) * 10).toInt().coerceAtLeast(1)) {
-                val bandY = random.nextFloat() * size.height
-                val bandHeight = random.nextFloat() * 10.dp.toPx() + 1.dp.toPx()
-                val bandAlpha = random.nextFloat() * intensity * 0.2f
-                drawRect(
-                    color = Color.White,
-                    topLeft = Offset(0f, bandY),
-                    size = Size(size.width, bandHeight),
-                    alpha = bandAlpha
-                )
-            }
         }
     }
 }
@@ -299,15 +411,6 @@ fun Scanlines(modifier: Modifier = Modifier, intensity: Float = 0.1f) {
             )
             y += lineSpacing
         }
-        
-        if (intensity > 0.8f && Random.nextFloat() < (intensity - 0.75f)) {
-            drawRect(
-                color = Color.Black,
-                topLeft = Offset(0f, Random.nextFloat() * size.height),
-                size = Size(size.width, 60.dp.toPx()),
-                alpha = (0.15f + intensity * 0.2f).coerceIn(0f, 0.5f)
-            )
-        }
     }
 }
 
@@ -336,9 +439,8 @@ fun GlitchOverlay(intensity: Float = 0.05f) {
     
     LaunchedEffect(intensity) {
         while(true) {
-            // Ambient pops trigger even at low load, but density scales
             val baseDelay = when {
-                intensity < 0.3f -> 7000L // 7s avg pop at low load
+                intensity < 0.3f -> 7000L
                 intensity < 0.6f -> 3000L
                 else -> 800L
             }

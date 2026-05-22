@@ -31,6 +31,7 @@ import com.neon.ascent.feature.health.ui.HealthViewModel
 import com.neon.ascent.feature.biohacking.BiohackingViewModel
 import com.neon.ascent.core.common.*
 import com.neon.ascent.core.domain.goals.models.*
+import com.neon.ascent.core.common.CelebrationOverlay
 import com.neon.ascent.ui.*
 import java.time.LocalDateTime
 import java.time.LocalDate
@@ -462,6 +463,11 @@ fun DashboardScreen(
 
             Spacer(modifier = Modifier.height(64.dp))
         }
+
+        CelebrationOverlay(
+            event = state.dopamineEvent,
+            onFinished = { viewModel.clearDopamineEvent() }
+        )
     }
 }
 

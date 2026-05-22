@@ -66,7 +66,8 @@ class DashboardViewModel @Inject constructor(
     private val generateCyberLoreUseCase: GenerateCyberLoreUseCase,
     private val bioAgePredictor: BioAgePredictor,
     private val fusedLocationClient: FusedLocationProviderClient,
-    private val aiProvider: AiProvider
+    private val aiProvider: AiProvider,
+    private val dopamineCoordinator: com.neon.ascent.core.common.DopamineCoordinator
 ) : ViewModel() {
     val userCharacter: StateFlow<UserCharacter?> = characterRepository.getUserCharacter()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -102,12 +103,20 @@ class DashboardViewModel @Inject constructor(
     val isReligionShortcutEnabled: StateFlow<Boolean> = settingsRepository.isReligionShortcutEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    private val _dopamineEvent = MutableStateFlow<com.neon.ascent.core.common.DopamineEvent?>(null)
+
     init {
         seedSayingsIfEmpty()
         updateAtmosphereSimulated()
         fetchRealWeather()
         refreshHealthData()
         loadDashboard()
+
+        viewModelScope.launch {
+            dopamineCoordinator.events.collect { event ->
+                _dopamineEvent.value = event
+            }
+        }
         
         // Generate initial advice once we have some data context
         viewModelScope.launch {
@@ -129,7 +138,8 @@ class DashboardViewModel @Inject constructor(
                 ascensionRepository.getActiveMissions(),
                 ascensionRepository.getAllRecurringTasks(),
                 bioAgePredictor.lastResultFlow,
-                habitMetricDao.getTotalCompletedDays()
+                habitMetricDao.getTotalCompletedDays(),
+                _dopamineEvent
             ) { array ->
                 val story = array[0] as com.neon.ascent.domain.model.UserStory
                 val directives = array[1] as List<AscensionDirective>
@@ -137,6 +147,7 @@ class DashboardViewModel @Inject constructor(
                 val dailyTasks = array[3] as List<AscensionTask>
                 val bioAge = array[4] as com.neon.ascent.model.BioAgeResult?
                 val totalCompletedDays = array[5] as Int
+                val dopamine = array[6] as com.neon.ascent.core.common.DopamineEvent?
 
                 val lore = if (story.cyberLore.isNotBlank()) {
                     story.cyberLore
@@ -155,7 +166,8 @@ class DashboardViewModel @Inject constructor(
                     terminalFeed = emptyList(), // Now handled by BiohackingViewModel
                     bioAgeResult = bioAge,
                     totalHabitDays = totalCompletedDays,
-                    isLoading = false
+                    isLoading = false,
+                    dopamineEvent = dopamine
                 )
             }.collect { _uiState.value = it }
         }
@@ -180,8 +192,19 @@ class DashboardViewModel @Inject constructor(
             val task = uiState.value.todayTasks.find { it.id == taskId }
             if (task != null) {
                 ascensionRepository.completeTask(task, null, null, null)
+                
+                // Trigger Dopamine Menu
+                if (task.type == AscensionTaskType.RECURRING) {
+                    dopamineCoordinator.triggerSync(xp = task.xpValue)
+                } else {
+                    dopamineCoordinator.triggerSubtle(xp = task.xpValue)
+                }
             }
         }
+    }
+
+    fun clearDopamineEvent() {
+        _dopamineEvent.value = null
     }
 
     private fun seedSayingsIfEmpty() {
