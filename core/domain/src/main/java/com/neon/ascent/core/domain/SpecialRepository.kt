@@ -12,6 +12,7 @@ interface SpecialRepository {
     suspend fun saveBenchmark(test: BenchmarkTest)
     suspend fun deleteBenchmarkHistory(attribute: SpecialType)
     fun getBenchmarkHistory(attribute: SpecialType): Flow<List<BenchmarkTest>>
+    suspend fun resetSpecialAttributes()
 }
 
 /**

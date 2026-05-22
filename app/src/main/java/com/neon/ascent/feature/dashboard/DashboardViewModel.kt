@@ -186,7 +186,14 @@ class DashboardViewModel @Inject constructor(
                     identity = identity,
                     recentLogMessages = recentLogMessages.ifEmpty { listOf("NEURAL_LINK_STABLE", "SYNC_RATIO: 98.4%") }
                 )
-            }.collect { _uiState.value = it }
+            }.collect { state ->
+                _uiState.update { current ->
+                    state.copy(
+                        terminalInput = current.terminalInput,
+                        terminalMessages = current.terminalMessages
+                    )
+                }
+            }
         }
     }
 

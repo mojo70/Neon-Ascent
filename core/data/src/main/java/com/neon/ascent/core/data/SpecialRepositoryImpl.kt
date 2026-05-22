@@ -69,4 +69,19 @@ class SpecialRepositoryImpl @Inject constructor(
             entities.map { it.toDomain() }
         }
     }
+
+    override suspend fun resetSpecialAttributes() {
+        dao.deleteAllSpecialAttributes()
+        dao.deleteAllBenchmarks()
+        SpecialType.entries.forEach { type ->
+            dao.upsertSpecialAttribute(
+                com.neon.ascent.core.data.local.entity.SpecialAttributeEntity(
+                    type = type,
+                    currentValue = 5,
+                    percentile = 50,
+                    totalXp = 0
+                )
+            )
+        }
+    }
 }

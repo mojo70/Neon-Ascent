@@ -585,10 +585,36 @@ fun AiTerminal(
     CyberFrame(
         label = "AI_TERMINAL // CYBR-TES", 
         borderColor = accentColor,
-        modifier = Modifier.clickable { onToggleExpand() }
+        modifier = if (!isExpanded) Modifier.clickable { onToggleExpand() } else Modifier
     ) {
         Column(modifier = Modifier.fillMaxWidth().animateContentSize()) {
             if (isExpanded) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "CONNECTION_SECURE",
+                        color = accentColor.copy(alpha = 0.4f),
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "[MINIMIZE]",
+                        color = accentColor.copy(alpha = 0.8f),
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .clickable { onToggleExpand() }
+                            .padding(4.dp)
+                    )
+                }
+
                 Column(
                     modifier = Modifier
                         .heightIn(max = 240.dp)

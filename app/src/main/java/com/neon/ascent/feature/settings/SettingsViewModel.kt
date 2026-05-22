@@ -9,6 +9,8 @@ import com.neon.ascent.data.repository.HealthRepository
 import com.neon.ascent.data.repository.JournalRepository
 import com.neon.ascent.data.repository.SettingsRepository
 import com.neon.ascent.data.repository.UserPreferencesRepository
+import com.neon.ascent.data.repository.UserStoryRepository
+import com.neon.ascent.core.domain.SpecialRepository
 import com.neon.ascent.feature.goals.domain.usecases.ExportNeuralLogUseCase
 import com.neon.ascent.model.DailyPrayer
 import com.neon.ascent.model.JournalEntry
@@ -34,7 +36,9 @@ class SettingsViewModel @Inject constructor(
     private val dailyPrayerDao: DailyPrayerDao,
     private val journalRepository: JournalRepository,
     private val healthRepository: HealthRepository,
-    private val exportNeuralLogUseCase: ExportNeuralLogUseCase
+    private val exportNeuralLogUseCase: ExportNeuralLogUseCase,
+    private val userStoryRepository: UserStoryRepository,
+    private val specialRepository: SpecialRepository
 ) : ViewModel() {
 
     private val _prayerToast = MutableStateFlow<String?>(null)
@@ -640,6 +644,8 @@ class SettingsViewModel @Inject constructor(
      * 2. Netrunner Mode (Settings) -> OFF
      * 3. AI Core Welcome Protocol (Settings) -> READY
      * 4. Biohacking Privacy Onboarding (Database) -> READY
+     * 5. User Story (Your Story) -> WIPED
+     * 6. Special Attributes (S.P.E.C.I.A.L.) -> RESET TO DEFAULT
      */
     fun resetProfile(onComplete: () -> Unit) {
         viewModelScope.launch {
@@ -658,6 +664,12 @@ class SettingsViewModel @Inject constructor(
             // This triggers the Privacy Onboarding prompt again by deleting the local data record
             biohackingDao.deleteBiohackingData(0)
             biohackingDao.deleteBioProtocolLogs(0)
+
+            // 4. Wipe Your Story
+            userStoryRepository.resetStory()
+
+            // 5. Wipe Special Attributes and Benchmarks
+            specialRepository.resetSpecialAttributes()
 
             onComplete()
         }

@@ -29,4 +29,10 @@ interface SpecialDao {
 
     @Query("DELETE FROM benchmark_tests WHERE timestamp < :olderThan")
     suspend fun deleteOldBenchmarks(olderThan: Instant)
+
+    @Query("DELETE FROM special_attributes")
+    suspend fun deleteAllSpecialAttributes()
+
+    @Query("DELETE FROM benchmark_tests")
+    suspend fun deleteAllBenchmarks()
 }

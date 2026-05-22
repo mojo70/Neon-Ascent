@@ -12,6 +12,9 @@ interface UserStoryDao {
     @Upsert
     suspend fun upsertStory(story: UserStoryEntity)
 
+    @Query("DELETE FROM user_story")
+    suspend fun deleteAllStories()
+
     @Query("UPDATE user_story SET updatedAt = :timestamp WHERE id = 'main_user_story'")
     suspend fun touch(timestamp: Long = System.currentTimeMillis())
 }

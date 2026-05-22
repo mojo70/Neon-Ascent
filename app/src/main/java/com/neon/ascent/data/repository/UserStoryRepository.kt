@@ -29,4 +29,8 @@ class UserStoryRepository @Inject constructor(
         val updated = story.copy(grandAspirations = newAspirations)
         saveStory(updated)
     }
+
+    suspend fun resetStory() {
+        userStoryDao.deleteAllStories()
+    }
 }
