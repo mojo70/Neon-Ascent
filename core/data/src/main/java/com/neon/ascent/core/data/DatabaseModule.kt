@@ -45,4 +45,9 @@ object DatabaseModule {
     fun provideAscensionDao(database: NeonAscentDatabase): AscensionDao {
         return database.ascensionDao()
     }
+
+    @Provides
+    fun provideNeuralMemoryDao(database: NeonAscentDatabase): com.neon.ascent.core.data.local.dao.NeuralMemoryDao {
+        return database.neuralMemoryDao()
+    }
 }

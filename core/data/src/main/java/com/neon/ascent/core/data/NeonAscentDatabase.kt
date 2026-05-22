@@ -19,9 +19,10 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_3_4
         AscensionMissionEntity::class,
         AscensionTaskEntity::class,
         AscensionTaskCompletionEntity::class,
-        NeuralLogEntity::class
+        NeuralLogEntity::class,
+        NeuralMemory::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = true
 )
 @TypeConverters(
@@ -38,4 +39,5 @@ abstract class NeonAscentDatabase : RoomDatabase() {
     abstract fun goalDao(): GoalDao
     abstract fun specialDao(): SpecialDao
     abstract fun ascensionDao(): AscensionDao
+    abstract fun neuralMemoryDao(): com.neon.ascent.core.data.local.dao.NeuralMemoryDao
 }

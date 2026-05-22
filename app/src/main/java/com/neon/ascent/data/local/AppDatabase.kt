@@ -33,9 +33,8 @@ import com.neon.ascent.model.*
     WatchlistItem::class,
     AssetAccount::class,
     AssetSnapshot::class,
-    CorpoTrust::class,
-    NeuralMemory::class
-], version = 47)
+    CorpoTrust::class
+], version = 48)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userCharacterDao(): UserCharacterDao
@@ -56,5 +55,4 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun chatDao(): ChatDao
     abstract fun stockDao(): StockDao
     abstract fun netWorthDao(): NetWorthDao
-    abstract fun neuralMemoryDao(): NeuralMemoryDao
 }

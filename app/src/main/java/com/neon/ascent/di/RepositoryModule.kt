@@ -28,4 +28,8 @@ object RepositoryModule {
     @Provides
     @Singleton
     fun provideTaskRepository(dao: GoalTaskDao) = TaskRepository(dao)
+
+    @Provides
+    @Singleton
+    fun provideSkillRepository(palace: com.neon.ascent.feature.dashboard.MemoryPalaceManager): com.neon.ascent.core.domain.repository.SkillRepository = palace
 }

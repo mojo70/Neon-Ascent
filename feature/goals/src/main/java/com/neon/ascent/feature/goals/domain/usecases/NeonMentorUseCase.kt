@@ -4,6 +4,7 @@ import com.neon.ascent.core.ai.GemmaClient
 import com.neon.ascent.core.ai.AiPersona
 import com.neon.ascent.core.domain.goals.models.*
 import com.neon.ascent.core.domain.repository.AscensionRepository
+import com.neon.ascent.core.domain.repository.SkillRepository
 import java.util.UUID
 import javax.inject.Inject
 
@@ -13,11 +14,15 @@ import javax.inject.Inject
  */
 class NeonMentorUseCase @Inject constructor(
     private val gemmaClient: GemmaClient,
-    private val repository: AscensionRepository
+    private val repository: AscensionRepository,
+    private val skillRepository: SkillRepository
 ) {
-    suspend fun generateMissionsForDirective(directive: AscensionDirective) {
+    suspend fun generateMissionsForDirective(directive: AscensionDirective, manualSkillPrompt: String? = null) {
+        val skillPrompt = manualSkillPrompt ?: autoSelectSkills(directive)
+        
         val prompt = """
             ${AiPersona.CYBER_SOCRATES_PROMPT}
+            ${skillPrompt ?: ""}
             [PROTOCOL: ASCENSION_GENESIS]
             [OBJECTIVE: DECONSTRUCT_DIRECTIVE]
             
@@ -26,6 +31,8 @@ class NeonMentorUseCase @Inject constructor(
             
             Task: Generate 2 specific, actionable Missions to fulfill this directive.
             For each Mission, generate 3-4 granular, recurring or one-time Tasks.
+            Ensure these tasks are "atomic" and "sticky" (easy to start, hard to ignore).
+            If multiple skills were provided, synthesize their methods (e.g., combine Trading logic with Biohacking stability).
             
             Format your response as a JSON-like structured list:
             MISSION: [Title] | [Description]
@@ -34,6 +41,33 @@ class NeonMentorUseCase @Inject constructor(
 
         val response = gemmaClient.generateContent(prompt)
         parseAndSaveResponse(directive.id, response)
+    }
+
+    private suspend fun autoSelectSkills(directive: AscensionDirective): String? {
+        val routingPrompt = """
+            [PROTOCOL: SKILL_ROUTING]
+            Available Expert Skills: BIOHACKING, MEDITATION, REMOTE_VIEWING, BUSINESS_BUILDING, TRADING
+            
+            Directive: ${directive.title} - ${directive.description}
+            
+            Task: Identify which 1-2 expert skills from the list are most relevant to this directive. 
+            Respond ONLY with the skill names separated by commas. If none apply, respond 'NONE'.
+            OUTPUT:
+        """.trimIndent()
+
+        val selection = gemmaClient.generateContent(routingPrompt)
+            .substringAfter("OUTPUT:")
+            .trim()
+            .uppercase()
+
+        if (selection == "NONE") return null
+
+        val selectedSkills = selection.split(",").map { it.trim() }
+        val prompts = selectedSkills.mapNotNull { skillRepository.getSkillPrompt(it) }
+        
+        return if (prompts.isNotEmpty()) {
+            "[ACTIVE_SKILL_SYNTHESIS]\n" + prompts.joinToString("\n\n")
+        } else null
     }
 
     private suspend fun parseAndSaveResponse(directiveId: String, response: String) {

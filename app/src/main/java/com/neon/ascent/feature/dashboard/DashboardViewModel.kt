@@ -109,6 +109,10 @@ class DashboardViewModel @Inject constructor(
         loadDashboard()
 
         viewModelScope.launch {
+            memoryPalaceManager.installExpertSkills()
+        }
+
+        viewModelScope.launch {
             dopamineCoordinator.events.collect { event ->
                 _dopamineEvent.value = event
             }

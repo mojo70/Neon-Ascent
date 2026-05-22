@@ -1,10 +1,11 @@
 package com.neon.ascent.feature.dashboard
 
-import com.neon.ascent.data.local.NeuralMemoryDao
-import com.neon.ascent.data.local.entity.NeuralMemory
+import com.neon.ascent.core.data.local.dao.NeuralMemoryDao
+import com.neon.ascent.core.data.local.entity.NeuralMemory
 import com.neon.ascent.feature.health.domain.uplink.DeepBiometrics
 import com.neon.ascent.feature.biohacking.AiProvider
 import com.neon.ascent.core.ai.AiPersona
+import com.neon.ascent.core.domain.repository.SkillRepository
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -13,7 +14,7 @@ import javax.inject.Singleton
 class MemoryPalaceManager @Inject constructor(
     private val neuralMemoryDao: NeuralMemoryDao,
     private val aiProvider: AiProvider
-) {
+) : SkillRepository {
     /**
      * Store a verbatim piece of data into a specific wing and room.
      */
@@ -33,6 +34,65 @@ class MemoryPalaceManager @Inject constructor(
             metadata = metadata
         )
         neuralMemoryDao.insertMemory(memory)
+    }
+
+    /**
+     * Initializes the Palace with core Expert Skills if they don't exist.
+     */
+    override suspend fun installExpertSkills() {
+        val skills = mapOf(
+            "BIOHACKING" to """
+                [SKILL: BIOHACKER_PREMIUM]
+                Expertise: Optimization of the biological shell.
+                Focus: HRV synchronization, circadian rhythm anchoring, nootropic stacks, and thermal regulation.
+                Method: Data-driven biological intervention. When analyzing tasks, prioritize physical efficiency and neurochemical stability.
+            """.trimIndent(),
+            "MEDITATION" to """
+                [SKILL: ZEN_ARCHITECT]
+                Expertise: Neural stillness and ghost-stabilization.
+                Focus: Mindfulness, box-breathing, Vipassana techniques, and alpha-wave induction.
+                Method: Dialectic calm. Break tasks into moments of presence.
+            """.trimIndent(),
+            "REMOTE_VIEWING" to """
+                [SKILL: COORDINATE_OBSERVER]
+                Expertise: Non-local perception protocols.
+                Focus: CRV Phase 1-3, ideogram decoding, signal line acquisition.
+                Method: Sensory isolation and objective description. Use when tasks require intuition or "seeing" beyond the immediate grid.
+            """.trimIndent(),
+            "BUSINESS_BUILDING" to """
+                [SKILL: VENTURE_SAMURAI]
+                Expertise: Sprawl-scale operation construction.
+                Focus: MVP iteration, unit economics, lean scalability, and disruption protocols.
+                Method: Ruthless prioritization of value-capture. Break directives into "atomic revenue units."
+            """.trimIndent(),
+            "TRADING" to """
+                [SKILL: QUANT_RUNNER]
+                Expertise: Market-matrix manipulation.
+                Focus: Risk/Reward ratios, technical analysis, Fibonacci retracements, and psychological stop-losses.
+                Method: Probabilistic execution. Treat every habit or task as a trade with an entry, exit, and liquidation price.
+            """.trimIndent()
+        )
+
+        skills.forEach { (name, prompt) ->
+            // Check if skill already exists to avoid duplication
+            val existing = neuralMemoryDao.getMemoriesByRoom("SKILLS", name).first()
+            if (existing.isEmpty()) {
+                storeMemory(
+                    wing = "SKILLS",
+                    room = name,
+                    content = prompt,
+                    importance = 1.0f
+                )
+            }
+        }
+    }
+
+    /**
+     * Retrieves a specific expert skill prompt from the Palace.
+     */
+    override suspend fun getSkillPrompt(skillName: String): String? {
+        val memories = neuralMemoryDao.searchMemories(skillName, 1)
+        return memories.firstOrNull { it.wing == "SKILLS" }?.content
     }
 
     /**
@@ -80,11 +140,9 @@ class MemoryPalaceManager @Inject constructor(
         targetWing: String? = null,
         limit: Int = 5
     ): String {
-        // In a real MemPalace, this would be semantic search. 
-        // Here we use FTS/Keyword search on SQLite as a robust on-device alternative.
         val results = neuralMemoryDao.searchMemories(query, limit)
             .filter { targetWing == null || it.wing == targetWing }
-            .sortedByDescending { it.importance * (1.0 / (System.currentTimeMillis() - it.timestamp + 1)) } // Simple temporal/importance boost
+            .sortedByDescending { it.importance * (1.0 / (System.currentTimeMillis() - it.timestamp + 1)) }
 
         if (results.isEmpty()) return "No specific memories found for context."
 

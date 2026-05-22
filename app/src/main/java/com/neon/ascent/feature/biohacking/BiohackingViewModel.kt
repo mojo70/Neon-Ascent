@@ -8,8 +8,8 @@ import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.UserCharacterDao
 import com.neon.ascent.data.repository.*
 import com.neon.ascent.model.*
-import com.neon.ascent.data.local.NeuralMemoryDao
-import com.neon.ascent.data.local.entity.NeuralMemory
+import com.neon.ascent.core.data.local.dao.NeuralMemoryDao
+import com.neon.ascent.core.data.local.entity.NeuralMemory
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
@@ -34,7 +34,7 @@ class BiohackingViewModel @Inject constructor(
     private val goalRepository: GoalRepository,
     private val aiProvider: AiProvider,
     private val bioAgeRepository: BioAgeRepository,
-    private val neuralMemoryDao: com.neon.ascent.data.local.NeuralMemoryDao,
+    private val neuralMemoryDao: NeuralMemoryDao,
     val modelDownloadManager: ModelDownloadManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {

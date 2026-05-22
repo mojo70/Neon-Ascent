@@ -24,6 +24,16 @@ Neon-Ascent is a **daily driver life OS** wrapped in cyberpunk aesthetics. Real-
 - **Database Core Expansion**: Integrated "Neural Memories" archive into the Cyberdeck for permanent historical retrieval.
 - **Neural Uplink Phase 1**: Multi-provider biometric architecture with BLE Heart Rate (1Hz) support and encrypted token storage.
 - **Neural Memory Palace**: Local-first verbatim memory system (Wings/Rooms architecture) implemented for long-term AI context.
+- **Neural Expert Matrix (Architecture V1)**:
+    - **Expert Skill Seeding**: Pre-loaded specialized knowledge modules stored in the "SKILLS" wing of the Palace.
+    - **AI Routing Protocol**: Automatic, low-latency classification of user goals to match with relevant expert personas.
+    - **Multi-Skill Synthesis**: Logic for Gemma to merge methodologies (e.g., combining "Venture Samurai" efficiency with "Zen Architect" focus).
+    - **Available Experts**:
+        - `BIOHACKER_PREMIUM`: HRV sync, circadian anchoring, and neurochemical stability.
+        - `ZEN_ARCHITECT`: Dialectic calm and presence-based task deconstruction.
+        - `COORDINATE_OBSERVER`: Intuition-based protocols and Remote Viewing (CRV) methods.
+        - `VENTURE_SAMURAI`: Scalable business operations and "atomic revenue unit" prioritization.
+        - `QUANT_RUNNER`: Probabilistic execution and market-matrix risk management.
 - **Unified AI Persona (CYBR-TES)**: "Cyber Socrates" persona integrated across Dashboard advice, Cyberdeck, and Mission Forge.
 - **Interactive AI Terminal**: Collapsible dashboard console for real-time dialectic interaction with CYBR-TES.
 - **Strategic HUD Reorganization**: "Today's Grind" prioritized at the top of the interface for immediate tactical action.
@@ -44,14 +54,14 @@ Neon-Ascent is a **daily driver life OS** wrapped in cyberpunk aesthetics. Real-
 - Mission Detail + Aspiration Detail screens
 - Live health data polishing (HR badge + steps/calories)
 
-**Phase 2 Progress: ~78% complete**
+**Phase 2 Progress: ~82% complete**
 
 ## Phase 2: Habit Engine + Real-World Grounding (May–July 2026)
 
 **Key Discussion Notes**
 - **Active Coaching vs. Passive Tracking**: We are shifting the paradigm from logging to "Contextual Intelligence." If HR is low, the app shouldn't just record it—it should trigger a Recovery Protocol ping via the ContextualPingWorker.
 - **Privacy-First Intelligence**: LiteRT (Gemma) is now our standard for AI. No user biometric data leaves the device for "coaching" sessions.
-- **Lore Integration**: The Cyberdeck is the primary interface for "Netrunning" through real-life tasks. Megacorp nodes and NetWatch alerts add high-stakes flavor to mundane habit tracking.
+- **Expert Synthesis**: By routing tasks through specialized Palace-stored personas, we ensure Gemma acts as a high-level consultant rather than a generic chat assistant.
 
 ## To Do’s for Tomorrow (May 11)
 

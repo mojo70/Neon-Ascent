@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.neon.ascent.core.domain.goals.models.*
 import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.core.domain.repository.AscensionRepository
+import com.neon.ascent.core.domain.repository.SkillRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,6 +26,7 @@ data class AscensionForgeUiState(
     // Directive specific
     val linkedAttributes: List<SpecialType> = emptyList(),
     val useAiMentor: Boolean = true,
+    val selectedSkill: String? = null,
     // Task specific
     val taskType: AscensionTaskType = AscensionTaskType.ONE_TIME,
     val recurrenceType: RecurrenceTypeV3 = RecurrenceTypeV3.DAILY,
@@ -35,7 +37,8 @@ data class AscensionForgeUiState(
 @HiltViewModel
 class AscensionForgeViewModel @Inject constructor(
     private val repository: AscensionRepository,
-    private val mentorUseCase: NeonMentorUseCase
+    private val mentorUseCase: NeonMentorUseCase,
+    private val skillRepository: SkillRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AscensionForgeUiState())
@@ -44,6 +47,7 @@ class AscensionForgeViewModel @Inject constructor(
     fun updateType(type: ForgeType) = _uiState.update { it.copy(forgeType = type) }
     fun updateTitle(title: String) = _uiState.update { it.copy(title = title) }
     fun updateDescription(desc: String) = _uiState.update { it.copy(description = desc) }
+    fun updateSelectedSkill(skill: String?) = _uiState.update { it.copy(selectedSkill = skill) }
     
     fun toggleAttribute(type: SpecialType) = _uiState.update { state ->
         val newList = if (state.linkedAttributes.contains(type)) {
@@ -78,7 +82,8 @@ class AscensionForgeViewModel @Inject constructor(
                 )
                 repository.insertDirective(directive)
                 if (state.useAiMentor) {
-                    mentorUseCase.generateMissionsForDirective(directive)
+                    val skillPrompt = state.selectedSkill?.let { skillRepository.getSkillPrompt(it) }
+                    mentorUseCase.generateMissionsForDirective(directive, skillPrompt)
                 }
             } else {
                 val task = AscensionTask(

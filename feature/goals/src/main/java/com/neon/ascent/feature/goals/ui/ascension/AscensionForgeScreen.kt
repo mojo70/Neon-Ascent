@@ -202,6 +202,26 @@ fun DirectiveSpecificFields(uiState: AscensionForgeUiState, viewModel: Ascension
                     fontFamily = FontFamily.Monospace,
                     modifier = Modifier.padding(start = 12.dp)
                 )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("NEURAL_EXPERT_MATRIX", color = NeonPink, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val skills = listOf("AUTO_SELECT", "BIOHACKING", "MEDITATION", "REMOTE_VIEWING", "BUSINESS_BUILDING", "TRADING")
+                    skills.forEach { skill ->
+                        val isSelected = (uiState.selectedSkill == skill) || (uiState.selectedSkill == null && skill == "AUTO_SELECT")
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { 
+                                viewModel.updateSelectedSkill(if (skill == "AUTO_SELECT") null else skill) 
+                            },
+                            label = { Text(skill, fontSize = 9.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = NeonPink.copy(alpha = 0.2f),
+                                selectedLabelColor = NeonPink
+                            )
+                        )
+                    }
+                }
             }
         }
     }
