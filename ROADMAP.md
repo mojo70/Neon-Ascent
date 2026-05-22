@@ -4,7 +4,7 @@
 *Turn real-world growth into a high-stakes neon terminal experience.*
 
 **Last updated:** May 10, 2026  
-**Current version:** v0.4 (Neural Memory Palace + Unified Persona)  
+**Current version:** v0.5 (Neural Uplink + Biometric Mining)  
 **Primary repo:** `mojo70/Neon-Ascent`
 
 ## Vision
@@ -19,9 +19,11 @@ Neon-Ascent is a **daily driver life OS** wrapped in cyberpunk aesthetics. Real-
 - Mature S.P.E.C.I.A.L. system (Room persistence, CognitiveTestEngine skeleton, grounded benchmarks)
 - Rich holographic avatar with reactive particle system, level-up bursts, sound + haptic feedback
 - Diagnostics / history screens (integrated, no longer duplicative)
-- **Neural Uplink Phase 2**: Garmin Cloud API integration for Body Battery, Sleep Score, and Stress implemented. Secure WebView SSO Interceptor completed for password-less authentication.
-- **Neural Memory Palace**: Local-first verbatim memory system (Wings/Rooms architecture) implemented for long-term AI context.
+- **Neural Uplink Phase 2**: Full Garmin Cloud integration (Body Battery, Sleep Score, Stress) and secure WebView SSO established.
+- **Biometric Memory Mining**: Automatic archiving of biometric trends and AI-generated "Socratic Insights" into the Memory Palace.
+- **Database Core Expansion**: Integrated "Neural Memories" archive into the Cyberdeck for permanent historical retrieval.
 - **Neural Uplink Phase 1**: Multi-provider biometric architecture with BLE Heart Rate (1Hz) support and encrypted token storage.
+- **Neural Memory Palace**: Local-first verbatim memory system (Wings/Rooms architecture) implemented for long-term AI context.
 - **Unified AI Persona (CYBR-TES)**: "Cyber Socrates" persona integrated across Dashboard advice, Cyberdeck, and Mission Forge.
 - **Interactive AI Terminal**: Collapsible dashboard console for real-time dialectic interaction with CYBR-TES.
 - **Strategic HUD Reorganization**: "Today's Grind" prioritized at the top of the interface for immediate tactical action.
@@ -34,11 +36,11 @@ Neon-Ascent is a **daily driver life OS** wrapped in cyberpunk aesthetics. Real-
 - Database Core foundation in place
 
 ### In Progress
+- **Dialectic Protocol Expansion**: CYBR-TES specific missions that require verbal reflection via the terminal to complete.
+- **Neural Scan Evolution**: Connecting Scan results (MBTI/Alignment) to specific Mission/Aspiration seeding.
 - Biohacking module: Transitioning from static tracking to AI-driven protocol coaching.
 - Full integration of Aspirations + Missions into existing Database Core
 - Neural Scan integration with Avatar level-up and archetype-specific mission seeding.
-- **Memory Palace Expansion**: Mining biometric trends (HRV/Sleep) into long-term memory "Drawers."
-- **Dialectic Protocol Expansion**: CYBR-TES specific missions that require verbal reflection via the terminal to complete.
 - Mission Detail + Aspiration Detail screens
 - Live health data polishing (HR badge + steps/calories)
 
