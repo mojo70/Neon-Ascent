@@ -3,89 +3,121 @@
 **Cyberpunk Life RPG / Self-Improvement OS**  
 *Turn real-world growth into a high-stakes neon terminal experience.*
 
-**Last updated:** May 10, 2026  
-**Current version:** v0.5 (Neural Uplink + Biometric Mining)  
+**Last updated:** May 23, 2026  
+**Current version:** v0.5 → V3 Neural Ascension Protocol (in progress)  
 **Primary repo:** `mojo70/Neon-Ascent`
 
 ## Vision
-Neon-Ascent is a **daily driver life OS** wrapped in cyberpunk aesthetics. Real-world habits, biometrics, and completed missions directly upgrade your in-game S.P.E.C.I.A.L. attributes, archetype progression, and cyberdeck capabilities.  
+Neon Ascent is your daily driver Life OS wrapped in immersive cyberpunk aesthetics. It transforms real-world habits, biometrics, and personal growth into a living RPG experience with S.P.E.C.I.A.L. progression, holographic avatar reactivity, and a powerful on-device AI co-pilot.
 
-**Absolute privacy-first architecture** and **real-world grounded metrics** remain non-negotiable.
+### Core Non-Negotiables
+- **Honor system first** (no mandatory proof).
+- **S.P.E.C.I.A.L. only updates** from real measurements (Health Connect, wearables, benchmarks).
+- **Privacy-first, local-only AI** (Gemma LiteRT).
+- **ADHD-friendly**: grace, flexibility, low friction, dopamine without annoyance.
+- **Flexible hierarchy**: Top-down + Bottom-up creation.
 
-## Current Status (v0.2 – Strong Phase 2 Foundation)
+---
 
-### Completed / Very Strong
-- Full Health Connect + Garmin integration (permissions, background sync, live metrics foundation)
-- Mature S.P.E.C.I.A.L. system (Room persistence, CognitiveTestEngine skeleton, grounded benchmarks)
-- Rich holographic avatar with reactive particle system, level-up bursts, sound + haptic feedback
-- Diagnostics / history screens (integrated, no longer duplicative)
-- **Neural Uplink Phase 2**: Full Garmin Cloud integration (Body Battery, Sleep Score, Stress) and secure WebView SSO established.
-- **Biometric Memory Mining**: Automatic archiving of biometric trends and AI-generated "Socratic Insights" into the Memory Palace.
-- **Database Core Expansion**: Integrated "Neural Memories" archive into the Cyberdeck for permanent historical retrieval.
-- **Neural Uplink Phase 1**: Multi-provider biometric architecture with BLE Heart Rate (1Hz) support and encrypted token storage.
-- **Neural Memory Palace**: Local-first verbatim memory system (Wings/Rooms architecture) implemented for long-term AI context.
-- **Neural Expert Matrix (Architecture V1)**:
-    - **Expert Skill Seeding**: Pre-loaded specialized knowledge modules stored in the "SKILLS" wing of the Palace.
-    - **AI Routing Protocol**: Automatic, low-latency classification of user goals to match with relevant expert personas.
-    - **Multi-Skill Synthesis**: Logic for Gemma to merge methodologies (e.g., combining "Venture Samurai" efficiency with "Zen Architect" focus).
-    - **Available Experts**:
-        - `BIOHACKER_PREMIUM`: HRV sync, circadian anchoring, and neurochemical stability.
-        - `ZEN_ARCHITECT`: Dialectic calm and presence-based task deconstruction.
-        - `COORDINATE_OBSERVER`: Intuition-based protocols and Remote Viewing (CRV) methods.
-        - `VENTURE_SAMURAI`: Scalable business operations and "atomic revenue unit" prioritization.
-        - `QUANT_RUNNER`: Probabilistic execution and market-matrix risk management.
-- **Unified AI Persona (CYBR-TES)**: "Cyber Socrates" persona integrated across Dashboard advice, Cyberdeck, and Mission Forge.
-- **Interactive AI Terminal**: Collapsible dashboard console for real-time dialectic interaction with CYBR-TES.
-- **Strategic HUD Reorganization**: "Today's Grind" prioritized at the top of the interface for immediate tactical action.
-- Contextual Neural Pings: Advanced notification engine using real-time biometrics (HRV/Steps) for intelligent protocol timing.
-- Neural Scan: Immersive archetype profiling system (MBTI/Alignment) for character progression and biometric syncing.
-- Local AI (LiteRT): Gemma integration for on-device, privacy-first intelligence and feedback.
-- Cyberdeck & Hacking Engine: Mature ViewModel implementation with Megacorp nodes, credential bypass, and Quickhack crafting.
-- Habit CRUD, creation bottom sheet, completion UseCase, and archetype-based seeding
-- Goal/Mission/Aspiration models, mapper, repository, and core UseCases
-- Database Core foundation in place
+## V3 Neural Ascension Protocol (Core Loop – Priority #1)
+The heart of the app: Ascension Directives → Missions → Tasks with hybrid creation, deep local AI mentorship, gentle Neural Pings, and forgiving progression.
 
-### In Progress
-- **Dialectic Protocol Expansion**: CYBR-TES specific missions that require verbal reflection via the terminal to complete.
-- **Neural Scan Evolution**: Connecting Scan results (MBTI/Alignment) to specific Mission/Aspiration seeding.
-- Biohacking module: Transitioning from static tracking to AI-driven protocol coaching.
-- Full integration of Aspirations + Missions into existing Database Core
-- Neural Scan integration with Avatar level-up and archetype-specific mission seeding.
-- Mission Detail + Aspiration Detail screens
-- Live health data polishing (HR badge + steps/calories)
+### Key Components
 
-**Phase 2 Progress: ~82% complete**
+#### 1. Hierarchy
+- **Ascension Directives**: High-level, long-term life quests (e.g., “Fortify the Frame”, “Launch Side Hustle”).
+- **Missions**: Medium-term campaigns that advance Directives.
+- **Tasks**: Actionable units (recurring, one-time, standalone).
 
-## Phase 2: Habit Engine + Real-World Grounding (May–July 2026)
+#### 2. Hybrid Creation
+- **Top-down**: Directive → Local AI generates Missions + Tasks.
+- **Bottom-up**: Standalone Tasks or direct linking later.
 
-**Key Discussion Notes**
-- **Active Coaching vs. Passive Tracking**: We are shifting the paradigm from logging to "Contextual Intelligence." If HR is low, the app shouldn't just record it—it should trigger a Recovery Protocol ping via the ContextualPingWorker.
-- **Privacy-First Intelligence**: LiteRT (Gemma) is now our standard for AI. No user biometric data leaves the device for "coaching" sessions.
-- **Expert Synthesis**: By routing tasks through specialized Palace-stored personas, we ensure Gemma acts as a high-level consultant rather than a generic chat assistant.
+#### 3. Neural Pings (Notifications)
+- Gentle, useful, batched (“Daily Neural Brief”).
+- Adaptive wake-time support (global + per-task).
+- No aggressive escalation. Burnout detection + auto-throttling.
+- Quick actions: Log Done, Snooze, Skip with Reflection.
 
-## To Do’s for Tomorrow (May 11)
+#### 4. Completion & Progression
+- Instant neon dopamine feedback (XP, streaks, avatar micro-reactions, terminal logs).
+- Lenient streaks with configurable grace buffer (1-3 days default).
+- Recovery Missions for missed periods.
 
-**Priority (Must Do)**
-1. Connect Neural Scan results to Avatar level-up and archetype seeding
-2. Finalize Mission/Aspiration Detail UI integration with Database Core
-3. Implement "Biohacking Lab" initial screen using Gemma + Memory Palace feedback
-4. Stabilize Cyberdeck "NetWatch" alert frequency and impact
+#### 5. Local AI Mentor (Gemma – The Neon Guide)
+Configurable modes per Directive/Mission:
+- **Review**: Progress summaries & pattern detection.
+- **Sounding Board**: Reflective questions.
+- **Guide/Mentor**: Full step-by-step breakdowns, suggested prompts for external AIs (e.g., “Paste this into Grok…”), resource suggestions, sub-checks, and adaptive follow-ups.
 
-**High Value**
-- **Socratic Mission Type**: A task that only clears when the user provides a "meaningful" reflection in the terminal.
-- Full end-to-end testing: Habit → S.P.E.C.I.A.L. → Avatar level-up
-- Biohacking module stub + initial protocol experimentation screen
-- SmartPingScheduler full integration with user preferences
+---
 
-**Stretch**
-- Visual polish pass on Database Core
-- Closed beta prep (first testable vertical)
+## Neural Expert Matrix & Mempalace (Local AI Foundation)
+The Memory Palace + Expert Matrix is the brain of the AI system.
 
-**Overall Success Metric for Phase 2**  
-Users open the app every day because real biometrics + habits visibly power S.P.E.C.I.A.L. growth with satisfying neon visual/audio rewards.
+### Current Experts (from recent Neural Expert Matrix implementation)
+- `BIOHACKER_PREMIUM`: HRV sync, circadian anchoring, and neurochemical stability.
+- `ZEN_ARCHITECT`: Dialectic calm and presence-based task deconstruction.
+- `COORDINATE_OBSERVER`: Intuition-based protocols and Remote Viewing (CRV) methods.
+- `VENTURE_SAMURAI`: Scalable business operations and "atomic revenue unit" prioritization.
+- `QUANT_RUNNER`: Probabilistic execution and market-matrix risk management.
+- `CYBR-TES`: Unified “Cyber Socrates” persona integrated across Dashboard advice, Cyberdeck, and Mission Forge.
 
-This project already has very strong bones. Phase 2 is where it becomes a real daily ritual.
+### To Do – Expand Expert Matrix
+Add these experts to Mempalace (SKILLS wing) with detailed system prompts:
+- **HABIT_FORGE**: Atomic Habits + Fabulous-style systems expert. Specializes in recurrence, habit stacking, and gentle consistency building.
+- **ADHD_RUNNER**: Specialist in executive function, grace buffers, dopamine menu design, and low-decision-fatigue flows.
+- **PROGRESS_ARCHITECT**: Expert at quarterly reviews, progression visualization, and turning data into meaningful identity shifts.
+- **NEON_NARRATOR**: Immersive flavor text and cyberpunk storytelling for avatar reactions, pings, and terminal logs.
+- **RECOVERY_SAGE**: Burnout detection, recovery mission generation, and forgiving streak logic.
 
-Let’s ship it.
+### Expert Settings To Do
+- **UI screen** in Settings → Neural Core → Expert Matrix to toggle experts and adjust weighting.
+- **Routing logic** to intelligently combine experts (e.g., `HABIT_FORGE` + `ADHD_RUNNER` for daily tasks).
+- **Memory Palace integration** so experts have persistent context from user’s past completions.
 
-— Grok (with full context from every prior chat, design doc, code pushes, and latest discussion)
+---
+
+## Current Status
+**V3 Progress:** ~78-82%  
+Strong recent wins in Dopamine celebrations, Recovery Missions, Terminal Ritual, and Neural Expert Matrix migration to core.
+
+### Completed / Strong
+- Modular feature architecture (`feature/goals`, `feature/habits`, `feature/notifications`, etc.).
+- Health Connect + Garmin grounding (permissions, background sync, live metrics, Body Battery, Sleep, Stress).
+- S.P.E.C.I.A.L. system (real measurements only).
+- Holographic avatar + reactive particles.
+- Neural Expert Matrix + Mempalace foundation.
+- Dopamine celebration system.
+- Recovery logic + ADHD-friendly streaks.
+- Terminal Ritual screen with AI analysis.
+
+### In Progress / Gaps
+- Full parent-child hierarchy wiring (Task → Mission/Directive or standalone).
+- Rich Task model fields (recurrence, `adaptiveWakeEnabled`, `graceBufferDays`, `timeWindow`, `completionHistory` with mood/notes).
+- Deep AI Guide/Mentor mode with actionable breakdowns + prompt suggestions.
+- Neural Pings batching, adaptive wake, gentle tone, snooze/skip+reflect.
+- Forgiving neon streak visuals (flickering chain).
+- Dashboard hierarchy view (Directives → Missions → Today’s Tasks).
+
+---
+
+## Phase 2: V3 Core Loop Delivery (May–June 2026)
+
+### Priority To Do’s (Next 7-10 Days)
+1. **Data Model Consolidation** — Unify goals + habits into clean V3 entities (`AscensionDirective`, `Mission`, `Task`) with all new fields.
+2. **AI Mentor Modes** — Implement Review / Sounding Board / Guide per item + expand Expert Matrix with new personas.
+3. **Neural Pings Polish** — Batching, adaptive wake, gentle tone, snooze/skip+reflect.
+4. **Task Completion Flow** — Big LOG COMPLETE button + instant neon feedback + optional notes.
+5. **Roadmap & Documentation** — Keep this file current after every major sprint.
+
+### High Value
+- Visual streak system with grace buffer (neon chain that flickers but doesn’t die).
+- Quarterly Terminal Review ritual with AI-generated next Directives.
+- Heatmaps and progress visualization.
+- Habit stacking cues and flexible time windows.
+
+---
+
+## Success Metric for V3
+You (and users) open the app every morning because the system feels like a trusted, non-annoying cyberpunk co-pilot that actually helps you ascend — with visible progress, grace for missed days, and deep AI guidance when needed.
