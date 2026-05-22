@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.filled.Terminal
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.core.domain.goals.models.*
 import com.neon.ascent.core.common.NeonCyan
@@ -22,6 +23,7 @@ fun AscensionTerminalScreen(
     onTaskClick: (String) -> Unit,
     onForgeClick: () -> Unit,
     onReviewClick: (String) -> Unit,
+    onRitualClick: () -> Unit,
     viewModel: AscensionTerminalViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -29,7 +31,12 @@ fun AscensionTerminalScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("NEURAL ASCENSION TERMINAL") }
+                title = { Text("NEURAL ASCENSION TERMINAL") },
+                actions = {
+                    IconButton(onClick = onRitualClick) {
+                        Icon(Icons.Default.Terminal, contentDescription = "TERMINAL_RITUAL", tint = NeonCyan)
+                    }
+                }
             )
         },
         floatingActionButton = {

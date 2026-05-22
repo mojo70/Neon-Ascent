@@ -75,4 +75,7 @@ class AscensionRepositoryImpl @Inject constructor(
 
     override fun getCompletionsForTask(taskId: String): Flow<List<AscensionTaskCompletion>> =
         dao.getCompletionsForTask(taskId).map { list -> list.map { it.toDomain() } }
+
+    override fun getCompletionsInRange(startTime: Instant): Flow<List<AscensionTaskCompletion>> =
+        dao.getCompletionsInRange(startTime).map { list -> list.map { it.toDomain() } }
 }

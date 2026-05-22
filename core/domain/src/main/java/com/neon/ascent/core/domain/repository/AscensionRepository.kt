@@ -22,4 +22,5 @@ interface AscensionRepository {
 
     suspend fun completeTask(task: AscensionTask, notes: String?, mood: Int?, linkedHealthSnapshot: String?)
     fun getCompletionsForTask(taskId: String): Flow<List<AscensionTaskCompletion>>
+    fun getCompletionsInRange(startTime: java.time.Instant): Flow<List<AscensionTaskCompletion>>
 }

@@ -46,6 +46,7 @@ import com.neon.ascent.feature.goals.ui.ascension.AscensionTerminalScreen
 import com.neon.ascent.feature.goals.ui.ascension.AscensionForgeScreen
 import com.neon.ascent.feature.goals.ui.ascension.AscensionReviewScreen
 import com.neon.ascent.feature.goals.ui.ascension.AscensionTaskDetailScreen
+import com.neon.ascent.feature.goals.ui.ascension.TerminalRitualScreen
 import com.neon.ascent.feature.story.StoryIntakeScreen
 import com.neon.ascent.feature.loading.LoadingScreen
 import com.neon.ascent.feature.library.EReaderScreen
@@ -430,7 +431,8 @@ fun AppNavigation(
                 onDirectiveClick = { id -> navController.navigate(Screen.DirectiveDetail(id)) },
                 onTaskClick = { id -> navController.navigate(Screen.TaskDetail(id)) },
                 onForgeClick = { navController.navigate(Screen.AscensionForge) },
-                onReviewClick = { id -> navController.navigate(Screen.AscensionReview(id)) }
+                onReviewClick = { id -> navController.navigate(Screen.AscensionReview(id)) },
+                onRitualClick = { navController.navigate(Screen.TerminalRitual) }
             )
         }
 
@@ -454,6 +456,10 @@ fun AppNavigation(
                 taskId = taskDetail.id,
                 onBack = { navController.popBackStack() }
             )
+        }
+
+        composable<Screen.TerminalRitual> {
+            TerminalRitualScreen(onBack = { navController.popBackStack() })
         }
 
         composable<Screen.DeepNode> { backStackEntry ->

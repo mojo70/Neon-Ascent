@@ -129,4 +129,7 @@ sealed interface Screen {
 
     @Serializable
     data class AscensionReview(val directiveId: String) : Screen
+
+    @Serializable
+    data object TerminalRitual : Screen
 }

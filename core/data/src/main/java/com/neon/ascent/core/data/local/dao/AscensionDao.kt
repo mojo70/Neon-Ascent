@@ -56,6 +56,9 @@ interface AscensionDao {
     @Query("SELECT * FROM ascension_task_completions WHERE taskId = :taskId ORDER BY timestamp DESC")
     fun getCompletionsForTask(taskId: String): Flow<List<AscensionTaskCompletionEntity>>
 
+    @Query("SELECT * FROM ascension_task_completions WHERE timestamp >= :startTime ORDER BY timestamp DESC")
+    fun getCompletionsInRange(startTime: java.time.Instant): Flow<List<AscensionTaskCompletionEntity>>
+
     @Transaction
     suspend fun completeTask(completion: AscensionTaskCompletionEntity, task: AscensionTaskEntity) {
         insertCompletion(completion)
