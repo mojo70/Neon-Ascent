@@ -15,6 +15,7 @@ import com.neon.ascent.data.local.HabitMetricDao
 import com.neon.ascent.data.local.InventoryDao
 import com.neon.ascent.data.local.JournalDao
 import com.neon.ascent.data.local.LoreDao
+import com.neon.ascent.data.local.NeuralMemoryDao
 import com.neon.ascent.data.local.NetWorthDao
 import com.neon.ascent.data.local.QuestDao
 import com.neon.ascent.data.local.SayingsDao
@@ -139,5 +140,10 @@ object DatabaseModule {
     @Provides
     fun provideNetWorthDao(database: AppDatabase): NetWorthDao {
         return database.netWorthDao()
+    }
+
+    @Provides
+    fun provideNeuralMemoryDao(database: AppDatabase): NeuralMemoryDao {
+        return database.neuralMemoryDao()
     }
 }

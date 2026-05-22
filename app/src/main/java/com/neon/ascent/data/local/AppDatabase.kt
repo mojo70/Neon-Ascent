@@ -3,10 +3,7 @@ package com.neon.ascent.data.local
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
-import com.neon.ascent.data.local.entity.GoalEntity
-import com.neon.ascent.data.local.entity.HabitMetricEntity
-import com.neon.ascent.data.local.entity.TaskEntity
-import com.neon.ascent.data.local.entity.UserStoryEntity
+import com.neon.ascent.data.local.entity.*
 import com.neon.ascent.model.*
 
 @Database(entities = [
@@ -36,8 +33,9 @@ import com.neon.ascent.model.*
     WatchlistItem::class,
     AssetAccount::class,
     AssetSnapshot::class,
-    CorpoTrust::class
-], version = 46)
+    CorpoTrust::class,
+    NeuralMemory::class
+], version = 47)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userCharacterDao(): UserCharacterDao
@@ -58,4 +56,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun chatDao(): ChatDao
     abstract fun stockDao(): StockDao
     abstract fun netWorthDao(): NetWorthDao
+    abstract fun neuralMemoryDao(): NeuralMemoryDao
 }

@@ -4,7 +4,7 @@
 *Turn real-world growth into a high-stakes neon terminal experience.*
 
 **Last updated:** May 10, 2026  
-**Current version:** v0.3 (Contextual Intelligence + Neural Scan)  
+**Current version:** v0.4 (Neural Memory Palace + Unified Persona)  
 **Primary repo:** `mojo70/Neon-Ascent`
 
 ## Vision
@@ -19,8 +19,10 @@ Neon-Ascent is a **daily driver life OS** wrapped in cyberpunk aesthetics. Real-
 - Mature S.P.E.C.I.A.L. system (Room persistence, CognitiveTestEngine skeleton, grounded benchmarks)
 - Rich holographic avatar with reactive particle system, level-up bursts, sound + haptic feedback
 - Diagnostics / history screens (integrated, no longer duplicative)
-- CYBR-TES Terminal: Integrated interactive AI terminal on the Dashboard using the "Cyber Socrates" persona.
-- AI Personality (CYBR-TES): Unified the "Cyber Socrates" persona across Dashboard advice, Cyberdeck feedback, and Directive/Mission generation.
+- **Neural Memory Palace**: Local-first verbatim memory system (Wings/Rooms architecture) implemented for long-term AI context.
+- **Unified AI Persona (CYBR-TES)**: "Cyber Socrates" persona integrated across Dashboard advice, Cyberdeck, and Mission Forge.
+- **Interactive AI Terminal**: Collapsible dashboard console for real-time dialectic interaction with CYBR-TES.
+- **Strategic HUD Reorganization**: "Today's Grind" prioritized at the top of the interface for immediate tactical action.
 - Contextual Neural Pings: Advanced notification engine using real-time biometrics (HRV/Steps) for intelligent protocol timing.
 - Neural Scan: Immersive archetype profiling system (MBTI/Alignment) for character progression and biometric syncing.
 - Local AI (LiteRT): Gemma integration for on-device, privacy-first intelligence and feedback.
@@ -33,7 +35,8 @@ Neon-Ascent is a **daily driver life OS** wrapped in cyberpunk aesthetics. Real-
 - Biohacking module: Transitioning from static tracking to AI-driven protocol coaching.
 - Full integration of Aspirations + Missions into existing Database Core
 - Neural Scan integration with Avatar level-up and archetype-specific mission seeding.
-- Gemma-powered "Neural Assistant" for habit coaching and Biohacking analysis (Partially complete via CYBR-TES).
+- **Memory Palace Expansion**: Mining biometric trends (HRV/Sleep) into long-term memory "Drawers."
+- **Dialectic Protocol Expansion**: CYBR-TES specific missions that require verbal reflection via the terminal to complete.
 - Mission Detail + Aspiration Detail screens
 - Live health data polishing (HR badge + steps/calories)
 
@@ -51,10 +54,11 @@ Neon-Ascent is a **daily driver life OS** wrapped in cyberpunk aesthetics. Real-
 **Priority (Must Do)**
 1. Connect Neural Scan results to Avatar level-up and archetype seeding
 2. Finalize Mission/Aspiration Detail UI integration with Database Core
-3. Implement "Biohacking Lab" initial screen using Gemma feedback
+3. Implement "Biohacking Lab" initial screen using Gemma + Memory Palace feedback
 4. Stabilize Cyberdeck "NetWatch" alert frequency and impact
 
 **High Value**
+- **Socratic Mission Type**: A task that only clears when the user provides a "meaningful" reflection in the terminal.
 - Full end-to-end testing: Habit → S.P.E.C.I.A.L. → Avatar level-up
 - Biohacking module stub + initial protocol experimentation screen
 - SmartPingScheduler full integration with user preferences

@@ -389,6 +389,45 @@ fun DashboardScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            if (state.todayTasks.isNotEmpty()) {
+                Text(
+                    "PRIORITY_GRIND",
+                    color = systemColor,
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        fontFamily = FontFamily.Monospace,
+                        letterSpacing = 2.sp
+                    ),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                val displayTasks = state.todayTasks.take(3)
+                displayTasks.forEach { task ->
+                    DashboardTaskItem(
+                        task = task,
+                        onComplete = { viewModel.markTaskCompleted(task.id) },
+                        onClick = { onTaskClick(task.id) }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+                
+                if (state.todayTasks.size > 3) {
+                    Text(
+                        "+ ${state.todayTasks.size - 3} MORE PROTOCOLS IN QUEUE",
+                        color = systemColor.copy(alpha = 0.6f),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { /* Could navigate to a full task list if we had one, or just expand */ }
+                            .padding(vertical = 4.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+
             CyberFrame(
                 label = "SYSTEM_ADVICE // V.01", 
                 accentColor = Color(0xFF00FFFF),
@@ -474,28 +513,6 @@ fun DashboardScreen(
                         triggerGlitch()
                         onGoalSetClick() 
                     })
-                }
-            }
-
-            if (state.todayTasks.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(32.dp))
-                Text(
-                    "TODAY'S_GRIND",
-                    color = systemColor,
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        fontFamily = FontFamily.Monospace,
-                        letterSpacing = 2.sp
-                    ),
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                state.todayTasks.forEach { task ->
-                    DashboardTaskItem(
-                        task = task,
-                        onComplete = { viewModel.markTaskCompleted(task.id) },
-                        onClick = { onTaskClick(task.id) }
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
 

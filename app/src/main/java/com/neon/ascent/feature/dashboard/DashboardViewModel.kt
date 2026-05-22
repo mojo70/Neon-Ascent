@@ -70,7 +70,8 @@ class DashboardViewModel @Inject constructor(
     private val aiProvider: AiProvider,
     private val dopamineCoordinator: com.neon.ascent.core.common.DopamineCoordinator,
     private val identityCoordinator: com.neon.ascent.core.common.IdentityCoordinator,
-    private val specialRepository: com.neon.ascent.core.domain.SpecialRepository
+    private val specialRepository: com.neon.ascent.core.domain.SpecialRepository,
+    private val memoryPalaceManager: MemoryPalaceManager
 ) : ViewModel() {
     val userCharacter: StateFlow<UserCharacter?> = characterRepository.getUserCharacter()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -213,6 +214,14 @@ class DashboardViewModel @Inject constructor(
             if (task != null) {
                 ascensionRepository.completeTask(task, null, null, null)
                 
+                // Store in Memory Palace
+                memoryPalaceManager.storeMemory(
+                    wing = "MISSIONS",
+                    room = "COMPLETIONS",
+                    content = "Completed protocol: ${task.title}. Objective: ${task.description}",
+                    importance = 0.6f
+                )
+
                 // Trigger Dopamine Menu
                 if (task.type == AscensionTaskType.RECURRING) {
                     dopamineCoordinator.triggerSync(xp = task.xpValue)
@@ -277,13 +286,17 @@ class DashboardViewModel @Inject constructor(
             val weather = if (weatherState.value.isRaining) "Acid Rain" else "Clear"
             val archetype = userCharacter.value?.archetype ?: "Unknown"
 
-            val context = """
+            val contextData = """
                 - STEPS: $steps
                 - HR: $hr
                 - ATMOSPHERE: $weather
                 - ARCHETYPE: $archetype
             """.trimIndent()
             
+            // Fetch relevant Palace memories for the system advice
+            val memories = memoryPalaceManager.fetchContext("Current state and recent missions", limit = 3)
+            val context = "BIO_METRICS:\n$contextData\n\nNEURAL_MEMORIES:\n$memories"
+
             val prompt = AiPersona.getSocratesPrompt(context) + "\nTask: Generate one short, cryptic advice (max 12 words). OUTPUT:"
             
             val result = aiProvider.generateContent(prompt)
@@ -450,15 +463,24 @@ class DashboardViewModel @Inject constructor(
                 )
             }
 
-            val context = "Conversation history: " + _uiState.value.terminalMessages.takeLast(5).joinToString { if(it.isFromUser) "Runner: ${it.text}" else "CYBR-TES: ${it.text}" }
+            // Fetch Memory Palace Context
+            val palaceContext = memoryPalaceManager.fetchContext(input)
+            
+            val context = "Memory Palace Fragments:\n$palaceContext\n\n" +
+                "Conversation history: " + _uiState.value.terminalMessages.takeLast(5).joinToString { if(it.isFromUser) "Runner: ${it.text}" else "CYBR-TES: ${it.text}" }
+            
             val prompt = AiPersona.getSocratesPrompt(context) + "\nRunner: $input\nRespond as CYBR-TES."
             
             val response = aiProvider.generateContent(prompt)
-            val aiMsg = TerminalMessage(response.substringAfter("CYBR-TES:").trim(), isFromUser = false)
+            val cleanedResponse = response.substringAfter("CYBR-TES:").trim()
+            val aiMsg = TerminalMessage(cleanedResponse, isFromUser = false)
             
             _uiState.update { state ->
                 state.copy(terminalMessages = state.terminalMessages + aiMsg)
             }
+
+            // Log to Palace
+            memoryPalaceManager.logDialogue(input, cleanedResponse)
         }
     }
 
