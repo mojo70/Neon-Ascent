@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.feature.settings.SettingsViewModel
 import com.neon.ascent.feature.health.ui.HealthViewModel
+import com.neon.ascent.feature.biohacking.BiohackingViewModel
 import com.neon.ascent.core.common.*
 import com.neon.ascent.ui.*
 import java.time.LocalDateTime
@@ -38,13 +39,13 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel(),
     settingsViewModel: SettingsViewModel = hiltViewModel(),
     healthViewModel: HealthViewModel = hiltViewModel(),
+    biohackingViewModel: BiohackingViewModel = hiltViewModel(),
     onAvatarClick: () -> Unit,
     onAttributeSetClick: () -> Unit,
     onStoryClick: () -> Unit,
     onGoalSetClick: () -> Unit,
     onSettingsClick: () -> Unit,
-    onDeusExMachinaClick: () -> Unit,
-    onLoreClick: () -> Unit
+    onDeusExMachinaClick: () -> Unit
 ) {
     val userCharacter by viewModel.userCharacter.collectAsState()
     val weatherState by viewModel.weatherState.collectAsState()
@@ -53,6 +54,7 @@ fun DashboardScreen(
     val state by viewModel.uiState.collectAsState()
     val isReligionShortcutEnabled by settingsViewModel.isReligionShortcutEnabled.collectAsState()
     val liveMetrics by healthViewModel.liveMetrics.collectAsState()
+    val terminalFeed by biohackingViewModel.terminalFeed.collectAsState()
     val currentTime = remember { mutableStateOf(LocalDateTime.now()) }
     
     val neuralLoad = userCharacter?.neuralLoad ?: 0.2f
@@ -378,11 +380,6 @@ fun DashboardScreen(
                             triggerGlitch()
                             onStoryClick()
                         })
-                    } else {
-                        CyberActionButton("VIEW LORE", Color(0xFF00FF9C), onClick = {
-                            triggerGlitch()
-                            onLoreClick()
-                        })
                     }
                     CyberActionButton("MISSIONS", Color.White, onClick = { 
                         triggerGlitch()
@@ -391,35 +388,12 @@ fun DashboardScreen(
                 }
             }
 
-            if (state.userStory.cyberLore.isNotBlank()) {
-                Spacer(modifier = Modifier.height(24.dp))
-                CyberFrame(
-                    label = "NEURAL_LEGEND // DATA_STREAM",
-                    borderColor = systemColor.copy(alpha = 0.6f),
-                    modifier = Modifier.clickable { onLoreClick() }
-                ) {
-                    Text(
-                        text = state.userStory.cyberLore,
-                        color = Color.White.copy(alpha = 0.8f),
-                        maxLines = 4,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            fontStyle = FontStyle.Italic
-                        ),
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-                }
-            }
-
-            if (state.terminalFeed.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(24.dp))
-                TerminalFeedSection(
-                    feed = state.terminalFeed,
-                    cyan = Color(0xFF00F5FF),
-                    magenta = Color(0xFFFF0088)
-                )
-            }
+            Spacer(modifier = Modifier.height(24.dp))
+            TerminalFeedSection(
+                feed = terminalFeed,
+                cyan = Color(0xFF00F5FF),
+                magenta = Color(0xFFFF0088)
+            )
 
             if (state.todayTasks.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(32.dp))

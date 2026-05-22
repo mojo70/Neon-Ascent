@@ -1,7 +1,7 @@
 package com.neon.ascent.ui
 
 import android.graphics.BitmapFactory
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -34,6 +34,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
@@ -609,7 +610,7 @@ fun TerminalFeedSection(feed: List<TerminalEvent>, cyan: Color, magenta: Color) 
         borderColor = cyan.copy(alpha = 0.8f),
         accentColor = magenta
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.2f))) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -631,32 +632,38 @@ fun TerminalFeedSection(feed: List<TerminalEvent>, cyan: Color, magenta: Color) 
                         color = cyan,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace
+                        fontFamily = FontFamily.Monospace,
+                        letterSpacing = 1.sp
                     )
                 }
                 Icon(
                     if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                     contentDescription = null,
-                    tint = cyan,
+                    tint = cyan.copy(alpha = 0.6f),
                     modifier = Modifier.size(16.dp)
                 )
             }
 
-            AnimatedVisibility(visible = isExpanded) {
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 200.dp)
+                        .heightIn(max = 220.dp)
                         .verticalScroll(rememberScrollState())
                         .padding(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     if (feed.isEmpty()) {
                         Text(
                             "> NO_ACTIVE_FEEDS_DETECTED",
                             color = Color.Gray,
                             fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace
+                            fontFamily = FontFamily.Monospace,
+                            fontStyle = FontStyle.Italic
                         )
                     } else {
                         feed.forEach { event ->
@@ -667,7 +674,20 @@ fun TerminalFeedSection(feed: List<TerminalEvent>, cyan: Color, magenta: Color) 
             }
             
             if (!isExpanded && feed.isNotEmpty()) {
-                TerminalFeedItem(feed.first(), cyan, magenta, isCompact = true)
+                Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+                    feed.take(2).forEach { event ->
+                        TerminalFeedItem(event, cyan, magenta, isCompact = true)
+                    }
+                    if (feed.size > 2) {
+                        Text(
+                            text = "... [${feed.size - 2} MORE OPERATIONS]",
+                            color = cyan.copy(alpha = 0.4f),
+                            fontSize = 8.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.padding(start = 12.dp, top = 2.dp)
+                        )
+                    }
+                }
             }
         }
     }

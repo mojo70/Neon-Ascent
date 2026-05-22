@@ -6,16 +6,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.UserCharacterDao
-import com.neon.ascent.data.repository.BioAgeRepository
-import com.neon.ascent.data.repository.HealthRepository
-import com.neon.ascent.data.repository.UserPreferencesRepository
-import com.neon.ascent.model.BioProtocolLog
-import com.neon.ascent.model.BiohackingData
-import com.neon.ascent.model.UserCharacter
+import com.neon.ascent.data.repository.*
+import com.neon.ascent.model.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.ZoneId
 import javax.inject.Inject
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.pdmodel.PDDocument
@@ -30,6 +28,8 @@ class BiohackingViewModel @Inject constructor(
     private val userCharacterDao: UserCharacterDao,
     private val healthRepository: HealthRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
+    private val taskRepository: TaskRepository,
+    private val goalRepository: GoalRepository,
     private val aiProvider: AiProvider,
     private val bioAgeRepository: BioAgeRepository,
     val modelDownloadManager: ModelDownloadManager,
@@ -58,6 +58,36 @@ class BiohackingViewModel @Inject constructor(
 
     val cachedBioAge: StateFlow<Float?> = userPreferencesRepository.lastBioAge
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val terminalFeed: StateFlow<List<TerminalEvent>> = combine(
+        taskRepository.getDailyTasks(),
+        goalRepository.getActiveGoals(),
+        biohackingDao.getProtocolLogs(0)
+    ) { tasks, goals, logs ->
+        val today = LocalDate.now()
+        val startOfToday = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val events = mutableListOf<TerminalEvent>()
+
+        tasks.forEach { task ->
+            if (task.completedDates.contains(today)) {
+                events.add(TerminalEvent(task.id, task.title, "TASK", "COMPLETED", task.updatedAt))
+            } else {
+                val status = if (task.createdAt >= startOfToday) "ADDED" else "PENDING"
+                events.add(TerminalEvent(task.id, task.title, "TASK", status, task.updatedAt))
+            }
+        }
+
+        goals.forEach { goal ->
+            val status = if (goal.createdAt >= startOfToday) "ADDED" else "ACTIVE"
+            events.add(TerminalEvent(goal.id, goal.title, "MISSION", status, goal.updatedAt))
+        }
+
+        logs.filter { it.timestamp >= startOfToday }.forEach { log ->
+            events.add(TerminalEvent(log.id.toString(), "PROTOCOL_LOG // ${log.protocolId}", "PROTOCOL", "LOGGED", log.timestamp))
+        }
+
+        events.sortedByDescending { it.timestamp }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
         PDFBoxResourceLoader.init(context)

@@ -110,9 +110,6 @@ fun AppNavigation(
                         onNetworkClick = {
                             navController.navigate(Screen.NetworkHub)
                         },
-                        onDossierClick = {
-                            navController.navigate(Screen.UserDossier)
-                        },
                         onExploitsClick = {
                             navController.navigate(Screen.Forge)
                         },
@@ -129,7 +126,6 @@ fun AppNavigation(
                             }
                             navController.navigate(target)
                         },
-                        onLoreClick = { navController.navigate(Screen.Lore) },
                         onGoalSetClick = { navController.navigate(Screen.Goals) },
                         onSettingsClick = { navController.navigate(Screen.Settings) },
                         onDeusExMachinaClick = { navController.navigate(Screen.DeepNode("DEUS_EX_MACHINA")) }

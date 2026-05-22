@@ -28,10 +28,6 @@ fun LoreScreen(
     onBack: () -> Unit,
     viewModel: LoreViewModel = hiltViewModel()
 ) {
-    val userStory by viewModel.userStory.collectAsState()
-    var editingIndex by remember { mutableIntStateOf(-2) } // -2: none, -1: main story, 0+: chapter
-    var editBuffer by remember { mutableStateOf("") }
-
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -55,88 +51,99 @@ fun LoreScreen(
         containerColor = Color.Black
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            PerspectiveGrid()
-            Scanlines(intensity = 0.1f)
-            
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(32.dp)
-            ) {
-                item { Spacer(Modifier.height(16.dp)) }
+            LoreScreenContent(viewModel)
+        }
+    }
+}
 
-                // Main Story / Biography
-                item {
-                    LoreSection(
-                        title = "ORIGIN_LOG // BASE_BIO",
-                        content = userStory.cyberLore,
-                        isHacked = false, 
-                        onEditClick = {
-                            editingIndex = -1
-                            editBuffer = userStory.cyberLore
-                        }
-                    )
-                }
+@Composable
+fun LoreScreenContent(viewModel: LoreViewModel) {
+    val userStory by viewModel.userStory.collectAsState()
+    var editingIndex by remember { mutableIntStateOf(-2) } // -2: none, -1: main story, 0+: chapter
+    var editBuffer by remember { mutableStateOf("") }
 
-                // Weekly Chapters
-                itemsIndexed(userStory.weeklyChapters) { index, chapter ->
-                    LoreSection(
-                        title = chapter.title,
-                        content = chapter.content,
-                        isHacked = chapter.isHacked,
-                        onEditClick = {
-                            editingIndex = index
-                            editBuffer = chapter.content
-                        }
-                    )
-                }
-                
-                item {
-                    Spacer(Modifier.height(64.dp))
-                }
-            }
+    Box(modifier = Modifier.fillMaxSize()) {
+        PerspectiveGrid()
+        Scanlines(intensity = 0.1f)
+        
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(32.dp)
+        ) {
+            item { Spacer(Modifier.height(16.dp)) }
 
-            // Edit Dialog
-            if (editingIndex != -2) {
-                AlertDialog(
-                    onDismissRequest = { editingIndex = -2 },
-                    containerColor = Color(0xFF0A0A0A),
-                    title = { Text("QUICKHACK_INTERFACE", color = Color(0xFFFF006E), fontFamily = FontFamily.Monospace) },
-                    text = {
-                        OutlinedTextField(
-                            value = editBuffer,
-                            onValueChange = { editBuffer = it },
-                            modifier = Modifier.fillMaxWidth().height(300.dp),
-                            textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFFFF006E),
-                                unfocusedBorderColor = Color(0xFFFF006E).copy(alpha = 0.5f),
-                                focusedContainerColor = Color.Black,
-                                unfocusedContainerColor = Color.Black,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
-                            )
-                        )
-                    },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            if (editingIndex == -1) {
-                                viewModel.hackMainStory(editBuffer)
-                            } else {
-                                viewModel.hackChapter(editingIndex, editBuffer)
-                            }
-                            editingIndex = -2
-                        }) {
-                            Text("UPLOAD_EXPLOIT", color = Color(0xFF00FF9C))
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { editingIndex = -2 }) {
-                            Text("ABORT", color = Color.Gray)
-                        }
-                    },
-                    modifier = Modifier.neonBorder(Color(0xFFFF006E))
+            // Main Story / Biography
+            item {
+                LoreSection(
+                    title = "ORIGIN_LOG // BASE_BIO",
+                    content = userStory.cyberLore,
+                    isHacked = false, 
+                    onEditClick = {
+                        editingIndex = -1
+                        editBuffer = userStory.cyberLore
+                    }
                 )
             }
+
+            // Weekly Chapters
+            itemsIndexed(userStory.weeklyChapters) { index, chapter ->
+                LoreSection(
+                    title = chapter.title,
+                    content = chapter.content,
+                    isHacked = chapter.isHacked,
+                    onEditClick = {
+                        editingIndex = index
+                        editBuffer = chapter.content
+                    }
+                )
+            }
+            
+            item {
+                Spacer(Modifier.height(64.dp))
+            }
+        }
+
+        // Edit Dialog
+        if (editingIndex != -2) {
+            AlertDialog(
+                onDismissRequest = { editingIndex = -2 },
+                containerColor = Color(0xFF0A0A0A),
+                title = { Text("QUICKHACK_INTERFACE", color = Color(0xFFFF006E), fontFamily = FontFamily.Monospace) },
+                text = {
+                    OutlinedTextField(
+                        value = editBuffer,
+                        onValueChange = { editBuffer = it },
+                        modifier = Modifier.fillMaxWidth().height(300.dp),
+                        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFFFF006E),
+                            unfocusedBorderColor = Color(0xFFFF006E).copy(alpha = 0.5f),
+                            focusedContainerColor = Color.Black,
+                            unfocusedContainerColor = Color.Black,
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        )
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        if (editingIndex == -1) {
+                            viewModel.hackMainStory(editBuffer)
+                        } else {
+                            viewModel.hackChapter(editingIndex, editBuffer)
+                        }
+                        editingIndex = -2
+                    }) {
+                        Text("UPLOAD_EXPLOIT", color = Color(0xFF00FF9C))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { editingIndex = -2 }) {
+                        Text("ABORT", color = Color.Gray)
+                    }
+                },
+                modifier = Modifier.neonBorder(Color(0xFFFF006E))
+            )
         }
     }
 }

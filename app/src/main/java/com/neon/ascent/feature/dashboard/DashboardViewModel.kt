@@ -16,7 +16,6 @@ import com.neon.ascent.domain.usecase.SuggestGoalsUseCase
 import com.neon.ascent.feature.biohacking.AiProvider
 import com.neon.ascent.model.BiohackingData
 import com.neon.ascent.model.Saying
-import com.neon.ascent.model.TerminalEvent
 import com.neon.ascent.model.UserCharacter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -126,16 +125,14 @@ class DashboardViewModel @Inject constructor(
                 userStoryRepository.getMainStory(),
                 goalRepository.getActiveGoals(),
                 taskRepository.getDailyTasks(),
-                biohackingDao.getProtocolLogs(0),
                 bioAgePredictor.lastResultFlow,
                 habitMetricDao.getTotalCompletedDays()
             ) { array ->
                 val story = array[0] as com.neon.ascent.domain.model.UserStory
                 val goals = array[1] as List<com.neon.ascent.domain.model.Goal>
                 val dailyTasks = array[2] as List<com.neon.ascent.domain.model.Task>
-                val logs = array[3] as List<com.neon.ascent.model.BioProtocolLog>
-                val bioAge = array[4] as com.neon.ascent.model.BioAgeResult?
-                val totalCompletedDays = array[5] as Int
+                val bioAge = array[3] as com.neon.ascent.model.BioAgeResult?
+                val totalCompletedDays = array[4] as Int
 
                 val lore = if (story.cyberLore.isNotBlank()) {
                     story.cyberLore
@@ -145,34 +142,12 @@ class DashboardViewModel @Inject constructor(
                     "Your cyber lore is still being written..."
                 }
 
-                val today = LocalDate.now()
-                val startOfToday = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-                val events = mutableListOf<TerminalEvent>()
-
-                dailyTasks.forEach { task ->
-                    if (task.completedDates.contains(today)) {
-                        events.add(TerminalEvent(task.id, task.title, "TASK", "COMPLETED", task.updatedAt))
-                    } else {
-                        val status = if (task.createdAt >= startOfToday) "ADDED" else "PENDING"
-                        events.add(TerminalEvent(task.id, task.title, "TASK", status, task.updatedAt))
-                    }
-                }
-
-                goals.forEach { goal ->
-                    val status = if (goal.createdAt >= startOfToday) "ADDED" else "ACTIVE"
-                    events.add(TerminalEvent(goal.id, goal.title, "MISSION", status, goal.updatedAt))
-                }
-                
-                logs.filter { it.timestamp >= startOfToday }.forEach { log ->
-                    events.add(TerminalEvent(log.id.toString(), "PROTOCOL_LOG // ${log.protocolId}", "PROTOCOL", "LOGGED", log.timestamp))
-                }
-
                 DashboardUiState(
                     userStory = story,
                     cyberLoreSnippet = lore.take(180) + if (lore.length > 180) "..." else "",
                     activeGoals = goals,
                     todayTasks = dailyTasks,
-                    terminalFeed = events.sortedByDescending { it.timestamp },
+                    terminalFeed = emptyList(), // Now handled by BiohackingViewModel
                     bioAgeResult = bioAge,
                     totalHabitDays = totalCompletedDays,
                     isLoading = false

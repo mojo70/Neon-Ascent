@@ -42,7 +42,6 @@ fun CyberdeckScreen(
     onIceBreachClick: () -> Unit,
     onCoreClick: () -> Unit,
     onNetworkClick: () -> Unit = {},
-    onDossierClick: () -> Unit = {},
     onExploitsClick: () -> Unit = {},
     tickerMessages: List<String> = emptyList(),
     viewModel: CyberdeckViewModel = hiltViewModel()
@@ -120,7 +119,7 @@ fun CyberdeckScreen(
                 }
 
                 // 4. Hexagon Cores (Enhanced 3D Neon)
-                CoreLayout(onWalletClick, onDatabaseClick, onCoreClick, onExploitsClick, onNetworkClick, onDossierClick, aiType, viewModel)
+                CoreLayout(onWalletClick, onDatabaseClick, onCoreClick, onExploitsClick, onNetworkClick, aiType, viewModel)
             }
 
             // 5. Live Console
@@ -302,7 +301,6 @@ private fun CoreLayout(
     onCoreClick: () -> Unit,
     onExploitsClick: () -> Unit,
     onNetworkClick: () -> Unit,
-    onDossierClick: () -> Unit,
     aiType: AiType,
     viewModel: CyberdeckViewModel
 ) {
@@ -310,9 +308,6 @@ private fun CoreLayout(
         // NET CORE
         HexCore("NET",  Color(0xFF00FF99), Modifier.align(Alignment.TopCenter).padding(top = 80.dp), onClick = onNetworkClick)
         
-        // DOSSIER (New Hex)
-        HexCore("DOSSIER", Color(0xFF00FF99), Modifier.align(Alignment.TopStart).padding(start = 24.dp, top = 80.dp), onClick = onDossierClick)
-
         // EXPLOITS
         HexCore("EXPLOITS", Color(0xFFFF0088), Modifier.align(Alignment.CenterStart).padding(start = 32.dp, bottom = 40.dp), onClick = onExploitsClick)
         
