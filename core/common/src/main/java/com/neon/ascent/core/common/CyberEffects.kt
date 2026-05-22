@@ -17,6 +17,7 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -31,6 +32,61 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlin.math.pow
 import kotlin.random.Random
+
+@Composable
+fun ResonanceAura(
+    modifier: Modifier = Modifier,
+    color: Color = NeonCyan,
+    intensity: Float = 0.5f
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "ResonanceAura")
+    
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.1f * intensity,
+        targetValue = 0.4f * intensity,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Alpha"
+    )
+
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Scale"
+    )
+
+    Box(
+        modifier = modifier
+            .scale(scale)
+            .drawBehind {
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(color.copy(alpha = pulseAlpha), Color.Transparent),
+                        center = center,
+                        radius = size.maxDimension / 2f
+                    )
+                )
+                
+                // Add a faint geometric grid if intensity is high
+                if (intensity > 0.6f) {
+                    val gridAlpha = (pulseAlpha * 0.5f)
+                    val step = 20.dp.toPx()
+                    for (x in 0..size.width.toInt() step step.toInt()) {
+                        drawLine(color.copy(alpha = gridAlpha), Offset(x.toFloat(), 0f), Offset(x.toFloat(), size.height))
+                    }
+                    for (y in 0..size.height.toInt() step step.toInt()) {
+                        drawLine(color.copy(alpha = gridAlpha), Offset(0f, y.toFloat()), Offset(size.width, y.toFloat()))
+                    }
+                }
+            }
+    )
+}
 
 /**
  * Celebration Overlay for Dopamine Menu V3

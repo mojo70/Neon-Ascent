@@ -67,7 +67,9 @@ class DashboardViewModel @Inject constructor(
     private val bioAgePredictor: BioAgePredictor,
     private val fusedLocationClient: FusedLocationProviderClient,
     private val aiProvider: AiProvider,
-    private val dopamineCoordinator: com.neon.ascent.core.common.DopamineCoordinator
+    private val dopamineCoordinator: com.neon.ascent.core.common.DopamineCoordinator,
+    private val identityCoordinator: com.neon.ascent.core.common.IdentityCoordinator,
+    private val specialRepository: com.neon.ascent.core.domain.SpecialRepository
 ) : ViewModel() {
     val userCharacter: StateFlow<UserCharacter?> = characterRepository.getUserCharacter()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -139,7 +141,10 @@ class DashboardViewModel @Inject constructor(
                 ascensionRepository.getAllRecurringTasks(),
                 bioAgePredictor.lastResultFlow,
                 habitMetricDao.getTotalCompletedDays(),
-                _dopamineEvent
+                _dopamineEvent,
+                specialRepository.getAllSpecialAttributes(),
+                identityCoordinator.identity,
+                ascensionRepository.getCompletionsInRange(java.time.Instant.now().minus(24, java.time.temporal.ChronoUnit.HOURS))
             ) { array ->
                 val story = array[0] as com.neon.ascent.domain.model.UserStory
                 val directives = array[1] as List<AscensionDirective>
@@ -148,6 +153,18 @@ class DashboardViewModel @Inject constructor(
                 val bioAge = array[4] as com.neon.ascent.model.BioAgeResult?
                 val totalCompletedDays = array[5] as Int
                 val dopamine = array[6] as com.neon.ascent.core.common.DopamineEvent?
+                val specialAttrs = array[7] as List<com.neon.ascent.core.domain.model.SpecialAttribute>
+                val identity = array[8] as com.neon.ascent.core.common.OperatorIdentity
+                val recentCompletions = array[9] as List<AscensionTaskCompletion>
+
+                // Determine top attribute for identity resonance
+                val topAttr = specialAttrs.maxByOrNull { it.currentValue }?.type?.name
+                identityCoordinator.updateIdentity(topAttr, totalCompletedDays)
+
+                // Map completions to titles for micro-logs
+                val recentLogMessages = recentCompletions.mapNotNull { completion ->
+                    dailyTasks.find { it.id == completion.taskId }?.title?.let { "SYNC_SUCCESS // $it" }
+                }.take(5)
 
                 val lore = if (story.cyberLore.isNotBlank()) {
                     story.cyberLore
@@ -167,7 +184,9 @@ class DashboardViewModel @Inject constructor(
                     bioAgeResult = bioAge,
                     totalHabitDays = totalCompletedDays,
                     isLoading = false,
-                    dopamineEvent = dopamine
+                    dopamineEvent = dopamine,
+                    identity = identity,
+                    recentLogMessages = recentLogMessages.ifEmpty { listOf("NEURAL_LINK_STABLE", "SYNC_RATIO: 98.4%") }
                 )
             }.collect { _uiState.value = it }
         }

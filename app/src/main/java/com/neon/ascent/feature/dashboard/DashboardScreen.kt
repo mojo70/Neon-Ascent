@@ -17,12 +17,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -37,6 +39,46 @@ import java.time.LocalDateTime
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+
+@Composable
+fun ScrollingMicroLogs(messages: List<String>, modifier: Modifier = Modifier) {
+    val logs = if (messages.isNotEmpty()) messages else listOf(
+        "NEURAL_LINK_STABLE",
+        "SYNC_RATIO: 98.4%",
+        "BIOMETRIC_FEED_ACTIVE",
+        "CALIBRATING_AGILITY_NODE",
+        "STRUCTURAL_INTEGRITY: OPTIMAL",
+        "TRACING_PACKETS...",
+        "DECRYPTING_DESTINY..."
+    )
+    
+    val infiniteTransition = rememberInfiniteTransition(label = "MicroLogs")
+    val scrollY by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(logs.size * 2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "Scroll"
+    )
+
+    Box(modifier = modifier.height(40.dp).clipToBounds()) {
+        Column(modifier = Modifier.graphicsLayer { translationY = -scrollY * (logs.size * 20f) }) {
+            (logs + logs).forEach { log ->
+                Text(
+                    text = "> $log",
+                    color = Color(0xFF00FF9C).copy(alpha = 0.4f),
+                    fontSize = 8.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.padding(vertical = 2.dp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
 
 @Composable
 fun DashboardScreen(
@@ -137,6 +179,12 @@ fun DashboardScreen(
                 verticalAlignment = Alignment.Top
             ) {
                 Box(contentAlignment = Alignment.Center) {
+                    ResonanceAura(
+                        color = state.identity.resonance.getColor(),
+                        intensity = state.identity.resonanceIntensity,
+                        modifier = Modifier.size(120.dp)
+                    )
+                    
                     if (userCharacter?.holyGhost != null) {
                         HolyGhostAura()
                     }
@@ -146,7 +194,7 @@ fun DashboardScreen(
                             .size(90.dp)
                             .clip(CyberButtonShape)
                             .cyberGlitch(intensity = if (neuralLoad > 0.8f) 0.3f else 0f)
-                            .neonBorder(systemColor, width = 2.dp, cornerRadius = 12.dp)
+                            .neonBorder(state.identity.resonance.getColor(), width = 2.dp, cornerRadius = 12.dp)
                             .background(Color.Black.copy(alpha = 0.6f))
                             .clickable { onAvatarClick() },
                         contentAlignment = Alignment.Center
@@ -178,9 +226,16 @@ fun DashboardScreen(
                                 fontWeight = FontWeight.Black
                             ),
                             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp)
-                        )
-                    }
+                    )
                 }
+                
+                ScrollingMicroLogs(
+                    messages = state.recentLogMessages,
+                    modifier = Modifier
+                        .padding(top = 100.dp)
+                        .width(120.dp)
+                )
+            }
 
                 Column(horizontalAlignment = Alignment.End) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -233,6 +288,15 @@ fun DashboardScreen(
                         )
                     )
                     Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = state.identity.title,
+                        color = state.identity.resonance.getColor(),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            letterSpacing = 1.sp
+                        )
+                    )
                     Text(
                         text = "RANK_0${userCharacter?.level ?: 1}",
                         color = Color.White,

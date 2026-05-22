@@ -5,6 +5,7 @@ import com.neon.ascent.model.BioAgeResult
 import com.neon.ascent.model.TerminalEvent
 import com.neon.ascent.core.domain.goals.models.*
 import com.neon.ascent.core.common.DopamineEvent
+import com.neon.ascent.core.common.OperatorIdentity
 
 data class DashboardUiState(
     val userStory: UserStory = UserStory(),
@@ -16,5 +17,7 @@ data class DashboardUiState(
     val bioAgeResult: BioAgeResult? = null,
     val totalHabitDays: Int = 0,
     val isLoading: Boolean = true,
-    val dopamineEvent: DopamineEvent? = null
+    val dopamineEvent: DopamineEvent? = null,
+    val identity: OperatorIdentity = OperatorIdentity(),
+    val recentLogMessages: List<String> = emptyList()
 )
