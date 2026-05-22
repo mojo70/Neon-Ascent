@@ -2,6 +2,7 @@ package com.neon.ascent.feature.cyberdeck
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.neon.ascent.core.ai.AiPersona
 import com.neon.ascent.data.local.InventoryDao
 import com.neon.ascent.data.local.UserCharacterDao
 import com.neon.ascent.core.lore.data.LoreRepository
@@ -324,7 +325,8 @@ class CyberdeckViewModel @Inject constructor(
             _currentChallenge.value = null
 
             // AI Feedback
-            val prompt = "Generate a short educational cyberpunk praise for successfully filtering ${challenge.metadata["recommendedFilter"]} to find a flag in a ${challenge.tier} tier challenge."
+            val context = "Successfully filtering ${challenge.metadata["recommendedFilter"]} to find a flag in a ${challenge.tier} tier challenge."
+            val prompt = AiPersona.getSocratesPrompt(context) + "\nGenerate a short educational cyberpunk praise."
             val feedback = aiProvider.generateContent(prompt)
             setExternalFeeds(listOf(feedback))
         }

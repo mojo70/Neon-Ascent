@@ -19,6 +19,8 @@ Neon-Ascent is a **daily driver life OS** wrapped in cyberpunk aesthetics. Real-
 - Mature S.P.E.C.I.A.L. system (Room persistence, CognitiveTestEngine skeleton, grounded benchmarks)
 - Rich holographic avatar with reactive particle system, level-up bursts, sound + haptic feedback
 - Diagnostics / history screens (integrated, no longer duplicative)
+- CYBR-TES Terminal: Integrated interactive AI terminal on the Dashboard using the "Cyber Socrates" persona.
+- AI Personality (CYBR-TES): Unified the "Cyber Socrates" persona across Dashboard advice, Cyberdeck feedback, and Directive/Mission generation.
 - Contextual Neural Pings: Advanced notification engine using real-time biometrics (HRV/Steps) for intelligent protocol timing.
 - Neural Scan: Immersive archetype profiling system (MBTI/Alignment) for character progression and biometric syncing.
 - Local AI (LiteRT): Gemma integration for on-device, privacy-first intelligence and feedback.
@@ -31,7 +33,7 @@ Neon-Ascent is a **daily driver life OS** wrapped in cyberpunk aesthetics. Real-
 - Biohacking module: Transitioning from static tracking to AI-driven protocol coaching.
 - Full integration of Aspirations + Missions into existing Database Core
 - Neural Scan integration with Avatar level-up and archetype-specific mission seeding.
-- Gemma-powered "Neural Assistant" for habit coaching and Biohacking analysis.
+- Gemma-powered "Neural Assistant" for habit coaching and Biohacking analysis (Partially complete via CYBR-TES).
 - Mission Detail + Aspiration Detail screens
 - Live health data polishing (HR badge + steps/calories)
 

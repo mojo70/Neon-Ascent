@@ -1,5 +1,6 @@
 package com.neon.ascent.feature.dashboard
 
+import androidx.compose.animation.*
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -13,6 +14,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -27,6 +29,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.graphics.SolidColor
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.feature.settings.SettingsViewModel
 import com.neon.ascent.feature.health.ui.HealthViewModel
@@ -117,6 +123,8 @@ fun DashboardScreen(
     val triggerGlitch = {
         glitchTrigger++
     }
+
+    var isTerminalExpanded by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         while(true) {
@@ -400,6 +408,18 @@ fun DashboardScreen(
                 )
             }
 
+            Spacer(modifier = Modifier.height(32.dp))
+
+            AiTerminal(
+                messages = state.terminalMessages,
+                inputValue = state.terminalInput,
+                onInputChange = viewModel::updateTerminalInput,
+                onSend = viewModel::sendTerminalMessage,
+                isExpanded = isTerminalExpanded,
+                onToggleExpand = { isTerminalExpanded = !isTerminalExpanded },
+                accentColor = systemColor
+            )
+
             Spacer(modifier = Modifier.height(24.dp))
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -532,6 +552,93 @@ fun DashboardScreen(
             event = state.dopamineEvent,
             onFinished = { viewModel.clearDopamineEvent() }
         )
+    }
+}
+
+@Composable
+fun AiTerminal(
+    messages: List<TerminalMessage>,
+    inputValue: String,
+    onInputChange: (String) -> Unit,
+    onSend: () -> Unit,
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit,
+    accentColor: Color
+) {
+    CyberFrame(
+        label = "AI_TERMINAL // CYBR-TES", 
+        borderColor = accentColor,
+        modifier = Modifier.clickable { onToggleExpand() }
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().animateContentSize()) {
+            if (isExpanded) {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 240.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(8.dp)
+                ) {
+                    messages.forEach { msg ->
+                        Text(
+                            text = if (msg.isFromUser) "> ${msg.text}" else "CYBR-TES: ${msg.text}",
+                            color = if (msg.isFromUser) Color.White else accentColor,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+                }
+                
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                        .background(Color.Black.copy(alpha = 0.4f)),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    BasicTextField(
+                        value = inputValue,
+                        onValueChange = onInputChange,
+                        textStyle = TextStyle(
+                            color = Color.White,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 12.sp
+                        ),
+                        modifier = Modifier.weight(1f).padding(8.dp),
+                        cursorBrush = SolidColor(accentColor),
+                        decorationBox = { innerTextField ->
+                            if (inputValue.isEmpty()) {
+                                Text(
+                                    "ENTER_COMMAND...",
+                                    color = Color.White.copy(alpha = 0.3f),
+                                    fontSize = 12.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                            innerTextField()
+                        }
+                    )
+                    IconButton(onClick = onSend) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "SEND",
+                            tint = accentColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            } else {
+                Text(
+                    text = messages.lastOrNull()?.text ?: "WAITING_FOR_INPUT...",
+                    color = accentColor.copy(alpha = 0.6f),
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(8.dp)
+                )
+            }
+        }
     }
 }
 

@@ -14,6 +14,7 @@ import com.neon.ascent.domain.usecase.GenerateCyberLoreUseCase
 import com.neon.ascent.domain.usecase.GenerateDailyTasksUseCase
 import com.neon.ascent.domain.usecase.SuggestGoalsUseCase
 import com.neon.ascent.feature.biohacking.AiProvider
+import com.neon.ascent.core.ai.AiPersona
 import com.neon.ascent.model.BiohackingData
 import com.neon.ascent.model.Saying
 import com.neon.ascent.model.UserCharacter
@@ -276,19 +277,14 @@ class DashboardViewModel @Inject constructor(
             val weather = if (weatherState.value.isRaining) "Acid Rain" else "Clear"
             val archetype = userCharacter.value?.archetype ?: "Unknown"
 
-            val prompt = """
-                [SYSTEM_ANALYSIS]
-                CONTEXT:
+            val context = """
                 - STEPS: $steps
                 - HR: $hr
                 - ATMOSPHERE: $weather
                 - ARCHETYPE: $archetype
-                
-                TASK: Generate one short, cryptic cyberpunk advice (max 12 words) for the runner. 
-                Do NOT repeat the input data. 
-                Do NOT use line breaks or prefixes.
-                OUTPUT:
             """.trimIndent()
+            
+            val prompt = AiPersona.getSocratesPrompt(context) + "\nTask: Generate one short, cryptic advice (max 12 words). OUTPUT:"
             
             val result = aiProvider.generateContent(prompt)
             if (result.startsWith("ERROR:")) {
@@ -433,6 +429,35 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             userCharacter.value?.let {
                 characterRepository.updateCharacter(it.copy(netrunnerName = newName))
+            }
+        }
+    }
+
+    fun updateTerminalInput(text: String) {
+        _uiState.update { it.copy(terminalInput = text) }
+    }
+
+    fun sendTerminalMessage() {
+        val input = _uiState.value.terminalInput
+        if (input.isBlank()) return
+
+        viewModelScope.launch {
+            val userMsg = TerminalMessage(input, isFromUser = true)
+            _uiState.update { state ->
+                state.copy(
+                    terminalMessages = state.terminalMessages + userMsg,
+                    terminalInput = ""
+                )
+            }
+
+            val context = "Conversation history: " + _uiState.value.terminalMessages.takeLast(5).joinToString { if(it.isFromUser) "Runner: ${it.text}" else "CYBR-TES: ${it.text}" }
+            val prompt = AiPersona.getSocratesPrompt(context) + "\nRunner: $input\nRespond as CYBR-TES."
+            
+            val response = aiProvider.generateContent(prompt)
+            val aiMsg = TerminalMessage(response.substringAfter("CYBR-TES:").trim(), isFromUser = false)
+            
+            _uiState.update { state ->
+                state.copy(terminalMessages = state.terminalMessages + aiMsg)
             }
         }
     }

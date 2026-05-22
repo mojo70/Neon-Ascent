@@ -19,5 +19,16 @@ data class DashboardUiState(
     val isLoading: Boolean = true,
     val dopamineEvent: DopamineEvent? = null,
     val identity: OperatorIdentity = OperatorIdentity(),
-    val recentLogMessages: List<String> = emptyList()
+    val recentLogMessages: List<String> = emptyList(),
+    val terminalMessages: List<TerminalMessage> = listOf(
+        TerminalMessage("DECK_OS_STABLE", isFromUser = false),
+        TerminalMessage("WAITING_FOR_INPUT...", isFromUser = false)
+    ),
+    val terminalInput: String = ""
+)
+
+data class TerminalMessage(
+    val text: String,
+    val isFromUser: Boolean,
+    val timestamp: Long = System.currentTimeMillis()
 )
