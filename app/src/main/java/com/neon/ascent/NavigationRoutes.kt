@@ -114,4 +114,19 @@ sealed interface Screen {
 
     @Serializable
     data object UserDossier : Screen
+
+    @Serializable
+    data object AscensionTerminal : Screen
+
+    @Serializable
+    data class DirectiveDetail(val id: String) : Screen
+
+    @Serializable
+    data class TaskDetail(val id: String) : Screen
+
+    @Serializable
+    data object AscensionForge : Screen
+
+    @Serializable
+    data class AscensionReview(val directiveId: String) : Screen
 }

@@ -1,16 +1,16 @@
 package com.neon.ascent.feature.dashboard
 
-import com.neon.ascent.domain.model.Goal
-import com.neon.ascent.domain.model.Task
 import com.neon.ascent.domain.model.UserStory
 import com.neon.ascent.model.BioAgeResult
 import com.neon.ascent.model.TerminalEvent
+import com.neon.ascent.core.domain.goals.models.*
 
 data class DashboardUiState(
     val userStory: UserStory = UserStory(),
     val cyberLoreSnippet: String = "",
-    val activeGoals: List<Goal> = emptyList(),
-    val todayTasks: List<Task> = emptyList(),
+    val activeDirectives: List<AscensionDirective> = emptyList(),
+    val activeMissions: List<AscensionMission> = emptyList(),
+    val todayTasks: List<AscensionTask> = emptyList(),
     val terminalFeed: List<TerminalEvent> = emptyList(),
     val bioAgeResult: BioAgeResult? = null,
     val totalHabitDays: Int = 0,

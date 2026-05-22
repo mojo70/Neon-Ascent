@@ -7,6 +7,7 @@ import com.neon.ascent.core.domain.model.DataSource
 import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.core.domain.model.TestType
 import java.time.Instant
+import java.time.LocalDate
 
 class InstantConverter {
     @TypeConverter
@@ -14,6 +15,14 @@ class InstantConverter {
 
     @TypeConverter
     fun toInstant(value: Long?): Instant? = value?.let { Instant.ofEpochMilli(it) }
+}
+
+class LocalDateConverter {
+    @TypeConverter
+    fun fromLocalDate(date: LocalDate?): String? = date?.toString()
+
+    @TypeConverter
+    fun toLocalDate(value: String?): LocalDate? = value?.let { LocalDate.parse(it) }
 }
 
 class SpecialTypeConverter {

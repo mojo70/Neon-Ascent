@@ -19,8 +19,8 @@ class ContextualPingWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        val habitId = inputData.getString("habit_id") ?: return Result.failure()
-        val title = inputData.getString("habit_title") ?: "Protocol Ready"
+        val taskId = inputData.getString("task_id") ?: return Result.failure()
+        val title = inputData.getString("task_title") ?: "Protocol Ready"
 
         // Contextual intelligence
         val liveMetrics = healthConnectManager.liveMetricsFlow().first()
@@ -36,7 +36,7 @@ class ContextualPingWorker @AssistedInject constructor(
         neuralPingManager.sendNeuralPing(
             title = "⚡ NEURAL PING // $title",
             message = message,
-            habitId = habitId
+            habitId = taskId
         )
 
         return Result.success()

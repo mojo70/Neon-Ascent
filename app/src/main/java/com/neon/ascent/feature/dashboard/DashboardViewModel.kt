@@ -17,6 +17,7 @@ import com.neon.ascent.feature.biohacking.AiProvider
 import com.neon.ascent.model.BiohackingData
 import com.neon.ascent.model.Saying
 import com.neon.ascent.model.UserCharacter
+import com.neon.ascent.core.domain.goals.models.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -59,6 +60,7 @@ class DashboardViewModel @Inject constructor(
     private val goalRepository: GoalRepository,
     private val taskRepository: TaskRepository,
     private val habitMetricDao: HabitMetricDao,
+    private val ascensionRepository: com.neon.ascent.core.domain.repository.AscensionRepository,
     private val suggestGoalsUseCase: SuggestGoalsUseCase,
     private val generateDailyTasksUseCase: GenerateDailyTasksUseCase,
     private val generateCyberLoreUseCase: GenerateCyberLoreUseCase,
@@ -123,16 +125,18 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             combine(
                 userStoryRepository.getMainStory(),
-                goalRepository.getActiveGoals(),
-                taskRepository.getDailyTasks(),
+                ascensionRepository.getAllDirectives(),
+                ascensionRepository.getActiveMissions(),
+                ascensionRepository.getAllRecurringTasks(),
                 bioAgePredictor.lastResultFlow,
                 habitMetricDao.getTotalCompletedDays()
             ) { array ->
                 val story = array[0] as com.neon.ascent.domain.model.UserStory
-                val goals = array[1] as List<com.neon.ascent.domain.model.Goal>
-                val dailyTasks = array[2] as List<com.neon.ascent.domain.model.Task>
-                val bioAge = array[3] as com.neon.ascent.model.BioAgeResult?
-                val totalCompletedDays = array[4] as Int
+                val directives = array[1] as List<AscensionDirective>
+                val missions = array[2] as List<AscensionMission>
+                val dailyTasks = array[3] as List<AscensionTask>
+                val bioAge = array[4] as com.neon.ascent.model.BioAgeResult?
+                val totalCompletedDays = array[5] as Int
 
                 val lore = if (story.cyberLore.isNotBlank()) {
                     story.cyberLore
@@ -145,7 +149,8 @@ class DashboardViewModel @Inject constructor(
                 DashboardUiState(
                     userStory = story,
                     cyberLoreSnippet = lore.take(180) + if (lore.length > 180) "..." else "",
-                    activeGoals = goals,
+                    activeDirectives = directives,
+                    activeMissions = missions,
                     todayTasks = dailyTasks,
                     terminalFeed = emptyList(), // Now handled by BiohackingViewModel
                     bioAgeResult = bioAge,
@@ -172,7 +177,10 @@ class DashboardViewModel @Inject constructor(
 
     fun markTaskCompleted(taskId: String) {
         viewModelScope.launch {
-            taskRepository.markTaskCompleted(taskId)
+            val task = uiState.value.todayTasks.find { it.id == taskId }
+            if (task != null) {
+                ascensionRepository.completeTask(task, null, null, null)
+            }
         }
     }
 

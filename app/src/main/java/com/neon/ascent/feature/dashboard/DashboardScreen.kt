@@ -30,8 +30,11 @@ import com.neon.ascent.feature.settings.SettingsViewModel
 import com.neon.ascent.feature.health.ui.HealthViewModel
 import com.neon.ascent.feature.biohacking.BiohackingViewModel
 import com.neon.ascent.core.common.*
+import com.neon.ascent.core.domain.goals.models.*
 import com.neon.ascent.ui.*
 import java.time.LocalDateTime
+import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 @Composable
@@ -388,13 +391,6 @@ fun DashboardScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-            TerminalFeedSection(
-                feed = terminalFeed,
-                cyan = Color(0xFF00F5FF),
-                magenta = Color(0xFFFF0088)
-            )
-
             if (state.todayTasks.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(32.dp))
                 Text(
@@ -416,7 +412,7 @@ fun DashboardScreen(
                 }
             }
 
-            if (state.activeGoals.isNotEmpty()) {
+            if (state.activeMissions.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(32.dp))
                 Text(
                     "ACTIVE_MISSIONS",
@@ -428,8 +424,8 @@ fun DashboardScreen(
                     ),
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
-                state.activeGoals.forEach { goal ->
-                    DashboardMissionCard(goal)
+                state.activeMissions.forEach { mission ->
+                    DashboardMissionCardV3(mission)
                     Spacer(modifier = Modifier.height(12.dp))
                 }
             }
@@ -445,8 +441,9 @@ fun DashboardScreen(
 }
 
 @Composable
-fun DashboardTaskItem(task: com.neon.ascent.domain.model.Task, onComplete: () -> Unit) {
-    val isCompleted = task.completedDates.contains(java.time.LocalDate.now())
+fun DashboardTaskItem(task: AscensionTask, onComplete: () -> Unit) {
+    val isCompleted = task.lastCompleted != null && 
+        task.lastCompleted!!.atZone(ZoneId.systemDefault()).toLocalDate() == LocalDate.now()
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -480,26 +477,26 @@ fun DashboardTaskItem(task: com.neon.ascent.domain.model.Task, onComplete: () ->
 }
 
 @Composable
-fun DashboardMissionCard(goal: com.neon.ascent.domain.model.Goal) {
+fun DashboardMissionCardV3(mission: AscensionMission) {
     CyberFrame(
-        label = "MISSION // ${goal.title.uppercase()}",
+        label = "MISSION // ${mission.title.uppercase()}",
         borderColor = Color(0xFFFF006E).copy(alpha = 0.4f)
     ) {
         Column {
             Text(
-                goal.objective,
+                mission.description,
                 color = Color.White.copy(alpha = 0.8f),
                 style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                 modifier = Modifier.padding(bottom = 8.dp)
             )
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
-                    "${goal.currentValue} / ${goal.targetValue} ${goal.unit}",
+                    "STATUS: ${mission.status}",
                     color = Color.White,
                     style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace)
                 )
                 Text(
-                    "${(goal.currentValue / goal.targetValue * 100).toInt()}%",
+                    "${(mission.progress * 100).toInt()}%",
                     color = Color(0xFFFF006E),
                     style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                 )
@@ -513,7 +510,7 @@ fun DashboardMissionCard(goal: com.neon.ascent.domain.model.Goal) {
             ) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(goal.currentValue / goal.targetValue)
+                        .fillMaxWidth(mission.progress)
                         .fillMaxHeight()
                         .background(Color(0xFFFF006E))
                 )

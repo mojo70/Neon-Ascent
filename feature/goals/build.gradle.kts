@@ -20,6 +20,7 @@ dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:data"))
     implementation(project(":core:domain"))
+    implementation(project(":core:ai-litert"))
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
@@ -32,4 +33,5 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material.icons.extended)
 }

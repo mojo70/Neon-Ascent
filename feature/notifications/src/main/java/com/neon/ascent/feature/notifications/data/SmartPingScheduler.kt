@@ -2,8 +2,9 @@ package com.neon.ascent.feature.notifications.data
 
 import android.content.Context
 import androidx.work.*
-import com.neon.ascent.core.domain.GoalRepository
-import com.neon.ascent.core.domain.goals.models.Habit
+import com.neon.ascent.core.domain.repository.AscensionRepository
+import com.neon.ascent.core.domain.goals.models.AscensionTask
+import com.neon.ascent.core.domain.goals.models.AscensionTaskType
 import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.feature.health.data.HealthConnectManager
 import com.neon.ascent.feature.notifications.data.workers.ContextualPingWorker
@@ -18,7 +19,7 @@ import javax.inject.Singleton
 @Singleton
 class SmartPingScheduler @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val goalRepository: GoalRepository,
+    private val ascensionRepository: AscensionRepository,
     private val healthConnectManager: HealthConnectManager
 ) {
 
@@ -26,61 +27,49 @@ class SmartPingScheduler @Inject constructor(
 
     /** Main scheduling entry point — call after onboarding and on app start */
     suspend fun scheduleSmartPings() {
-        val activeHabits = goalRepository.getHabits().first()
+        val activeTasks = ascensionRepository.getAllRecurringTasks().first()
 
-        activeHabits.forEach { habit ->
-            scheduleForHabit(habit)
+        activeTasks.forEach { task ->
+            scheduleForTask(task)
         }
 
         // Global daily summary ping
         scheduleDailySummary()
     }
 
-    private fun scheduleForHabit(habit: Habit) {
+    private fun scheduleForTask(task: AscensionTask) {
         val constraints = Constraints.Builder()
             .setRequiresBatteryNotLow(true)
             .build()
 
         val inputData = Data.Builder()
-            .putString("habit_id", habit.id)
-            .putString("habit_title", habit.title)
+            .putString("task_id", task.id)
+            .putString("task_title", task.title)
             .build()
 
         val request = OneTimeWorkRequestBuilder<ContextualPingWorker>()
             .setConstraints(constraints)
             .setInputData(inputData)
-            .setInitialDelay(calculateInitialDelay(habit), TimeUnit.MILLISECONDS)
+            .setInitialDelay(calculateInitialDelay(task), TimeUnit.MILLISECONDS)
             .build()
 
         workManager.enqueueUniqueWork(
-            "ping_${habit.id}",
+            "ping_${task.id}",
             ExistingWorkPolicy.REPLACE,
             request
         )
     }
 
-    private fun calculateInitialDelay(habit: Habit): Long {
+    private fun calculateInitialDelay(task: AscensionTask): Long {
         val now = LocalTime.now()
 
-        // Smart time windows
+        // Smart time windows - V3 logic
         return when {
-            // Morning habits (Strength, Agility)
-            habit.linkedAttributes.any { it in listOf(SpecialType.STRENGTH, SpecialType.AGILITY) } -> {
-                if (now.isBefore(LocalTime.of(9, 0))) 30_000L else 4 * 60 * 60 * 1000L // 4 hours
+            task.timeWindows.any { it.contains("wake", ignoreCase = true) } -> {
+                // Approximate morning
+                if (now.isBefore(LocalTime.of(9, 0))) 30_000L else 4 * 60 * 60 * 1000L
             }
-            // Evening / Recovery habits
-            habit.linkedAttributes.contains(SpecialType.ENDURANCE) -> {
-                if (now.isAfter(LocalTime.of(18, 0))) 45_000L else 6 * 60 * 60 * 1000L
-            }
-            // Focus / Intelligence habits
-            else -> {
-                // Avoid lunch and late night
-                when {
-                    now.isAfter(LocalTime.of(12, 0)) && now.isBefore(LocalTime.of(14, 0)) -> 2 * 60 * 60 * 1000L
-                    now.isAfter(LocalTime.of(22, 0)) -> 8 * 60 * 60 * 1000L
-                    else -> 3 * 60 * 60 * 1000L
-                }
-            }
+            else -> 3 * 60 * 60 * 1000L
         }
     }
 

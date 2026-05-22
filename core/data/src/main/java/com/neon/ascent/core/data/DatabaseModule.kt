@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.neon.ascent.core.data.local.dao.SpecialDao
 import com.neon.ascent.core.data.local.dao.GoalDao
+import com.neon.ascent.core.data.local.dao.AscensionDao
 import com.neon.ascent.core.data.local.migration.MIGRATION_2_3
 import com.neon.ascent.core.data.local.migration.MIGRATION_3_4
 import dagger.Module
@@ -38,5 +39,10 @@ object DatabaseModule {
     @Provides
     fun provideSpecialDao(database: NeonAscentDatabase): SpecialDao {
         return database.specialDao()
+    }
+
+    @Provides
+    fun provideAscensionDao(database: NeonAscentDatabase): AscensionDao {
+        return database.ascensionDao()
     }
 }

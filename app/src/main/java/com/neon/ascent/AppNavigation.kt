@@ -42,6 +42,9 @@ import com.neon.ascent.feature.goals.ui.AspirationCreationScreen
 import com.neon.ascent.feature.goals.ui.AspirationDetailScreen
 import com.neon.ascent.feature.goals.ui.MissionDetailScreen
 import com.neon.ascent.feature.goals.ui.DatabaseCoreScreen
+import com.neon.ascent.feature.goals.ui.ascension.AscensionTerminalScreen
+import com.neon.ascent.feature.goals.ui.ascension.AscensionForgeScreen
+import com.neon.ascent.feature.goals.ui.ascension.AscensionReviewScreen
 import com.neon.ascent.feature.story.StoryIntakeScreen
 import com.neon.ascent.feature.loading.LoadingScreen
 import com.neon.ascent.feature.library.EReaderScreen
@@ -126,7 +129,7 @@ fun AppNavigation(
                             }
                             navController.navigate(target)
                         },
-                        onGoalSetClick = { navController.navigate(Screen.Goals) },
+                        onGoalSetClick = { navController.navigate(Screen.AscensionTerminal) },
                         onSettingsClick = { navController.navigate(Screen.Settings) },
                         onDeusExMachinaClick = { navController.navigate(Screen.DeepNode("DEUS_EX_MACHINA")) }
                     )
@@ -417,6 +420,30 @@ fun AppNavigation(
 
         composable<Screen.UserDossier> {
             UserDossierScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable<Screen.AscensionTerminal> {
+            AscensionTerminalScreen(
+                onBack = { navController.popBackStack() },
+                onDirectiveClick = { id -> navController.navigate(Screen.DirectiveDetail(id)) },
+                onTaskClick = { id -> navController.navigate(Screen.TaskDetail(id)) },
+                onForgeClick = { navController.navigate(Screen.AscensionForge) },
+                onReviewClick = { id -> navController.navigate(Screen.AscensionReview(id)) }
+            )
+        }
+
+        composable<Screen.AscensionForge> {
+            AscensionForgeScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable<Screen.AscensionReview> { backStackEntry ->
+            val review = backStackEntry.toRoute<Screen.AscensionReview>()
+            AscensionReviewScreen(
+                directiveId = review.directiveId,
+                onBack = { navController.popBackStack() }
+            )
         }
 
         composable<Screen.DeepNode> { backStackEntry ->

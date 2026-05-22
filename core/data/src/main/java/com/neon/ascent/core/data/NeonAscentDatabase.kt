@@ -5,8 +5,8 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.neon.ascent.core.data.local.dao.SpecialDao
 import com.neon.ascent.core.data.local.dao.GoalDao
-import com.neon.ascent.core.data.local.entity.BenchmarkTestEntity
-import com.neon.ascent.core.data.local.entity.SpecialAttributeEntity
+import com.neon.ascent.core.data.local.dao.AscensionDao
+import com.neon.ascent.core.data.local.entity.*
 import com.neon.ascent.core.data.local.converter.*
 import com.neon.ascent.core.data.local.migration.MIGRATION_3_4
 
@@ -14,13 +14,18 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_3_4
     entities = [
         GoalEntity::class,
         SpecialAttributeEntity::class,
-        BenchmarkTestEntity::class
+        BenchmarkTestEntity::class,
+        AscensionDirectiveEntity::class,
+        AscensionMissionEntity::class,
+        AscensionTaskEntity::class,
+        AscensionTaskCompletionEntity::class
     ],
-    version = 4,
+    version = 6,
     exportSchema = true
 )
 @TypeConverters(
     InstantConverter::class,
+    LocalDateConverter::class,
     SpecialTypeConverter::class,
     TestTypeConverter::class,
     DataSourceConverter::class,
@@ -31,4 +36,5 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_3_4
 abstract class NeonAscentDatabase : RoomDatabase() {
     abstract fun goalDao(): GoalDao
     abstract fun specialDao(): SpecialDao
+    abstract fun ascensionDao(): AscensionDao
 }
