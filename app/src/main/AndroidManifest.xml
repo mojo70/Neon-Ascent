@@ -72,5 +72,12 @@
                 tools:node="remove" />
         </provider>
 
+        <receiver android:name="com.neon.ascent.feature.notifications.data.NeuralPingReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="com.neon.ascent.ACTION_MARK_DONE" />
+                <action android:name="com.neon.ascent.ACTION_SNOOZE" />
+            </intent-filter>
+        </receiver>
+
     </application>
 </manifest>

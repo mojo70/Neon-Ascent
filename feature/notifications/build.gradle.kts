@@ -23,6 +23,7 @@ dependencies {
     implementation(project(":feature:habits"))
     implementation(project(":feature:health"))
 
+    implementation(libs.androidx.health.connect.client)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.work.runtime.ktx)
