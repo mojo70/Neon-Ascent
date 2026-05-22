@@ -27,6 +27,9 @@ class NeuralUplinkManager @Inject constructor(
         registerUplink(healthConnectUplink)
         
         startUplinkSync()
+        
+        // Auto-start BLE sync for providers that support it
+        garminUplink.startBLESync()
     }
 
     fun registerUplink(uplink: NeuralUplink) {

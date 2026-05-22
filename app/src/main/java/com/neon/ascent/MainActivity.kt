@@ -64,7 +64,6 @@ class MainActivity : ComponentActivity() {
         setContent {
             NeonAscentTheme {
                 val context = LocalContext.current
-                val viewModel: DashboardViewModel = hiltViewModel()
 
                 val permissionsLauncher = rememberLauncherForActivityResult(
                     PermissionController.createRequestPermissionResultContract()
@@ -74,32 +73,40 @@ class MainActivity : ComponentActivity() {
 
                 val locationPermissionLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.RequestMultiplePermissions()
-                ) { permissions ->
-                    if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-                        permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-                    ) {
-                        viewModel.fetchRealWeather()
-                    }
+                ) { _ ->
+                    // Permissions updated
+                }
+
+                val bluetoothPermissionLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.RequestMultiplePermissions()
+                ) { _ ->
+                    // Handle bluetooth permissions result
                 }
 
                 LaunchedEffect(Unit) {
+                    // Sequentially check and request permissions to avoid collisions
                     if (!healthRepository.hasAllPermissions()) {
                         permissionsLauncher.launch(healthRepository.permissions)
+                        // Give some buffer for the OS dialog to appear
+                        kotlinx.coroutines.delay(1000)
                     }
 
                     val hasFineLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
                     val hasCoarseLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
                     
-                    if (hasFineLocation || hasCoarseLocation) {
-                        viewModel.fetchRealWeather()
-                    } else {
+                    if (!hasFineLocation && !hasCoarseLocation) {
                         locationPermissionLauncher.launch(
                             arrayOf(
                                 Manifest.permission.ACCESS_FINE_LOCATION,
                                 Manifest.permission.ACCESS_COARSE_LOCATION
                             )
                         )
+                        kotlinx.coroutines.delay(1000)
                     }
+
+                    // For Bluetooth, combined with location if needed on older versions, 
+                    // but minSdk 31 handles it separately
+                    checkAndRequestBluetoothPermissions(bluetoothPermissionLauncher)
                 }
 
                 AppNavigation(notificationViewModel = notificationViewModel)
@@ -134,6 +141,27 @@ class MainActivity : ComponentActivity() {
     fun requestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    private fun checkAndRequestBluetoothPermissions(launcher: androidx.activity.result.ActivityResultLauncher<Array<String>>) {
+        val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            arrayOf(
+                Manifest.permission.BLUETOOTH_SCAN,
+                Manifest.permission.BLUETOOTH_CONNECT
+            )
+        } else {
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION
+            )
+        }
+
+        val missingPermissions = permissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (missingPermissions.isNotEmpty()) {
+            launcher.launch(missingPermissions.toTypedArray())
         }
     }
 }
