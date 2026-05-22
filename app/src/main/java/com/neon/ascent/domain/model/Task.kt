@@ -15,7 +15,9 @@ data class Task(
     val completedDates: List<LocalDate>,
     val linkedSpecial: SpecialType? = null,
     val suggestsRetestAfterDays: Int = 0,
-    val isArchived: Boolean
+    val isArchived: Boolean,
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
 )
 
 fun TaskEntity.toDomain() = Task(
@@ -28,7 +30,9 @@ fun TaskEntity.toDomain() = Task(
     completedDates = completedDates.map { LocalDate.parse(it) },
     linkedSpecial = linkedSpecial,
     suggestsRetestAfterDays = suggestsRetestAfterDays,
-    isArchived = isArchived
+    isArchived = isArchived,
+    createdAt = createdAt,
+    updatedAt = updatedAt
 )
 
 fun Task.toEntity() = TaskEntity(
@@ -41,5 +45,7 @@ fun Task.toEntity() = TaskEntity(
     completedDates = completedDates.map { it.toString() },
     linkedSpecial = linkedSpecial,
     suggestsRetestAfterDays = suggestsRetestAfterDays,
-    isArchived = isArchived
+    isArchived = isArchived,
+    createdAt = createdAt,
+    updatedAt = updatedAt
 )

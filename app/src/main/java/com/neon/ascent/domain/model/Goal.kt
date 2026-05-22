@@ -16,7 +16,9 @@ data class Goal(
     val unit: String,
     val deadline: LocalDate?,
     val linkedSpecial: SpecialType? = null,
-    val isActive: Boolean
+    val isActive: Boolean,
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
 )
 
 fun GoalEntity.toDomain() = Goal(
@@ -30,7 +32,9 @@ fun GoalEntity.toDomain() = Goal(
     unit = unit,
     deadline = deadline?.let { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate() },
     linkedSpecial = linkedSpecial,
-    isActive = isActive
+    isActive = isActive,
+    createdAt = createdAt,
+    updatedAt = updatedAt
 )
 
 fun Goal.toEntity() = GoalEntity(
@@ -44,5 +48,7 @@ fun Goal.toEntity() = GoalEntity(
     unit = unit,
     deadline = deadline?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli(),
     linkedSpecial = linkedSpecial,
-    isActive = isActive
+    isActive = isActive,
+    createdAt = createdAt,
+    updatedAt = updatedAt
 )

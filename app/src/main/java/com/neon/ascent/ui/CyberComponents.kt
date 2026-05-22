@@ -1,12 +1,9 @@
 package com.neon.ascent.ui
 
 import android.graphics.BitmapFactory
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -16,6 +13,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neon.ascent.R
 import com.neon.ascent.core.common.neonBorder
+import com.neon.ascent.model.TerminalEvent
 import com.neon.ascent.model.TrainingTemplate
 import com.neon.ascent.model.UserCharacter
 import kotlin.random.Random
@@ -598,6 +598,132 @@ fun CyberActionButton(
             )
         )
     }
+}
+
+@Composable
+fun TerminalFeedSection(feed: List<TerminalEvent>, cyan: Color, magenta: Color) {
+    var isExpanded by remember { mutableStateOf(false) }
+    
+    CyberFrame(
+        label = "LIVE_TERMINAL_FEED // CORE_SYNC",
+        borderColor = cyan.copy(alpha = 0.8f),
+        accentColor = magenta
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { isExpanded = !isExpanded }
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(cyan, RoundedCornerShape(1.dp))
+                            .alpha(if (feed.any { it.status == "PENDING" }) pulseAlpha() else 1f)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "ACTIVE_OPERATIONS: ${feed.size}",
+                        color = cyan,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+                Icon(
+                    if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = cyan,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+
+            AnimatedVisibility(visible = isExpanded) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 200.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    if (feed.isEmpty()) {
+                        Text(
+                            "> NO_ACTIVE_FEEDS_DETECTED",
+                            color = Color.Gray,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    } else {
+                        feed.forEach { event ->
+                            TerminalFeedItem(event, cyan, magenta)
+                        }
+                    }
+                }
+            }
+            
+            if (!isExpanded && feed.isNotEmpty()) {
+                TerminalFeedItem(feed.first(), cyan, magenta, isCompact = true)
+            }
+        }
+    }
+}
+
+@Composable
+fun TerminalFeedItem(event: TerminalEvent, cyan: Color, magenta: Color, isCompact: Boolean = false) {
+    val color = when (event.status) {
+        "COMPLETED", "LOGGED" -> cyan
+        "PENDING" -> magenta
+        else -> Color.White
+    }
+    
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = if (isCompact) 4.dp else 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "> [${event.type}] ",
+            color = Color.Gray,
+            fontSize = 9.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        Text(
+            text = event.title,
+            color = Color.White,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1,
+            modifier = Modifier.weight(1f)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = event.status,
+            color = color,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Monospace
+        )
+    }
+}
+
+@Composable
+fun pulseAlpha(): Float {
+    val infiniteTransition = rememberInfiniteTransition(label = "Pulse")
+    return infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(500, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Alpha"
+    ).value
 }
 
 @Composable

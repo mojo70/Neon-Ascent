@@ -444,6 +444,7 @@ fun BiohackingScreen(
     }
 }
 
+@Composable
 fun calculateAge(dob: String): String {
     return try {
         val formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd")

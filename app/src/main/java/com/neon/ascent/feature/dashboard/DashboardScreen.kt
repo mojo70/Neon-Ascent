@@ -385,6 +385,15 @@ fun DashboardScreen(
                 }
             }
 
+            if (state.terminalFeed.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(24.dp))
+                TerminalFeedSection(
+                    feed = state.terminalFeed,
+                    cyan = Color(0xFF00F5FF),
+                    magenta = Color(0xFFFF0088)
+                )
+            }
+
             if (state.todayTasks.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(32.dp))
                 Text(
