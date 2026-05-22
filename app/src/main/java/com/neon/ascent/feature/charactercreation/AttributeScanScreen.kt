@@ -149,8 +149,7 @@ fun AttributeScanScreen(
                         viewModel = viewModel,
                         result = scanResult,
                         onSave = {
-                            viewModel.saveResults()
-                            onComplete()
+                            viewModel.saveResults { onComplete() }
                         }
                     )
                 }

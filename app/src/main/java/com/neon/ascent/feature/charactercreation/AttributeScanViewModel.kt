@@ -76,14 +76,7 @@ class AttributeScanViewModel @Inject constructor(
     }
 
     fun abort(onComplete: () -> Unit) {
-        viewModelScope.launch {
-            calculateResults {
-                viewModelScope.launch {
-                    performSave()
-                    onComplete()
-                }
-            }
-        }
+        onComplete()
     }
 
     private fun findBestMatch(scores: CalculatedScores): String {
@@ -102,15 +95,16 @@ class AttributeScanViewModel @Inject constructor(
         _selectedTemplateId.value = id
     }
 
-    fun saveResults() {
+    fun saveResults(onDone: () -> Unit) {
         viewModelScope.launch {
             performSave()
+            onDone()
         }
     }
 
     private suspend fun performSave() {
         val results = _scanResult.value ?: return
-        val user = userCharacter.value ?: return
+        val user = userCharacter.value ?: characterRepository.getUserCharacter().first() ?: return
         val template = templateRepository.getTemplateById(_selectedTemplateId.value ?: "SOLO")
         
         val updatedUser = user.copy(

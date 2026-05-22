@@ -377,18 +377,20 @@ fun DashboardScreen(
 
             CyberFrame(label = "CORE_SYNC", borderColor = systemColor) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = "BIOMETRIC_INTERFACE_READY", 
-                        color = Color.White.copy(alpha = 0.6f), 
-                        fontSize = 10.sp, 
-                        fontFamily = FontFamily.Monospace,
-                        letterSpacing = 1.sp
-                    )
-                    
-                    CyberActionButton("ATTRIBUTE SCAN", Color(0xFF00FF9C), onClick = { 
-                        triggerGlitch()
-                        onAttributeSetClick() 
-                    })
+                    if (userCharacter?.strength == null) {
+                        Text(
+                            text = "BIOMETRIC_INTERFACE_READY",
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            letterSpacing = 1.sp
+                        )
+
+                        CyberActionButton("ATTRIBUTE SCAN", Color(0xFF00FF9C), onClick = {
+                            triggerGlitch()
+                            onAttributeSetClick()
+                        })
+                    }
                     CyberActionButton("YOUR STORY", Color(0xFFFF006E), onClick = { 
                         triggerGlitch()
                         onStoryClick() 
