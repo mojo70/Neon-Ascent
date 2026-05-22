@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.ui.CyberButtonShape
-import com.neon.ascent.ui.CyberGridBackground
+import com.neon.ascent.core.common.CyberGridBackground
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin

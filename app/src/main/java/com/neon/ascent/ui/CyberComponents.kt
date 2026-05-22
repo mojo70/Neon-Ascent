@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neon.ascent.R
+import com.neon.ascent.core.common.neonBorder
 import com.neon.ascent.model.TrainingTemplate
 import com.neon.ascent.model.UserCharacter
 import kotlin.random.Random

@@ -52,8 +52,7 @@ fun HolographicAvatarHub(
     healthViewModel: HealthViewModel = hiltViewModel(),
     onBack: () -> Unit,
     onUpgradeClick: (String) -> Unit,
-    onNavigateToDiagnostics: () -> Unit,
-    onRunCognitiveTest: () -> Unit = {}
+    onNavigateToDiagnostics: () -> Unit
 ) {
     val userCharacter by viewModel.userCharacter.collectAsState()
     val specialState by terminalViewModel.specialState.collectAsState()
@@ -330,40 +329,28 @@ fun HolographicAvatarHub(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(
-                    onClick = onRunCognitiveTest,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .neonBorder(NeonPink, cornerRadius = 4.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonPink.copy(alpha = 0.1f)),
-                    shape = RoundedCornerShape(4.dp)
-                ) {
-                    Text(
-                        "NEURAL TEST",
-                        color = NeonPink,
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
-                }
-
-                Button(
                     onClick = onNavigateToDiagnostics,
                     modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .neonBorder(Color(0xFF00FFFF), cornerRadius = 4.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FFFF).copy(alpha = 0.1f)),
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .neonBorder(NeonRed, cornerRadius = 4.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonRed.copy(alpha = 0.15f)),
                     shape = RoundedCornerShape(4.dp)
                 ) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = NeonRed,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
                     Text(
-                        "FULL ARCHIVE",
-                        color = Color(0xFF00FFFF),
-                        fontSize = 11.sp,
+                        "SYSTEM DIAGNOSTICS",
+                        color = NeonRed,
+                        fontSize = 14.sp,
                         fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 2.sp
                     )
                 }
             }

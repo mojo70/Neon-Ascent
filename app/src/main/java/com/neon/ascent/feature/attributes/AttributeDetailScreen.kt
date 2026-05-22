@@ -23,6 +23,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.neon.ascent.core.common.PerspectiveGrid
+import com.neon.ascent.core.common.Scanlines
+import com.neon.ascent.core.common.StaticNoise
 import com.neon.ascent.ui.*
 
 @Composable

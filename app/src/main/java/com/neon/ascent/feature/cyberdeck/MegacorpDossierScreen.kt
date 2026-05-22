@@ -26,8 +26,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.core.lore.data.Megacorp
 import com.neon.ascent.ui.CyberFrame
-import com.neon.ascent.ui.PerspectiveGrid
-import com.neon.ascent.ui.cyberGlitch
+import com.neon.ascent.core.common.PerspectiveGrid
+import com.neon.ascent.core.common.cyberGlitch
 import com.neon.ascent.ui.theme.LocalNeonTheme
 
 @Composable

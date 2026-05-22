@@ -21,7 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neon.ascent.core.lore.data.Megacorp
-import com.neon.ascent.ui.neonBorder
+import com.neon.ascent.core.common.neonBorder
 import com.neon.ascent.ui.theme.LocalNeonTheme
 
 @Composable

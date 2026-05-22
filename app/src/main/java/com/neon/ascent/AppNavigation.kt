@@ -55,7 +55,7 @@ import com.neon.ascent.feature.notifications.ui.NotificationPermissionViewModel
 import com.neon.ascent.feature.notifications.ui.NotificationPreferencesScreen
 import com.neon.ascent.feature.wallet.EurodollarWalletScreen
 import com.neon.ascent.core.domain.model.SpecialType
-import com.neon.ascent.ui.cyberGlitch
+import com.neon.ascent.core.common.cyberGlitch
 import com.neon.ascent.util.derivePersonalityArchetype
 
 @Composable
@@ -141,9 +141,6 @@ fun AppNavigation(
                 },
                 onNavigateToDiagnostics = {
                     navController.navigate(Screen.Diagnostics)
-                },
-                onRunCognitiveTest = {
-                    navController.navigate(Screen.CognitiveTest)
                 }
             )
         }

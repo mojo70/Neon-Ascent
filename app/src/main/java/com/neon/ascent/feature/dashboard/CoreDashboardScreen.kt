@@ -44,7 +44,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.model.Saying
 import com.neon.ascent.ui.CyberFrame
-import com.neon.ascent.ui.Scanlines
+import com.neon.ascent.core.common.Scanlines
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.random.Random

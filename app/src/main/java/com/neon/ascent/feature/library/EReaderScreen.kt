@@ -55,8 +55,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.R
 import com.neon.ascent.ui.CyberFrame
-import com.neon.ascent.ui.CyberGridBackground
-import com.neon.ascent.ui.GlitchOverlay
+import com.neon.ascent.core.common.CyberGridBackground
+import com.neon.ascent.core.common.GlitchOverlay
 import com.neon.ascent.feature.biohacking.AiType
 import org.jsoup.Jsoup
 

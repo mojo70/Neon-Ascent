@@ -22,7 +22,7 @@ import androidx.lifecycle.viewModelScope
 import com.neon.ascent.data.repository.UserStoryRepository
 import com.neon.ascent.domain.model.UserStory
 import com.neon.ascent.ui.CyberFrame
-import com.neon.ascent.ui.Scanlines
+import com.neon.ascent.core.common.Scanlines
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
