@@ -45,6 +45,7 @@ import com.neon.ascent.feature.goals.ui.DatabaseCoreScreen
 import com.neon.ascent.feature.goals.ui.ascension.AscensionTerminalScreen
 import com.neon.ascent.feature.goals.ui.ascension.AscensionForgeScreen
 import com.neon.ascent.feature.goals.ui.ascension.AscensionReviewScreen
+import com.neon.ascent.feature.goals.ui.ascension.AscensionTaskDetailScreen
 import com.neon.ascent.feature.story.StoryIntakeScreen
 import com.neon.ascent.feature.loading.LoadingScreen
 import com.neon.ascent.feature.library.EReaderScreen
@@ -130,6 +131,7 @@ fun AppNavigation(
                             navController.navigate(target)
                         },
                         onGoalSetClick = { navController.navigate(Screen.AscensionTerminal) },
+                        onTaskClick = { id -> navController.navigate(Screen.TaskDetail(id)) },
                         onSettingsClick = { navController.navigate(Screen.Settings) },
                         onDeusExMachinaClick = { navController.navigate(Screen.DeepNode("DEUS_EX_MACHINA")) }
                     )
@@ -442,6 +444,14 @@ fun AppNavigation(
             val review = backStackEntry.toRoute<Screen.AscensionReview>()
             AscensionReviewScreen(
                 directiveId = review.directiveId,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable<Screen.TaskDetail> { backStackEntry ->
+            val taskDetail = backStackEntry.toRoute<Screen.TaskDetail>()
+            AscensionTaskDetailScreen(
+                taskId = taskDetail.id,
                 onBack = { navController.popBackStack() }
             )
         }

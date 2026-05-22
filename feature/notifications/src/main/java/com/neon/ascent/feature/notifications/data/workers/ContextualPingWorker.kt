@@ -36,7 +36,7 @@ class ContextualPingWorker @AssistedInject constructor(
         neuralPingManager.sendNeuralPing(
             title = "⚡ NEURAL PING // $title",
             message = message,
-            habitId = taskId
+            taskId = taskId
         )
 
         return Result.success()

@@ -89,4 +89,20 @@ class NeonMentorUseCase @Inject constructor(
                 "Provide actionable steps for the operator."
         return gemmaClient.generateContent(prompt)
     }
+
+    suspend fun getReflection(task: AscensionTask, notes: String?): String {
+        val prompt = "[CYBR-TES // DIALECTIC_REFLECTION] The operator completed '${task.title}'. " +
+                "User Notes: ${notes ?: "None"}. " +
+                "Pose 2-3 short, piercing questions to help them uncover the 'why' behind their performance or resistance."
+        return gemmaClient.generateContent(prompt)
+    }
+
+    suspend fun getTerminalRitualAnalysis(history: List<AscensionTaskCompletion>): String {
+        val prompt = "[CYBR-TES // TERMINAL_RITUAL] Quarterly analysis protocol initiated. " +
+                "Reviewing ${history.size} total completions. " +
+                "Analyze patterns in mood, consistency, and notes. " +
+                "Provide a deep, philosophical synthesis of this period. " +
+                "Recommend 3 new high-level Directives for the next cycle."
+        return gemmaClient.generateContent(prompt)
+    }
 }

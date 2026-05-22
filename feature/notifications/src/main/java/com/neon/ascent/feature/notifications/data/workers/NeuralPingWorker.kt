@@ -28,7 +28,7 @@ class NeuralPingWorker @AssistedInject constructor(
             neuralPingManager.sendNeuralPing(
                 title = "NEURAL PING // ${habit.title.uppercase()}",
                 message = message,
-                habitId = habit.id
+                taskId = habit.id
             )
         }
 

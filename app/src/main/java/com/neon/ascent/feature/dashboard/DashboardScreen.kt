@@ -47,6 +47,7 @@ fun DashboardScreen(
     onAttributeSetClick: () -> Unit,
     onStoryClick: () -> Unit,
     onGoalSetClick: () -> Unit,
+    onTaskClick: (String) -> Unit,
     onSettingsClick: () -> Unit,
     onDeusExMachinaClick: () -> Unit
 ) {
@@ -406,7 +407,8 @@ fun DashboardScreen(
                 state.todayTasks.forEach { task ->
                     DashboardTaskItem(
                         task = task,
-                        onComplete = { viewModel.markTaskCompleted(task.id) }
+                        onComplete = { viewModel.markTaskCompleted(task.id) },
+                        onClick = { onTaskClick(task.id) }
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
@@ -441,7 +443,7 @@ fun DashboardScreen(
 }
 
 @Composable
-fun DashboardTaskItem(task: AscensionTask, onComplete: () -> Unit) {
+fun DashboardTaskItem(task: AscensionTask, onComplete: () -> Unit, onClick: () -> Unit) {
     val isCompleted = task.lastCompleted != null && 
         task.lastCompleted!!.atZone(ZoneId.systemDefault()).toLocalDate() == LocalDate.now()
     Row(
@@ -449,19 +451,24 @@ fun DashboardTaskItem(task: AscensionTask, onComplete: () -> Unit) {
             .fillMaxWidth()
             .background(Color.Black.copy(alpha = 0.4f))
             .border(1.dp, if (isCompleted) Color(0xFF00FF9C).copy(alpha = 0.3f) else Color.White.copy(alpha = 0.1f))
-            .clickable { if (!isCompleted) onComplete() }
+            .clickable { if (!isCompleted) onClick() }
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(18.dp)
-                .border(1.dp, if (isCompleted) Color(0xFF00FF9C) else Color.White.copy(alpha = 0.4f))
-                .background(if (isCompleted) Color(0xFF00FF9C).copy(alpha = 0.2f) else Color.Transparent),
-            contentAlignment = Alignment.Center
+        IconButton(
+            onClick = { if (!isCompleted) onComplete() },
+            modifier = Modifier.size(24.dp)
         ) {
-            if (isCompleted) {
-                Icon(Icons.Default.Favorite, contentDescription = null, tint = Color(0xFF00FF9C), modifier = Modifier.size(12.dp))
+            Box(
+                modifier = Modifier
+                    .size(18.dp)
+                    .border(1.dp, if (isCompleted) Color(0xFF00FF9C) else Color.White.copy(alpha = 0.4f))
+                    .background(if (isCompleted) Color(0xFF00FF9C).copy(alpha = 0.2f) else Color.Transparent),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isCompleted) {
+                    Icon(Icons.Default.Favorite, contentDescription = null, tint = Color(0xFF00FF9C), modifier = Modifier.size(12.dp))
+                }
             }
         }
         Spacer(Modifier.width(12.dp))
