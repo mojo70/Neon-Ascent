@@ -88,13 +88,14 @@ class GarminUplink @Inject constructor(
     }
 
     override suspend fun authenticate() {
-        // Phase 2: Implementation of the WebView SSO / Token Interceptor
-        _status.value = UplinkStatus.Authenticating
-        // ... flow to open webview and capture tokens
-        _status.value = UplinkStatus.Connected
-        
-        // When connected, we can also try to start BLE sync if enabled
-        startBLESync()
+        // Auth is handled via WebView in the UI layer (GarminLoginScreen)
+        // This method can be used to re-validate or refresh if needed.
+        if (authManager.hasValidSession()) {
+            _status.value = UplinkStatus.Connected
+            startBLESync()
+        } else {
+            _status.value = UplinkStatus.Disconnected
+        }
     }
 
     override suspend fun disconnect() {

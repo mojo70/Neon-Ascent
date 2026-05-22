@@ -19,7 +19,7 @@ Neon-Ascent is a **daily driver life OS** wrapped in cyberpunk aesthetics. Real-
 - Mature S.P.E.C.I.A.L. system (Room persistence, CognitiveTestEngine skeleton, grounded benchmarks)
 - Rich holographic avatar with reactive particle system, level-up bursts, sound + haptic feedback
 - Diagnostics / history screens (integrated, no longer duplicative)
-- **Neural Uplink Phase 2**: Garmin Cloud API integration for Body Battery, Sleep Score, and Stress implemented (logic layer complete).
+- **Neural Uplink Phase 2**: Garmin Cloud API integration for Body Battery, Sleep Score, and Stress implemented. Secure WebView SSO Interceptor completed for password-less authentication.
 - **Neural Memory Palace**: Local-first verbatim memory system (Wings/Rooms architecture) implemented for long-term AI context.
 - **Neural Uplink Phase 1**: Multi-provider biometric architecture with BLE Heart Rate (1Hz) support and encrypted token storage.
 - **Unified AI Persona (CYBR-TES)**: "Cyber Socrates" persona integrated across Dashboard advice, Cyberdeck, and Mission Forge.
@@ -34,7 +34,6 @@ Neon-Ascent is a **daily driver life OS** wrapped in cyberpunk aesthetics. Real-
 - Database Core foundation in place
 
 ### In Progress
-- **Neural Uplink Phase 2b**: WebView SSO / Token Interceptor for secure Garmin authentication.
 - Biohacking module: Transitioning from static tracking to AI-driven protocol coaching.
 - Full integration of Aspirations + Missions into existing Database Core
 - Neural Scan integration with Avatar level-up and archetype-specific mission seeding.

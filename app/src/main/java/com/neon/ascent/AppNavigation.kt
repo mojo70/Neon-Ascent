@@ -53,6 +53,8 @@ import com.neon.ascent.feature.library.EReaderScreen
 import com.neon.ascent.feature.settings.DeepNodeScreen
 import com.neon.ascent.feature.settings.SettingsScreen
 import com.neon.ascent.feature.health.ui.HealthPreferencesScreen
+import com.neon.ascent.feature.health.ui.GarminLoginScreen
+import com.neon.ascent.feature.health.data.remote.GarminAuthManager
 import com.neon.ascent.feature.terminal.ui.AttributeHistoryScreen
 import com.neon.ascent.feature.terminal.ui.DiagnosticsScreen
 import com.neon.ascent.feature.terminal.ui.CognitiveTestScreen
@@ -383,7 +385,18 @@ fun AppNavigation(
         }
 
         composable<Screen.HealthPreferences> {
-            HealthPreferencesScreen()
+            HealthPreferencesScreen(
+                onNavigateToGarminLogin = { navController.navigate(Screen.GarminLogin) }
+            )
+        }
+
+        composable<Screen.GarminLogin> {
+            val healthViewModel: com.neon.ascent.feature.health.ui.HealthViewModel = hiltViewModel()
+            GarminLoginScreen(
+                authManager = healthViewModel.garminAuthManager,
+                onSuccess = { navController.popBackStack() },
+                onBack = { navController.popBackStack() }
+            )
         }
 
         composable<Screen.AttributeHistory> { backStackEntry ->

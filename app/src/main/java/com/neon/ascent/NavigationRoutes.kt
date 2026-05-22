@@ -101,6 +101,9 @@ sealed interface Screen {
     data object HealthPreferences : Screen
 
     @Serializable
+    data object GarminLogin : Screen
+
+    @Serializable
     data class AttributeHistory(val attributeType: String) : Screen
 
     @Serializable

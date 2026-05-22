@@ -21,13 +21,15 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun HealthPreferencesScreen(
-    viewModel: HealthViewModel = hiltViewModel()
+    viewModel: HealthViewModel = hiltViewModel(),
+    onNavigateToGarminLogin: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsState()
     val autoSync by viewModel.autoSyncEnabled.collectAsState()
     val syncInterval by viewModel.syncIntervalHours.collectAsState()
     val enabledAttributes by viewModel.enabledAttributes.collectAsState()
     val showNotifications by viewModel.showSyncNotification.collectAsState()
+    val activeUplinks by viewModel.activeUplinks.collectAsState()
     val scope = rememberCoroutineScope()
 
     val permissionsLauncher = rememberLauncherForActivityResult(
@@ -74,6 +76,59 @@ fun HealthPreferencesScreen(
             color = Color.White.copy(alpha = 0.6f),
             fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
         )
+
+        // Neural Uplinks Section
+        Text(
+            text = "ACTIVE_UPLINKS",
+            color = NeonCyan,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp,
+            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+        )
+
+        activeUplinks.forEach { uplink ->
+            val status by uplink.status.collectAsState()
+            PreferenceCard {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(uplink.provider.name, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = when(status) {
+                                is com.neon.ascent.feature.health.domain.uplink.UplinkStatus.Connected -> "LINK_ESTABLISHED"
+                                is com.neon.ascent.feature.health.domain.uplink.UplinkStatus.Disconnected -> "LINK_OFFLINE"
+                                is com.neon.ascent.feature.health.domain.uplink.UplinkStatus.Syncing -> "DATA_MINING_IN_PROGRESS"
+                                is com.neon.ascent.feature.health.domain.uplink.UplinkStatus.Error -> "PROTOCOL_FAILURE"
+                                else -> "INITIALIZING..."
+                            },
+                            color = when(status) {
+                                is com.neon.ascent.feature.health.domain.uplink.UplinkStatus.Connected -> NeonGreen
+                                is com.neon.ascent.feature.health.domain.uplink.UplinkStatus.Error -> NeonRed
+                                else -> Color.White.copy(alpha = 0.6f)
+                            },
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                    
+                    if (uplink.provider == com.neon.ascent.feature.health.domain.uplink.UplinkProvider.GARMIN) {
+                        Button(
+                            onClick = onNavigateToGarminLogin,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (status is com.neon.ascent.feature.health.domain.uplink.UplinkStatus.Connected) Color.DarkGray else NeonCyan
+                            )
+                        ) {
+                            Text(
+                                if (status is com.neon.ascent.feature.health.domain.uplink.UplinkStatus.Connected) "RE_SYNC" else "JACK_IN",
+                                color = if (status is com.neon.ascent.feature.health.domain.uplink.UplinkStatus.Connected) Color.White else Color.Black,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
 
         // Auto Sync Toggle
         PreferenceCard {

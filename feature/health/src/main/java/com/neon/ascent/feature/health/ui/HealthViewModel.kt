@@ -26,7 +26,8 @@ class HealthViewModel @Inject constructor(
     val healthManager: HealthConnectManager,
     private val healthSyncUseCase: HealthSyncUseCase,
     private val healthPrefs: HealthPreferencesDataStore,
-    private val uplinkManager: NeuralUplinkManager
+    private val uplinkManager: NeuralUplinkManager,
+    val garminAuthManager: com.neon.ascent.feature.health.data.remote.GarminAuthManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HealthUiState())
@@ -34,6 +35,8 @@ class HealthViewModel @Inject constructor(
 
     val liveMetrics: StateFlow<LiveBiometrics?> = uplinkManager.combinedLiveMetrics
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
+
+    val activeUplinks = uplinkManager.activeUplinks
 
     // Backward compatibility for existing screen
     val hasPermissions: StateFlow<Boolean> = _uiState
