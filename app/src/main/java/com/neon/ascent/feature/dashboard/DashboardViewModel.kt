@@ -403,6 +403,15 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
+    fun refreshHealthData() {
+        viewModelScope.launch {
+            val deep = uplinkManager.fetchAllDeepMetrics()
+            
+            // Mine into Memory Palace
+            memoryPalaceManager.mineBiometrics(deep)
+        }
+    }
+
     fun updateTerminalInput(text: String) {
         _uiState.update { it.copy(terminalInput = text) }
     }

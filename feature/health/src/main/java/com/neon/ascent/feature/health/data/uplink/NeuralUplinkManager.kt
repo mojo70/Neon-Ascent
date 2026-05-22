@@ -69,7 +69,9 @@ class NeuralUplinkManager @Inject constructor(
         val hcDeep = healthConnectUplink.fetchDeepMetrics()
 
         // Merge logic: Garmin provides Body Battery/Stress, HC provides Steps/VO2Max
-        return DeepBiometrics(
+        val merged = DeepBiometrics(
+            stepsToday = hcDeep.stepsToday ?: garminDeep?.stepsToday,
+            caloriesToday = hcDeep.caloriesToday ?: garminDeep?.caloriesToday,
             sleepScore = garminDeep?.sleepScore ?: hcDeep.sleepScore,
             bodyBattery = garminDeep?.bodyBattery,
             stressLevel = garminDeep?.stressLevel,
@@ -78,5 +80,8 @@ class NeuralUplinkManager @Inject constructor(
             vo2Max = hcDeep.vo2Max ?: garminDeep?.vo2Max,
             lastSyncTimestamp = System.currentTimeMillis()
         )
+        
+        _combinedDeepMetrics.value = merged
+        return merged
     }
 }

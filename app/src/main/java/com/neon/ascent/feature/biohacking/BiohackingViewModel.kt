@@ -8,6 +8,8 @@ import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.UserCharacterDao
 import com.neon.ascent.data.repository.*
 import com.neon.ascent.model.*
+import com.neon.ascent.data.local.NeuralMemoryDao
+import com.neon.ascent.data.local.entity.NeuralMemory
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
@@ -32,6 +34,7 @@ class BiohackingViewModel @Inject constructor(
     private val goalRepository: GoalRepository,
     private val aiProvider: AiProvider,
     private val bioAgeRepository: BioAgeRepository,
+    private val neuralMemoryDao: com.neon.ascent.data.local.NeuralMemoryDao,
     val modelDownloadManager: ModelDownloadManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -50,6 +53,9 @@ class BiohackingViewModel @Inject constructor(
 
     private val _latestReport = MutableStateFlow<String?>(null)
     val latestReport: StateFlow<String?> = _latestReport.asStateFlow()
+
+    val neuralInsights: StateFlow<List<NeuralMemory>> = neuralMemoryDao.getMemoriesByWing("INSIGHTS")
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val activeAiType: StateFlow<AiType> = aiProvider.activeAiType
 

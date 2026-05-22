@@ -56,6 +56,7 @@ fun BiohackingScreen(
     val downloadProgress by viewModel.modelDownloadManager.downloadProgress.collectAsState()
     val isDownloading by viewModel.modelDownloadManager.isDownloading.collectAsState()
     val measurementUnit by viewModel.measurementUnit.collectAsState()
+    val neuralInsights by viewModel.neuralInsights.collectAsState()
 
     val displayChar = characterState ?: UserCharacter(
         name = "PROTAGONIST", sex = "NON_BINARY", dob = "2077.01.01", units = measurementUnit, weight = "75", somatotype = 0.5f
@@ -345,6 +346,33 @@ fun BiohackingScreen(
                 enabled = isLocalAiAvailable || !uiState.enableOnDeviceNeuralCore,
                 onClick = { viewModel.initiateLocalScan(selectedSector) }
             )
+
+            // Neural Insights from Memory Palace
+            if (neuralInsights.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(32.dp))
+                CyberFrame(label = "NEURAL_INSIGHTS // MEMORY_PALACE", borderColor = neonCyan) {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        neuralInsights.take(3).forEach { insight ->
+                            Text(
+                                text = insight.content,
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                            )
+                            Text(
+                                text = "LOGGED: ${java.time.Instant.ofEpochMilli(insight.timestamp).toString()}",
+                                color = neonCyan.copy(alpha = 0.5f),
+                                fontSize = 8.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            if (insight != neuralInsights.take(3).last()) {
+                                HorizontalDivider(color = neonCyan.copy(alpha = 0.2f))
+                            }
+                        }
+                    }
+                }
+            }
 
             // Dynamic Report Section
             if (showReport) {

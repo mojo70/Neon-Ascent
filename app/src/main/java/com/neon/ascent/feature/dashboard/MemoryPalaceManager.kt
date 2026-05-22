@@ -2,12 +2,17 @@ package com.neon.ascent.feature.dashboard
 
 import com.neon.ascent.data.local.NeuralMemoryDao
 import com.neon.ascent.data.local.entity.NeuralMemory
+import com.neon.ascent.feature.health.domain.uplink.DeepBiometrics
+import com.neon.ascent.feature.biohacking.AiProvider
+import com.neon.ascent.core.ai.AiPersona
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class MemoryPalaceManager @Inject constructor(
-    private val neuralMemoryDao: NeuralMemoryDao
+    private val neuralMemoryDao: NeuralMemoryDao,
+    private val aiProvider: AiProvider
 ) {
     /**
      * Store a verbatim piece of data into a specific wing and room.
@@ -24,9 +29,46 @@ class MemoryPalaceManager @Inject constructor(
             room = room,
             content = content,
             importance = importance,
+            timestamp = System.currentTimeMillis(),
             metadata = metadata
         )
         neuralMemoryDao.insertMemory(memory)
+    }
+
+    /**
+     * Mines current biometric state into the Palace and generates a Socratic Insight.
+     */
+    suspend fun mineBiometrics(metrics: DeepBiometrics) {
+        val rawContent = """
+            BODY_BATTERY: ${metrics.bodyBattery ?: "N/A"}
+            SLEEP_SCORE: ${metrics.sleepScore ?: "N/A"}
+            STRESS_LEVEL: ${metrics.stressLevel ?: "N/A"}
+            VO2_MAX: ${metrics.vo2Max ?: "N/A"}
+        """.trimIndent()
+
+        // 1. Store Raw Metrics
+        storeMemory(
+            wing = "HEALTH",
+            room = "BIOMETRIC_RAW",
+            content = rawContent,
+            importance = 0.4f
+        )
+
+        // 2. Generate Insight
+        val context = "CURRENT_BIOMETRICS:\n$rawContent"
+        val prompt = AiPersona.getSocratesPrompt(context) + 
+            "\nTask: Provide a deep, piercing biohacking insight based on these numbers. " +
+            "How does the physical state impact the operative's ghost? Max 40 words."
+        
+        val insight = aiProvider.generateContent(prompt)
+        
+        // 3. Store Insight
+        storeMemory(
+            wing = "INSIGHTS",
+            room = "BIOMETRIC_ANALYSIS",
+            content = insight,
+            importance = 0.8f
+        )
     }
 
     /**
