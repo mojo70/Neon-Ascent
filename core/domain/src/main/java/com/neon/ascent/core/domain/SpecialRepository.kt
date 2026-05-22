@@ -10,6 +10,7 @@ interface SpecialRepository {
     fun getSpecialAttribute(type: SpecialType): Flow<SpecialAttribute?>
     fun getAllSpecialAttributes(): Flow<List<SpecialAttribute>>
     suspend fun saveBenchmark(test: BenchmarkTest)
+    suspend fun deleteBenchmarkHistory(attribute: SpecialType)
     fun getBenchmarkHistory(attribute: SpecialType): Flow<List<BenchmarkTest>>
 }
 

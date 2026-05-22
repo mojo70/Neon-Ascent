@@ -479,6 +479,58 @@ fun ResultsStep(
     result: CalculatedScores?,
     onSave: () -> Unit
 ) {
+    val isUpdateMode by viewModel.isUpdateMode.collectAsState()
+    var showDialog by remember { mutableStateOf(false) }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            containerColor = Color(0xFF0F001A),
+            title = {
+                Text(
+                    "CALIBRATION_PROTOCOL",
+                    color = NeonCyan,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    "Choose how to integrate new biometric data points into your neural profile.",
+                    color = Color.White.copy(alpha = 0.8f),
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 12.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.setUpdateMode(true)
+                        showDialog = false
+                        onSave()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonGreen.copy(alpha = 0.2f)),
+                    border = BorderStroke(1.dp, NeonGreen)
+                ) {
+                    Text("APPEND_DATA_POINT", color = NeonGreen, fontSize = 10.sp)
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = {
+                        viewModel.setUpdateMode(false)
+                        showDialog = false
+                        onSave()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.2f)),
+                    border = BorderStroke(1.dp, Color.Red)
+                ) {
+                    Text("REPLACE_PREVIOUS", color = Color.Red, fontSize = 10.sp)
+                }
+            }
+        )
+    }
+
     if (result == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -575,7 +627,18 @@ fun ResultsStep(
             }
         }
         
-        CyberActionButton("FINALIZE_AND_UPLOAD", Color(0xFF00FF9C), onClick = onSave)
+        CyberActionButton(
+            label = "FINALIZE_AND_UPLOAD",
+            color = Color(0xFF00FF9C),
+            onClick = {
+                val user = viewModel.userCharacter.value
+                if (user?.strength != null) {
+                    showDialog = true
+                } else {
+                    onSave()
+                }
+            }
+        )
         Spacer(modifier = Modifier.height(32.dp))
     }
 }

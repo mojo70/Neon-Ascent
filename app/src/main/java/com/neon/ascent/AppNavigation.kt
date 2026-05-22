@@ -393,6 +393,9 @@ fun AppNavigation(
                 },
                 onRunDiagnostic = {
                     navController.navigate(Screen.CognitiveTest)
+                },
+                onReCalibrateAttributes = {
+                    navController.navigate(Screen.AttributeScan)
                 }
             )
         }

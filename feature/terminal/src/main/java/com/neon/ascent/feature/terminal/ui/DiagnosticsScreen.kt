@@ -37,6 +37,7 @@ import java.time.format.DateTimeFormatter
 fun DiagnosticsScreen(
     onNavigateToHistory: (SpecialType) -> Unit,
     onRunDiagnostic: () -> Unit,
+    onReCalibrateAttributes: () -> Unit,
     viewModel: DiagnosticsViewModel = hiltViewModel(),
     healthViewModel: HealthViewModel = hiltViewModel()
 ) {
@@ -137,6 +138,24 @@ fun DiagnosticsScreen(
                         Text(
                             "RUN ADAPTIVE INTELLIGENCE TEST",
                             color = NeonCyan,
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Black
+                            )
+                        )
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
+                    OutlinedButton(
+                        onClick = onReCalibrateAttributes,
+                        modifier = Modifier.fillMaxWidth(),
+                        border = BorderStroke(1.dp, NeonGreen),
+                        shape = RoundedCornerShape(2.dp)
+                    ) {
+                        Text(
+                            "ATTRIBUTE RE-CALIBRATE",
+                            color = NeonGreen,
                             style = MaterialTheme.typography.labelLarge.copy(
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Black

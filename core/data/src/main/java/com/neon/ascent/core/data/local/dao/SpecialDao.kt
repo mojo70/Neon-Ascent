@@ -24,6 +24,9 @@ interface SpecialDao {
     @Query("SELECT * FROM benchmark_tests WHERE attribute = :attribute ORDER BY timestamp DESC")
     fun getBenchmarkHistory(attribute: String): Flow<List<BenchmarkTestEntity>>
 
+    @Query("DELETE FROM benchmark_tests WHERE attribute = :attribute")
+    suspend fun deleteBenchmarkHistory(attribute: String)
+
     @Query("DELETE FROM benchmark_tests WHERE timestamp < :olderThan")
     suspend fun deleteOldBenchmarks(olderThan: Instant)
 }

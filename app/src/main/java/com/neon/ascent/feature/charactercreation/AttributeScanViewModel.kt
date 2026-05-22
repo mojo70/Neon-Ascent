@@ -2,6 +2,13 @@ package com.neon.ascent.feature.charactercreation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.neon.ascent.core.domain.SpecialRepository
+import com.neon.ascent.core.domain.model.BenchmarkTest
+import com.neon.ascent.core.domain.model.DataSource
+import com.neon.ascent.core.domain.model.SpecialAttribute
+import com.neon.ascent.core.domain.model.TestType
+import java.util.UUID
+import java.time.Instant
 import com.neon.ascent.data.repository.CharacterRepository
 import com.neon.ascent.data.repository.TemplateRepository
 import com.neon.ascent.model.UserCharacter
@@ -17,7 +24,8 @@ import kotlin.math.abs
 @HiltViewModel
 class AttributeScanViewModel @Inject constructor(
     private val characterRepository: CharacterRepository,
-    private val templateRepository: TemplateRepository
+    private val templateRepository: TemplateRepository,
+    private val specialRepository: SpecialRepository
 ) : ViewModel() {
 
     private val _currentStep = MutableStateFlow(0)
@@ -34,6 +42,9 @@ class AttributeScanViewModel @Inject constructor(
 
     private val _selectedTemplateId = MutableStateFlow<String?>(null)
     val selectedTemplateId = _selectedTemplateId.asStateFlow()
+
+    private val _isUpdateMode = MutableStateFlow(false)
+    val isUpdateMode = _isUpdateMode.asStateFlow()
 
     val templates = templateRepository.getTemplates()
 
@@ -102,6 +113,10 @@ class AttributeScanViewModel @Inject constructor(
         }
     }
 
+    fun setUpdateMode(isUpdate: Boolean) {
+        _isUpdateMode.value = isUpdate
+    }
+
     private suspend fun performSave() {
         val results = _scanResult.value ?: return
         val user = userCharacter.value ?: characterRepository.getUserCharacter().first() ?: return
@@ -118,5 +133,60 @@ class AttributeScanViewModel @Inject constructor(
             luck = results.luck
         )
         characterRepository.saveCharacter(updatedUser)
+
+        // Grounding in history for progression graph
+        val specialTypes = listOf(
+            com.neon.ascent.core.domain.model.SpecialType.STRENGTH to results.strength,
+            com.neon.ascent.core.domain.model.SpecialType.ENDURANCE to results.endurance,
+            com.neon.ascent.core.domain.model.SpecialType.AGILITY to results.agility,
+            com.neon.ascent.core.domain.model.SpecialType.PERCEPTION to results.perception,
+            com.neon.ascent.core.domain.model.SpecialType.INTELLIGENCE to results.intelligence,
+            com.neon.ascent.core.domain.model.SpecialType.CHARISMA to results.charisma,
+            com.neon.ascent.core.domain.model.SpecialType.LUCK to results.luck
+        )
+
+        val percentileMap = mapOf(
+            com.neon.ascent.core.domain.model.SpecialType.STRENGTH to (results.strengthPercentile * 100).toInt(),
+            com.neon.ascent.core.domain.model.SpecialType.ENDURANCE to (results.endurancePercentile * 100).toInt(),
+            com.neon.ascent.core.domain.model.SpecialType.AGILITY to (results.agilityPercentile * 100).toInt(),
+            com.neon.ascent.core.domain.model.SpecialType.PERCEPTION to (results.perceptionPercentile * 100).toInt(),
+            com.neon.ascent.core.domain.model.SpecialType.INTELLIGENCE to (results.intelligencePercentile * 100).toInt(),
+            com.neon.ascent.core.domain.model.SpecialType.CHARISMA to (results.charismaPercentile * 100).toInt(),
+            com.neon.ascent.core.domain.model.SpecialType.LUCK to (results.luckPercentile * 100).toInt()
+        )
+
+        val updateMode = _isUpdateMode.value
+
+        specialTypes.forEach { (type, score) ->
+            val percentile = percentileMap[type] ?: 50
+            if (!updateMode) {
+                specialRepository.deleteBenchmarkHistory(type)
+            }
+            saveSpecialBenchmark(type, score.toDouble(), percentile)
+        }
+    }
+
+    private suspend fun saveSpecialBenchmark(type: com.neon.ascent.core.domain.model.SpecialType, score: Double, percentile: Int) {
+        val test = BenchmarkTest(
+            id = UUID.randomUUID().toString(),
+            attribute = type,
+            testType = TestType.PHYSICAL_SELF_REPORT,
+            rawScore = score,
+            normalizedScore = score / 10.0,
+            percentile = percentile,
+            timestamp = Instant.now(),
+            source = DataSource.INTAKE
+        )
+        specialRepository.saveBenchmark(test)
+        
+        // Update the current attribute state
+        val currentAttr = specialRepository.getSpecialAttribute(type).first()
+        if (currentAttr != null) {
+            specialRepository.updateSpecialAttribute(currentAttr.copy(
+                currentValue = score.toInt(),
+                percentile = percentile,
+                lastUpdated = Instant.now()
+            ))
+        }
     }
 }

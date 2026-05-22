@@ -60,6 +60,10 @@ class SpecialRepositoryImpl @Inject constructor(
         dao.insertBenchmark(test.toEntity())
     }
 
+    override suspend fun deleteBenchmarkHistory(attribute: SpecialType) {
+        dao.deleteBenchmarkHistory(attribute.name)
+    }
+
     override fun getBenchmarkHistory(attribute: SpecialType): Flow<List<BenchmarkTest>> {
         return dao.getBenchmarkHistory(attribute.name).map { entities ->
             entities.map { it.toDomain() }
