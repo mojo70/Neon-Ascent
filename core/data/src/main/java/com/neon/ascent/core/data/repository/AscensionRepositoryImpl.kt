@@ -2,6 +2,7 @@ package com.neon.ascent.core.data.repository
 
 import com.neon.ascent.core.data.local.dao.AscensionDao
 import com.neon.ascent.core.data.local.entity.AscensionTaskCompletionEntity
+import com.neon.ascent.core.data.local.entity.NeuralLogEntity
 import com.neon.ascent.core.data.mapper.*
 import com.neon.ascent.core.domain.goals.models.*
 import com.neon.ascent.core.domain.repository.AscensionRepository
@@ -22,6 +23,9 @@ class AscensionRepositoryImpl @Inject constructor(
 
     override suspend fun updateDirective(directive: AscensionDirective) =
         dao.updateDirective(directive.toEntity())
+
+    override suspend fun updateDirectiveNotes(id: String, notes: String) =
+        dao.updateDirectiveNotes(id, notes)
 
     override suspend fun deleteDirective(id: String) =
         dao.deleteDirective(id)
@@ -96,4 +100,16 @@ class AscensionRepositoryImpl @Inject constructor(
 
     override fun getCompletionsInRange(startTime: Instant): Flow<List<AscensionTaskCompletion>> =
         dao.getCompletionsInRange(startTime).map { list -> list.map { it.toDomain() } }
+
+    override suspend fun insertNeuralLog(title: String, content: String, type: String) {
+        dao.insertNeuralLog(NeuralLogEntity(
+            timestamp = Instant.now(),
+            type = type,
+            title = title,
+            content = content
+        ))
+    }
+
+    override fun getAllNeuralLogs(): Flow<List<NeuralLog>> =
+        dao.getAllNeuralLogs().map { list -> list.map { it.toDomain() } }
 }

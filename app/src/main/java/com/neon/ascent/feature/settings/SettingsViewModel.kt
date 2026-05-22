@@ -9,6 +9,7 @@ import com.neon.ascent.data.repository.HealthRepository
 import com.neon.ascent.data.repository.JournalRepository
 import com.neon.ascent.data.repository.SettingsRepository
 import com.neon.ascent.data.repository.UserPreferencesRepository
+import com.neon.ascent.feature.goals.domain.usecases.ExportNeuralLogUseCase
 import com.neon.ascent.model.DailyPrayer
 import com.neon.ascent.model.JournalEntry
 import com.neon.ascent.model.UserCharacter
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -31,7 +33,8 @@ class SettingsViewModel @Inject constructor(
     private val userPreferencesRepository: UserPreferencesRepository,
     private val dailyPrayerDao: DailyPrayerDao,
     private val journalRepository: JournalRepository,
-    private val healthRepository: HealthRepository
+    private val healthRepository: HealthRepository,
+    private val exportNeuralLogUseCase: ExportNeuralLogUseCase
 ) : ViewModel() {
 
     private val _prayerToast = MutableStateFlow<String?>(null)
@@ -42,6 +45,9 @@ class SettingsViewModel @Inject constructor(
 
     private val _isHealthConnectGranted = MutableStateFlow(false)
     val isHealthConnectGranted = _isHealthConnectGranted.asStateFlow()
+
+    private val _exportEvent = kotlinx.coroutines.flow.MutableSharedFlow<String>()
+    val exportEvent = _exportEvent.asSharedFlow()
 
     init {
         seedPrayersIfEmpty()
@@ -617,6 +623,13 @@ class SettingsViewModel @Inject constructor(
     fun setMeasurementUnit(unit: String) {
         viewModelScope.launch {
             userPreferencesRepository.updateMeasurementUnit(unit)
+        }
+    }
+
+    fun exportNeuralLog() {
+        viewModelScope.launch {
+            val logContent = exportNeuralLogUseCase()
+            _exportEvent.emit(logContent)
         }
     }
 

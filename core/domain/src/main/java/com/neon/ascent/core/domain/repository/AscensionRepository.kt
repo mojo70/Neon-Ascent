@@ -7,6 +7,7 @@ interface AscensionRepository {
     fun getAllDirectives(): Flow<List<AscensionDirective>>
     suspend fun insertDirective(directive: AscensionDirective)
     suspend fun updateDirective(directive: AscensionDirective)
+    suspend fun updateDirectiveNotes(id: String, notes: String)
     suspend fun deleteDirective(id: String)
 
     fun getMissionsForDirective(directiveId: String): Flow<List<AscensionMission>>
@@ -23,4 +24,7 @@ interface AscensionRepository {
     suspend fun completeTask(task: AscensionTask, notes: String?, mood: Int?, linkedHealthSnapshot: String?)
     fun getCompletionsForTask(taskId: String): Flow<List<AscensionTaskCompletion>>
     fun getCompletionsInRange(startTime: java.time.Instant): Flow<List<AscensionTaskCompletion>>
+
+    suspend fun insertNeuralLog(title: String, content: String, type: String)
+    fun getAllNeuralLogs(): Flow<List<NeuralLog>>
 }

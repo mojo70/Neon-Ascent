@@ -109,3 +109,12 @@ fun AscensionTaskCompletionEntity.toDomain() = AscensionTaskCompletion(
     mood = mood,
     linkedHealthSnapshot = linkedHealthSnapshot
 )
+
+fun NeuralLogEntity.toDomain() = NeuralLog(
+    id = id,
+    timestamp = timestamp,
+    type = type,
+    title = title,
+    content = content,
+    metadata = metadata
+)

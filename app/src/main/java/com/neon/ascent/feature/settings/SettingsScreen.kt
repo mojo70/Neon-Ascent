@@ -104,6 +104,18 @@ fun SettingsScreen(
     // Secret screen states
     var buildHashClickCount by remember { mutableStateOf(0) }
     var showPasswordDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        viewModel.exportEvent.collect { logContent ->
+            val sendIntent = android.content.Intent().apply {
+                action = android.content.Intent.ACTION_SEND
+                putExtra(android.content.Intent.EXTRA_TEXT, logContent)
+                type = "text/markdown"
+            }
+            val shareIntent = android.content.Intent.createChooser(sendIntent, "EXPORT NEURAL LOG")
+            context.startActivity(shareIntent)
+        }
+    }
     
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0A0A0A))) {
         MatrixRainBackground()
@@ -315,15 +327,15 @@ fun SettingsScreen(
 
             CyberFrame(label = "SECURITY & LOGS") {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    SettingsItem("DATA EXPORT [.LOG]", onClick = {
+                    SettingsItem("EXPORT_NEURAL_LOG [.MD]", onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        val action = { /* Export logs */ }
+                        val action = { viewModel.exportNeuralLog() }
                         if (biometricLockEnabled) {
                             if (biometricAuthManager.canAuthenticate()) {
                                 biometricAuthManager.authenticate(
                                     context as FragmentActivity,
-                                    "EXPORT LOGS",
-                                    "Confirm biometric signature to export system logs",
+                                    "EXPORT NEURAL LOG",
+                                    "Confirm biometric signature to export your journey archive",
                                     onSuccess = action,
                                     onError = { 
                                         pinAction = action

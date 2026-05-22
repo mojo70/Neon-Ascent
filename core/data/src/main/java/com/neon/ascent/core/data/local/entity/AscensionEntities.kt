@@ -95,3 +95,16 @@ data class AscensionTaskCompletionEntity(
     val mood: Int?,
     val linkedHealthSnapshot: String?
 )
+
+@Entity(
+    tableName = "neural_logs",
+    indices = [Index("type")]
+)
+data class NeuralLogEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val timestamp: Instant,
+    val type: String, // RITUAL_SYNTHESIS, SYSTEM_ALERT, etc.
+    val title: String,
+    val content: String,
+    val metadata: String? = null
+)

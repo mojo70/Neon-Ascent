@@ -49,6 +49,9 @@ interface AscensionDao {
     @Query("DELETE FROM ascension_tasks WHERE id = :id")
     suspend fun deleteTask(id: String)
 
+    @Query("UPDATE ascension_directives SET notes = :notes WHERE id = :id")
+    suspend fun updateDirectiveNotes(id: String, notes: String)
+
     // Completions
     @Insert
     suspend fun insertCompletion(completion: AscensionTaskCompletionEntity)
@@ -64,4 +67,11 @@ interface AscensionDao {
         insertCompletion(completion)
         updateTask(task)
     }
+
+    // Neural Logs
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertNeuralLog(log: NeuralLogEntity)
+
+    @Query("SELECT * FROM neural_logs ORDER BY timestamp DESC")
+    fun getAllNeuralLogs(): Flow<List<NeuralLogEntity>>
 }

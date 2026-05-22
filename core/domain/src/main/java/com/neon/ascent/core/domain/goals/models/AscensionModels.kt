@@ -71,3 +71,12 @@ data class AscensionTaskCompletion(
     val mood: Int? = null, // 1-5
     val linkedHealthSnapshot: String? = null // ID or JSON of health data
 )
+
+data class NeuralLog(
+    val id: Long = 0,
+    val timestamp: Instant,
+    val type: String,
+    val title: String,
+    val content: String,
+    val metadata: String? = null
+)

@@ -18,9 +18,10 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_3_4
         AscensionDirectiveEntity::class,
         AscensionMissionEntity::class,
         AscensionTaskEntity::class,
-        AscensionTaskCompletionEntity::class
+        AscensionTaskCompletionEntity::class,
+        NeuralLogEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = true
 )
 @TypeConverters(

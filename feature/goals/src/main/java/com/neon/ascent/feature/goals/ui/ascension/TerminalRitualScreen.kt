@@ -31,7 +31,20 @@ fun TerminalRitualScreen(
     onBack: () -> Unit,
     viewModel: TerminalRitualViewModel = hiltViewModel()
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.exportEvent.collect { logContent ->
+            val sendIntent = android.content.Intent().apply {
+                action = android.content.Intent.ACTION_SEND
+                putExtra(android.content.Intent.EXTRA_TEXT, logContent)
+                type = "text/markdown"
+            }
+            val shareIntent = android.content.Intent.createChooser(sendIntent, "EXPORT NEURAL LOG")
+            context.startActivity(shareIntent)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -95,7 +108,7 @@ fun TerminalRitualScreen(
             Spacer(Modifier.height(32.dp))
             
             Button(
-                onClick = { /* TODO: Export log */ },
+                onClick = { viewModel.exportNeuralLog() },
                 modifier = Modifier.fillMaxWidth().height(48.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                 border = androidx.compose.foundation.BorderStroke(1.dp, NeonCyan)
