@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navDeepLink
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.neon.ascent.feature.biohacking.BiohackingScreen
@@ -457,21 +458,50 @@ fun AppNavigation(
             )
         }
 
-        composable<Screen.DirectiveDetail> { backStackEntry ->
+        composable<Screen.DirectiveDetail>(
+            deepLinks = listOf(
+                navDeepLink {
+                    uriPattern = "neon-ascent://directive/{id}"
+                }
+            )
+        ) { backStackEntry ->
             val directiveDetail = backStackEntry.toRoute<Screen.DirectiveDetail>()
             AscensionDirectiveDetailScreen(
                 directiveId = directiveDetail.id,
-                onBack = { navController.popBackStack() },
+                onBack = {
+                    if (navController.previousBackStackEntry != null) {
+                        navController.popBackStack()
+                    } else {
+                        navController.navigate(Screen.MainHub) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                },
                 onMissionClick = { id -> navController.navigate(Screen.AscensionMissionDetail(id)) }
             )
         }
 
-        composable<Screen.AscensionMissionDetail> { backStackEntry ->
+        composable<Screen.AscensionMissionDetail>(
+            deepLinks = listOf(
+                navDeepLink {
+                    uriPattern = "neon-ascent://mission/{id}"
+                }
+            )
+        ) { backStackEntry ->
             val missionDetail = backStackEntry.toRoute<Screen.AscensionMissionDetail>()
             AscensionMissionDetailScreen(
                 missionId = missionDetail.id,
-                onBack = { navController.popBackStack() },
-                onTaskClick = { id -> navController.navigate(Screen.TaskDetail(id)) }
+                onBack = {
+                    if (navController.previousBackStackEntry != null) {
+                        navController.popBackStack()
+                    } else {
+                        navController.navigate(Screen.MainHub) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                },
+                onTaskClick = { id -> navController.navigate(Screen.TaskDetail(id)) },
+                onDirectiveClick = { id -> navController.navigate(Screen.DirectiveDetail(id)) }
             )
         }
 
@@ -483,16 +513,46 @@ fun AppNavigation(
             )
         }
 
-        composable<Screen.TaskDetail> { backStackEntry ->
+        composable<Screen.TaskDetail>(
+            deepLinks = listOf(
+                navDeepLink {
+                    uriPattern = "neon-ascent://task/{id}"
+                }
+            )
+        ) { backStackEntry ->
             val taskDetail = backStackEntry.toRoute<Screen.TaskDetail>()
             AscensionTaskDetailScreen(
                 taskId = taskDetail.id,
-                onBack = { navController.popBackStack() }
+                onBack = {
+                    if (navController.previousBackStackEntry != null) {
+                        navController.popBackStack()
+                    } else {
+                        navController.navigate(Screen.MainHub) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                }
             )
         }
 
-        composable<Screen.TerminalRitual> {
-            TerminalRitualScreen(onBack = { navController.popBackStack() })
+        composable<Screen.TerminalRitual>(
+            deepLinks = listOf(
+                navDeepLink {
+                    uriPattern = "neon-ascent://quarterly_review"
+                }
+            )
+        ) {
+            TerminalRitualScreen(
+                onBack = {
+                    if (navController.previousBackStackEntry != null) {
+                        navController.popBackStack()
+                    } else {
+                        navController.navigate(Screen.MainHub) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                }
+            )
         }
 
         composable<Screen.DeepNode> { backStackEntry ->
