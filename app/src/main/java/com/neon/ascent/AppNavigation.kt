@@ -126,7 +126,6 @@ fun AppNavigation(
                         },
                         onGoalSetClick = { navController.navigate(Screen.Goals) },
                         onSettingsClick = { navController.navigate(Screen.Settings) },
-                        onDiagnosticsClick = { navController.navigate(Screen.Diagnostics) },
                         onDeusExMachinaClick = { navController.navigate(Screen.DeepNode("DEUS_EX_MACHINA")) }
                     )
                     2 -> BiohackingScreen(onBack = { /* Handled by pager */ })

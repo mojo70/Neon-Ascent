@@ -43,7 +43,6 @@ fun DashboardScreen(
     onStoryClick: () -> Unit,
     onGoalSetClick: () -> Unit,
     onSettingsClick: () -> Unit,
-    onDiagnosticsClick: () -> Unit,
     onDeusExMachinaClick: () -> Unit
 ) {
     val userCharacter by viewModel.userCharacter.collectAsState()
@@ -397,10 +396,6 @@ fun DashboardScreen(
                     CyberActionButton("MISSIONS", Color.White, onClick = { 
                         triggerGlitch()
                         onGoalSetClick() 
-                    })
-                    CyberActionButton("DIAGNOSTICS", Color(0xFF00FFFF), onClick = {
-                        triggerGlitch()
-                        onDiagnosticsClick()
                     })
                 }
             }
