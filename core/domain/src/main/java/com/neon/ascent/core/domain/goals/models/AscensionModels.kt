@@ -29,7 +29,8 @@ data class AscensionMission(
     val xpPool: Int = 100,
     val status: AscensionMissionStatus = AscensionMissionStatus.ACTIVE,
     val aiGenerated: Boolean = false,
-    val mentorModeEnabled: Boolean = false
+    val mentorModeEnabled: Boolean = false,
+    val isRecovery: Boolean = false
 )
 
 enum class AscensionMissionStatus { ACTIVE, COMPLETED, FAILED }

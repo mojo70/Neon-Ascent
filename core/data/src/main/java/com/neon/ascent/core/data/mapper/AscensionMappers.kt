@@ -40,7 +40,8 @@ fun AscensionMissionEntity.toDomain() = AscensionMission(
     xpPool = xpPool,
     status = AscensionMissionStatus.valueOf(status),
     aiGenerated = aiGenerated,
-    mentorModeEnabled = mentorModeEnabled
+    mentorModeEnabled = mentorModeEnabled,
+    isRecovery = isRecovery
 )
 
 fun AscensionMission.toEntity() = AscensionMissionEntity(
@@ -53,7 +54,8 @@ fun AscensionMission.toEntity() = AscensionMissionEntity(
     xpPool = xpPool,
     status = status.name,
     aiGenerated = aiGenerated,
-    mentorModeEnabled = mentorModeEnabled
+    mentorModeEnabled = mentorModeEnabled,
+    isRecovery = isRecovery
 )
 
 fun AscensionTaskEntity.toDomain() = AscensionTask(

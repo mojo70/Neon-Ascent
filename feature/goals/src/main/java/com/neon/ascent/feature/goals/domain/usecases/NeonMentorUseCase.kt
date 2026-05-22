@@ -105,4 +105,20 @@ class NeonMentorUseCase @Inject constructor(
                 "Recommend 3 new high-level Directives for the next cycle."
         return gemmaClient.generateContent(prompt)
     }
+
+    suspend fun generateRecoveryMission(task: AscensionTask): AscensionMission {
+        val prompt = "[CYBR-TES // RECOVERY_PROTOCOL] The operator missed execution of '${task.title}'. " +
+                "Status: Streak at risk. Buffer active. " +
+                "Generate a short, high-energy 'Plot Twist' recovery mission to restore momentum. " +
+                "Format: Title | Description"
+        val response = gemmaClient.generateContent(prompt)
+        val parts = response.split("|")
+        return AscensionMission(
+            id = UUID.randomUUID().toString(),
+            directiveId = task.parentId,
+            title = parts.getOrNull(0)?.trim() ?: "MOMENTUM_RESTORE",
+            description = parts.getOrNull(1)?.trim() ?: "Complete a reduced version of ${task.title} to stabilize the neural link.",
+            aiGenerated = true
+        )
+    }
 }

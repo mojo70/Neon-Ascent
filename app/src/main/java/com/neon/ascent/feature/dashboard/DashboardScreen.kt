@@ -416,19 +416,42 @@ fun DashboardScreen(
 
             if (state.activeMissions.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(32.dp))
-                Text(
-                    "ACTIVE_MISSIONS",
-                    color = Color(0xFFFF006E),
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        fontFamily = FontFamily.Monospace,
-                        letterSpacing = 2.sp
-                    ),
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                state.activeMissions.forEach { mission ->
-                    DashboardMissionCardV3(mission)
-                    Spacer(modifier = Modifier.height(12.dp))
+                
+                // Show Recovery Missions first
+                val recoveryMissions = state.activeMissions.filter { it.isRecovery }
+                if (recoveryMissions.isNotEmpty()) {
+                    Text(
+                        "RECOVERY_PROTOCOLS",
+                        color = NeonOrange,
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            fontFamily = FontFamily.Monospace,
+                            letterSpacing = 2.sp
+                        ),
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    recoveryMissions.forEach { mission ->
+                        DashboardMissionCardV3(mission, accentColor = NeonOrange)
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                }
+
+                val standardMissions = state.activeMissions.filter { !it.isRecovery }
+                if (standardMissions.isNotEmpty()) {
+                    Text(
+                        "ACTIVE_MISSIONS",
+                        color = Color(0xFFFF006E),
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            fontFamily = FontFamily.Monospace,
+                            letterSpacing = 2.sp
+                        ),
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    standardMissions.forEach { mission ->
+                        DashboardMissionCardV3(mission)
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
                 }
             }
 
@@ -484,10 +507,10 @@ fun DashboardTaskItem(task: AscensionTask, onComplete: () -> Unit, onClick: () -
 }
 
 @Composable
-fun DashboardMissionCardV3(mission: AscensionMission) {
+fun DashboardMissionCardV3(mission: AscensionMission, accentColor: Color = Color(0xFFFF006E)) {
     CyberFrame(
         label = "MISSION // ${mission.title.uppercase()}",
-        borderColor = Color(0xFFFF006E).copy(alpha = 0.4f)
+        borderColor = accentColor.copy(alpha = 0.4f)
     ) {
         Column {
             Text(
@@ -504,7 +527,7 @@ fun DashboardMissionCardV3(mission: AscensionMission) {
                 )
                 Text(
                     "${(mission.progress * 100).toInt()}%",
-                    color = Color(0xFFFF006E),
+                    color = accentColor,
                     style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                 )
             }
@@ -519,7 +542,7 @@ fun DashboardMissionCardV3(mission: AscensionMission) {
                     modifier = Modifier
                         .fillMaxWidth(mission.progress)
                         .fillMaxHeight()
-                        .background(Color(0xFFFF006E))
+                        .background(accentColor)
                 )
             }
         }

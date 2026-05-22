@@ -120,6 +120,8 @@ class HealthConnectManager @Inject constructor(
                     stepsToday = steps,
                     caloriesToday = calories
                 ))
+            } else {
+                emit(LiveMetrics())
             }
             kotlinx.coroutines.delay(30000) // 30s update
         }

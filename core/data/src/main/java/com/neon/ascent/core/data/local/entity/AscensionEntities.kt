@@ -46,7 +46,8 @@ data class AscensionMissionEntity(
     val xpPool: Int,
     val status: String,
     val aiGenerated: Boolean,
-    val mentorModeEnabled: Boolean
+    val mentorModeEnabled: Boolean,
+    val isRecovery: Boolean
 )
 
 @Entity(

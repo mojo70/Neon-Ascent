@@ -20,7 +20,7 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_3_4
         AscensionTaskEntity::class,
         AscensionTaskCompletionEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 @TypeConverters(

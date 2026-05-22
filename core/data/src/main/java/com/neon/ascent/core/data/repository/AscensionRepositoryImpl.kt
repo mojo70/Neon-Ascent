@@ -59,16 +59,34 @@ class AscensionRepositoryImpl @Inject constructor(
         mood: Int?,
         linkedHealthSnapshot: String?
     ) {
+        val now = Instant.now()
         val completion = AscensionTaskCompletionEntity(
             taskId = task.id,
-            timestamp = Instant.now(),
+            timestamp = now,
             notes = notes,
             mood = mood,
             linkedHealthSnapshot = linkedHealthSnapshot
         )
+        
+        // ADHD-friendly streak logic
+        val lastDate = task.lastCompleted?.atZone(java.time.ZoneId.systemDefault())?.toLocalDate()
+        val today = java.time.LocalDate.now()
+        
+        val newStreak = when {
+            lastDate == null -> 1
+            lastDate == today -> task.currentStreak // Already completed today
+            lastDate == today.minusDays(1) -> task.currentStreak + 1
+            lastDate.isAfter(today.minusDays(task.graceBufferDays.toLong() + 1)) -> {
+                // Within grace buffer - flicker/maintain momentum
+                task.currentStreak + 1
+            }
+            else -> 1 // Streak broken
+        }
+
         val updatedTask = task.copy(
-            lastCompleted = completion.timestamp,
-            currentStreak = task.currentStreak + 1 // Simple increment for now, ADHD-friendly logic can be added here
+            lastCompleted = now,
+            currentStreak = newStreak,
+            longestStreak = if (newStreak > task.longestStreak) newStreak else task.longestStreak
         )
         dao.completeTask(completion, updatedTask.toEntity())
     }
