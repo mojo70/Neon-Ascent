@@ -266,8 +266,8 @@ fun DashboardScreen(
                                 modifier = Modifier.cyberGlitch(intensity = if (neuralLoad > 0.9f) 0.2f else 0f)
                             )
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (liveMetrics.heartRate != null && liveMetrics.heartRate!! > 0) {
-                                    HeartRatePulse(liveMetrics.heartRate!!)
+                                if (liveMetrics?.heartRate != null && liveMetrics!!.heartRate!! > 0) {
+                                    HeartRatePulse(liveMetrics!!.heartRate!!)
                                     Spacer(Modifier.width(8.dp))
                                 }
                                 Box(
@@ -464,14 +464,14 @@ fun DashboardScreen(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 CyberMetricCard(
                     label = "STEPS", 
-                    value = liveMetrics.stepsToday.toString(),
+                    value = (liveMetrics?.stepsToday ?: 0).toString(),
                     subValue = "TARGET: 10K", 
                     color = NeonBlue,
                     modifier = Modifier.weight(1f)
                 )
                 CyberMetricCard(
                     label = "CALORIES", 
-                    value = liveMetrics.caloriesToday.toInt().toString(),
+                    value = (liveMetrics?.caloriesToday ?: 0.0).toInt().toString(),
                     subValue = "TARGET: 2.2K", 
                     color = NeonOrange,
                     modifier = Modifier.weight(1f)

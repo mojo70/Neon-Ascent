@@ -60,6 +60,7 @@ fun HolographicAvatarHub(
     val state by viewModel.uiState.collectAsState()
     val specialState by terminalViewModel.specialState.collectAsState()
     val healthState by viewModel.healthState.collectAsState()
+    val deepMetrics by viewModel.deepMetrics.collectAsState()
     val liveMetrics by healthViewModel.liveMetrics.collectAsState()
     val isNetrunnerMode by viewModel.isNetrunnerMode.collectAsState()
     val isReligionEnabled by viewModel.isReligionShortcutEnabled.collectAsState()
@@ -224,14 +225,14 @@ fun HolographicAvatarHub(
                     horizontalAlignment = Alignment.End
                 ) {
                     LiveHeartRateBadge(
-                        bpm = liveMetrics.heartRate,
+                        bpm = liveMetrics?.heartRate,
                         modifier = Modifier
                             .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                     Spacer(Modifier.height(4.dp))
                     HeartbeatTrace(
-                        bpm = liveMetrics.heartRate,
+                        bpm = liveMetrics?.heartRate,
                         modifier = Modifier
                             .width(120.dp)
                             .height(40.dp)
@@ -292,7 +293,7 @@ fun HolographicAvatarHub(
                         
                         val rank = userCharacter?.getChessRank() ?: "GHOST_IN_SHELL"
                         Text(
-                            "RANK: $rank // HR: ${liveMetrics.heartRate ?: healthState.heartRate} BPM",
+                            "RANK: $rank // HR: ${liveMetrics?.heartRate ?: healthState?.heartRate ?: "--"} BPM",
                             color = Color(0xFF00FF9C).copy(alpha = 0.7f),
                             fontSize = 10.sp,
                             fontFamily = FontFamily.Monospace,
@@ -386,7 +387,7 @@ fun HolographicAvatarHub(
             Row(modifier = Modifier.weight(0.6f), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 CyberFrame(label = "SYSTEM_LOAD", modifier = Modifier.weight(0.8f)) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        EnergyBar(label = "BATTERY", value = healthState.bodyBattery / 100f)
+                        EnergyBar(label = "BATTERY", value = (deepMetrics?.bodyBattery ?: 0) / 100f)
                         MemorySlotsDisplay(userCharacter)
                     }
                 }

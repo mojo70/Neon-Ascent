@@ -15,6 +15,9 @@ import com.neon.ascent.domain.usecase.GenerateDailyTasksUseCase
 import com.neon.ascent.domain.usecase.SuggestGoalsUseCase
 import com.neon.ascent.feature.biohacking.AiProvider
 import com.neon.ascent.core.ai.AiPersona
+import com.neon.ascent.feature.health.data.HealthConnectManager
+import com.neon.ascent.feature.health.data.uplink.*
+import com.neon.ascent.feature.health.domain.uplink.*
 import com.neon.ascent.model.BiohackingData
 import com.neon.ascent.model.Saying
 import com.neon.ascent.model.UserCharacter
@@ -38,23 +41,12 @@ data class WeatherState(
     val unitSymbol: String = if (Locale.getDefault().country == "US") "F" else "C"
 )
 
-data class HealthState(
-    val steps: Long = 0,
-    val heartRate: Int = 0,
-    val vo2Max: Double = 0.0,
-    val bodyBattery: Int = 75, // Default/Simulated
-    val stressLevel: Int = 20, // Default/Simulated
-    val isConnected: Boolean = false,
-    val lastSyncTimestamp: Long? = null
-)
-
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val characterRepository: CharacterRepository,
     private val biohackingDao: BiohackingDao,
     private val sayingsDao: SayingsDao,
     private val weatherRepository: WeatherRepository,
-    private val healthRepository: HealthRepository,
     private val settingsRepository: SettingsRepository,
     private val benchmarkRepository: BenchmarkRepository,
     private val userStoryRepository: UserStoryRepository,
@@ -71,7 +63,8 @@ class DashboardViewModel @Inject constructor(
     private val dopamineCoordinator: com.neon.ascent.core.common.DopamineCoordinator,
     private val identityCoordinator: com.neon.ascent.core.common.IdentityCoordinator,
     private val specialRepository: com.neon.ascent.core.domain.SpecialRepository,
-    private val memoryPalaceManager: MemoryPalaceManager
+    private val memoryPalaceManager: MemoryPalaceManager,
+    private val uplinkManager: NeuralUplinkManager
 ) : ViewModel() {
     val userCharacter: StateFlow<UserCharacter?> = characterRepository.getUserCharacter()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -85,8 +78,8 @@ class DashboardViewModel @Inject constructor(
     private val _weatherState = MutableStateFlow(WeatherState())
     val weatherState: StateFlow<WeatherState> = _weatherState.asStateFlow()
 
-    private val _healthState = MutableStateFlow(HealthState())
-    val healthState: StateFlow<HealthState> = _healthState.asStateFlow()
+    val healthState: StateFlow<LiveBiometrics?> = uplinkManager.combinedLiveMetrics
+    val deepMetrics: StateFlow<DeepBiometrics?> = uplinkManager.combinedDeepMetrics
 
     private val _systemAdvice = MutableStateFlow("NEURAL_LINK_ESTABLISHED. SCANNING_SYSTEM...")
     val systemAdvice: StateFlow<String> = _systemAdvice.asStateFlow()
@@ -113,7 +106,6 @@ class DashboardViewModel @Inject constructor(
         seedSayingsIfEmpty()
         updateAtmosphereSimulated()
         fetchRealWeather()
-        refreshHealthData()
         loadDashboard()
 
         viewModelScope.launch {
@@ -281,14 +273,17 @@ class DashboardViewModel @Inject constructor(
 
     private fun generateSystemAdvice() {
         viewModelScope.launch {
-            val steps = healthState.value.steps
-            val hr = healthState.value.heartRate
+            val live = healthState.value
+            val deep = deepMetrics.value
+            val steps = live?.heartRate ?: 0 // Temporary mapping
+            val hr = live?.heartRate ?: 0
+            val bodyBattery = deep?.bodyBattery ?: 0
             val weather = if (weatherState.value.isRaining) "Acid Rain" else "Clear"
             val archetype = userCharacter.value?.archetype ?: "Unknown"
 
             val contextData = """
-                - STEPS: $steps
-                - HR: $hr
+                - HEART_RATE: $hr
+                - BODY_BATTERY: $bodyBattery
                 - ATMOSPHERE: $weather
                 - ARCHETYPE: $archetype
             """.trimIndent()
@@ -379,44 +374,6 @@ class DashboardViewModel @Inject constructor(
             } catch (e: Exception) {
                 // If real fetch fails, ensure we have at least simulated data that respects units
                 updateAtmosphereSimulated()
-            }
-        }
-    }
-
-    fun refreshHealthData() {
-        viewModelScope.launch {
-            val hasPermissions = healthRepository.hasAllPermissions()
-            if (hasPermissions) {
-                val steps = healthRepository.getTodaySteps()
-                val hr = healthRepository.getLatestHeartRate()
-                val vo2 = healthRepository.getLatestVo2Max()
-                val simulatedBattery = (80 - (LocalTime.now().hour * 2)).coerceIn(10, 100)
-                val simulatedStress = (hr / 4).coerceIn(5, 95)
-
-                _healthState.value = HealthState(
-                    steps = steps,
-                    heartRate = hr,
-                    vo2Max = vo2,
-                    bodyBattery = simulatedBattery,
-                    stressLevel = simulatedStress,
-                    isConnected = true,
-                    lastSyncTimestamp = System.currentTimeMillis()
-                )
-                
-                biohackingData.value?.let { current ->
-                    biohackingDao.insertOrUpdate(current.copy(
-                        isWearableSynced = true,
-                        lastSyncTimestamp = System.currentTimeMillis()
-                    ))
-                } ?: run {
-                    biohackingDao.insertOrUpdate(BiohackingData(
-                        userId = 0,
-                        isWearableSynced = true,
-                        lastSyncTimestamp = System.currentTimeMillis()
-                    ))
-                }
-            } else {
-                _healthState.value = HealthState(isConnected = false)
             }
         }
     }

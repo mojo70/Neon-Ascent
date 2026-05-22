@@ -65,12 +65,11 @@ class MainActivity : ComponentActivity() {
             NeonAscentTheme {
                 val context = LocalContext.current
                 val viewModel: DashboardViewModel = hiltViewModel()
-                val healthState by viewModel.healthState.collectAsState()
 
                 val permissionsLauncher = rememberLauncherForActivityResult(
                     PermissionController.createRequestPermissionResultContract()
                 ) { granted ->
-                    viewModel.refreshHealthData()
+                    // Permissions updated
                 }
 
                 val locationPermissionLauncher = rememberLauncherForActivityResult(
