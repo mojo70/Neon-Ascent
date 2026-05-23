@@ -318,6 +318,7 @@ fun CyberFrame(
     modifier: Modifier = Modifier,
     accentColor: Color = Color(0xFFFF006E),
     borderColor: Color = Color(0xFF00FF9C),
+    backgroundColor: Color = Color.Black.copy(alpha = 0.85f),
     content: @Composable () -> Unit
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -354,7 +355,7 @@ fun CyberFrame(
             modifier = Modifier
                 .fillMaxWidth()
                 .neonBorder(borderColor.copy(alpha = 0.6f), width = 1.dp, cornerRadius = 4.dp)
-                .background(Color.Black.copy(alpha = 0.2f))
+                .background(backgroundColor)
                 .padding(12.dp)
         ) {
             content()

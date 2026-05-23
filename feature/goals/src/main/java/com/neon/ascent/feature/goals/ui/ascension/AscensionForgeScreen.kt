@@ -37,11 +37,13 @@ fun CyberFrame(
     label: String,
     accentColor: Color = NeonCyan,
     modifier: Modifier = Modifier,
+    backgroundColor: Color = Color(0xFF0A080C),
     content: @Composable () -> Unit
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .background(backgroundColor)
             .border(1.dp, accentColor.copy(alpha = 0.5f))
             .padding(1.dp)
             .border(1.dp, accentColor.copy(alpha = 0.1f))
