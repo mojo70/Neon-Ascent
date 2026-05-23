@@ -34,6 +34,7 @@ import com.neon.ascent.ui.theme.LocalNeonTheme
 fun MegacorpDossierScreen(
     corpId: String,
     onBack: () -> Unit,
+    bypassedCorps: Set<String> = emptySet(),
     viewModel: DossierViewModel = hiltViewModel()
 ) {
     val megacorp by viewModel.megacorp.collectAsState()
@@ -129,6 +130,40 @@ fun MegacorpDossierScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     contentPadding = PaddingValues(bottom = 32.dp)
                 ) {
+                    if (corpId == "netwatch" && trustLevel >= 0.10f) {
+                        item {
+                            CyberFrame(
+                                label = "NETWATCH_RUNNER_DOSSIER // CONFIDENTIAL",
+                                borderColor = Color.Red
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    val threatRating = when {
+                                        bypassedCorps.size >= 5 -> "CRITICAL // PHANTOM"
+                                        bypassedCorps.size >= 2 -> "HIGH // OPERATIVE"
+                                        else -> "MODERATE // NOVICE"
+                                    }
+                                    
+                                    Text("SUBJECT: RUNNER_ALPHA // SYNAPSE_RENEGADE", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text("ACTIVE_THREAT_LEVEL: $threatRating", color = Color.Red, fontWeight = FontWeight.Bold, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                                    Text("TOTAL_SYSTEM_BREACHES: ${bypassedCorps.size}", color = Color.White, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                                    Text("CRACKED_NODES: ${if (bypassedCorps.isEmpty()) "NONE DETECTED" else bypassedCorps.joinToString(", ")}", color = Color.White, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                                    
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text("// PREDICTIVE_WARNINGS_AND_BEHAVIOR", color = Color.Gray, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                                    
+                                    val containsMojo = bypassedCorps.any { it.contains("Mojo", ignoreCase = true) }
+                                    if (!containsMojo) {
+                                        Text("• Predictive analysis shows a 87% probability of attempting to interface with the rogue MojoTyger node at 3 AM.", color = Color.Yellow, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                    } else {
+                                        Text("• Warning: Subject has been in contact with MojoTyger Core. Expect high-energy chaotic subversion.", color = Color.Yellow, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                    }
+                                    Text("• Subject has collected ${bypassedCorps.size} high-tier decryption signatures. Recommend deployment of level-4 black ICE immediately.", color = Color.Yellow, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                }
+                            }
+                        }
+                    }
+
                     // 1. CEO Psych Profile (10%)
                     item {
                         DossierSection(

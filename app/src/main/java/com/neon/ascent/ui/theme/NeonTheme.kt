@@ -28,6 +28,8 @@ data class NeonThemeData(
             "vitasynth" -> Color(0xFF00FF9F) // Neon Green / Vital
             "securacorp" -> Color(0xFF555555) // Iron Gray
             "aegis" -> Color(0xFFFF8C00) // Dark Orange / Forge
+            "mojotyger", "mojotygerdynamics" -> Color(0xFFFF5F1F) // Neon Orange
+            "netwatch" -> Color(0xFFFF0055) // Cyber Red / Warning
             else -> primary
         }
     }

@@ -82,6 +82,18 @@ class ChatViewModel @Inject constructor(
                     )
                     chatDao.insertMessage(aiMsg)
                     chatDao.insertChatSession(session.copy(lastMessage = thrusterGreeting, lastTimestamp = greetingTimestamp, isUnread = true))
+                } else if (contactName == "Mojo" && messages.value.size == 1) {
+                    val mojoGreeting = "Grid connection established. Yo, Mojo here. CEO of MojoTyger and primary victim of my own codebases. I'm probably looking at a stack trace or shipping a hotfix right now. If you're a runner, talk tech, or hit me with a top-tier shitpost. Just don't ask me to deploy on a Friday."
+                    val greetingTimestamp = System.currentTimeMillis() + 100
+                    val aiMsg = ChatMessage(
+                        contactName = contactName,
+                        senderName = contactName,
+                        text = mojoGreeting,
+                        timestamp = greetingTimestamp,
+                        isFromUser = false
+                    )
+                    chatDao.insertMessage(aiMsg)
+                    chatDao.insertChatSession(session.copy(lastMessage = mojoGreeting, lastTimestamp = greetingTimestamp, isUnread = true))
                 } else if (session.isFixer) {
                     generateAiResponse(session, text)
                 }

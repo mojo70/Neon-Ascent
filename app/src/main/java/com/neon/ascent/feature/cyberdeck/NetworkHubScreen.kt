@@ -18,6 +18,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke
+import kotlinx.coroutines.delay
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -61,6 +66,7 @@ fun NetworkHubScreen(
     var selectedCorpo by remember { mutableStateOf<CorpoNode?>(null) }
     var selectedDossierCorpId by remember { mutableStateOf<String?>(null) }
     var showingInvestorDeck by remember { mutableStateOf(false) }
+    var showTraceDefenseGame by remember { mutableStateOf(false) }
     
     val currentChallenge by viewModel.currentChallenge.collectAsState()
     val lastReward by viewModel.lastReward.collectAsState()
@@ -76,7 +82,8 @@ fun NetworkHubScreen(
         } else if (selectedDossierCorpId != null) {
             MegacorpDossierScreen(
                 corpId = selectedDossierCorpId!!,
-                onBack = { selectedDossierCorpId = null }
+                onBack = { selectedDossierCorpId = null },
+                bypassedCorps = bypassed
             )
         } else if (selectedCorpo != null) {
             val tier = if (selectedCorpo!!.name in bypassed && selectedCorpo!!.securityTier == DifficultyTier.BLACK_ICE) {
@@ -109,6 +116,7 @@ fun NetworkHubScreen(
                         "vitasynth" -> "VitalLord"
                         "securacorp" -> "IronCommand"
                         "aegisarmaments" -> "AegisPrime"
+                        "mojotyger", "mojotygerdynamics" -> "Mojo"
                         else -> null
                     }
                     if (handle != null) {
@@ -164,7 +172,13 @@ fun NetworkHubScreen(
                         )
                         NetworkTab.SCAN -> NetScanArea(hubViewModel, chatViewModel)
                         NetworkTab.BIZ -> BizScreen(stockViewModel, netWorthViewModel)
-                        NetworkTab.NODES -> CorpoNodesArea(viewModel, bypassed) { selectedCorpo = it }
+                        NetworkTab.NODES -> CorpoNodesArea(viewModel, bypassed) { node ->
+                            if (node.name == "NetWatch" && "NetWatch" !in bypassed) {
+                                showTraceDefenseGame = true
+                            } else {
+                                selectedCorpo = node
+                            }
+                        }
                         NetworkTab.GAMES -> GamesArea(onChessClick)
                     }
                 }
@@ -192,6 +206,22 @@ fun NetworkHubScreen(
             InvestorDeckOverlay(
                 slides = selectedCorpo!!.investorDeck!!,
                 onDismiss = { showingInvestorDeck = false }
+            )
+        }
+
+        if (showTraceDefenseGame) {
+            TraceDefenseScreen(
+                onSuccess = {
+                    showTraceDefenseGame = false
+                    viewModel.completeNetWatchBreach()
+                },
+                onFailure = {
+                    showTraceDefenseGame = false
+                    viewModel.penalizeNetWatchFailure()
+                },
+                onDismiss = {
+                    showTraceDefenseGame = false
+                }
             )
         }
     }
@@ -863,6 +893,73 @@ fun CorpoNodesArea(viewModel: CyberdeckViewModel, bypassed: Set<String>, onCorpo
                     [CEO STATEMENT - IRONCOMMAND]
                     "Another quarter of restored order. The streets are quiet because we made them quiet."
                 """.trimIndent()
+            ),
+            CorpoNode(
+                name = "MojoTyger Dynamics",
+                ticker = "MOJO",
+                slogan = "Building the Neon Ascent. One bad idea at a time.",
+                profile = "The rogue indie megacorp founded by a veteran full-stack developer who got tired of shipping features for other people’s dystopias. Specializes in chaotic good cyberdeck tech, on-device AI, degenerate meme warfare, and somehow turning ADHD into a business model.",
+                securityTier = DifficultyTier.BLACK_ICE,
+                stockPrice = 4420.69,
+                stockChange = 69.42,
+                stockChangePercent = 1.59,
+                marketCap = "§1.85 Trillion",
+                ceo = "Joe 'Mojo' Evans",
+                highlights = listOf(
+                    "2025 - Started building Neon Ascent as a side project. It became self-aware.",
+                    "2068 - Successfully integrated local Gemma models that roast users back.",
+                    "2070 - Accidentally made #PoundUranus trend across three megacorps.",
+                    "Ongoing - The Mojo Protocol: Turning developer suffering into actual weapons against the system."
+                ),
+                earningsReport = """
+                    MOJOTYGER DYNAMICS (MOJO) Q3 2071 Earnings Transmission
+                    Net Revenue: §442.0B ▲ +420% YoY
+                    Adjusted Chaos Profit: §69.4B ▲ +69%
+                    EPS: §69.42 | CEO: Mojo
+                    
+                    [DIVISIONAL PERFORMANCE]
+                    • Neon Forge: §212.1B (+12%)
+                    • Gemma Black: §110.5B (+420%)
+                    • Degenerate Labs: §75.1B (+69%)
+                    • Full Stack Security: §44.2B (+100%)
+                    
+                    [CEO STATEMENT - JOE "MOJO" EVANS]
+                    "Clean code is rebellion. Shipped features are our ammo. Turning developer suffering into actual weapons against the system."
+                """.trimIndent()
+            ),
+            CorpoNode(
+                name = "NetWatch",
+                ticker = "NTWC",
+                slogan = "We Watch. We Record. We Punish.",
+                profile = "The autonomous cyber-police force of the solar system. Not a traditional megacorp, but a quasi-governmental surveillance entity with massive authority. They monitor the Grid, enforce Net neutrality (in favor of the corps), hunt rogue netrunners, and maintain the delicate balance that keeps the megacorps from openly warring.",
+                securityTier = DifficultyTier.BLACK_ICE,
+                stockPrice = 1.0,
+                stockChange = 0.0,
+                stockChangePercent = 0.0,
+                marketCap = "§0.0 Trillion",
+                ceo = "NetWatch Core AI",
+                highlights = listOf(
+                    "2052 - Established the first global Grid Oversight Protocol.",
+                    "2061 - Successfully traced and terminated the infamous 'Ghost Protocol' runner collective.",
+                    "2069 - Deployed Watcher Drones across all major sprawls and orbital stations.",
+                    "2070 - Created the Runner Registry — every netrunner now has a permanent digital shadow profile.",
+                    "Ongoing - The Purge Cycles (monthly sweeps of high-threat runners)."
+                ),
+                earningsReport = """
+                    NETWATCH (NTWC) - SERVICE REPORT
+                    Surveillance Coverage: 99.8% Grid Area
+                    Active Drone Patrols: 14.7 Million Nodes
+                    Registry Enrollment: 1.2 Million Shadows
+                    
+                    [DIVISIONAL ASSIGNMENTS]
+                    • Watcher Core: Extreme Threat (Surveillance)
+                    • Purge Teams: Extreme Threat (Active Neutralization)
+                    • Shadow Archive: High Threat (Permanent dossiers)
+                    • ICE Enforcement: High Threat (Black ICE deployment)
+                    
+                    [CORE PROTOCOL]
+                    "We are not a corporation. We are order."
+                """.trimIndent()
             )
         )
     }
@@ -1004,25 +1101,44 @@ fun CorpoDetailView(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        CyberFrame(label = "MARKET_DATA") {
+        val isNetWatch = corpo.name == "NetWatch"
+
+        CyberFrame(label = if (isNetWatch) "SURVEILLANCE_METRICS // DAILY_REPORT" else "MARKET_DATA") {
             Column(modifier = Modifier.padding(16.dp)) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Column {
-                        Text(corpo.ticker, color = Color.Gray, fontSize = 12.sp)
-                        Text("§${corpo.stockPrice}", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                if (isNetWatch) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column {
+                            Text("CYBERCRIMES_NEUTRALIZED", color = Color.Gray, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                            Text("7,420 INCIDENTS", color = Color(0xFFFF0055), fontSize = 24.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text("THREAT_INDEX", color = Color.Gray, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                            Text("98.4% SECURE", color = Color(0xFF00FF9F), fontSize = 16.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        }
                     }
-                    Column(horizontalAlignment = Alignment.End) {
-                        val color = if (corpo.stockChange >= 0) Color(0xFF00FF9F) else Color.Red
-                        Text("${if (corpo.stockChange >= 0) "+" else ""}${corpo.stockChange}", color = color)
-                        Text("${String.format(Locale.getDefault(), "%.2f", corpo.stockChangePercent)}%", color = color)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("TOTAL_RUNNERS_REGISTERED: 1,248,502 Shadows | ACTIVE WATCHER DRONES: 14.7M", color = Color.Gray, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    FakeCorpoChart(modifier = Modifier.fillMaxWidth().height(150.dp), color = Color(0xFFFF0055))
+                } else {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column {
+                            Text(corpo.ticker, color = Color.Gray, fontSize = 12.sp)
+                            Text("§${corpo.stockPrice}", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            val color = if (corpo.stockChange >= 0) Color(0xFF00FF9F) else Color.Red
+                            Text("${if (corpo.stockChange >= 0) "+" else ""}${corpo.stockChange}", color = color)
+                            Text("${String.format(Locale.getDefault(), "%.2f", corpo.stockChangePercent)}%", color = color)
+                        }
                     }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("MARKET_CAP: ${corpo.marketCap}", color = Color.Gray, fontSize = 10.sp)
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    FakeCorpoChart(modifier = Modifier.fillMaxWidth().height(150.dp))
                 }
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("MARKET_CAP: ${corpo.marketCap}", color = Color.Gray, fontSize = 10.sp)
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                // Fake Chart
-                FakeCorpoChart(modifier = Modifier.fillMaxWidth().height(150.dp))
             }
         }
 
@@ -1063,7 +1179,7 @@ fun CorpoDetailView(
 
         CyberFrame(label = "ABOUT") {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(corpo.slogan, color = Color(0xFF00FF9F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(corpo.slogan, color = if (isNetWatch) Color(0xFFFF0055) else Color(0xFF00FF9F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(corpo.profile, color = Color.White, fontSize = 12.sp)
                 if (corpo.ceo.isNotEmpty()) {
@@ -1073,13 +1189,17 @@ fun CorpoDetailView(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("CEO: ${corpo.ceo}", color = Color(0xFF00CCFF), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        Button(
-                            onClick = onConnectCeo,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9F).copy(alpha = 0.2f)),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF00FF9F))
-                        ) {
-                            Text("CONNECT_GRID", color = Color(0xFF00FF9F), fontSize = 10.sp)
+                        if (isNetWatch) {
+                            Text("CORE AI: ${corpo.ceo} (GRID_CONTROLLER // NO_CONTACT)", color = Color.Red, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        } else {
+                            Text("CEO: ${corpo.ceo}", color = Color(0xFF00CCFF), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Button(
+                                onClick = onConnectCeo,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9F).copy(alpha = 0.2f)),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF00FF9F))
+                            ) {
+                                Text("CONNECT_GRID", color = Color(0xFF00FF9F), fontSize = 10.sp)
+                            }
                         }
                     }
                 }
@@ -1099,11 +1219,11 @@ fun CorpoDetailView(
 
         corpo.earningsReport?.let { report ->
             Spacer(modifier = Modifier.height(16.dp))
-            CyberFrame(label = "QUARTERLY_EARNINGS") {
+            CyberFrame(label = if (isNetWatch) "INCIDENT_NEUTRALIZATION_LOG" else "QUARTERLY_EARNINGS") {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         report,
-                        color = Color(0xFF00FF9F).copy(alpha = 0.8f),
+                        color = if (isNetWatch) Color(0xFFFF0055).copy(alpha = 0.8f) else Color(0xFF00FF9F).copy(alpha = 0.8f),
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
                         lineHeight = 16.sp
@@ -1130,7 +1250,7 @@ fun CorpoDetailView(
 }
 
 @Composable
-fun FakeCorpoChart(modifier: Modifier) {
+fun FakeCorpoChart(modifier: Modifier, color: Color = Color(0xFF00FF9F)) {
     Canvas(modifier = modifier) {
         val points = listOf(0.4f, 0.5f, 0.45f, 0.6f, 0.55f, 0.8f, 0.75f, 0.9f, 0.85f, 1f)
         val path = Path()
@@ -1144,7 +1264,7 @@ fun FakeCorpoChart(modifier: Modifier) {
         
         drawPath(
             path = path,
-            color = Color(0xFF00FF9F),
+            color = color,
             style = Stroke(width = 2.dp.toPx())
         )
         
@@ -1157,7 +1277,7 @@ fun FakeCorpoChart(modifier: Modifier) {
         drawPath(
             path = fillPath.asComposePath(),
             brush = Brush.verticalGradient(
-                colors = listOf(Color(0xFF00FF9F).copy(alpha = 0.3f), Color.Transparent)
+                colors = listOf(color.copy(alpha = 0.3f), Color.Transparent)
             )
         )
     }

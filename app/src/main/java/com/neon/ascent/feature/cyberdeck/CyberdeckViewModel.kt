@@ -18,12 +18,15 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.random.Random
 
+import com.neon.ascent.data.local.LoreDao
+
 @HiltViewModel
 class CyberdeckViewModel @Inject constructor(
     private val aiProvider: AiProvider,
     private val inventoryDao: InventoryDao,
     private val userCharacterDao: UserCharacterDao,
-    private val loreRepository: LoreRepository
+    private val loreRepository: LoreRepository,
+    private val loreDao: LoreDao
 ) : ViewModel() {
     val aiType: StateFlow<AiType> = aiProvider.activeAiType
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AiType.NONE)
@@ -165,6 +168,11 @@ class CyberdeckViewModel @Inject constructor(
                 InvestorSlide("AEGIS ARMAMENTS", "Firepower Series Ω", "Presented by Colonel Valeria “Forge” Kane – AegisPrime\nOctober 2071"),
                 InvestorSlide("THE VISION", "Shield and Sword. No mercy. No refunds.", "The premier heavy weapons manufacturer. We fund conflicts just to sell solutions."),
                 InvestorSlide("OUR SOLUTION", "The Titan Forge + Orbital Lance", "Titan-Class warframes, Orbital Lance railgun platforms, and Warforge weapon printing.")
+            )
+            "mojotyger", "mojotygerdynamics" -> listOf(
+                InvestorSlide("MOJOTYGER DYNAMICS", "Building Neon Ascent", "Presented by Joe 'Mojo' Evans – Mojo\nOctober 2071"),
+                InvestorSlide("THE VISION", "Clean code is rebellion.", "Shipped features are our ammo. Turning developer suffering into actual weapons against the system."),
+                InvestorSlide("THE SUITE", "Neon Forge & Gemma Black", "Cyberdecks, immersive apps, rogue on-device AI, meme warfare, and solid architecture.")
             )
             else -> null
         }
@@ -461,6 +469,37 @@ class CyberdeckViewModel @Inject constructor(
                 _netWatchAlerts.update { (it + newAlert).takeLast(10) }
                 delay(Random.nextLong(10000, 30000)) // New alert every 10-30 seconds
             }
+        }
+    }
+
+    fun penalizeNetWatchFailure() {
+        viewModelScope.launch {
+            // Deduct XP
+            val char = userCharacterDao.getUserCharacter().first()
+            char?.let {
+                val penaltyXp = 500L
+                val newXp = (it.experience - penaltyXp).coerceAtLeast(0L)
+                userCharacterDao.updateUserCharacter(it.copy(experience = newXp))
+            }
+
+            // Put all quickhacks on 4-hour cooldown lock
+            val allHacks = inventoryDao.getQuickHacks().first()
+            allHacks.forEach { qh ->
+                inventoryDao.insertQuickHack(qh.copy(
+                    lastUsedTimestamp = System.currentTimeMillis(),
+                    cooldownHours = 4
+                ))
+            }
+
+            setExternalFeeds(listOf("SYSTEM_ERROR: NetWatch trace completed. Neural link blocked. 500 XP lost, and all quickhacks locked out for 4 hours."))
+        }
+    }
+
+    fun completeNetWatchBreach() {
+        viewModelScope.launch {
+            loreDao.updateTrustLevel("netwatch", 1.0f)
+            _bypassedBlackIce.update { it + "NetWatch" }
+            setExternalFeeds(listOf("SYSTEM_INFO: NetWatch trace defused. Remote node access compromised."))
         }
     }
 }

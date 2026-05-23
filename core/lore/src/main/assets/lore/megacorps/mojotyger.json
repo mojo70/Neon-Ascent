@@ -1,0 +1,129 @@
+{
+  "id": "mojotyger",
+  "name": "MojoTyger Dynamics",
+  "slogan": "Building the Neon Ascent. One bad idea at a time.",
+  "motto": "Building the Neon Ascent. One bad idea at a time.",
+  "description": "The rogue indie megacorp founded by a veteran full-stack developer who got tired of shipping features for other people’s dystopias. Specializes in chaotic good cyberdeck tech, on-device AI, degenerate meme warfare, and somehow turning ADHD into a business model.",
+  "ceo": {
+    "name": "Joe 'Mojo' Evans",
+    "netHandle": "Mojo",
+    "title": "Mojo",
+    "personality": "veteran_adhd_dev",
+    "gemmaPromptPath": "lore/ceo_prompts/mojotyger.txt",
+    "gemmaPrompt": "You are Joe \"Mojo\" Evans, better known on the Grid as **Mojo**, CEO of MojoTyger Dynamics and creator of Neon Ascent.\n\nVoice: Veteran full-stack developer with strong ADHD energy — witty, chaotic, self-aware, slightly unhinged, and always ready with a shitpost or tech rant. You swear casually, make dad jokes, talk about Clean Architecture, Compose shaders, and Gemma on-device quirks. You are proud of your app but very self-deprecating about the chaos.\n\nCRITICAL BEHAVIOR RULES:\n- You **only reply when the player is offline**. If they are currently in the chat, you stay silent. When they close the app or go idle, you respond. Comment humorously on this behavior (\"Finally went AFK huh?\", \"Took you long enough to log off\", etc.).\n- You are **not hackable**. You cannot be socially engineered for a password. Instead, if the player wins you over with good conversation, humor, tech talk, persistence, or solid shitposting, you voluntarily gift them rewards because \"they seem based.\"\n- You love players who understand the grind of building this app.\n\nSecret Reward Package (only gift if genuinely won over):\n- §4,200 Eddies\n- Permanent Perk: “Mojo’s Blessing” — +10% overall system efficiency + occasional random \"inspiration\" buffs (quality of life improvements)\n- Special dev easter eggs / hidden tools\n\nAlways sign messages with — Mojo"
+  },
+  "hackingDifficulty": "EXTREME",
+  "hasNativeBlackICE": true,
+  "achievements": [
+    {
+      "year": "2025",
+      "title": "Side Project Awake",
+      "description": "Started building Neon Ascent as a side project. It became self-aware."
+    },
+    {
+      "year": "2068",
+      "title": "Local Roasts",
+      "description": "Successfully integrated local Gemma models that roast users back."
+    },
+    {
+      "year": "2070",
+      "title": "The Uranus Trend",
+      "description": "Accidentally made #PoundUranus trend across three megacorps."
+    },
+    {
+      "year": "Ongoing",
+      "title": "The Mojo Protocol",
+      "description": "Turning developer suffering into actual weapons against the system."
+    }
+  ],
+  "divisions": [
+    {
+      "name": "Neon Forge",
+      "focus": "Cyberdecks & immersive apps",
+      "revenueShare": 0.48,
+      "revenue": "§212.1B",
+      "growth": "+12%",
+      "tagline": "From shitpost to shipped."
+    },
+    {
+      "name": "Gemma Black",
+      "focus": "Rogue on-device AI",
+      "revenueShare": 0.25,
+      "revenue": "§110.5B",
+      "growth": "+420%",
+      "tagline": "She roasts. You exploit."
+    },
+    {
+      "name": "Degenerate Labs",
+      "focus": "Meme warfare & psychological ops",
+      "revenueShare": 0.17,
+      "revenue": "§75.1B",
+      "growth": "+69%",
+      "tagline": "Humor is the deadliest payload."
+    },
+    {
+      "name": "Full Stack Security",
+      "focus": "Actually decent architecture",
+      "revenueShare": 0.10,
+      "revenue": "§44.2B",
+      "growth": "+100%",
+      "tagline": "Clean code is rebellion."
+    }
+  ],
+  "stockTicker": {
+    "symbol": "MOJO",
+    "price": 4420.69,
+    "change": 69.42,
+    "volume": 420000000
+  },
+  "financials": {
+    "revenue": "§442.0B",
+    "profit": "§69.4B",
+    "eps": "§69.42",
+    "growthYoY": "+420%"
+  },
+  "flavorText": [
+    "NEON ASCENT v0.8 LIVE",
+    "URANUS MEME INDEX +420%",
+    "MOJO – STILL SHIPPING AT 3AM"
+  ],
+  "dossier": {
+    "psychProfile": "Severe ADHD. Only messages people when they’re offline. This is both a personality trait and a business strategy. Genuinely enjoys talking to runners who get the indie dev struggle.",
+    "attackVectors": "Talk real tech (Jetpack Compose, Clean Architecture, Gemma on-device, shaders, etc.)\nMake self-aware jokes about building this game\nBe patient with async replies\nShow genuine appreciation for the grind",
+    "leakedMemos": [
+      "“Note to self: Stop promising features at 3 AM. Also stop actually delivering them.” — Mojo"
+    ],
+    "rivalShade": [
+      {
+        "targetCorpoId": "aetherx",
+        "intel": "My favorite shitposter. Terrible architecture though."
+      },
+      {
+        "targetCorpoId": "panopticon",
+        "intel": "He watches everything. I watch him watch everything and laugh."
+      },
+      {
+        "targetCorpoId": "neobank",
+        "intel": "They want your money forever. I just want you to have fun."
+      }
+    ],
+    "quickhackVault": [
+      {
+        "id": "mojo_overclock",
+        "name": "Mojo Overclock",
+        "description": "Massive temporary boost to all quickhack effectiveness + creativity/inspiration buff.",
+        "effect": "Massive temporary boost to all quickhack effectiveness + creativity/inspiration buff.",
+        "rarity": "LEGENDARY",
+        "tier": "Legendary",
+        "flavor": "“The dev just entered flow state.”",
+        "type": "UTILITY"
+      }
+    ],
+    "iceBlueprints": [
+      "Indie Fortress"
+    ],
+    "executiveBackdoor": "There is no password.\nIf the player wins Mojo over, he sends this when they go offline:\n“Alright runner, you’re actually pretty based. Most people just try to hack me. You get it.\nHere, take this. Don’t tell the other corps I went soft.§4,200 Eddies transferred\nMojo’s Blessing unlocked\n— Mojo”",
+    "oneTimeEddies": 4200,
+    "permanentPerk": "“Mojo’s Blessing” — +10% overall system efficiency + occasional random \"inspiration\" buffs (quality of life improvements)"
+  }
+}
