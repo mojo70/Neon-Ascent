@@ -165,42 +165,6 @@ fun DashboardScreen(
 
         Column(
             modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.End
-        ) {
-            SmallFloatingActionButton(
-                onClick = { viewModel.generateTodaysTasks() },
-                containerColor = Color.Black.copy(alpha = 0.6f),
-                contentColor = systemColor,
-                modifier = Modifier
-                    .neonBorder(systemColor.copy(alpha = 0.6f), cornerRadius = 8.dp),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Icon(Icons.Default.Refresh, contentDescription = "RECALIBRATE_TASKS")
-            }
-
-            FloatingActionButton(
-                onClick = { showQuickTaskSheet = true },
-                containerColor = systemColor,
-                contentColor = Color.Black,
-                modifier = Modifier
-                    .neonBorder(systemColor, cornerRadius = 16.dp),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "QUICK_TASK_CREATION")
-            }
-        }
-
-        if (showQuickTaskSheet) {
-            QuickTaskBottomSheet(
-                onDismiss = { showQuickTaskSheet = false }
-            )
-        }
-
-        Column(
-            modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
                 .padding(16.dp)
@@ -589,6 +553,42 @@ fun DashboardScreen(
             }
 
             Spacer(modifier = Modifier.height(64.dp))
+        }
+
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.End
+        ) {
+            SmallFloatingActionButton(
+                onClick = { viewModel.generateTodaysTasks() },
+                containerColor = Color.Black.copy(alpha = 0.6f),
+                contentColor = systemColor,
+                modifier = Modifier
+                    .neonBorder(systemColor.copy(alpha = 0.6f), cornerRadius = 8.dp),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Icon(Icons.Default.Refresh, contentDescription = "RECALIBRATE_TASKS")
+            }
+
+            FloatingActionButton(
+                onClick = { showQuickTaskSheet = true },
+                containerColor = systemColor,
+                contentColor = Color.Black,
+                modifier = Modifier
+                    .neonBorder(systemColor, cornerRadius = 16.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "QUICK_TASK_CREATION")
+            }
+        }
+
+        if (showQuickTaskSheet) {
+            QuickTaskBottomSheet(
+                onDismiss = { showQuickTaskSheet = false }
+            )
         }
 
         CelebrationOverlay(

@@ -38,6 +38,7 @@ import java.time.ZoneId
 @Composable
 fun AscensionTaskDetailScreen(
     taskId: String,
+    prefillAction: String? = null,
     onBack: () -> Unit,
     viewModel: AscensionTaskDetailViewModel = hiltViewModel()
 ) {
@@ -62,6 +63,12 @@ fun AscensionTaskDetailScreen(
 
     LaunchedEffect(taskId) {
         viewModel.loadTask(taskId)
+    }
+
+    LaunchedEffect(uiState.task, prefillAction) {
+        if (prefillAction == "complete" && uiState.task != null && !uiState.isCompletedToday) {
+            viewModel.completeTask("AUTO_SYNCED_VIA_DEEP_LINK", 5)
+        }
     }
 
     Scaffold(

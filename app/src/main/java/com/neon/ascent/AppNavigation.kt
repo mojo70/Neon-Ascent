@@ -50,6 +50,8 @@ import com.neon.ascent.feature.goals.ui.ascension.AscensionTaskDetailScreen
 import com.neon.ascent.feature.goals.ui.ascension.AscensionDirectiveDetailScreen
 import com.neon.ascent.feature.goals.ui.ascension.AscensionMissionDetailScreen
 import com.neon.ascent.feature.goals.ui.ascension.TerminalRitualScreen
+import com.neon.ascent.feature.goals.ui.ascension.NeuralMentorScreen
+import com.neon.ascent.feature.goals.ui.ascension.QuickTaskBottomSheet
 import com.neon.ascent.feature.story.StoryIntakeScreen
 import com.neon.ascent.feature.loading.LoadingScreen
 import com.neon.ascent.feature.library.EReaderScreen
@@ -517,12 +519,16 @@ fun AppNavigation(
             deepLinks = listOf(
                 navDeepLink {
                     uriPattern = "neon-ascent://task/{id}"
+                },
+                navDeepLink {
+                    uriPattern = "neon-ascent://task/{id}?action={action}"
                 }
             )
         ) { backStackEntry ->
             val taskDetail = backStackEntry.toRoute<Screen.TaskDetail>()
             AscensionTaskDetailScreen(
                 taskId = taskDetail.id,
+                prefillAction = taskDetail.action,
                 onBack = {
                     if (navController.previousBackStackEntry != null) {
                         navController.popBackStack()
@@ -532,6 +538,22 @@ fun AppNavigation(
                         }
                     }
                 }
+            )
+        }
+
+        composable<Screen.QuickCreateTask> { backStackEntry ->
+            val args = backStackEntry.toRoute<Screen.QuickCreateTask>()
+            QuickTaskBottomSheet(
+                prefilledParentId = args.parentId,
+                onDismiss = { navController.popBackStack() }
+            )
+        }
+
+        composable<Screen.NeuralMentor> { backStackEntry ->
+            val args = backStackEntry.toRoute<Screen.NeuralMentor>()
+            NeuralMentorScreen(
+                initialContextJson = args.contextJson,
+                navController = navController
             )
         }
 

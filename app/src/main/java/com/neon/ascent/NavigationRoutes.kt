@@ -128,7 +128,13 @@ sealed interface Screen {
     data class AscensionMissionDetail(val id: String) : Screen
 
     @Serializable
-    data class TaskDetail(val id: String) : Screen
+    data class TaskDetail(val id: String, val action: String? = null) : Screen
+
+    @Serializable
+    data class QuickCreateTask(val parentType: String? = null, val parentId: String? = null) : Screen
+
+    @Serializable
+    data class NeuralMentor(val contextJson: String? = null) : Screen
 
     @Serializable
     data object AscensionForge : Screen
