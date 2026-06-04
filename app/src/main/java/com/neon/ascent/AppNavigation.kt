@@ -157,7 +157,10 @@ fun AppNavigation(
                 onNavigateToDiagnostics = {
                     navController.navigate(Screen.Diagnostics)
                 },
-                onLoreClick = { navController.navigate(Screen.Lore) }
+                onLoreClick = { navController.navigate(Screen.Lore) },
+                onNavigateToForge = { type, title, desc ->
+                    navController.navigate(Screen.AscensionForge(type.name, title, desc))
+                }
             )
         }
 
@@ -454,9 +457,13 @@ fun AppNavigation(
             )
         }
 
-        composable<Screen.AscensionForge> {
+        composable<Screen.AscensionForge> { backStackEntry ->
+            val forge = backStackEntry.toRoute<Screen.AscensionForge>()
             AscensionForgeScreen(
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                prefilledAttribute = forge.attribute,
+                prefilledTitle = forge.title,
+                prefilledDescription = forge.description
             )
         }
 

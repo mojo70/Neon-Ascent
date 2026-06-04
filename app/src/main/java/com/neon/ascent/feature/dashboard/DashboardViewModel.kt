@@ -142,7 +142,7 @@ class DashboardViewModel @Inject constructor(
                 _dopamineEvent,
                 specialRepository.getAllSpecialAttributes(),
                 identityCoordinator.identity,
-                ascensionRepository.getCompletionsInRange(java.time.Instant.now().minus(24, java.time.temporal.ChronoUnit.HOURS))
+                ascensionRepository.getCompletionsInRange(java.time.Instant.now().minus(90, java.time.temporal.ChronoUnit.DAYS))
             ) { array ->
                 val story = array[0] as com.neon.ascent.domain.model.UserStory
                 val directives = array[1] as List<AscensionDirective>
@@ -153,16 +153,21 @@ class DashboardViewModel @Inject constructor(
                 val dopamine = array[6] as com.neon.ascent.core.common.DopamineEvent?
                 val specialAttrs = array[7] as List<com.neon.ascent.core.domain.model.SpecialAttribute>
                 val identity = array[8] as com.neon.ascent.core.common.OperatorIdentity
-                val recentCompletions = array[9] as List<AscensionTaskCompletion>
+                val quarterlyCompletions = array[9] as List<AscensionTaskCompletion>
+
+                // Calculate total XP this quarter
+                val totalXpThisQuarter = quarterlyCompletions.sumOf { completion ->
+                    dailyTasks.find { it.id == completion.taskId }?.xpValue?.toLong() ?: 0L
+                }
 
                 // Determine top attribute for identity resonance
                 val topAttr = specialAttrs.maxByOrNull { it.currentValue }?.type?.name
                 identityCoordinator.updateIdentity(topAttr, totalCompletedDays)
 
                 // Map completions to titles for micro-logs
-                val recentLogMessages = recentCompletions.mapNotNull { completion ->
+                val recentLogMessages = quarterlyCompletions.takeLast(5).mapNotNull { completion ->
                     dailyTasks.find { it.id == completion.taskId }?.title?.let { "SYNC_SUCCESS // $it" }
-                }.take(5)
+                }
 
                 val lore = if (story.cyberLore.isNotBlank()) {
                     story.cyberLore
@@ -181,6 +186,7 @@ class DashboardViewModel @Inject constructor(
                     terminalFeed = emptyList(), // Now handled by BiohackingViewModel
                     bioAgeResult = bioAge,
                     totalHabitDays = totalCompletedDays,
+                    totalXpThisQuarter = totalXpThisQuarter,
                     isLoading = false,
                     dopamineEvent = dopamine,
                     identity = identity,

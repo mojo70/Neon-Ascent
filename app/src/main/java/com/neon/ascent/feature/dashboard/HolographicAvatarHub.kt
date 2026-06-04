@@ -46,6 +46,13 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
 
+import com.neon.ascent.core.domain.model.SpecialType
+import com.neon.ascent.core.domain.model.SpecialAttribute
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HolographicAvatarHub(
     viewModel: DashboardViewModel = hiltViewModel(),
@@ -54,7 +61,8 @@ fun HolographicAvatarHub(
     onBack: () -> Unit,
     onUpgradeClick: (String) -> Unit,
     onNavigateToDiagnostics: () -> Unit,
-    onLoreClick: () -> Unit = {}
+    onLoreClick: () -> Unit = {},
+    onNavigateToForge: (SpecialType, String?, String?) -> Unit = { _, _, _ -> }
 ) {
     val userCharacter by viewModel.userCharacter.collectAsState()
     val state by viewModel.uiState.collectAsState()
@@ -64,6 +72,10 @@ fun HolographicAvatarHub(
     val liveMetrics by healthViewModel.liveMetrics.collectAsState()
     val isNetrunnerMode by viewModel.isNetrunnerMode.collectAsState()
     val isReligionEnabled by viewModel.isReligionShortcutEnabled.collectAsState()
+
+    var selectedAttribute by remember { mutableStateOf<SpecialType?>(null) }
+    val sheetState = rememberModalBottomSheetState()
+    var showAttributeSheet by remember { mutableStateOf(false) }
 
     var selectedBodyPart by remember { mutableStateOf<String?>(null) }
     var isEditingName by remember { mutableStateOf(false) }
@@ -182,13 +194,22 @@ fun HolographicAvatarHub(
                                 )
                             )
                         }
-                        Text(
-                            text = "LEVEL ${userCharacter?.level ?: 1} $runnerTitle // SEC_ID: 0x${(userCharacter?.id ?: 0).toString(16).uppercase()}",
-                            color = titleColor,
-                            fontSize = 9.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = titleFontWeight
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "LEVEL ${userCharacter?.level ?: 1} $runnerTitle // SEC_ID: 0x${(userCharacter?.id ?: 0).toString(16).uppercase()}",
+                                color = titleColor,
+                                fontSize = 9.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = titleFontWeight
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "[XP_QTR: ${state.totalXpThisQuarter}]",
+                                color = NeonCyan.copy(alpha = 0.7f),
+                                fontSize = 9.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
                     }
                     
                     Text(
@@ -217,6 +238,20 @@ fun HolographicAvatarHub(
                     glitchBurstIntensity = 0.3f
                 }
                 
+                // Radar Chart Overlay
+                AttributeRadarChart(
+                    stats = mapOf(
+                        "STR" to (specialState[SpecialType.STRENGTH]?.currentValue ?: 5),
+                        "AGI" to (specialState[SpecialType.AGILITY]?.currentValue ?: 5),
+                        "END" to (specialState[SpecialType.ENDURANCE]?.currentValue ?: 5),
+                        "PER" to (specialState[SpecialType.PERCEPTION]?.currentValue ?: 5),
+                        "INT" to (specialState[SpecialType.INTELLIGENCE]?.currentValue ?: 5),
+                        "CHA" to (specialState[SpecialType.CHARISMA]?.currentValue ?: 5),
+                        "LUC" to (specialState[SpecialType.LUCK]?.currentValue ?: 5)
+                    ),
+                    modifier = Modifier.size(100.dp).align(Alignment.BottomEnd).padding(8.dp)
+                )
+
                 // Live HR Badge (Top Right)
                 Column(
                     modifier = Modifier
@@ -230,19 +265,6 @@ fun HolographicAvatarHub(
                             .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     )
-                    Spacer(Modifier.height(4.dp))
-                    HeartbeatTrace(
-                        bpm = liveMetrics?.heartRate,
-                        modifier = Modifier
-                            .width(120.dp)
-                            .height(40.dp)
-                            .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
-                    )
-                }
-
-                // Load Gauge Overlay (Small/Minimal)
-                Box(modifier = Modifier.align(Alignment.CenterStart).padding(16.dp)) {
-                    NeuralLoadGauge(load = displayLoad, modifier = Modifier.size(100.dp))
                 }
 
                 // Archetype Label
@@ -254,77 +276,22 @@ fun HolographicAvatarHub(
                     fontWeight = titleFontWeight,
                     modifier = Modifier.align(Alignment.TopStart).padding(12.dp)
                 )
-
-                // Share Snapshot Button
-                IconButton(
-                    onClick = { showSnapshotPreview = true },
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp).background(Color.Black.copy(alpha = 0.6f), CircleShape).border(1.dp, Color(0xFF00FFFF).copy(alpha = 0.4f), CircleShape)
-                ) {
-                    Icon(Icons.Default.Share, contentDescription = "Share", tint = Color(0xFF00FFFF), modifier = Modifier.size(20.dp))
-                }
             }
 
-            // --- S.P.E.C.I.A.L. BIOMETRICS ---
-            CyberFrame(label = "S.P.E.C.I.A.L._BIO_METRICS", modifier = Modifier.weight(1f)) {
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(
-                        modifier = Modifier.weight(1f).padding(end = 8.dp),
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        val attributes = com.neon.ascent.core.domain.model.SpecialType.entries
-
-                        attributes.forEach { type ->
-                            val attr = specialState[type]
-                            val value = attr?.currentValue ?: 5
-                            Text(
-                                text = "[${type.name[0]}] ${type.name.padEnd(12)}: $value",
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onUpgradeClick(type.name) }
-                                    .padding(vertical = 1.dp)
-                            )
-                        }
-                        
-                        val rank = userCharacter?.getChessRank() ?: "GHOST_IN_SHELL"
-                        Text(
-                            "RANK: $rank // HR: ${liveMetrics?.heartRate ?: healthState?.heartRate ?: "--"} BPM",
-                            color = Color(0xFF00FF9C).copy(alpha = 0.7f),
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-
-                        if (selectedBodyPart != null) {
-                            Button(
-                                onClick = { onUpgradeClick(selectedBodyPart!!) },
-                                modifier = Modifier.padding(top = 8.dp).height(28.dp).clip(CyberButtonShape),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                            ) {
-                                Text("UPGRADE_${selectedBodyPart}", color = Color.Black, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
+            // --- S.P.E.C.I.A.L. ATTRIBUTES ---
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                SpecialLetterHex(
+                    specialState = specialState,
+                    onAttributeClick = { type ->
+                        selectedAttribute = type
+                        showAttributeSheet = true
                     }
-
-                    AttributeRadarChart(
-                        stats = mapOf(
-                            "STR" to (specialState[com.neon.ascent.core.domain.model.SpecialType.STRENGTH]?.currentValue ?: 5),
-                            "AGI" to (specialState[com.neon.ascent.core.domain.model.SpecialType.AGILITY]?.currentValue ?: 5),
-                            "END" to (specialState[com.neon.ascent.core.domain.model.SpecialType.ENDURANCE]?.currentValue ?: 5),
-                            "PER" to (specialState[com.neon.ascent.core.domain.model.SpecialType.PERCEPTION]?.currentValue ?: 5),
-                            "INT" to (specialState[com.neon.ascent.core.domain.model.SpecialType.INTELLIGENCE]?.currentValue ?: 5),
-                            "CHA" to (specialState[com.neon.ascent.core.domain.model.SpecialType.CHARISMA]?.currentValue ?: 5),
-                            "LUC" to (specialState[com.neon.ascent.core.domain.model.SpecialType.LUCK]?.currentValue ?: 5)
-                        ),
-                        modifier = Modifier.size(150.dp)
-                    )
-                }
+                )
             }
 
             // Cyber Lore Section
@@ -404,6 +371,35 @@ fun HolographicAvatarHub(
                         }
                     }
                 }
+            }
+        }
+
+        if (showAttributeSheet && selectedAttribute != null) {
+            val attr = specialState[selectedAttribute!!] ?: SpecialAttribute(
+                type = selectedAttribute!!,
+                currentValue = 5,
+                percentile = 50
+            )
+            ModalBottomSheet(
+                onDismissRequest = { showAttributeSheet = false },
+                sheetState = sheetState,
+                containerColor = Color(0xFF0A080C),
+                scrimColor = Color.Black.copy(alpha = 0.7f)
+            ) {
+                SpecialAttributeSheet(
+                    attribute = attr,
+                    protocols = AttributeProtocols[selectedAttribute!!] ?: emptyList(),
+                    sleepScore = deepMetrics?.sleepScore,
+                    onHackClick = {
+                        showAttributeSheet = false
+                        onNavigateToForge(selectedAttribute!!, null, null)
+                    },
+                    onProtocolClick = { protocol ->
+                        showAttributeSheet = false
+                        onNavigateToForge(selectedAttribute!!, protocol.title, protocol.description)
+                    },
+                    onDismiss = { showAttributeSheet = false }
+                )
             }
         }
     }
@@ -823,6 +819,299 @@ fun SnapshotPreviewDialog(character: UserCharacter?, viewModel: DashboardViewMod
                 ) {
                     Text("POST TO X", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SpecialAttributeSheet(
+    attribute: SpecialAttribute,
+    protocols: List<Protocol>,
+    sleepScore: Int? = null,
+    onHackClick: () -> Unit,
+    onProtocolClick: (Protocol) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFF0A080C))
+            .padding(24.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        // Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = attribute.type.name,
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        color = NeonCyan,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Black
+                    )
+                )
+                Text(
+                    text = "LEVEL ${attribute.currentValue} // ${attribute.percentile ?: 50} PERCENTILE",
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+            
+            // Value display
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .neonBorder(NeonCyan, cornerRadius = 32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = attribute.currentValue.toString(),
+                    color = NeonCyan,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+        }
+
+        // Trend
+        CyberFrame(label = "HISTORICAL_TREND", accentColor = NeonPink) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val trendInfo = when(attribute.type) {
+                    SpecialType.ENDURANCE -> "SLEEP_RECOVERY: ${sleepScore ?: "--"}%"
+                    SpecialType.STRENGTH -> "TRAINING_LOAD: ↑"
+                    SpecialType.INTELLIGENCE -> "NEURAL_EFFICIENCY: STABLE"
+                    else -> "BIOMETRIC_SYNC: STABLE"
+                }
+                Text(trendInfo, color = Color.White, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = null, tint = NeonCyan)
+                    Text("稳定", color = NeonCyan, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                }
+            }
+        }
+
+        // Suggested Protocols
+        Text(
+            "SUGGESTED_PROTOCOLS",
+            color = Color.White,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Monospace
+        )
+
+        protocols.forEach { protocol ->
+            ProtocolCard(protocol) { onProtocolClick(protocol) }
+        }
+
+        // Cross-links
+        Text(
+            "BIOHACKING_CROSS_LINKS",
+            color = Color.White.copy(alpha = 0.5f),
+            fontSize = 12.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        
+        val crossLinks = listOf(
+            Protocol("Recovery & Rebuild", "Optimized sleep and recovery protocols", "Linked to ALL attributes"),
+            Protocol("Soul Anchor", "Christianity integration & spiritual resilience", "Focus & endurance boost"),
+            Protocol("Optimized Human 2.0", "Biohacking foundations", "General progression boost")
+        )
+        
+        crossLinks.forEach { protocol ->
+            ProtocolCard(protocol) { onProtocolClick(protocol) }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Button(
+            onClick = onHackClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .neonBorder(NeonPink, cornerRadius = 4.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = NeonPink.copy(alpha = 0.15f)),
+            shape = RoundedCornerShape(4.dp)
+        ) {
+            Text(
+                "HACK THIS STAT",
+                color = NeonPink,
+                fontSize = 16.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 2.sp
+            )
+        }
+        
+        Spacer(Modifier.height(32.dp))
+    }
+}
+
+@Composable
+fun ProtocolCard(protocol: Protocol, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .neonBorder(Color.White.copy(alpha = 0.2f), cornerRadius = 8.dp),
+        color = Color.White.copy(alpha = 0.05f),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = protocol.title.uppercase(),
+                    color = NeonCyan,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+                Text(
+                    text = "ADD",
+                    color = Color.White.copy(alpha = 0.4f),
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = protocol.description,
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 12.sp
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "EST_IMPACT: ${protocol.impact}",
+                color = NeonPink.copy(alpha = 0.8f),
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+    }
+}
+
+data class Protocol(
+    val title: String,
+    val description: String,
+    val impact: String
+)
+
+val AttributeProtocols = mapOf(
+    SpecialType.STRENGTH to listOf(
+        Protocol("CyberCrapp Protocol", "Progressive lifting program", "+0.4 STR/qtr"),
+        Protocol("Iron Temple Base", "Weight room foundations", "+0.3 STR/qtr"),
+        Protocol("Forge the Frame", "Strength + Endurance hybrid", "+0.2 STR/qtr, +0.2 END/qtr")
+    ),
+    SpecialType.PERCEPTION to listOf(
+        Protocol("Signal Clarity", "Focus and meditation drills", "+0.3 PER/qtr"),
+        Protocol("Sensory Overclock", "Cold exposure + focus drills", "+0.4 PER/qtr")
+    ),
+    SpecialType.ENDURANCE to listOf(
+        Protocol("Fortify the Frame", "Your hydration base", "+0.2 END/qtr"),
+        Protocol("Metabolic Overclock", "Zone 2 cardio protocol", "+0.4 END/qtr"),
+        Protocol("Longevity Protocol", "Comprehensive endurance", "+0.5 END/qtr")
+    ),
+    SpecialType.CHARISMA to listOf(
+        Protocol("Neon Presence", "Public speaking and social hacking", "+0.3 CHA/qtr"),
+        Protocol("Operator Network Protocol", "Collaboration and leadership", "+0.4 CHA/qtr")
+    ),
+    SpecialType.INTELLIGENCE to listOf(
+        Protocol("Mind Palace Expansion", "Advanced memory techniques", "+0.4 INT/qtr"),
+        Protocol("Neural Citadel", "Meditation + learning protocols", "+0.3 INT/qtr")
+    ),
+    SpecialType.AGILITY to listOf(
+        Protocol("Shadow Runner", "Parkour and speed drills", "+0.4 AGI/qtr"),
+        Protocol("Movement Ghost", "Stealth and flexibility", "+0.3 AGI/qtr")
+    )
+)
+
+@Composable
+fun SpecialLetterHex(
+    specialState: Map<SpecialType, SpecialAttribute>,
+    onAttributeClick: (SpecialType) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        val types = listOf(
+            SpecialType.STRENGTH,
+            SpecialType.PERCEPTION,
+            SpecialType.ENDURANCE,
+            SpecialType.CHARISMA,
+            SpecialType.INTELLIGENCE,
+            SpecialType.AGILITY
+        )
+        
+        val radius = 120.dp
+        
+        types.forEachIndexed { i, type ->
+            val angle = i * (2 * PI / 6) - PI / 2
+            val x = (radius.value * cos(angle)).dp
+            val y = (radius.value * sin(angle)).dp
+            
+            val attr = specialState[type]
+            
+            Column(
+                modifier = Modifier
+                    .offset(x = x, y = y)
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.6f))
+                    .border(1.dp, NeonCyan.copy(alpha = 0.5f), CircleShape)
+                    .clickable { onAttributeClick(type) },
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = type.name.first().toString(),
+                    color = NeonCyan,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Black,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.cyberGlitch(intensity = 0.1f)
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = (attr?.currentValue ?: 5).toString(),
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Icon(
+                        Icons.Default.KeyboardArrowUp,
+                        contentDescription = null,
+                        tint = NeonCyan.copy(alpha = 0.6f),
+                        modifier = Modifier.size(10.dp)
+                    )
+                }
+                Text(
+                    text = when(type) {
+                        SpecialType.STRENGTH -> "FORGE"
+                        SpecialType.PERCEPTION -> "SIGNAL"
+                        SpecialType.ENDURANCE -> "FORTIFY"
+                        SpecialType.CHARISMA -> "VOICE"
+                        SpecialType.INTELLIGENCE -> "MIND"
+                        SpecialType.AGILITY -> "GHOST"
+                        else -> "LUCK"
+                    },
+                    color = NeonCyan.copy(alpha = 0.4f),
+                    fontSize = 7.sp,
+                    fontFamily = FontFamily.Monospace
+                )
             }
         }
     }

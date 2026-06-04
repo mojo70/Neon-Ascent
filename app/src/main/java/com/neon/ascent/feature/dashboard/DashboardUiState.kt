@@ -16,6 +16,7 @@ data class DashboardUiState(
     val terminalFeed: List<TerminalEvent> = emptyList(),
     val bioAgeResult: BioAgeResult? = null,
     val totalHabitDays: Int = 0,
+    val totalXpThisQuarter: Long = 0,
     val isLoading: Boolean = true,
     val dopamineEvent: DopamineEvent? = null,
     val identity: OperatorIdentity = OperatorIdentity(),

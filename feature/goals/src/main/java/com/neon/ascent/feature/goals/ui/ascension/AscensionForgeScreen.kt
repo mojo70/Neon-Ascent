@@ -72,9 +72,18 @@ fun CyberFrame(
 @Composable
 fun AscensionForgeScreen(
     onBack: () -> Unit,
+    prefilledAttribute: String? = null,
+    prefilledTitle: String? = null,
+    prefilledDescription: String? = null,
     viewModel: AscensionForgeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        if (prefilledAttribute != null || prefilledTitle != null || prefilledDescription != null) {
+            viewModel.prefill(prefilledAttribute, prefilledTitle, prefilledDescription)
+        }
+    }
 
     Scaffold(
         topBar = {

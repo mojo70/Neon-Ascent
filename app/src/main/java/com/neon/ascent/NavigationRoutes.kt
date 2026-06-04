@@ -137,7 +137,11 @@ sealed interface Screen {
     data class NeuralMentor(val contextJson: String? = null) : Screen
 
     @Serializable
-    data object AscensionForge : Screen
+    data class AscensionForge(
+        val attribute: String? = null,
+        val title: String? = null,
+        val description: String? = null
+    ) : Screen
 
     @Serializable
     data class AscensionReview(val directiveId: String) : Screen

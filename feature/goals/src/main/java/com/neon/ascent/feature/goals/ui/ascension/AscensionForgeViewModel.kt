@@ -78,6 +78,20 @@ class AscensionForgeViewModel @Inject constructor(
     fun addTimeWindow(window: String) = _uiState.update { it.copy(timeWindows = it.timeWindows + window) }
     fun removeTimeWindow(window: String) = _uiState.update { it.copy(timeWindows = it.timeWindows - window) }
 
+    fun prefill(attributeName: String?, title: String?, description: String?) {
+        _uiState.update { state ->
+            val attr = attributeName?.let { 
+                try { SpecialType.valueOf(it) } catch(e: Exception) { null } 
+            }
+            state.copy(
+                title = title ?: state.title,
+                description = description ?: state.description,
+                linkedAttributes = if (attr != null) state.linkedAttributes + attr else state.linkedAttributes,
+                useAiMentor = true // Default to true as per spec
+            )
+        }
+    }
+
     fun save() {
         val state = _uiState.value
         viewModelScope.launch {
