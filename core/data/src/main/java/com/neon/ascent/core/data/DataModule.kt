@@ -1,9 +1,11 @@
 package com.neon.ascent.core.data
 
 import com.neon.ascent.core.data.repository.AscensionRepositoryImpl
+import com.neon.ascent.core.data.repository.InsightProjectionRepositoryImpl
 import com.neon.ascent.core.domain.GoalRepository
 import com.neon.ascent.core.domain.SpecialRepository
 import com.neon.ascent.core.domain.repository.AscensionRepository
+import com.neon.ascent.core.domain.repository.InsightProjectionRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -31,4 +33,10 @@ abstract class DataModule {
     abstract fun bindAscensionRepository(
         ascensionRepositoryImpl: AscensionRepositoryImpl
     ): AscensionRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindInsightProjectionRepository(
+        insightProjectionRepositoryImpl: InsightProjectionRepositoryImpl
+    ): InsightProjectionRepository
 }

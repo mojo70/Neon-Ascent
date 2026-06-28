@@ -5,9 +5,7 @@ import androidx.work.*
 import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.core.domain.goals.models.*
 import com.neon.ascent.feature.health.data.HealthConnectManager
-import com.neon.ascent.feature.notifications.data.workers.ContextualPingWorker
-import com.neon.ascent.feature.notifications.data.workers.DailySummaryWorker
-import com.neon.ascent.feature.notifications.data.workers.HealthTriggerWorker
+import com.neon.ascent.feature.notifications.data.workers.*
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
 import java.time.*
@@ -37,6 +35,45 @@ class SmartPingScheduler @Inject constructor(
 
         // Periodic health state check for dynamic triggers (wake/bed)
         scheduleHealthTriggerCheck()
+    }
+
+    /**
+     * Enqueues the Daily Neural Brief via NeuralBriefWorker.
+     * Respects user quiet hours and delivery preferences.
+     */
+    suspend fun enqueueDailyNeuralBrief(isTestRequest: Boolean = false) {
+        if (isTestRequest) {
+            val oneTimeRequest = OneTimeWorkRequestBuilder<NeuralBriefWorker>()
+                .addTag("neural_brief_test")
+                .build()
+            workManager.enqueue(oneTimeRequest)
+        } else {
+            NeuralBriefWorker.schedule(context)
+        }
+    }
+
+    /**
+     * Triggered when a high-value insight is projected.
+     * Enqueues an expedited brief with a cooldown to prevent spam.
+     */
+    fun triggerExpeditedBrief(reason: String) {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
+            .setRequiresBatteryNotLow(true)
+            .build()
+
+        val request = OneTimeWorkRequestBuilder<NeuralBriefWorker>()
+            .setConstraints(constraints)
+            .setInitialDelay(5, TimeUnit.MINUTES) // Small buffer for synthesis
+            .addTag("expedited_brief_$reason")
+            .build()
+
+        // Use UNIQUE work with KEEP to avoid spamming the user if multiple insights pop
+        workManager.enqueueUniqueWork(
+            "expedited_neural_brief",
+            ExistingWorkPolicy.KEEP,
+            request
+        )
     }
 
     private fun scheduleForTask(task: AscensionTask) {
