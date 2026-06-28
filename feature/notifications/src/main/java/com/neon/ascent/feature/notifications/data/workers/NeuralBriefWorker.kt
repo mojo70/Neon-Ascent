@@ -21,80 +21,93 @@ class NeuralBriefWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
     private val briefManager: NeuralBriefManager,
-    private val insightRepository: InsightProjectionRepository,
-    private val deepLinkHelper: DeepLinkHelper
+    private val insightRepository: InsightProjectionRepository
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
+        Log.d(TAG, "SYNTHESIS_INIT: Starting Neural Brief work cycle")
         return try {
-            Log.d(TAG, "Starting Neural Brief synthesis...")
+            // Log permission and system state
+            val hasNotificationPermission = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                androidx.core.content.ContextCompat.checkSelfPermission(
+                    applicationContext,
+                    android.Manifest.permission.POST_NOTIFICATIONS
+                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            } else true
+            Log.d(TAG, "SYSTEM_STATE: Permission status = $hasNotificationPermission, Attempt = $runAttemptCount")
 
-            // 1. Fetch latest insights and recommendations
+            // 1. Fetch latest insights and recommendations from the projection layer
+            Log.d(TAG, "DATA_FETCH: Accessing InsightProjectionRepository")
             val insight = insightRepository.getLatestInsight().firstOrNull()
             val recommendation = insightRepository.getLatestRecommendation().firstOrNull()
 
-            if (insight == null && recommendation == null) {
-                Log.w(TAG, "No insights or recommendations found. Skipping brief.")
-                return Result.success()
-            }
-
-            // 2. Build the payload using deepLinkHelper for navigation context if needed
+            // 2. Build the polite, neon-flavored body
             val title = "⚡ NEURAL BRIEF // SYNC_SUCCESS"
-            val body = buildString {
-                insight?.let { append("${it.content}\n\n") }
-                recommendation?.let { append("REC: ${it.content}") }
-            }.trim()
-
-            // Check if we have a specific task to complete from deep link helper logic
-            // (Simulated for this release)
-            val dashboardUri = deepLinkHelper.createDashboardIntent().dataString ?: ""
-            Log.d(TAG, "Navigating to: $dashboardUri")
-
-            // 3. Define Actions (Aggregated from latest recommendations)
-            val actions = mutableListOf<NeuralBriefManager.BriefAction>()
-            
-            // Recommendation-specific action
-            recommendation?.relatedDirectiveId?.let { directiveId ->
-                actions.add(
-                    NeuralBriefManager.BriefAction(
-                        label = "FORGE DIRECTIVE",
-                        actionName = "com.neon.ascent.ACTION_FORGE_DIRECTIVE",
-                        type = directiveId
-                    )
-                )
+            val body = if (insight == null && recommendation == null) {
+                Log.d(TAG, "SYNTHESIS_FALLBACK: No fresh data found, using default payload")
+                "The network is quiet. Your biometrics remain within stable parameters. Maintain current momentum."
+            } else {
+                Log.d(TAG, "SYNTHESIS_SUCCESS: Mapping insights to neon-tone body")
+                formatBriefContent(insight, recommendation)
             }
 
-            actions.addAll(listOf(
-                NeuralBriefManager.BriefAction(
-                    label = "LOG COMPLETE",
-                    actionName = NeuralBriefManager.ACTION_LOG_COMPLETE,
-                    type = "GENERAL_SUCCESS"
-                ),
+            Log.d(TAG, "PAYLOAD_GENERATED: Body length = ${body.length}")
+
+            // 3. Define Actions
+            val actions = listOf(
                 NeuralBriefManager.BriefAction(
                     label = "OPEN DECK",
                     actionName = NeuralBriefManager.ACTION_OPEN_DECK,
                     type = "DASHBOARD"
                 ),
                 NeuralBriefManager.BriefAction(
+                    label = "LOG COMPLETE",
+                    actionName = NeuralBriefManager.ACTION_LOG_COMPLETE,
+                    type = recommendation?.relatedDirectiveId ?: ""
+                ),
+                NeuralBriefManager.BriefAction(
                     label = "SNOOZE 2H",
                     actionName = NeuralBriefManager.ACTION_SNOOZE,
-                    type = "DEFER"
+                    type = "DEFER_2H"
                 )
-            ))
+            )
 
             // 4. Show Notification
+            Log.d(TAG, "DISPATCH: Sending payload to NeuralBriefManager")
             briefManager.showNeuralBrief(
                 title = title,
                 content = body,
-                actions = actions.take(3) // Limit to 3 actions for standard notification visibility
+                actions = actions.take(3)
             )
 
-            Log.i(TAG, "Neural Brief delivered successfully.")
+            Log.i(TAG, "SYNTHESIS_COMPLETE: Neural Brief delivered successfully")
             Result.success()
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to deliver Neural Brief", e)
+            Log.e(TAG, "SYNTHESIS_FAILURE: Critical error during work cycle", e)
             if (runAttemptCount < 3) Result.retry() else Result.failure()
         }
+    }
+
+    /**
+     * Formats the brief content with a calm, competent, neon tone.
+     * Highlights biometric data if available and appends the recommendation.
+     */
+    private fun formatBriefContent(
+        insight: com.neon.ascent.core.domain.repository.SocraticInsight?,
+        recommendation: com.neon.ascent.core.domain.repository.RecommendationProjection?
+    ): String = buildString {
+        if (insight != null) {
+            append(insight.content)
+            if (!insight.content.endsWith(".")) append(".")
+            append(" ")
+        }
+        
+        if (recommendation != null) {
+            append(recommendation.content)
+            if (!recommendation.content.endsWith(".")) append(".")
+        }
+    }.trim().ifEmpty { 
+        "Systems nominal. Ready for next cycle."
     }
 
     companion object {

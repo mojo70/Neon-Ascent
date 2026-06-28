@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import com.neon.ascent.feature.notifications.data.SmartPingScheduler
 import java.util.UUID
 import javax.inject.Inject
 
@@ -38,7 +39,8 @@ class SettingsViewModel @Inject constructor(
     private val healthRepository: HealthRepository,
     private val exportNeuralLogUseCase: ExportNeuralLogUseCase,
     private val userStoryRepository: UserStoryRepository,
-    private val specialRepository: SpecialRepository
+    private val specialRepository: SpecialRepository,
+    private val notificationScheduler: SmartPingScheduler
 ) : ViewModel() {
 
     private val _prayerToast = MutableStateFlow<String?>(null)
@@ -605,6 +607,61 @@ class SettingsViewModel @Inject constructor(
 
     val userCharacter: StateFlow<UserCharacter?> = characterRepository.getUserCharacter()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    // Notification Settings
+    val isNeuralBriefEnabled = settingsRepository.isNeuralBriefEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val quietHoursStart = settingsRepository.quietHoursStart
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "22:00")
+
+    val quietHoursEnd = settingsRepository.quietHoursEnd
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "07:00")
+
+    val briefFrequency = settingsRepository.briefFrequency
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "DAILY")
+
+    val insightDepth = settingsRepository.insightDepth
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "DETAILED")
+
+    fun setNeuralBriefEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setNeuralBriefEnabled(enabled)
+        }
+    }
+
+    fun setQuietHoursStart(time: String) {
+        viewModelScope.launch {
+            settingsRepository.setQuietHoursStart(time)
+        }
+    }
+
+    fun setQuietHoursEnd(time: String) {
+        viewModelScope.launch {
+            settingsRepository.setQuietHoursEnd(time)
+        }
+    }
+
+    fun setBriefFrequency(frequency: String) {
+        viewModelScope.launch {
+            settingsRepository.setBriefFrequency(frequency)
+        }
+    }
+
+    fun setInsightDepth(depth: String) {
+        viewModelScope.launch {
+            settingsRepository.setInsightDepth(depth)
+        }
+    }
+
+    /**
+     * DEBUG: Triggers a one-time Neural Brief immediately.
+     */
+    fun debugTriggerTestBrief() {
+        viewModelScope.launch {
+            notificationScheduler.enqueueDailyNeuralBrief(isTestRequest = true)
+        }
+    }
 
     fun setBiometricLockEnabled(enabled: Boolean) {
         viewModelScope.launch {

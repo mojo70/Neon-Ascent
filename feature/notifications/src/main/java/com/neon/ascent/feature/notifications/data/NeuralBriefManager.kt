@@ -8,6 +8,7 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import com.neon.ascent.core.common.DeepLinkHelper
 import com.neon.ascent.feature.notifications.R
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -19,7 +20,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class NeuralBriefManager @Inject constructor(
-    @param:ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context,
+    private val deepLinkHelper: DeepLinkHelper
 ) {
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
@@ -60,17 +62,17 @@ class NeuralBriefManager @Inject constructor(
     ) {
         val notificationId = BRIEF_NOTIFICATION_ID
 
-        // Deep link to the Cyberdeck / Dashboard (main entry point)
-        // Note: Replace with actual activity/uri when deep linking is fully wired
-        val mainIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
+        // Deep link to the Dashboard
+        val dashboardIntent = deepLinkHelper.createDashboardIntent()
         val mainPendingIntent = PendingIntent.getActivity(
-            context, 0, mainIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            context, 
+            0, 
+            dashboardIntent, 
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_neon_deck) // Reusing existing cyberpunk icon
+            .setSmallIcon(R.drawable.ic_neon_deck)
             .setContentTitle(title)
             .setContentText(content)
             .setStyle(NotificationCompat.BigTextStyle().bigText(content))
@@ -84,14 +86,29 @@ class NeuralBriefManager @Inject constructor(
 
         // Add quick actions
         actions.forEachIndexed { index, action ->
-            val intent = Intent(context, NeuralPingReceiver::class.java).apply {
-                this.action = action.actionName
-                putExtra(EXTRA_ACTION_TYPE, action.type)
+            val pendingIntent = when (action.actionName) {
+                ACTION_OPEN_DECK -> {
+                    val intent = deepLinkHelper.createDashboardIntent()
+                    PendingIntent.getActivity(context, notificationId + index, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                }
+                ACTION_LOG_COMPLETE -> {
+                    // Use a generic log deep link or specific task if available in 'type'
+                    val intent = deepLinkHelper.createTaskCompletionIntent(action.type.ifBlank { "generic" })
+                    PendingIntent.getActivity(context, notificationId + index, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                }
+                else -> {
+                    // Snooze and Skip+Reflect go through the BroadcastReceiver
+                    val intent = Intent(context, NeuralPingReceiver::class.java).apply {
+                        this.action = action.actionName
+                        putExtra(NeuralPingReceiver.EXTRA_NOTIFICATION_ID, notificationId)
+                        putExtra(EXTRA_ACTION_TYPE, action.type)
+                    }
+                    PendingIntent.getBroadcast(
+                        context, notificationId + index + 1, intent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+                }
             }
-            val pendingIntent = PendingIntent.getBroadcast(
-                context, notificationId + index + 1, intent, 
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
             builder.addAction(0, action.label, pendingIntent)
         }
 
@@ -117,9 +134,9 @@ class NeuralBriefManager @Inject constructor(
         const val EXTRA_ACTION_TYPE = "extra_brief_action_type"
         
         // Action Types defined in Roadmap
-        const val ACTION_LOG_COMPLETE = "ACTION_LOG_COMPLETE"
-        const val ACTION_OPEN_DECK = "ACTION_OPEN_DECK"
-        const val ACTION_SNOOZE = "ACTION_SNOOZE"
-        const val ACTION_SKIP_REFLECT = "ACTION_SKIP_REFLECT"
+        const val ACTION_LOG_COMPLETE = "com.neon.ascent.ACTION_LOG_COMPLETE"
+        const val ACTION_OPEN_DECK = "com.neon.ascent.ACTION_OPEN_DECK"
+        const val ACTION_SNOOZE = "com.neon.ascent.ACTION_SNOOZE"
+        const val ACTION_SKIP_REFLECT = "com.neon.ascent.ACTION_SKIP_REFLECT"
     }
 }

@@ -19,38 +19,39 @@ class NeuralPingReceiver : BroadcastReceiver() {
     lateinit var ascensionRepository: AscensionRepository
 
     override fun onReceive(context: Context, intent: Intent) {
-        val taskId = intent.getStringExtra(EXTRA_TASK_ID) ?: return
         val action = intent.action ?: return
+        val taskId = intent.getStringExtra(EXTRA_TASK_ID)
 
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, -1)
 
         when (action) {
             ACTION_MARK_DONE -> {
-                CoroutineScope(Dispatchers.IO).launch {
-                    val tasks = ascensionRepository.getAllRecurringTasks().first() // Simplified for now
-                    val task = tasks.find { it.id == taskId } ?: return@launch
-                    
-                    ascensionRepository.completeTask(task, null, null, null)
-                    
-                    // If task is tied to a directive (via mission), we might want to prompt for reflection.
-                    // For now, let's just dismiss the notification.
-                    if (notificationId != -1) {
-                        notificationManager.cancel(notificationId)
-                    }
-                    
-                    // Check if we should prompt for reflection (ADHD requirement)
-                    // This would likely involve launching an activity or a transparent dialog
-                    if (task.parentId != null) {
-                        // TODO: Launch reflection UI if parent exists
+                taskId?.let { id ->
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val tasks = ascensionRepository.getAllRecurringTasks().first()
+                        val task = tasks.find { it.id == id } ?: return@launch
+                        
+                        ascensionRepository.completeTask(task, null, null, null)
+                        
+                        if (notificationId != -1) {
+                            notificationManager.cancel(notificationId)
+                        }
                     }
                 }
             }
-            ACTION_SNOOZE -> {
-                // Handle snooze logic (e.g., reschedule in 15 mins)
+            ACTION_SNOOZE, NeuralBriefManager.ACTION_SNOOZE -> {
+                // Logic for Snooze (e.g., reschedule WorkManager)
                 if (notificationId != -1) {
                     notificationManager.cancel(notificationId)
                 }
+            }
+            NeuralBriefManager.ACTION_SKIP_REFLECT -> {
+                // Handle "Skip + Reflect" (e.g., log a 'skipped' state and open reflection UI)
+                if (notificationId != -1) {
+                    notificationManager.cancel(notificationId)
+                }
+                // Deep link to reflection UI could be triggered here if not handled by PendingIntent
             }
         }
     }

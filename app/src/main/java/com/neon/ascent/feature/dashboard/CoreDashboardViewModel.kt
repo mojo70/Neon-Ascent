@@ -1,5 +1,10 @@
 package com.neon.ascent.feature.dashboard
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.neon.ascent.data.local.JournalDao
@@ -9,9 +14,11 @@ import com.neon.ascent.data.repository.SettingsRepository
 import com.neon.ascent.feature.biohacking.AiProvider
 import com.neon.ascent.core.data.local.dao.NeuralMemoryDao
 import com.neon.ascent.core.data.local.entity.NeuralMemory
+import com.neon.ascent.feature.notifications.data.SmartPingScheduler
 import com.neon.ascent.model.Saying
 import com.neon.ascent.model.UserCharacter
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -21,12 +28,14 @@ import kotlin.random.Random
 
 @HiltViewModel
 class CoreDashboardViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val userCharacterDao: UserCharacterDao,
     private val sayingsDao: SayingsDao,
     private val journalDao: JournalDao,
     private val settingsRepository: SettingsRepository,
     private val aiProvider: AiProvider,
-    private val neuralMemoryDao: NeuralMemoryDao
+    private val neuralMemoryDao: NeuralMemoryDao,
+    private val notificationScheduler: SmartPingScheduler
 ) : ViewModel() {
 
     val userCharacter: StateFlow<UserCharacter?> = userCharacterDao.getUserCharacter()
@@ -70,6 +79,35 @@ class CoreDashboardViewModel @Inject constructor(
     init {
         checkFirstEntry()
         generateDummyLogs()
+        initializeNotificationProtocols()
+    }
+
+    private fun initializeNotificationProtocols() {
+        viewModelScope.launch {
+            if (hasNotificationPermission()) {
+                notificationScheduler.enqueueDailyNeuralBrief()
+            }
+        }
+    }
+
+    private fun hasNotificationPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true
+        }
+    }
+
+    /**
+     * DEBUG: Triggers the Neural Brief immediately for testing.
+     */
+    fun debugTriggerNeuralBrief() {
+        viewModelScope.launch {
+            notificationScheduler.enqueueDailyNeuralBrief(isTestRequest = true)
+        }
     }
 
     private fun checkFirstEntry() {

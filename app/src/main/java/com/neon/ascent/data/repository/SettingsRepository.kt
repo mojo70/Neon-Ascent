@@ -90,6 +90,22 @@ class SettingsRepository @Inject constructor(
     private val _isFirstAiCoreEntry = MutableStateFlow(sharedPreferences.getBoolean("first_ai_core_entry", true))
     val isFirstAiCoreEntry: StateFlow<Boolean> = _isFirstAiCoreEntry.asStateFlow()
 
+    // Notification Settings
+    private val _isNeuralBriefEnabled = MutableStateFlow(sharedPreferences.getBoolean("neural_brief_enabled", true))
+    val isNeuralBriefEnabled = _isNeuralBriefEnabled.asStateFlow()
+
+    private val _quietHoursStart = MutableStateFlow(sharedPreferences.getString("quiet_hours_start", "22:00") ?: "22:00")
+    val quietHoursStart = _quietHoursStart.asStateFlow()
+
+    private val _quietHoursEnd = MutableStateFlow(sharedPreferences.getString("quiet_hours_end", "07:00") ?: "07:00")
+    val quietHoursEnd = _quietHoursEnd.asStateFlow()
+
+    private val _briefFrequency = MutableStateFlow(sharedPreferences.getString("brief_frequency", "DAILY") ?: "DAILY")
+    val briefFrequency = _briefFrequency.asStateFlow()
+
+    private val _insightDepth = MutableStateFlow(sharedPreferences.getString("insight_depth", "DETAILED") ?: "DETAILED")
+    val insightDepth = _insightDepth.asStateFlow()
+
     private val _hasCompletedSinnersPrayer = MutableStateFlow(sharedPreferences.getBoolean("has_completed_sinners_prayer", false))
     val hasCompletedSinnersPrayer: StateFlow<Boolean> = _hasCompletedSinnersPrayer.asStateFlow()
 
@@ -134,6 +150,31 @@ class SettingsRepository @Inject constructor(
     fun setFirstAiCoreEntry(isFirst: Boolean) {
         sharedPreferences.edit().putBoolean("first_ai_core_entry", isFirst).apply()
         _isFirstAiCoreEntry.value = isFirst
+    }
+
+    fun setNeuralBriefEnabled(enabled: Boolean) {
+        sharedPreferences.edit().putBoolean("neural_brief_enabled", enabled).apply()
+        _isNeuralBriefEnabled.value = enabled
+    }
+
+    fun setQuietHoursStart(time: String) {
+        sharedPreferences.edit().putString("quiet_hours_start", time).apply()
+        _quietHoursStart.value = time
+    }
+
+    fun setQuietHoursEnd(time: String) {
+        sharedPreferences.edit().putString("quiet_hours_end", time).apply()
+        _quietHoursEnd.value = time
+    }
+
+    fun setBriefFrequency(frequency: String) {
+        sharedPreferences.edit().putString("brief_frequency", frequency).apply()
+        _briefFrequency.value = frequency
+    }
+
+    fun setInsightDepth(depth: String) {
+        sharedPreferences.edit().putString("insight_depth", depth).apply()
+        _insightDepth.value = depth
     }
 
     fun setCompletedSinnersPrayer(completed: Boolean) {
