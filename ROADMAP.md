@@ -3,8 +3,8 @@
 **Cyberpunk Life RPG / Self-Improvement OS**  
 *Turn real-world growth into a high-stakes neon terminal experience.*
 
-**Last updated:** May 23, 2026  
-**Current version:** v0.5 → V3 Neural Ascension Protocol (in progress)  
+**Last updated:** June 27, 2026  
+**Current version:** v0.5 → V3 Neural Ascension Protocol + Stickiness Release  
 **Primary repo:** `mojo70/Neon-Ascent`
 
 ## Vision
@@ -33,11 +33,36 @@ The heart of the app: Ascension Directives → Missions → Tasks with hybrid cr
 - **Top-down**: Directive → Local AI generates Missions + Tasks.
 - **Bottom-up**: Standalone Tasks or direct linking later.
 
-#### 3. Neural Pings (Notifications)
-- Gentle, useful, batched (“Daily Neural Brief”).
-- Adaptive wake-time support (global + per-task).
-- No aggressive escalation. Burnout detection + auto-throttling.
-- Quick actions: Log Done, Snooze, Skip with Reflection.
+### 3. Neural Pings & External Surface (The "Neural Brief")
+**Philosophy (Cyberdeck Contract):**  
+When the user is *outside* the app, keep it polite, low-density, and value-teasing. Never aggressive. The goal is gentle re-entry into the immersive cyberdeck where all rich feedback, analysis, and decision support lives.
+
+**Neural Brief (Compiled Summary Notification) – Target for this release**
+- **Single primary notification** per day (or adaptive window) that aggregates the most important signals.
+- **Payload design** (keep it scannable, ~3-5 lines max):
+  - Greeting / status tone: Calm, competent, slightly neon-flavored but never cute or salesy.
+  - 1-2 key biometric insights (e.g., “HRV recovered overnight. Body Battery strong.” or “Sleep quality dipped — recovery flag raised.”).
+  - 1 high-value “what to do next” recommendation tied to current Directives or S.P.E.C.I.A.L. (e.g., “Today’s Strength protocol looks good. Add the mobility micro-mission?”).
+  - Quick actions: “Log Complete”, “Open Deck”, “Snooze 2h”, “Skip + Reflect”.
+- **Trigger logic**: WorkManager with smart constraints (battery not low, device idle or charging preferred, Doze-aware, user-defined quiet hours + adaptive wake).
+- **Grouping & channels**: One dedicated “Neural Brief” channel. Future expansion can group secondary pings under it.
+- **Anti-spam**: Burnout detection, auto-throttling, and respect for recent app opens / completions.
+
+**WorkManager Setup Plan**
+- `NeuralBriefWorker` (CoroutineWorker) scheduled via `WorkManager`.
+- Use `setRequiredNetworkType(NetworkType.NOT_REQUIRED)`, `setRequiresBatteryNotLow(true)`, `setRequiresDeviceIdle(false)` initially.
+- `Constraints` + `BackoffPolicy` for reliability.
+- Input data via `Data` (user prefs for quiet hours, preferred insight depth).
+- Hilt integration via `HiltWorkerFactory`.
+- Unique work name (`"neural_brief_daily"`) with `ExistingPeriodicWorkPolicy.KEEP`.
+- On success: Build `NotificationCompat` with `BigTextStyle` or custom layout, actions via `PendingIntent` to deep links (`complete`, `open_deck`, `snooze`).
+- Future: Expedited work for time-sensitive recovery flags.
+
+This is the primary “pull me back in” mechanism. It must feel *useful* on its own while clearly promising richer value inside the deck.
+
+**UI Philosophy Split for Biometrics & Insights**
+- **Holographic Avatar Hub**: Heads-up display for key metrics, real-time status (HRV trend, Body Battery, S.P.E.C.I.A.L. resonance), and one-line insights. Tap any element to deepen into the Biohacking Screen (contextual navigation). Keeps the avatar reactive and immersive for quick daily checks.
+- **Biohacking Screen**: Dedicated deep-dive layer for trends, charts, full Socratic Insights, correlations, and detailed recommendations. This is where users go for analysis and "why this matters + what to do next."
 
 #### 4. Completion & Progression
 - Instant neon dopamine feedback (XP, streaks, avatar micro-reactions, terminal logs).
@@ -69,6 +94,37 @@ Configurable modes per Directive/Mission:
 
 **Status:** In Progress (leverage recent hierarchy UI work)  
 **Priority:** High – Critical for stickiness and “actually usable for my own cases”
+
+### 7. Biometric Insight Engine & Memory Palace Projections (Stickiness Core)
+**Problem we’re solving:** We can pull data from Health Connect, Garmin, and BLE, but the app still doesn’t feel like the *single source of truth* for “what my body is telling me and what I should actually do next.” Users still open other apps for charts and understanding.
+
+**Solution direction — Lightweight Event Sourcing / CQRS-lite for Insights**
+- Treat raw biometric readings and user actions as an immutable **event log** (`BiometricEvent` + `ActionEvent` entities in Room).
+- Maintain **derived projections** (`SocraticInsight`, `RecommendationProjection`, attribute trend summaries) that are rebuilt incrementally or on-demand.
+- `InsightProjectionProcessor` (or `MemoryPalaceProjector`):
+  - Triggered on new events (via Flow after uplink ingest), periodic WorkManager job, or explicit refresh.
+  - Runs lightweight local rules first → feeds summarized context to Gemma (CYBR-TES or specialist persona) for synthesis.
+  - Upserts into projection tables (with `basedOnEventRange` + version for auditability).
+- **Benefits**: Cheap fresh prompts (read projection instead of replaying everything), replay/debug capability, easy evolution of insight logic, excellent privacy (all local + SQLCipher).
+
+**What “rich enough” looks like for this release**
+- In-app surfaces that replace the need to open other apps: simple trend cards + AI interpretation for HRV, sleep, Body Battery, steps, and S.P.E.C.I.A.L.-relevant metrics.
+- Actionable “what to do next” tied directly to current Directives, S.P.E.C.I.A.L. attributes, and Directive Forge pre-fill.
+- Biometric mining already feeds Memory Palace → now make the *output* (insights + recs) first-class and visible.
+- Close the loop: Insights → AttributeProtocols → Directive Forge suggestions.
+
+**Status:** Architecture direction set. Implementation of event model + basic processor is high priority for stickiness.
+
+**Neon Guide Chat Mode (Hybrid Conversational Layer)**
+- **Goal:** Build a high-quality guided conversational interface ("Ask the Neon Guide" or enhanced CYBR-TES mode) that supports natural chat while maintaining structure.
+- **Guided inputs & behavior rules:** The AI should start conversations with clear goal-setting prompts (similar to Google Health Coach), ask clarifying questions about challenges/barriers, and always ground responses in your real data (Memory Palace + biometric projections).
+- **Hybrid architecture:**
+    - **Local-first** (Gemma LiteRT + projections + Memory Palace context) for privacy, speed, and deep personal history (Directives, S.P.E.C.I.A.L., past patterns).
+    - **Optional cloud fallback** (Gemini) for complex synthesis, with explicit user toggle and clear data boundaries.
+- **Data usage & structure:** Every response must reference recent projections/events, tie back to active Directives or S.P.E.C.I.A.L. attributes, and end with actionable next steps (ideally one-tap to Forge Directive or log a task).
+- **Expert personas** (especially `BIOHACKER_PREMIUM`, `RECOVERY_SAGE`, `PROGRESS_ARCHITECT`) route intelligently during conversations.
+
+*This hybrid gives us the best of both worlds: Google's frictionless guided conversation style + our superior privacy, long-term memory, and integration into a full life OS/RPG.*
 
 ---
 
@@ -122,20 +178,24 @@ Strong recent wins in Dopamine celebrations, Recovery Missions, Terminal Ritual,
 
 ---
 
-## Phase 2: V3 Core Loop Delivery (May–June 2026)
+## Phase 2: V3 Core Loop Delivery + Stickiness Release (May–July 2026)
 
-### Priority To Do’s (Next 7-10 Days)
-1. **Data Model Consolidation** — Unify goals + habits into clean V3 entities (`AscensionDirective`, `Mission`, `Task`) with all new fields.
-2. **AI Mentor Modes** — Implement Review / Sounding Board / Guide per item + expand Expert Matrix with new personas.
-3. **Neural Pings Polish** — Batching, adaptive wake, gentle tone, snooze/skip+reflect.
-4. **Task Completion Flow** — Big LOG COMPLETE button + instant neon feedback + optional notes.
-5. **Roadmap & Documentation** — Keep this file current after every major sprint.
+### Priority To-Do’s (Next 10–14 Days — Focus on Daily Value & Retention)
+1. **Data Model Consolidation** — Finish clean `AscensionDirective` / `Mission` / `Task` entities with all rich fields.
+2. **Directive Forge MVP** — Full concierge flow with contextual awareness from Memory Palace + recent biometrics. High friction reducer.
+3. **Neural Brief + WorkManager** — Implement the primary external notification (polite payload, quick actions, constraints). This is the primary re-entry mechanism.
+4. **Insight Projection Layer** — Event store + `InsightProjectionProcessor` + basic SocraticInsight / recommendation projections. Enables reliable, cheap “what next” intelligence.
+5. **In-App Biometric Intelligence Surface** — Enhance BiohackingScreen / Dashboard / new hub so users see trends + AI guidance *here* instead of other apps. Simple visuals + interpretation.
+6. **Neural Pings Polish & Internal Celebration** — Batching, adaptive tone, big “LOG COMPLETE” flow with mood/notes, neon feedback.
 
-### High Value
-- Visual streak system with grace buffer (neon chain that flickers but doesn’t die).
-- Quarterly Terminal Review ritual with AI-generated next Directives.
-- Heatmaps and progress visualization.
-- Habit stacking cues and flexible time windows.
+### High-Value Additions for Stickiness (This Release)
+- **Close the Data → Insight → Action Loop:** From any insight or S.P.E.C.I.A.L. attribute on Avatar Hub / Biohacking Screen, offer immediate “Forge Directive / Add Mission” with smart pre-fill from current biometric context + Memory Palace.
+- **Polish completion ritual & celebration:** Big LOG COMPLETE + mood/notes + neon feedback + terminal log.
+- **Basic visual feedback:** Trend indicators and resonance effects on Avatar Hub; deeper charts on Biohacking Screen. Replace “I have to check Garmin/Heavy” behavior.
+- **“Today’s Intelligence” smart summary card:** Surfaces the best insight + recommended action on Dashboard.
+- **Expert Matrix expansion:** Add `RECOVERY_SAGE` and strengthen `BIOHACKER_PREMIUM` routing for health data.
+
+**Success Metric for this release:** Users can get quick status on the Avatar Hub, dive deep when needed, chat naturally with the Neon Guide, and receive actionable recommendations — all without leaving Neon Ascent for other apps.
 
 ---
 
@@ -197,4 +257,22 @@ These will be seeded in the DB on first launch and discoverable via avatar or Bi
 
 ## Success Metric for V3
 You (and users) open the app every morning because the system feels like a trusted, non-annoying cyberpunk co-pilot that actually helps you ascend — with visible progress, grace for missed days, and deep AI guidance when needed.
+
+---
+
+## Implementation Notes (Veteran Dev Perspective)
+
+### For the UI Split (Avatar Hub + Biohacking Screen)
+- In `HolographicAvatarHub`, use cards or overlaid status indicators for the heads-up metrics. Leverage tap gestures or clickable areas that call `navController.navigate` with arguments for context (e.g., `biohacking?focus=hrv`).
+- This keeps the hub visually rich without clutter. `BiohackingScreen` can use tabs or expandable sections for different categories (Recovery, Strength/CyberCrapp, Longevity, etc.).
+
+### For Neon Guide Chat Mode
+- **Structure:** Use a `ChatViewModel` with message history + system prompt that includes explicit instructions (e.g., "Always ground answers in user's current S.P.E.C.I.A.L. state, recent projections, and active Directives. Suggest specific Missions/Tasks when appropriate. End with clear next action.").
+- **Context Injection:** Inject context from the projection layer + Memory Palace at the start of each conversation (or on key turns).
+- **Guided Inputs:** Start new chats with quick buttons or suggested prompts ("Tell me about my recovery", "Help set a new Directive", "Analyze this week's sleep").
+- **Hybrid Toggle:** Simple setting "Use Cloud Synthesis for Complex Queries" with warning.
+
+---
+
+**Last updated:** June 27, 2026 (added Neural Brief spec, WorkManager plan, insight projection architecture, UI split philosophy, and Neon Guide hybrid chat)
 
