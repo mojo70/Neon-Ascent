@@ -158,7 +158,13 @@ fun AppNavigation(
             }
         }
 
-        composable<Screen.Biohacking> { backStackEntry ->
+        composable<Screen.Biohacking>(
+            deepLinks = listOf(
+                navDeepLink {
+                    uriPattern = "neon-ascent://biohacking?focus={focus}"
+                }
+            )
+        ) { backStackEntry ->
             val bio = backStackEntry.toRoute<Screen.Biohacking>()
             BiohackingScreen(
                 focus = bio.focus,

@@ -58,11 +58,7 @@ class HealthPreferencesDataStore @Inject constructor(
     val enabledAttributes: Flow<Set<SpecialType>> = dataStore.data.map { prefs ->
         prefs[Keys.ENABLED_ATTRIBUTES]?.mapNotNull { name ->
             runCatching { SpecialType.valueOf(name) }.getOrNull()
-        }?.toSet() ?: setOf(
-            SpecialType.AGILITY,
-            SpecialType.ENDURANCE,
-            SpecialType.STRENGTH
-        )
+        }?.toSet() ?: SpecialType.entries.toSet()
     }
 
     val showSyncNotification: Flow<Boolean> = dataStore.data.map { prefs ->

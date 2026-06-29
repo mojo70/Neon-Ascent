@@ -51,14 +51,23 @@ class HealthConnectUplink @Inject constructor(
         // Map Health Connect records to DeepBiometrics
         val steps = snapshot.steps.sumOf { it.count }.takeIf { it > 0 }
         val calories = snapshot.activeCalories.sumOf { it.energy.inKilocalories }.takeIf { it > 0 }
-        val sleepScore = snapshot.sleep.firstOrNull()?.let { 85 } // Placeholder for actual sleep score logic
+        
+        // Use a more realistic mapping for sleep score from records if possible
+        val sleepScore = if (snapshot.sleep.isNotEmpty()) {
+            // Placeholder: in a real app we might calculate this based on duration and stages
+            val totalMinutes = snapshot.sleep.sumOf { 
+                java.time.Duration.between(it.startTime, it.endTime).toMinutes() 
+            }
+            (totalMinutes / 4.8).toInt().coerceIn(0, 100) // 480 mins = 100%
+        } else null
+
         val avgHRV = snapshot.hrv.map { it.heartRateVariabilityMillis }.average().takeIf { !it.isNaN() }
         
         return DeepBiometrics(
             stepsToday = steps,
             caloriesToday = calories,
             sleepScore = sleepScore,
-            bodyBattery = null, // Health Connect doesn't have body battery
+            bodyBattery = null, // Health Connect doesn't have body battery natively
             stressLevel = null,
             vo2Max = snapshot.distance.sumOf { it.distance.inMeters }.takeIf { it > 0 }?.let { 45.0 }, // Mock VO2Max logic
             lastSyncTimestamp = System.currentTimeMillis()

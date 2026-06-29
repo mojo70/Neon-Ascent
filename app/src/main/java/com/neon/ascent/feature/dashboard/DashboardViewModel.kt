@@ -228,6 +228,8 @@ class DashboardViewModel @Inject constructor(
             if (task != null) {
                 ascensionRepository.completeTask(task, null, null, null)
                 
+                logSystemEvent("SYNC_SUCCESS // ${task.title}")
+
                 // Store in Memory Palace
                 memoryPalaceManager.storeMemory(
                     wing = "MISSIONS",
@@ -243,6 +245,14 @@ class DashboardViewModel @Inject constructor(
                     dopamineCoordinator.triggerSubtle(xp = task.xpValue)
                 }
             }
+        }
+    }
+
+    fun logSystemEvent(message: String) {
+        _uiState.update { current ->
+            current.copy(
+                recentLogMessages = (listOf(message.uppercase()) + current.recentLogMessages).take(10)
+            )
         }
     }
 

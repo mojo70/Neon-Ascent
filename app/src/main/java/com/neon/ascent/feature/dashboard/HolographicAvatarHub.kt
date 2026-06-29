@@ -100,14 +100,6 @@ fun HolographicAvatarHub(
     val neuralLoad = userCharacter?.neuralLoad ?: 0.2f
     val displayLoad = (neuralLoad + glitchBurstIntensity).coerceIn(0f, 1f)
 
-    val systemLogs = remember {
-        mutableStateListOf(
-            "INITIALIZING NEURAL_LINK...",
-            "AVATAR_HOLOGRAPH_STABLE",
-            "BIOMETRIC_DATA_LOADED"
-        )
-    }
-
     LaunchedEffect(userCharacter?.netrunnerName) {
         editedName = userCharacter?.netrunnerName ?: "RUNNER_UNKNOWN"
     }
@@ -239,8 +231,17 @@ fun HolographicAvatarHub(
             ) {
                 HologramDisplay(userCharacter) { part ->
                     selectedBodyPart = part
-                    systemLogs.add(0, "[LOG] SECTOR_ACCESS: $part")
+                    viewModel.logSystemEvent("SECTOR_ACCESS: $part")
                     glitchBurstIntensity = 0.3f
+
+                    val focus = when (part) {
+                        "HEAD" -> "hrv"
+                        "TORSO" -> "baselines"
+                        "ARMS" -> "lifestyle"
+                        "LEGS" -> "biometrics"
+                        else -> null
+                    }
+                    onNavigateToBiohacking(focus)
                 }
                 
                 // Neural Load Gauge Overlay
@@ -528,7 +529,7 @@ fun HolographicAvatarHub(
                 
                 CyberFrame(label = "TERMINAL_OUTPUT", accentColor = Color.Gray, modifier = Modifier.weight(1.2f)) {
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
-                        items(systemLogs.take(5)) { log ->
+                        items(state.recentLogMessages.take(5)) { log ->
                             Text(
                                 text = "> $log",
                                 color = Color(0xFF00FF9C).copy(alpha = 0.8f),
