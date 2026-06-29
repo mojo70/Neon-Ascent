@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -230,11 +231,10 @@ fun HolographicAvatarHub(
             // --- CENTRAL Area: Avatar Display ---
             Box(
                 modifier = Modifier
-                    .weight(1.2f)
+                    .weight(3f)
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp)
-                    .neonBorder(Color(0xFF00FF9C).copy(alpha = 0.2f), cornerRadius = 12.dp)
-                    .background(Color.Black.copy(alpha = 0.2f)),
+                    .padding(vertical = 4.dp)
+                    .background(Color.Black.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
                 HologramDisplay(userCharacter) { part ->
@@ -252,12 +252,12 @@ fun HolographicAvatarHub(
                         .padding(16.dp)
                 )
 
-                // Share Button
+                // Share Button - Moved to top-right below HR badge
                 Box(
                     modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(16.dp)
-                        .size(40.dp)
+                        .align(Alignment.TopEnd)
+                        .padding(top = 72.dp, end = 16.dp)
+                        .size(36.dp)
                         .clip(CircleShape)
                         .background(Color.Black.copy(alpha = 0.4f))
                         .border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.4f), CircleShape)
@@ -268,7 +268,7 @@ fun HolographicAvatarHub(
                         Icons.Default.Share,
                         contentDescription = "Share",
                         tint = Color(0xFF00FF9C),
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                 }
 
@@ -288,26 +288,108 @@ fun HolographicAvatarHub(
                 }
 
                 // Archetype Label
-                Text(
-                    text = runnerTitle,
-                    color = titleColor.copy(alpha = 0.8f),
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = titleFontWeight,
-                    modifier = Modifier.align(Alignment.TopStart).padding(12.dp)
-                )
+                Column(modifier = Modifier.align(Alignment.TopStart).padding(12.dp)) {
+                    Text(
+                        text = runnerTitle,
+                        color = titleColor.copy(alpha = 0.8f),
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = titleFontWeight
+                    )
+                    
+                    val hasPermissions by healthViewModel.hasPermissions.collectAsState()
+                    if (!hasPermissions) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(top = 4.dp).clickable { onNavigateToBiohacking("biometrics") }
+                        ) {
+                            Icon(Icons.Default.Warning, contentDescription = null, tint = NeonRed, modifier = Modifier.size(10.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("HEALTH_LINK_REQUIRED", color = NeonRed, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                        }
+                    }
+                }
 
-                // --- Heads-Up Status Cards (Metrics Overlay) ---
-                HeadsUpStatusCards(
-                    liveMetrics = liveMetrics,
-                    deepMetrics = deepMetrics,
-                    specialState = specialState,
-                    systemAdvice = viewModel.systemAdvice.collectAsState().value,
-                    onMetricClick = { focus -> onNavigateToBiohacking(focus) },
+                // --- HUD Status Overlays (Surrounding Cards) ---
+                
+                // Left Side: HRV & Neural Reserve (Body Battery)
+                Column(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .padding(12.dp)
-                )
+                        .width(150.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    StatusCard(
+                        label = "HRV_STABILITY",
+                        value = "${liveMetrics?.heartRateVariability?.toInt() ?: "--"} ms",
+                        trend = "OPTIMAL",
+                        trendDirection = 1,
+                        color = Color(0xFF00FF9C),
+                        onClick = { onNavigateToBiohacking("hrv") }
+                    )
+                    StatusCard(
+                        label = if (deepMetrics?.bodyBattery != null) "NEURAL_RESERVE" else "SLEEP_QUALITY",
+                        value = if (deepMetrics?.bodyBattery != null) "${deepMetrics?.bodyBattery}%" else "${deepMetrics?.sleepScore ?: "--"}%",
+                        trend = when {
+                            deepMetrics?.bodyBattery != null -> if (deepMetrics?.bodyBattery!! > 50) "CHARGED" else "LOW"
+                            deepMetrics?.sleepScore != null -> if (deepMetrics?.sleepScore!! > 70) "RESTED" else "TIRED"
+                            else -> "SYNCING"
+                        },
+                        trendDirection = when {
+                            deepMetrics?.bodyBattery != null -> if (deepMetrics?.bodyBattery!! > 70) 1 else if (deepMetrics?.bodyBattery!! < 30) -1 else 0
+                            deepMetrics?.sleepScore != null -> if (deepMetrics?.sleepScore!! > 80) 1 else 0
+                            else -> 0
+                        },
+                        color = Color(0xFF00FFFF),
+                        onClick = { onNavigateToBiohacking("recovery") }
+                    )
+                }
+
+                // Right Side: SPECIAL Resonance & Socratic Insight
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(12.dp)
+                        .width(150.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val topAttr = specialState.values.maxByOrNull { it.currentValue }
+                    StatusCard(
+                        label = "RESONANCE",
+                        value = topAttr?.type?.name ?: "SYNCING",
+                        trend = "LVL_${topAttr?.currentValue ?: 0}",
+                        trendDirection = 1,
+                        color = NeonPink,
+                        onClick = { onNavigateToBiohacking("attributes") }
+                    )
+                    
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable { onNavigateToBiohacking("insight") }
+                            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(4.dp)),
+                        color = Color.Black.copy(alpha = 0.4f)
+                    ) {
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            Text(
+                                "SOCRATIC_INSIGHT",
+                                color = Color(0xFF00FF9C).copy(alpha = 0.5f),
+                                fontSize = 7.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Text(
+                                text = viewModel.systemAdvice.collectAsState().value,
+                                color = Color.White.copy(alpha = 0.8f),
+                                fontSize = 8.sp,
+                                fontFamily = FontFamily.Monospace,
+                                lineHeight = 10.sp,
+                                maxLines = 2
+                            )
+                        }
+                    }
+                }
             }
 
             // --- S.P.E.C.I.A.L. BIO_METRICS ---
@@ -315,7 +397,7 @@ fun HolographicAvatarHub(
                 label = "S.P.E.C.I.A.L._BIO_METRICS",
                 accentColor = Color(0xFFFF006E),
                 borderColor = Color(0xFF00FF9C).copy(alpha = 0.6f),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(0.8f)
             ) {
                 Row(
                     modifier = Modifier.fillMaxSize(),
@@ -436,7 +518,7 @@ fun HolographicAvatarHub(
             Spacer(Modifier.height(8.dp))
 
             // --- SYSTEM STATS & TERMINAL ---
-            Row(modifier = Modifier.weight(0.6f), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(modifier = Modifier.weight(0.5f), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 CyberFrame(label = "SYSTEM_LOAD", modifier = Modifier.weight(0.8f)) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         EnergyBar(label = "BATTERY", value = (deepMetrics?.bodyBattery ?: 0) / 100f)
@@ -635,12 +717,11 @@ fun HologramDisplay(character: UserCharacter?, onPartClick: (String) -> Unit) {
 
         Box(
             modifier = Modifier
-                .fillMaxHeight(0.85f)
-                .fillMaxWidth(0.8f)
-                .neonBorder(Color(0xFF00FF9C).copy(alpha = 0.2f), cornerRadius = 8.dp),
+                .fillMaxHeight(0.98f)
+                .fillMaxWidth(0.95f),
             contentAlignment = Alignment.Center
         ) {
-            AvatarImage(character, modifier = Modifier.fillMaxSize())
+            AvatarImage(character, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
             
             // Equipped Cyberware Indicators
             val equipped = character?.getEquippedList() ?: emptyList()
@@ -1193,79 +1274,7 @@ val AttributeProtocols = mapOf(
     )
 )
 
-@Composable
-fun HeadsUpStatusCards(
-    liveMetrics: LiveBiometrics?,
-    deepMetrics: DeepBiometrics?,
-    specialState: Map<SpecialType, SpecialAttribute>,
-    systemAdvice: String,
-    onMetricClick: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier.width(180.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // HRV Status Card (Glanceable item 1)
-        StatusCard(
-            label = "HRV_STABILITY",
-            value = "${liveMetrics?.heartRateVariability?.toInt() ?: "--"} ms",
-            trend = "OPTIMAL",
-            trendDirection = 1, // Arrow indicating stability/improvement
-            color = Color(0xFF00FF9C),
-            onClick = { onMetricClick("hrv") }
-        )
 
-        // Body Battery Card (Glanceable item 2)
-        StatusCard(
-            label = "NEURAL_RESERVE",
-            value = "${deepMetrics?.bodyBattery ?: "--"}%",
-            trend = if ((deepMetrics?.bodyBattery ?: 0) > 50) "CHARGED" else "LOW",
-            trendDirection = if ((deepMetrics?.bodyBattery ?: 0) > 70) 1 else if ((deepMetrics?.bodyBattery ?: 0) < 30) -1 else 0,
-            color = Color(0xFF00FFFF),
-            onClick = { onMetricClick("recovery") }
-        )
-
-        // S.P.E.C.I.A.L. Resonance Summary (Glanceable item 3)
-        val topAttr = specialState.values.maxByOrNull { it.currentValue }
-        StatusCard(
-            label = "RESONANCE_SUMMARY",
-            value = topAttr?.type?.name ?: "INITIALIZING",
-            trend = "LVL_${topAttr?.currentValue ?: 0}",
-            trendDirection = 1,
-            color = NeonPink,
-            onClick = { onMetricClick("attributes") }
-        )
-
-        // One-line Socratic Insight Card (Glanceable item 4)
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(4.dp))
-                .clickable { onMetricClick("insight") }
-                .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(4.dp)),
-            color = Color.Black.copy(alpha = 0.4f)
-        ) {
-            Column(modifier = Modifier.padding(8.dp)) {
-                Text(
-                    "SOCRATIC_INSIGHT",
-                    color = Color(0xFF00FF9C).copy(alpha = 0.5f),
-                    fontSize = 7.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-                Text(
-                    text = systemAdvice,
-                    color = Color.White.copy(alpha = 0.8f),
-                    fontSize = 9.sp,
-                    fontFamily = FontFamily.Monospace,
-                    lineHeight = 11.sp,
-                    modifier = Modifier.padding(top = 2.dp),
-                    maxLines = 2
-                )
-            }
-        }
-    }
-}
 
 @Composable
 fun StatusCard(

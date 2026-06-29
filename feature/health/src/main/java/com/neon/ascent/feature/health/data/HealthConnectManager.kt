@@ -80,11 +80,17 @@ class HealthConnectManager @Inject constructor(
     }
 
     private suspend inline fun <reified T : Record> readRecords(startTime: Instant): List<T> {
-        val request = ReadRecordsRequest(
-            recordType = T::class,
-            timeRangeFilter = TimeRangeFilter.between(startTime, Instant.now())
-        )
-        return healthConnectClient.readRecords(request).records
+        return try {
+            val request = ReadRecordsRequest(
+                recordType = T::class,
+                timeRangeFilter = TimeRangeFilter.between(startTime, Instant.now())
+            )
+            healthConnectClient.readRecords(request).records
+        } catch (e: Throwable) {
+            // This handles SDK-internal crashes when the system database contains 
+            // records that violate SDK constraints (e.g. StepsRecord with count 0)
+            emptyList()
+        }
     }
 
     /** One-shot sync that feeds directly into S.P.E.C.I.A.L. */
@@ -102,29 +108,32 @@ class HealthConnectManager @Inject constructor(
 
                 val steps = try {
                     readRecords<StepsRecord>(startOfDay).sumOf { it.count }
-                } catch (e: Exception) { 0L }
+                } catch (e: Throwable) { 0L }
 
                 val calories = try {
                     readRecords<ActiveCaloriesBurnedRecord>(startOfDay).sumOf { it.energy.inKilocalories }
-                } catch (e: Exception) { 0.0 }
-                
+                } catch (e: Throwable) { 0.0 }
+
                 // For HR, we get the latest entry in the last 5 minutes
                 val recentHR = try {
                     readRecords<HeartRateRecord>(now.minusSeconds(300))
                         .flatMap { it.samples }
+                        .filter { it.beatsPerMinute > 0 }
                         .lastOrNull()?.beatsPerMinute?.toInt()
-                } catch (e: Exception) { null }
+                } catch (e: Throwable) { null }
 
                 // For HRV, get the latest entry in the last hour
                 val recentHRV = try {
                     readRecords<HeartRateVariabilityRmssdRecord>(now.minusSeconds(3600))
+                        .filter { it.heartRateVariabilityMillis > 0 }
                         .lastOrNull()?.heartRateVariabilityMillis
-                } catch (e: Exception) { null }
-
+                } catch (e: Throwable) { null }
+                
+                // Only emit if we actually have some permissions and data
                 emit(LiveMetrics(
                     heartRate = recentHR,
-                    stepsToday = steps,
-                    caloriesToday = calories,
+                    stepsToday = if (steps > 0) steps else null,
+                    caloriesToday = if (calories > 0.0) calories else null,
                     heartRateVariability = recentHRV
                 ))
             } else {
@@ -146,7 +155,7 @@ data class HealthDataSnapshot(
 
 data class LiveMetrics(
     val heartRate: Int? = null,
-    val stepsToday: Long = 0,
-    val caloriesToday: Double = 0.0,
+    val stepsToday: Long? = null,
+    val caloriesToday: Double? = null,
     val heartRateVariability: Double? = null
 )

@@ -18,7 +18,7 @@ class HealthDataProcessor @Inject constructor() {
     /** Example grounded mappings – sources commented */
     fun processSteps(stepsRecords: List<StepsRecord>): BenchmarkTest? {
         val totalSteps = stepsRecords.sumOf { it.count.toDouble() }
-        if (totalSteps < 100) return null
+        if (totalSteps <= 0) return null
 
         // CDC / ACS guidelines + population norms (adjust with real stratified tables)
         val dailyAvg = totalSteps / 1.0   // last 24h for simplicity
@@ -69,6 +69,30 @@ class HealthDataProcessor @Inject constructor() {
                 "avg_hrv_ms" to avgHRV.toString()
             ),
             source = DataSource.HEALTH_CONNECT
+        )
+    }
+
+    fun processStrength(caloriesRecords: List<androidx.health.connect.client.records.ActiveCaloriesBurnedRecord>): BenchmarkTest? {
+        val totalCalories = caloriesRecords.sumOf { it.energy.inKilocalories }
+        if (totalCalories <= 0) return null
+
+        val percentile = when {
+            totalCalories >= 1000 -> 90
+            totalCalories >= 750  -> 80
+            totalCalories >= 500  -> 65
+            totalCalories >= 250  -> 45
+            else -> 30
+        }
+
+        return BenchmarkTest(
+            id = "health_strength_${Instant.now().toEpochMilli()}",
+            attribute = SpecialType.STRENGTH,
+            testType = TestType.WEARABLE_DERIVED,
+            rawScore = totalCalories,
+            normalizedScore = (totalCalories / 1200.0).coerceAtMost(1.0),
+            percentile = percentile,
+            metadata = mapOf("active_calories" to totalCalories.toString()),
+            source = com.neon.ascent.core.domain.model.DataSource.HEALTH_CONNECT
         )
     }
 }

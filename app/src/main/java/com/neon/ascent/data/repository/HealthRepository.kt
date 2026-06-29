@@ -50,7 +50,7 @@ class HealthRepository @Inject constructor(
                 )
             )
             response[StepsRecord.COUNT_TOTAL] ?: 0L
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             0L
         }
     }
@@ -71,7 +71,7 @@ class HealthRepository @Inject constructor(
                 )
             )
             response.records.firstOrNull()?.samples?.firstOrNull()?.beatsPerMinute?.toInt() ?: 0
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             0
         }
     }
@@ -93,7 +93,7 @@ class HealthRepository @Inject constructor(
             )
             // The property name for VO2 max value in the Health Connect SDK 1.1.0 is 'vo2MillilitersPerMinuteKilogram'
             response.records.firstOrNull()?.vo2MillilitersPerMinuteKilogram ?: 0.0
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             0.0
         }
     }

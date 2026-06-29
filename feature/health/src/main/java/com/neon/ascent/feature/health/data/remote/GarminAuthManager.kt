@@ -24,7 +24,16 @@ class GarminAuthManager @Inject constructor(
     }
 
     override fun loadForRequest(url: HttpUrl): List<Cookie> {
-        return cookieStore[url.host] ?: emptyList()
+        val stored = cookieStore[url.host]
+        if (stored != null) return stored
+        
+        // Try to sync from system cookie manager if we think we have a session
+        if (hasValidSession() && url.host.contains("garmin.com")) {
+            syncFromSystemCookieManager(url.toString())
+            return cookieStore[url.host] ?: emptyList()
+        }
+        
+        return emptyList()
     }
 
     /**

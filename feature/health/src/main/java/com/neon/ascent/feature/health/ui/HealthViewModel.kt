@@ -61,7 +61,21 @@ class HealthViewModel @Inject constructor(
     }
 
     fun checkPermissions() {
-        checkInitialHealthStatus()
+        viewModelScope.launch {
+            val hasPermissions = healthManager.isAvailableAndHasPermissions()
+            val lastSync = healthPrefs.lastSyncTime.first()
+            _uiState.update { it.copy(
+                isAvailable = true,
+                hasPermissions = hasPermissions,
+                lastSyncTime = lastSync
+            ) }
+            
+            if (hasPermissions) {
+                // If permissions just became available, trigger a sync
+                triggerImmediateSync()
+                uplinkManager.fetchAllDeepMetrics()
+            }
+        }
     }
 
     private fun observeSyncStatus() {

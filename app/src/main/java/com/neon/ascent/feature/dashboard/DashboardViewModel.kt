@@ -10,6 +10,7 @@ import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.SayingsDao
 import com.neon.ascent.data.repository.*
 import com.neon.ascent.data.local.HabitMetricDao
+import com.neon.ascent.feature.health.HealthSyncUseCase
 import com.neon.ascent.domain.usecase.GenerateCyberLoreUseCase
 import com.neon.ascent.domain.usecase.GenerateDailyTasksUseCase
 import com.neon.ascent.domain.usecase.SuggestGoalsUseCase
@@ -64,7 +65,8 @@ class DashboardViewModel @Inject constructor(
     private val identityCoordinator: com.neon.ascent.core.common.IdentityCoordinator,
     private val specialRepository: com.neon.ascent.core.domain.SpecialRepository,
     private val memoryPalaceManager: MemoryPalaceManager,
-    private val uplinkManager: NeuralUplinkManager
+    private val uplinkManager: NeuralUplinkManager,
+    private val healthSyncUseCase: HealthSyncUseCase
 ) : ViewModel() {
     val userCharacter: StateFlow<UserCharacter?> = characterRepository.getUserCharacter()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -117,6 +119,9 @@ class DashboardViewModel @Inject constructor(
                 _dopamineEvent.value = event
             }
         }
+
+        // Trigger initial health sync
+        refreshHealthData()
         
         // Generate initial advice once we have some data context
         viewModelScope.launch {
@@ -422,6 +427,10 @@ class DashboardViewModel @Inject constructor(
 
     fun refreshHealthData() {
         viewModelScope.launch {
+            // Trigger the integrated sync use case (Health Connect + S.P.E.C.I.A.L. update)
+            healthSyncUseCase()
+            
+            // Also fetch deep metrics (Garmin + Body Battery etc)
             val deep = uplinkManager.fetchAllDeepMetrics()
             
             // Mine into Memory Palace

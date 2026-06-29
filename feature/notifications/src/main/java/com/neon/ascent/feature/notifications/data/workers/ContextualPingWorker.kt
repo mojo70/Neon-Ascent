@@ -24,11 +24,13 @@ class ContextualPingWorker @AssistedInject constructor(
 
         // Contextual intelligence
         val liveMetrics = healthConnectManager.liveMetricsFlow().first()
+        val heartRate = liveMetrics.heartRate
+        val stepsToday = liveMetrics.stepsToday ?: 0L
 
         val message = when {
-            liveMetrics.heartRate != null && liveMetrics.heartRate!! < 65 ->
+            heartRate != null && heartRate < 65 ->
                 "Low HRV window detected. Perfect time for recovery protocol."
-            liveMetrics.stepsToday < 4000 ->
+            stepsToday < 4000 ->
                 "Movement signal weak. Time to move the frame."
             else -> "Deck is clear. Execute protocol: $title"
         }

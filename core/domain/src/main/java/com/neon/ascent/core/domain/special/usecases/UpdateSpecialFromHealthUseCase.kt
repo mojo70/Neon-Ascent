@@ -34,14 +34,17 @@ class UpdateSpecialFromHealthUseCase @Inject constructor(
         val stepsData = readSteps(startTime)
         val sleepData = readSleepSessions(startTime)
         val hrvData = readHRV(startTime)
+        val caloriesData = readCalories(startTime)
 
         // 2. Process into grounded benchmarks
         val agilityBenchmark = processor.processSteps(stepsData)
         val enduranceBenchmark = processor.processSleepAndHRV(sleepData, hrvData)
+        val strengthBenchmark = processor.processStrength(caloriesData)
 
         // 3. Save raw benchmarks for Diagnostics history
         agilityBenchmark?.let { specialRepository.saveBenchmark(it) }
         enduranceBenchmark?.let { specialRepository.saveBenchmark(it) }
+        strengthBenchmark?.let { specialRepository.saveBenchmark(it) }
 
         // 4. Update S.P.E.C.I.A.L. attributes
         agilityBenchmark?.let {
@@ -54,31 +57,62 @@ class UpdateSpecialFromHealthUseCase @Inject constructor(
             updatedAttributes.add(updated)
         }
 
+        strengthBenchmark?.let {
+            val updated = updateAttribute(SpecialType.STRENGTH, it)
+            updatedAttributes.add(updated)
+        }
+
         return updatedAttributes
     }
 
+    private suspend fun readCalories(startTime: Instant): List<ActiveCaloriesBurnedRecord> {
+        return try {
+            val request = ReadRecordsRequest(
+                recordType = ActiveCaloriesBurnedRecord::class,
+                timeRangeFilter = TimeRangeFilter.between(startTime, Instant.now())
+            )
+            healthConnectClient.readRecords(request).records
+                .filter { it.energy.inKilocalories > 0 }
+        } catch (e: Throwable) {
+            emptyList()
+        }
+    }
+
     private suspend fun readSteps(startTime: Instant): List<StepsRecord> {
-        val request = ReadRecordsRequest(
-            recordType = StepsRecord::class,
-            timeRangeFilter = TimeRangeFilter.between(startTime, Instant.now())
-        )
-        return healthConnectClient.readRecords(request).records
+        return try {
+            val request = ReadRecordsRequest(
+                recordType = StepsRecord::class,
+                timeRangeFilter = TimeRangeFilter.between(startTime, Instant.now())
+            )
+            healthConnectClient.readRecords(request).records
+                .filter { it.count > 0 }
+        } catch (e: Throwable) {
+            emptyList()
+        }
     }
 
     private suspend fun readSleepSessions(startTime: Instant): List<SleepSessionRecord> {
-        val request = ReadRecordsRequest(
-            recordType = SleepSessionRecord::class,
-            timeRangeFilter = TimeRangeFilter.between(startTime, Instant.now())
-        )
-        return healthConnectClient.readRecords(request).records
+        return try {
+            val request = ReadRecordsRequest(
+                recordType = SleepSessionRecord::class,
+                timeRangeFilter = TimeRangeFilter.between(startTime, Instant.now())
+            )
+            healthConnectClient.readRecords(request).records
+        } catch (e: Throwable) {
+            emptyList()
+        }
     }
 
     private suspend fun readHRV(startTime: Instant): List<HeartRateVariabilityRmssdRecord> {
-        val request = ReadRecordsRequest(
-            recordType = HeartRateVariabilityRmssdRecord::class,
-            timeRangeFilter = TimeRangeFilter.between(startTime, Instant.now())
-        )
-        return healthConnectClient.readRecords(request).records
+        return try {
+            val request = ReadRecordsRequest(
+                recordType = HeartRateVariabilityRmssdRecord::class,
+                timeRangeFilter = TimeRangeFilter.between(startTime, Instant.now())
+            )
+            healthConnectClient.readRecords(request).records
+        } catch (e: Throwable) {
+            emptyList()
+        }
     }
 
     private suspend fun updateAttribute(
