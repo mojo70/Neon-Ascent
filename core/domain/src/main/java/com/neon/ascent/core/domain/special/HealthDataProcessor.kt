@@ -72,15 +72,14 @@ class HealthDataProcessor @Inject constructor() {
         )
     }
 
-    fun processStrength(caloriesRecords: List<androidx.health.connect.client.records.ActiveCaloriesBurnedRecord>): BenchmarkTest? {
-        val totalCalories = caloriesRecords.sumOf { it.energy.inKilocalories }
+    fun processStrength(totalCalories: Double): BenchmarkTest? {
         if (totalCalories <= 0) return null
 
         val percentile = when {
-            totalCalories >= 1000 -> 90
-            totalCalories >= 750  -> 80
-            totalCalories >= 500  -> 65
-            totalCalories >= 250  -> 45
+            totalCalories >= 2500 -> 90 // Adjusted for Total Calories (Active + Basal)
+            totalCalories >= 2000 -> 80
+            totalCalories >= 1500 -> 65
+            totalCalories >= 1000 -> 45
             else -> 30
         }
 
@@ -89,9 +88,9 @@ class HealthDataProcessor @Inject constructor() {
             attribute = SpecialType.STRENGTH,
             testType = TestType.WEARABLE_DERIVED,
             rawScore = totalCalories,
-            normalizedScore = (totalCalories / 1200.0).coerceAtMost(1.0),
+            normalizedScore = (totalCalories / 3000.0).coerceAtMost(1.0),
             percentile = percentile,
-            metadata = mapOf("active_calories" to totalCalories.toString()),
+            metadata = mapOf("total_calories" to totalCalories.toString()),
             source = com.neon.ascent.core.domain.model.DataSource.HEALTH_CONNECT
         )
     }

@@ -50,7 +50,12 @@ class HealthConnectUplink @Inject constructor(
         
         // Map Health Connect records to DeepBiometrics
         val steps = snapshot.steps.sumOf { it.count }.takeIf { it > 0 }
-        val calories = snapshot.activeCalories.sumOf { it.energy.inKilocalories }.takeIf { it > 0 }
+        
+        // Prioritize total calories (Active + Basal), fall back to just Active if total is empty
+        val totalCals = snapshot.totalCalories.sumOf { it.energy.inKilocalories }
+        val calories = if (totalCals > 0) totalCals else {
+            snapshot.activeCalories.sumOf { it.energy.inKilocalories }.takeIf { it > 0 }
+        }
         
         // Use a more realistic mapping for sleep score from records if possible
         val sleepScore = if (snapshot.sleep.isNotEmpty()) {

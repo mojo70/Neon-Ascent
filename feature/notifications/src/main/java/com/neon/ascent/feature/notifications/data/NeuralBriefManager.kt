@@ -20,7 +20,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class NeuralBriefManager @Inject constructor(
-    @param:ApplicationContext private val context: Context,
+    @ApplicationContext private val context: Context,
     private val deepLinkHelper: DeepLinkHelper
 ) {
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

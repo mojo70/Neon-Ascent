@@ -9,6 +9,7 @@ import com.neon.ascent.core.data.local.dao.AscensionDao
 import com.neon.ascent.core.data.local.entity.*
 import com.neon.ascent.core.data.local.converter.*
 import com.neon.ascent.core.data.local.migration.MIGRATION_3_4
+import com.neon.ascent.core.data.local.migration.MIGRATION_11_12
 
 @Database(
     entities = [
@@ -20,9 +21,12 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_3_4
         AscensionTaskEntity::class,
         AscensionTaskCompletionEntity::class,
         NeuralLogEntity::class,
-        NeuralMemory::class
+        NeuralMemory::class,
+        BiometricEventEntity::class,
+        ActionEventEntity::class,
+        SocraticInsightEntity::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = true
 )
 @TypeConverters(
@@ -33,11 +37,13 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_3_4
     DataSourceConverter::class,
     StringMapConverter::class,
     SpecialTypeListConverter::class,
-    StringListConverter::class
+    StringListConverter::class,
+    LongListConverter::class
 )
 abstract class NeonAscentDatabase : RoomDatabase() {
     abstract fun goalDao(): GoalDao
     abstract fun specialDao(): SpecialDao
     abstract fun ascensionDao(): AscensionDao
     abstract fun neuralMemoryDao(): com.neon.ascent.core.data.local.dao.NeuralMemoryDao
+    abstract fun insightDao(): com.neon.ascent.core.data.local.dao.InsightDao
 }

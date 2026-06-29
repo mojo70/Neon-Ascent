@@ -53,9 +53,17 @@ class MainActivity : ComponentActivity() {
         // Schedule daily health sync
         HealthSyncWorker.scheduleDailySync(this)
 
-        // Initialize smart notification scheduling
-        lifecycleScope.launch {
-            smartPingScheduler.scheduleSmartPings()
+        // Initialize smart notification scheduling with safety
+        val exceptionHandler = kotlinx.coroutines.CoroutineExceptionHandler { _, throwable ->
+            android.util.Log.e("MainActivity", "Uncaught exception in lifecycleScope", throwable)
+        }
+        
+        lifecycleScope.launch(exceptionHandler) {
+            try {
+                smartPingScheduler.scheduleSmartPings()
+            } catch (e: Exception) {
+                android.util.Log.e("MainActivity", "Failed to schedule smart pings", e)
+            }
         }
 
         // Check and request notification permission

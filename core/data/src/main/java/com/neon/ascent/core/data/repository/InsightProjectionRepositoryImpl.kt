@@ -1,7 +1,7 @@
 package com.neon.ascent.core.data.repository
 
-import com.neon.ascent.core.data.local.dao.NeuralMemoryDao
-import com.neon.ascent.core.data.local.entity.NeuralMemory
+import com.neon.ascent.core.data.local.dao.InsightDao
+import com.neon.ascent.core.data.local.entity.SocraticInsightEntity
 import com.neon.ascent.core.domain.repository.InsightProjectionRepository
 import com.neon.ascent.core.domain.repository.RecommendationProjection
 import com.neon.ascent.core.domain.repository.SocraticInsight
@@ -12,43 +12,25 @@ import javax.inject.Singleton
 
 @Singleton
 class InsightProjectionRepositoryImpl @Inject constructor(
-    private val neuralMemoryDao: NeuralMemoryDao
+    private val insightDao: InsightDao
 ) : InsightProjectionRepository {
 
     override fun getLatestInsight(): Flow<SocraticInsight?> {
-        return neuralMemoryDao.getMemoriesByWing("INSIGHTS").map { memories ->
-            val aiInsight = memories.filter { it.room == "BIOMETRIC_ANALYSIS" }
-                .sortedByDescending { it.timestamp }
-                .firstOrNull()
-
-            if (aiInsight != null) {
-                SocraticInsight(
-                    content = aiInsight.content,
-                    sourceMetrics = listOf("BIOMETRICS", "AI_PROJECTION"),
-                    timestamp = aiInsight.timestamp
-                )
-            } else {
-                // Fallback to basic health data if AI insight hasn't been generated yet
-                null
-            }
+        return insightDao.getLatestInsight().map { entity ->
+            entity?.toDomain()
         }
     }
 
     override fun getLatestRecommendation(): Flow<RecommendationProjection?> {
-        return neuralMemoryDao.getMemoriesByWing("HEALTH").map { memories ->
-            val hrvMemory = memories.find { it.room == "HRV_STATS" }
-            if (hrvMemory != null) {
-                // In a real app, this would be more complex, but for now we'll 
-                // match the requested dynamic behavior by checking recent status.
-                RecommendationProjection(
-                    content = "HRV recovered nicely. Body Battery strong. Good window for the mobility micro-mission today.",
-                    relatedDirectiveId = "mobility_protocol",
-                    relatedSpecialAttribute = "AGILITY",
-                    timestamp = System.currentTimeMillis()
-                )
-            } else {
-                null
-            }
-        }
+        // Implementation for materializing recommendations could be added here
+        // or handled by a similar processor. For now, we'll return null or 
+        // a basic materialized recommendation if available in a separate table.
+        return kotlinx.coroutines.flow.flowOf(null)
     }
 }
+
+fun SocraticInsightEntity.toDomain() = SocraticInsight(
+    content = content,
+    sourceMetrics = listOf("BIOMETRICS", "ACTIONS"), // Can be derived from basedOnEventIds if needed
+    timestamp = generatedAt.toEpochMilli()
+)

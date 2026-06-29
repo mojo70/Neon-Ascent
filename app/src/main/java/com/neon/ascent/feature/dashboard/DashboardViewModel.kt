@@ -4,6 +4,9 @@ import android.annotation.SuppressLint
 import android.location.Location
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.neon.ascent.core.data.local.dao.InsightDao
+import com.neon.ascent.core.data.local.entity.ActionEventEntity
+import com.neon.ascent.core.data.processor.InsightProjectionProcessor
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.Priority
 import com.neon.ascent.data.local.BiohackingDao
@@ -66,7 +69,10 @@ class DashboardViewModel @Inject constructor(
     private val specialRepository: com.neon.ascent.core.domain.SpecialRepository,
     private val memoryPalaceManager: MemoryPalaceManager,
     private val uplinkManager: NeuralUplinkManager,
-    private val healthSyncUseCase: HealthSyncUseCase
+    private val healthSyncUseCase: HealthSyncUseCase,
+    private val insightRepository: com.neon.ascent.core.domain.repository.InsightProjectionRepository,
+    private val insightDao: InsightDao,
+    private val insightProcessor: InsightProjectionProcessor
 ) : ViewModel() {
     val userCharacter: StateFlow<UserCharacter?> = characterRepository.getUserCharacter()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -82,6 +88,9 @@ class DashboardViewModel @Inject constructor(
 
     val healthState: StateFlow<LiveBiometrics?> = uplinkManager.combinedLiveMetrics
     val deepMetrics: StateFlow<DeepBiometrics?> = uplinkManager.combinedDeepMetrics
+
+    val socraticInsight: StateFlow<com.neon.ascent.core.domain.repository.SocraticInsight?> = insightRepository.getLatestInsight()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private val _systemAdvice = MutableStateFlow("NEURAL_LINK_ESTABLISHED. SCANNING_SYSTEM...")
     val systemAdvice: StateFlow<String> = _systemAdvice.asStateFlow()
@@ -238,6 +247,17 @@ class DashboardViewModel @Inject constructor(
                     importance = 0.6f
                 )
 
+                // Ingest as Action Event for Insight Projection
+                insightDao.insertActionEvent(
+                    ActionEventEntity(
+                        timestamp = java.time.Instant.now(),
+                        actionType = "HABIT_COMPLETION",
+                        content = task.title,
+                        metadata = mapOf("taskId" to task.id)
+                    )
+                )
+                insightProcessor.processProjections()
+
                 // Trigger Dopamine Menu
                 if (task.type == AscensionTaskType.RECURRING) {
                     dopamineCoordinator.triggerSync(xp = task.xpValue)
@@ -305,6 +325,14 @@ class DashboardViewModel @Inject constructor(
 
     private fun generateSystemAdvice() {
         viewModelScope.launch {
+            // First priority: Real Socratic Insights from the processor
+            val latestInsight = socraticInsight.value
+            if (latestInsight != null) {
+                _systemAdvice.value = latestInsight.content
+                return@launch
+            }
+
+            // Fallback: Generate one-off advice
             val live = healthState.value
             val deep = deepMetrics.value
             val steps = live?.heartRate ?: 0 // Temporary mapping

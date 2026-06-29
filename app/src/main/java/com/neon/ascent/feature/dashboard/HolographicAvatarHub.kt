@@ -24,6 +24,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -323,26 +325,30 @@ fun HolographicAvatarHub(
                 ) {
                     StatusCard(
                         label = "HRV_STABILITY",
-                        value = "${liveMetrics?.heartRateVariability?.toInt() ?: "--"} ms",
-                        trend = "OPTIMAL",
-                        trendDirection = 1,
+                        value = liveMetrics?.heartRateVariability?.let { "${it.toInt()} ms" } ?: "SYNCING...",
+                        trend = if (liveMetrics?.heartRateVariability != null) "OPTIMAL" else "CALIBRATING",
+                        trendDirection = if (liveMetrics?.heartRateVariability != null) 1 else 0,
                         color = Color(0xFF00FF9C),
                         onClick = { onNavigateToBiohacking("hrv") }
                     )
                     StatusCard(
                         label = if (deepMetrics?.bodyBattery != null) "NEURAL_RESERVE" else "SLEEP_QUALITY",
-                        value = if (deepMetrics?.bodyBattery != null) "${deepMetrics?.bodyBattery}%" else "${deepMetrics?.sleepScore ?: "--"}%",
+                        value = when {
+                            deepMetrics?.bodyBattery != null -> "${deepMetrics?.bodyBattery}%"
+                            deepMetrics?.sleepScore != null -> "${deepMetrics?.sleepScore}%"
+                            else -> "UPLINKING..."
+                        },
                         trend = when {
                             deepMetrics?.bodyBattery != null -> if (deepMetrics?.bodyBattery!! > 50) "CHARGED" else "LOW"
                             deepMetrics?.sleepScore != null -> if (deepMetrics?.sleepScore!! > 70) "RESTED" else "TIRED"
-                            else -> "SYNCING"
+                            else -> "NEURAL_SYNC"
                         },
                         trendDirection = when {
                             deepMetrics?.bodyBattery != null -> if (deepMetrics?.bodyBattery!! > 70) 1 else if (deepMetrics?.bodyBattery!! < 30) -1 else 0
                             deepMetrics?.sleepScore != null -> if (deepMetrics?.sleepScore!! > 80) 1 else 0
                             else -> 0
                         },
-                        color = Color(0xFF00FFFF),
+                        color = state.identity.resonance.getColor().copy(alpha = 0.8f),
                         onClick = { onNavigateToBiohacking("recovery") }
                     )
                 }
@@ -369,19 +375,23 @@ fun HolographicAvatarHub(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(4.dp))
-                            .clickable { onNavigateToBiohacking("insight") }
+                            .clickable(
+                                onClickLabel = "View neural insights",
+                                onClick = { onNavigateToBiohacking("insight") }
+                            )
                             .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(4.dp)),
                         color = Color.Black.copy(alpha = 0.4f)
                     ) {
                         Column(modifier = Modifier.padding(8.dp)) {
                             Text(
                                 "SOCRATIC_INSIGHT",
-                                color = Color(0xFF00FF9C).copy(alpha = 0.5f),
+                                color = state.identity.resonance.getColor().copy(alpha = 0.5f),
                                 fontSize = 7.sp,
                                 fontFamily = FontFamily.Monospace
                             )
+                            val advice by viewModel.systemAdvice.collectAsState()
                             Text(
-                                text = viewModel.systemAdvice.collectAsState().value,
+                                text = advice,
                                 color = Color.White.copy(alpha = 0.8f),
                                 fontSize = 8.sp,
                                 fontFamily = FontFamily.Monospace,
@@ -807,12 +817,18 @@ fun AttributeRadarChart(stats: Map<String, Int>, modifier: Modifier) {
 fun LiveHeartRateBadge(bpm: Int?, modifier: Modifier = Modifier) {
     val pulseScale by animateFloatAsState(
         targetValue = if (bpm != null && bpm > 60) 1.25f else 1f,
-        animationSpec = infiniteRepeatable(tween(480), RepeatMode.Reverse),
+        animationSpec = if (bpm != null && bpm > 0) {
+            infiniteRepeatable(tween(60000 / bpm.coerceAtLeast(1)), RepeatMode.Reverse)
+        } else {
+            snap()
+        },
         label = "pulse"
     )
 
     Row(
-        modifier = modifier,
+        modifier = modifier.semantics(mergeDescendants = true) {
+            contentDescription = if (bpm != null) "Live heart rate: $bpm beats per minute" else "Heart rate sync in progress"
+        },
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -1286,12 +1302,36 @@ fun StatusCard(
     color: Color,
     onClick: () -> Unit
 ) {
+    val animatedColor by animateColorAsState(
+        targetValue = color,
+        animationSpec = tween(1000),
+        label = "StatusColor"
+    )
+
+    val infiniteTransition = rememberInfiniteTransition(label = "PulseTransition")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = if (trendDirection > 0) 1.02f else 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "PulseScale"
+    )
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = pulseScale
+                scaleY = pulseScale
+            }
             .clip(RoundedCornerShape(4.dp))
-            .clickable { onClick() }
-            .border(1.dp, color.copy(alpha = 0.2f), RoundedCornerShape(4.dp)),
+            .clickable(
+                onClickLabel = "View details for $label",
+                onClick = onClick
+            )
+            .border(1.dp, animatedColor.copy(alpha = 0.2f), RoundedCornerShape(4.dp)),
         color = Color.Black.copy(alpha = 0.4f)
     ) {
         Row(
@@ -1299,15 +1339,26 @@ fun StatusCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Column {
-                Text(label, color = color.copy(alpha = 0.6f), fontSize = 7.sp, fontFamily = FontFamily.Monospace)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label, 
+                    color = animatedColor.copy(alpha = 0.6f), 
+                    fontSize = 7.sp, 
+                    fontFamily = FontFamily.Monospace
+                )
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(value, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
+                    Text(
+                        text = value, 
+                        color = Color.White, 
+                        fontSize = 14.sp, 
+                        fontWeight = FontWeight.Black, 
+                        fontFamily = FontFamily.Monospace
+                    )
                     if (trendDirection != 0) {
                         Icon(
                             imageVector = if (trendDirection > 0) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                            contentDescription = null,
-                            tint = color,
+                            contentDescription = if (trendDirection > 0) "Trending up" else "Trending down",
+                            tint = animatedColor,
                             modifier = Modifier.size(14.dp)
                         )
                     }
@@ -1315,12 +1366,12 @@ fun StatusCard(
             }
             Text(
                 text = trend,
-                color = color,
+                color = animatedColor,
                 fontSize = 8.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace,
                 modifier = Modifier
-                    .background(color.copy(alpha = 0.1f), RoundedCornerShape(2.dp))
+                    .background(animatedColor.copy(alpha = 0.1f), RoundedCornerShape(2.dp))
                     .padding(horizontal = 4.dp, vertical = 2.dp)
             )
         }

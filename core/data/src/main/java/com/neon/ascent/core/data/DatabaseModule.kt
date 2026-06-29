@@ -2,16 +2,22 @@ package com.neon.ascent.core.data
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.RoomDatabase
+import com.neon.ascent.core.data.local.UplinkSecurityManager
 import com.neon.ascent.core.data.local.dao.SpecialDao
 import com.neon.ascent.core.data.local.dao.GoalDao
 import com.neon.ascent.core.data.local.dao.AscensionDao
+import com.neon.ascent.core.data.local.dao.InsightDao
 import com.neon.ascent.core.data.local.migration.MIGRATION_2_3
 import com.neon.ascent.core.data.local.migration.MIGRATION_3_4
+import com.neon.ascent.core.data.local.migration.MIGRATION_11_12
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import net.sqlcipher.database.SQLiteDatabase
+import net.sqlcipher.database.SupportFactory
 import javax.inject.Singleton
 
 @Module
@@ -20,14 +26,59 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    fun provideDatabase(@ApplicationContext context: Context): NeonAscentDatabase {
+    fun provideDatabase(
+        @ApplicationContext context: Context,
+        securityManager: UplinkSecurityManager
+    ): NeonAscentDatabase {
+        val dbName = "neon_ascent_database"
+        val dbFile = context.getDatabasePath(dbName)
+        
+        // Load SQLCipher libraries early
+        SQLiteDatabase.loadLibs(context)
+        
+        val passphraseBytes = try {
+            securityManager.getDatabasePassphrase()
+        } catch (e: Exception) {
+            android.util.Log.e("DatabaseModule", "Failed to get passphrase", e)
+            "fallback_key".toByteArray()
+        }
+        val passphraseString = String(passphraseBytes)
+
+        // Pre-verification: try to open the database if it exists
+        if (dbFile.exists()) {
+            var db: SQLiteDatabase? = null
+            try {
+                db = SQLiteDatabase.openDatabase(
+                    dbFile.absolutePath, 
+                    passphraseString, 
+                    null, 
+                    SQLiteDatabase.OPEN_READWRITE
+                )
+                // Minimal query to verify encryption
+                db.rawQuery("SELECT count(*) FROM sqlite_master", null)?.use { it.moveToFirst() }
+            } catch (e: Exception) {
+                android.util.Log.e("DatabaseModule", "Database verification failed. Key might be lost.", e)
+                if (e.message?.contains("file is not a database") == true || 
+                    e.message?.contains("encrypted") == true) {
+                    android.util.Log.w("DatabaseModule", "Wiping database due to encryption mismatch.")
+                    context.deleteDatabase(dbName)
+                }
+            } finally {
+                db?.close()
+            }
+        }
+
+        val factory = SupportFactory(passphraseBytes)
+        
         return Room.databaseBuilder(
             context,
             NeonAscentDatabase::class.java,
-            "neon_ascent_database"
+            dbName
         )
-        .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
+        .openHelperFactory(factory)
+        .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_11_12)
         .fallbackToDestructiveMigration()
+        .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
         .build()
     }
 
@@ -49,5 +100,10 @@ object DatabaseModule {
     @Provides
     fun provideNeuralMemoryDao(database: NeonAscentDatabase): com.neon.ascent.core.data.local.dao.NeuralMemoryDao {
         return database.neuralMemoryDao()
+    }
+
+    @Provides
+    fun provideInsightDao(database: NeonAscentDatabase): InsightDao {
+        return database.insightDao()
     }
 }

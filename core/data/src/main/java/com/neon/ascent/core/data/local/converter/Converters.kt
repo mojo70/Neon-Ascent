@@ -80,3 +80,11 @@ class StringListConverter {
     @TypeConverter
     fun toList(data: String?): List<String>? = data?.split(",")?.filter { it.isNotBlank() }
 }
+
+class LongListConverter {
+    @TypeConverter
+    fun fromList(list: List<Long>?): String? = list?.joinToString(",")
+
+    @TypeConverter
+    fun toList(data: String?): List<Long>? = data?.split(",")?.filter { it.isNotBlank() }?.map { it.toLong() }
+}

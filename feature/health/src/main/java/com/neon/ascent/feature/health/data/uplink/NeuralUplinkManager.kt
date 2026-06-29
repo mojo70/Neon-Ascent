@@ -1,15 +1,21 @@
 package com.neon.ascent.feature.health.data.uplink
 
+import com.neon.ascent.core.data.local.dao.InsightDao
+import com.neon.ascent.core.data.local.entity.BiometricEventEntity
+import com.neon.ascent.core.data.processor.InsightProjectionProcessor
 import com.neon.ascent.feature.health.domain.uplink.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class NeuralUplinkManager @Inject constructor(
     private val garminUplink: GarminUplink,
-    private val healthConnectUplink: HealthConnectUplink
+    private val healthConnectUplink: HealthConnectUplink,
+    private val insightDao: InsightDao,
+    private val insightProcessor: InsightProjectionProcessor
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -59,7 +65,38 @@ class NeuralUplinkManager @Inject constructor(
             )
         }.onEach { merged ->
             _combinedLiveMetrics.value = merged
+            if (merged != null) {
+                ingestLiveMetrics(merged)
+            }
         }.launchIn(scope)
+    }
+
+    private fun ingestLiveMetrics(metrics: LiveBiometrics) {
+        scope.launch {
+            val now = Instant.now()
+            metrics.heartRate?.let {
+                insightDao.insertBiometricEvent(
+                    BiometricEventEntity(
+                        timestamp = now,
+                        source = "LIVE_STREAM",
+                        type = "HEART_RATE",
+                        value = it.toDouble()
+                    )
+                )
+            }
+            metrics.heartRateVariability?.let {
+                insightDao.insertBiometricEvent(
+                    BiometricEventEntity(
+                        timestamp = now,
+                        source = "LIVE_STREAM",
+                        type = "HRV",
+                        value = it.toDouble()
+                    )
+                )
+            }
+            // Trigger processor after ingestion
+            insightProcessor.processProjections()
+        }
     }
 
     suspend fun fetchAllDeepMetrics(): DeepBiometrics {
@@ -83,6 +120,35 @@ class NeuralUplinkManager @Inject constructor(
         )
         
         _combinedDeepMetrics.value = merged
+        ingestDeepMetrics(merged)
         return merged
+    }
+
+    private fun ingestDeepMetrics(metrics: DeepBiometrics) {
+        scope.launch {
+            val now = Instant.now()
+            metrics.sleepScore?.let {
+                insightDao.insertBiometricEvent(
+                    BiometricEventEntity(
+                        timestamp = now,
+                        source = "DEEP_SYNC",
+                        type = "SLEEP_SCORE",
+                        value = it.toDouble()
+                    )
+                )
+            }
+            metrics.bodyBattery?.let {
+                insightDao.insertBiometricEvent(
+                    BiometricEventEntity(
+                        timestamp = now,
+                        source = "DEEP_SYNC",
+                        type = "BODY_BATTERY",
+                        value = it.toDouble()
+                    )
+                )
+            }
+            // Trigger processor after ingestion
+            insightProcessor.processProjections()
+        }
     }
 }

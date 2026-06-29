@@ -53,137 +53,229 @@ import javax.inject.Singleton
 class SettingsRepository @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
-    private val masterKey = MasterKey.Builder(context)
-        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-        .build()
+    private val masterKey by lazy {
+        MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+    }
 
-    private val sharedPreferences: SharedPreferences = EncryptedSharedPreferences.create(
-        context,
-        "secure_settings",
-        masterKey,
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-    )
+    private val sharedPreferences: SharedPreferences by lazy {
+        try {
+            EncryptedSharedPreferences.create(
+                context,
+                "secure_settings",
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsRepository", "EncryptedSharedPreferences failed", e)
+            context.getSharedPreferences("secure_settings_fallback", Context.MODE_PRIVATE)
+        }
+    }
 
-    private val _isBiometricLockEnabled = MutableStateFlow(sharedPreferences.getBoolean("biometric_lock", false))
+    private val _isBiometricLockEnabled = MutableStateFlow(false)
     val isBiometricLockEnabled: StateFlow<Boolean> = _isBiometricLockEnabled.asStateFlow()
 
-    private val _isReligionShortcutEnabled = MutableStateFlow(sharedPreferences.getBoolean("religion_shortcut", false))
+    private val _isReligionShortcutEnabled = MutableStateFlow(false)
     val isReligionShortcutEnabled: StateFlow<Boolean> = _isReligionShortcutEnabled.asStateFlow()
 
-    private val _isLocalAiOnly = MutableStateFlow(sharedPreferences.getBoolean("local_ai_only", false))
+    private val _isLocalAiOnly = MutableStateFlow(false)
     val isLocalAiOnly: StateFlow<Boolean> = _isLocalAiOnly.asStateFlow()
 
     // AI Parameters
-    private val _nanoTemperature = MutableStateFlow(sharedPreferences.getFloat("nano_temp", 0.7f))
+    private val _nanoTemperature = MutableStateFlow(0.7f)
     val nanoTemperature = _nanoTemperature.asStateFlow()
 
-    private val _cloudFallbackThreshold = MutableStateFlow(sharedPreferences.getFloat("cloud_fallback", 20f))
+    private val _cloudFallbackThreshold = MutableStateFlow(20f)
     val cloudFallbackThreshold = _cloudFallbackThreshold.asStateFlow()
 
-    private val _philosophySeed = MutableStateFlow(sharedPreferences.getString("philosophy_seed", "PLATO") ?: "PLATO")
+    private val _philosophySeed = MutableStateFlow("PLATO")
     val philosophySeed = _philosophySeed.asStateFlow()
 
-    private val _isNetrunnerMode = MutableStateFlow(sharedPreferences.getBoolean("netrunner_mode", false))
+    private val _isNetrunnerMode = MutableStateFlow(false)
     val isNetrunnerMode: StateFlow<Boolean> = _isNetrunnerMode.asStateFlow()
 
-    private val _isFirstAiCoreEntry = MutableStateFlow(sharedPreferences.getBoolean("first_ai_core_entry", true))
+    private val _isFirstAiCoreEntry = MutableStateFlow(true)
     val isFirstAiCoreEntry: StateFlow<Boolean> = _isFirstAiCoreEntry.asStateFlow()
 
     // Notification Settings
-    private val _isNeuralBriefEnabled = MutableStateFlow(sharedPreferences.getBoolean("neural_brief_enabled", true))
+    private val _isNeuralBriefEnabled = MutableStateFlow(true)
     val isNeuralBriefEnabled = _isNeuralBriefEnabled.asStateFlow()
 
-    private val _quietHoursStart = MutableStateFlow(sharedPreferences.getString("quiet_hours_start", "22:00") ?: "22:00")
+    private val _quietHoursStart = MutableStateFlow("22:00")
     val quietHoursStart = _quietHoursStart.asStateFlow()
 
-    private val _quietHoursEnd = MutableStateFlow(sharedPreferences.getString("quiet_hours_end", "07:00") ?: "07:00")
+    private val _quietHoursEnd = MutableStateFlow("07:00")
     val quietHoursEnd = _quietHoursEnd.asStateFlow()
 
-    private val _briefFrequency = MutableStateFlow(sharedPreferences.getString("brief_frequency", "DAILY") ?: "DAILY")
+    private val _briefFrequency = MutableStateFlow("DAILY")
     val briefFrequency = _briefFrequency.asStateFlow()
 
-    private val _insightDepth = MutableStateFlow(sharedPreferences.getString("insight_depth", "DETAILED") ?: "DETAILED")
+    private val _insightDepth = MutableStateFlow("DETAILED")
     val insightDepth = _insightDepth.asStateFlow()
 
-    private val _hasCompletedSinnersPrayer = MutableStateFlow(sharedPreferences.getBoolean("has_completed_sinners_prayer", false))
+    private val _hasCompletedSinnersPrayer = MutableStateFlow(false)
     val hasCompletedSinnersPrayer: StateFlow<Boolean> = _hasCompletedSinnersPrayer.asStateFlow()
 
-    private val _lastAltarVisit = MutableStateFlow(sharedPreferences.getLong("last_altar_visit", 0L))
+    private val _lastAltarVisit = MutableStateFlow(0L)
     val lastAltarVisit: StateFlow<Long> = _lastAltarVisit.asStateFlow()
 
+    init {
+        // Initialize values from sharedPreferences with safety
+        try {
+            _isBiometricLockEnabled.value = sharedPreferences.getBoolean("biometric_lock", false)
+            _isReligionShortcutEnabled.value = sharedPreferences.getBoolean("religion_shortcut", false)
+            _isLocalAiOnly.value = sharedPreferences.getBoolean("local_ai_only", false)
+            _nanoTemperature.value = sharedPreferences.getFloat("nano_temp", 0.7f)
+            _cloudFallbackThreshold.value = sharedPreferences.getFloat("cloud_fallback", 20f)
+            _philosophySeed.value = sharedPreferences.getString("philosophy_seed", "PLATO") ?: "PLATO"
+            _isNetrunnerMode.value = sharedPreferences.getBoolean("netrunner_mode", false)
+            _isFirstAiCoreEntry.value = sharedPreferences.getBoolean("first_ai_core_entry", true)
+            _isNeuralBriefEnabled.value = sharedPreferences.getBoolean("neural_brief_enabled", true)
+            _quietHoursStart.value = sharedPreferences.getString("quiet_hours_start", "22:00") ?: "22:00"
+            _quietHoursEnd.value = sharedPreferences.getString("quiet_hours_end", "07:00") ?: "07:00"
+            _briefFrequency.value = sharedPreferences.getString("brief_frequency", "DAILY") ?: "DAILY"
+            _insightDepth.value = sharedPreferences.getString("insight_depth", "DETAILED") ?: "DETAILED"
+            _hasCompletedSinnersPrayer.value = sharedPreferences.getBoolean("has_completed_sinners_prayer", false)
+            _lastAltarVisit.value = sharedPreferences.getLong("last_altar_visit", 0L)
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsRepository", "Failed to load initial settings", e)
+        }
+    }
+
     fun setBiometricLockEnabled(enabled: Boolean) {
-        sharedPreferences.edit().putBoolean("biometric_lock", enabled).apply()
+        try {
+            sharedPreferences.edit().putBoolean("biometric_lock", enabled).apply()
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsRepository", "Failed to save biometric_lock", e)
+        }
         _isBiometricLockEnabled.value = enabled
     }
 
     fun setReligionShortcutEnabled(enabled: Boolean) {
-        sharedPreferences.edit().putBoolean("religion_shortcut", enabled).apply()
+        try {
+            sharedPreferences.edit().putBoolean("religion_shortcut", enabled).apply()
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsRepository", "Error saving setting", e)
+        }
         _isReligionShortcutEnabled.value = enabled
     }
 
     fun setLocalAiOnly(enabled: Boolean) {
-        sharedPreferences.edit().putBoolean("local_ai_only", enabled).apply()
+        try {
+            sharedPreferences.edit().putBoolean("local_ai_only", enabled).apply()
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsRepository", "Error saving setting", e)
+        }
         _isLocalAiOnly.value = enabled
     }
 
     fun setNanoTemperature(temp: Float) {
-        sharedPreferences.edit().putFloat("nano_temp", temp).apply()
+        try {
+            sharedPreferences.edit().putFloat("nano_temp", temp).apply()
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsRepository", "Error saving setting", e)
+        }
         _nanoTemperature.value = temp
     }
 
     fun setCloudFallbackThreshold(threshold: Float) {
-        sharedPreferences.edit().putFloat("cloud_fallback", threshold).apply()
+        try {
+            sharedPreferences.edit().putFloat("cloud_fallback", threshold).apply()
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsRepository", "Error saving setting", e)
+        }
         _cloudFallbackThreshold.value = threshold
     }
 
     fun setPhilosophySeed(seed: String) {
-        sharedPreferences.edit().putString("philosophy_seed", seed).apply()
+        try {
+            sharedPreferences.edit().putString("philosophy_seed", seed).apply()
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsRepository", "Error saving setting", e)
+        }
         _philosophySeed.value = seed
     }
 
     fun setNetrunnerMode(enabled: Boolean) {
-        sharedPreferences.edit().putBoolean("netrunner_mode", enabled).apply()
+        try {
+            sharedPreferences.edit().putBoolean("netrunner_mode", enabled).apply()
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsRepository", "Error saving setting", e)
+        }
         _isNetrunnerMode.value = enabled
     }
 
     fun setFirstAiCoreEntry(isFirst: Boolean) {
-        sharedPreferences.edit().putBoolean("first_ai_core_entry", isFirst).apply()
+        try {
+            sharedPreferences.edit().putBoolean("first_ai_core_entry", isFirst).apply()
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsRepository", "Error saving setting", e)
+        }
         _isFirstAiCoreEntry.value = isFirst
     }
 
     fun setNeuralBriefEnabled(enabled: Boolean) {
-        sharedPreferences.edit().putBoolean("neural_brief_enabled", enabled).apply()
+        try {
+            sharedPreferences.edit().putBoolean("neural_brief_enabled", enabled).apply()
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsRepository", "Error saving setting", e)
+        }
         _isNeuralBriefEnabled.value = enabled
     }
 
     fun setQuietHoursStart(time: String) {
-        sharedPreferences.edit().putString("quiet_hours_start", time).apply()
+        try {
+            sharedPreferences.edit().putString("quiet_hours_start", time).apply()
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsRepository", "Error saving setting", e)
+        }
         _quietHoursStart.value = time
     }
 
     fun setQuietHoursEnd(time: String) {
-        sharedPreferences.edit().putString("quiet_hours_end", time).apply()
+        try {
+            sharedPreferences.edit().putString("quiet_hours_end", time).apply()
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsRepository", "Error saving setting", e)
+        }
         _quietHoursEnd.value = time
     }
 
     fun setBriefFrequency(frequency: String) {
-        sharedPreferences.edit().putString("brief_frequency", frequency).apply()
+        try {
+            sharedPreferences.edit().putString("brief_frequency", frequency).apply()
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsRepository", "Error saving setting", e)
+        }
         _briefFrequency.value = frequency
     }
 
     fun setInsightDepth(depth: String) {
-        sharedPreferences.edit().putString("insight_depth", depth).apply()
+        try {
+            sharedPreferences.edit().putString("insight_depth", depth).apply()
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsRepository", "Error saving setting", e)
+        }
         _insightDepth.value = depth
     }
 
     fun setCompletedSinnersPrayer(completed: Boolean) {
-        sharedPreferences.edit().putBoolean("has_completed_sinners_prayer", completed).apply()
+        try {
+            sharedPreferences.edit().putBoolean("has_completed_sinners_prayer", completed).apply()
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsRepository", "Error saving setting", e)
+        }
         _hasCompletedSinnersPrayer.value = completed
     }
 
     fun setLastAltarVisit(timestamp: Long) {
-        sharedPreferences.edit().putLong("last_altar_visit", timestamp).apply()
+        try {
+            sharedPreferences.edit().putLong("last_altar_visit", timestamp).apply()
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsRepository", "Error saving setting", e)
+        }
         _lastAltarVisit.value = timestamp
     }
 

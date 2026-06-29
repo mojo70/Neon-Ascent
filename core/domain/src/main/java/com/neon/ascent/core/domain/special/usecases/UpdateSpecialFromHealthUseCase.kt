@@ -34,12 +34,30 @@ class UpdateSpecialFromHealthUseCase @Inject constructor(
         val stepsData = readSteps(startTime)
         val sleepData = readSleepSessions(startTime)
         val hrvData = readHRV(startTime)
-        val caloriesData = readCalories(startTime)
+        
+        // Calories: Check Total first, fallback to Active
+        var totalCalories = try {
+            val request = ReadRecordsRequest(
+                recordType = TotalCaloriesBurnedRecord::class,
+                timeRangeFilter = TimeRangeFilter.between(startTime, Instant.now())
+            )
+            healthConnectClient.readRecords(request).records.sumOf { it.energy.inKilocalories }
+        } catch (e: Throwable) { 0.0 }
+
+        if (totalCalories <= 0.0) {
+            totalCalories = try {
+                val request = ReadRecordsRequest(
+                    recordType = ActiveCaloriesBurnedRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(startTime, Instant.now())
+                )
+                healthConnectClient.readRecords(request).records.sumOf { it.energy.inKilocalories }
+            } catch (e: Throwable) { 0.0 }
+        }
 
         // 2. Process into grounded benchmarks
         val agilityBenchmark = processor.processSteps(stepsData)
         val enduranceBenchmark = processor.processSleepAndHRV(sleepData, hrvData)
-        val strengthBenchmark = processor.processStrength(caloriesData)
+        val strengthBenchmark = processor.processStrength(totalCalories)
 
         // 3. Save raw benchmarks for Diagnostics history
         agilityBenchmark?.let { specialRepository.saveBenchmark(it) }
@@ -65,28 +83,24 @@ class UpdateSpecialFromHealthUseCase @Inject constructor(
         return updatedAttributes
     }
 
-    private suspend fun readCalories(startTime: Instant): List<ActiveCaloriesBurnedRecord> {
-        return try {
-            val request = ReadRecordsRequest(
-                recordType = ActiveCaloriesBurnedRecord::class,
-                timeRangeFilter = TimeRangeFilter.between(startTime, Instant.now())
-            )
-            healthConnectClient.readRecords(request).records
-                .filter { it.energy.inKilocalories > 0 }
-        } catch (e: Throwable) {
-            emptyList()
-        }
-    }
-
     private suspend fun readSteps(startTime: Instant): List<StepsRecord> {
         return try {
             val request = ReadRecordsRequest(
                 recordType = StepsRecord::class,
                 timeRangeFilter = TimeRangeFilter.between(startTime, Instant.now())
             )
-            healthConnectClient.readRecords(request).records
-                .filter { it.count > 0 }
+            // Use withContext to ensure we're off-thread and catch the SDK-internal validation crash
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                healthConnectClient.readRecords(request).records
+                    .filter { it.count > 0 }
+            }
+        } catch (e: IllegalArgumentException) {
+            // Specifically catch the "count must not be less than 1" crash 
+            // from the Health Connect SDK when it encountered bad data.
+            android.util.Log.e("UpdateSpecial", "SDK validation error reading StepsRecord: ${e.message}")
+            emptyList()
         } catch (e: Throwable) {
+            android.util.Log.e("UpdateSpecial", "Error reading steps", e)
             emptyList()
         }
     }

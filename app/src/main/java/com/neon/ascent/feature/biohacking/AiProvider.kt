@@ -1,6 +1,7 @@
 package com.neon.ascent.feature.biohacking
 
 import com.neon.ascent.core.ai.GemmaClient
+import com.neon.ascent.core.domain.ai.AiCore
 import com.neon.ascent.data.repository.SettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +22,7 @@ class AiProvider @Inject constructor(
     private val gemmaClient: GemmaClient,
     private val cloudGeminiClient: CloudGeminiClient,
     private val settingsRepository: SettingsRepository
-) {
+) : AiCore {
     private val _activeAiType = MutableStateFlow(AiType.NONE)
     val activeAiType: StateFlow<AiType> = _activeAiType.asStateFlow()
 
@@ -55,9 +56,9 @@ class AiProvider @Inject constructor(
      * @param forceLocal If true, the request will fail if the local AI core is not available,
      * skipping any fallback to Cloud.
      */
-    suspend fun generateContent(
+    override suspend fun generateContent(
         prompt: String, 
-        forceLocal: Boolean = false
+        forceLocal: Boolean
     ): String {
         val currentType = _activeAiType.value
         val isGlobalLocalOnly = settingsRepository.isLocalAiOnly.first()

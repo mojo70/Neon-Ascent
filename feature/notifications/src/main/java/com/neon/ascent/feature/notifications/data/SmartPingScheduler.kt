@@ -35,6 +35,9 @@ class SmartPingScheduler @Inject constructor(
 
         // Periodic health state check for dynamic triggers (wake/bed)
         scheduleHealthTriggerCheck()
+
+        // Periodic insight full re-materialization (Nightly)
+        scheduleNightlyInsightProjection()
     }
 
     /**
@@ -144,6 +147,23 @@ class SmartPingScheduler @Inject constructor(
 
         workManager.enqueueUniquePeriodicWork(
             "health_dynamic_trigger_check",
+            ExistingPeriodicWorkPolicy.KEEP,
+            request
+        )
+    }
+
+    private fun scheduleNightlyInsightProjection() {
+        val constraints = Constraints.Builder()
+            .setRequiresCharging(true)
+            .setRequiresDeviceIdle(true)
+            .build()
+
+        val request = PeriodicWorkRequestBuilder<InsightProjectionWorker>(24, TimeUnit.HOURS)
+            .setConstraints(constraints)
+            .build()
+
+        workManager.enqueueUniquePeriodicWork(
+            "nightly_insight_projection",
             ExistingPeriodicWorkPolicy.KEEP,
             request
         )
