@@ -30,8 +30,8 @@ class SmartPingScheduler @Inject constructor(
             scheduleForTask(task)
         }
 
-        // Global daily summary ping
-        scheduleDailySummary()
+        // Global daily neural brief (unifies summary + insights)
+        enqueueDailyNeuralBrief()
 
         // Periodic health state check for dynamic triggers (wake/bed)
         scheduleHealthTriggerCheck()
@@ -147,28 +147,5 @@ class SmartPingScheduler @Inject constructor(
             ExistingPeriodicWorkPolicy.KEEP,
             request
         )
-    }
-
-    private fun scheduleDailySummary() {
-        val request = PeriodicWorkRequestBuilder<DailySummaryWorker>(24, TimeUnit.HOURS)
-            .setInitialDelay(calculateTimeUntilEveningSummary(), TimeUnit.MILLISECONDS)
-            .build()
-
-        workManager.enqueueUniquePeriodicWork(
-            "daily_neural_summary",
-            ExistingPeriodicWorkPolicy.REPLACE,
-            request
-        )
-    }
-
-    private fun calculateTimeUntilEveningSummary(): Long {
-        // Aim for ~7 PM
-        val target = LocalTime.of(19, 0)
-        val now = LocalTime.now()
-        return if (now.isBefore(target)) {
-            Duration.between(now, target).toMillis()
-        } else {
-            Duration.between(now, target.plusHours(24)).toMillis()
-        }
     }
 }

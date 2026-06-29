@@ -93,6 +93,20 @@ class NeuralBriefManager @Inject constructor(
                 ACTION_LOG_COMPLETE -> {
                     // Use a generic log deep link or specific task if available in 'type'
                     val intent = deepLinkHelper.createTaskCompletionIntent(action.type.ifBlank { "generic" })
+                    // Set component to ensure it opens the app's main activity if it's a deep link
+                    intent.setPackage(context.packageName)
+                    PendingIntent.getActivity(context, notificationId + index, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                }
+                ACTION_SKIP_REFLECT -> {
+                    // Deep link to a reflection/journaling UI
+                    val intent = Intent(
+                        Intent.ACTION_VIEW,
+                        android.net.Uri.parse("neon-ascent://reflection?source=brief&type=${action.type}"),
+                        context,
+                        context.packageManager.getLaunchIntentForPackage(context.packageName)?.component?.let { 
+                            Class.forName(it.className) 
+                        } ?: return@forEachIndexed
+                    )
                     PendingIntent.getActivity(context, notificationId + index, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
                 }
                 else -> {

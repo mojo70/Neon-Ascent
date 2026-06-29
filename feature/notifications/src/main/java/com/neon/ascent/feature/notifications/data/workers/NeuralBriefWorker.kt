@@ -4,8 +4,11 @@ import android.content.Context
 import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.*
-import com.neon.ascent.core.common.DeepLinkHelper
+import com.neon.ascent.core.domain.goals.models.AscensionMission
+import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.core.domain.repository.InsightProjectionRepository
+import com.neon.ascent.core.domain.repository.RecommendationProjection
+import com.neon.ascent.core.domain.repository.SocraticInsight
 import com.neon.ascent.feature.notifications.data.NeuralBriefManager
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -22,32 +25,22 @@ class NeuralBriefWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val briefManager: NeuralBriefManager,
     private val insightRepository: InsightProjectionRepository,
-    private val deepLinkHelper: com.neon.ascent.core.common.DeepLinkHelper
+    private val ascensionRepository: AscensionRepository
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
         Log.d(TAG, "// NEURAL_BRIEF_WORKER_START")
         val isTest = inputData.getBoolean("is_test", false)
         return try {
-            // Log permission and system state
-            val hasNotificationPermission = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                androidx.core.content.ContextCompat.checkSelfPermission(
-                    applicationContext,
-                    android.Manifest.permission.POST_NOTIFICATIONS
-                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-            } else true
-            
-            Log.d(TAG, "// SYSTEM_STATE: Permission=$hasNotificationPermission, Attempt=$runAttemptCount, IsBatteryLow=${isLowBattery()}, IsTest=$isTest")
-
-            if (!hasNotificationPermission) {
+            if (!hasNotificationPermission()) {
                 Log.e(TAG, "// ABORT: NOTIFICATION_PERMISSIONS_DENIED")
                 return Result.failure()
             }
 
             // 1. Fetch latest insights and recommendations
             val insight = if (isTest) {
-                com.neon.ascent.core.domain.repository.SocraticInsight(
-                    content = "TEST_INSIGHT: HRV recovered overnight. Body Battery strong. Systems optimal for high-intensity protocols.",
+                SocraticInsight(
+                    content = "HRV recovered nicely. Body Battery strong. Systems optimal for high-intensity protocols.",
                     sourceMetrics = listOf("HRV", "SLEEP"),
                     timestamp = System.currentTimeMillis()
                 )
@@ -57,8 +50,8 @@ class NeuralBriefWorker @AssistedInject constructor(
             }
             
             val recommendation = if (isTest) {
-                com.neon.ascent.core.domain.repository.RecommendationProjection(
-                    content = "Today's Strength protocol looks good. Add the mobility micro-mission?",
+                RecommendationProjection(
+                    content = "Good window for the mobility micro-mission today.",
                     relatedDirectiveId = "STRENGTH_PROTOCOL",
                     relatedSpecialAttribute = "S",
                     timestamp = System.currentTimeMillis()
@@ -67,39 +60,38 @@ class NeuralBriefWorker @AssistedInject constructor(
                 insightRepository.getLatestRecommendation().firstOrNull()
             }
 
-            // 2. Build the polite, neon-flavored body
-            val title = "⚡ NEURAL BRIEF // SYNC_SUCCESS"
-            val body = if (insight == null && recommendation == null) {
-                Log.d(TAG, "// SYNTHESIS_FALLBACK: Using default payload")
-                "The network is quiet. Your biometrics remain within stable parameters. Maintain current momentum."
-            } else {
-                Log.d(TAG, "// SYNTHESIS_SUCCESS: Mapping data to neon-tone body")
-                formatBriefContent(insight, recommendation)
+            val activeMissions = if (isTest) emptyList() else {
+                ascensionRepository.getActiveMissions().firstOrNull() ?: emptyList()
             }
 
+            // 2. Build the polite, neon-flavored body
+            val title = "⚡ NEURAL BRIEF // SYNC_SUCCESS"
+            val body = formatBriefContent(insight, recommendation, activeMissions)
+
             Log.d(TAG, "// PAYLOAD_GENERATED: BodyLength=${body.length}")
-            
-            // Log DeepLink targets for debug
-            Log.d(TAG, "// DEEPLINK_TARGET: ${deepLinkHelper.createDashboardIntent().dataString}")
 
             // 3. Define Actions
-            val actions = listOf(
-                NeuralBriefManager.BriefAction(
-                    label = "OPEN DECK",
-                    actionName = NeuralBriefManager.ACTION_OPEN_DECK,
-                    type = "DASHBOARD"
-                ),
-                NeuralBriefManager.BriefAction(
-                    label = "LOG COMPLETE",
-                    actionName = NeuralBriefManager.ACTION_LOG_COMPLETE,
-                    type = recommendation?.relatedDirectiveId ?: "GENERAL"
-                ),
-                NeuralBriefManager.BriefAction(
-                    label = "SNOOZE 2H",
-                    actionName = NeuralBriefManager.ACTION_SNOOZE,
-                    type = "DEFER_2H"
-                )
-            )
+            val actions = mutableListOf<NeuralBriefManager.BriefAction>()
+            
+            val logActionType = recommendation?.relatedDirectiveId ?: activeMissions.firstOrNull()?.id ?: "GENERAL"
+            
+            actions.add(NeuralBriefManager.BriefAction(
+                label = "LOG COMPLETE",
+                actionName = NeuralBriefManager.ACTION_LOG_COMPLETE,
+                type = logActionType
+            ))
+
+            actions.add(NeuralBriefManager.BriefAction(
+                label = "SKIP + REFLECT",
+                actionName = NeuralBriefManager.ACTION_SKIP_REFLECT,
+                type = logActionType
+            ))
+
+            actions.add(NeuralBriefManager.BriefAction(
+                label = "SNOOZE 2H",
+                actionName = NeuralBriefManager.ACTION_SNOOZE,
+                type = "DEFER_2H"
+            ))
 
             // 4. Show Notification
             Log.d(TAG, "// DISPATCH: Sending to NeuralBriefManager")
@@ -117,19 +109,13 @@ class NeuralBriefWorker @AssistedInject constructor(
         }
     }
 
-    private fun isLowBattery(): Boolean {
-        val batteryStatus: android.content.Intent? = android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED).let { ifilter ->
-            applicationContext.registerReceiver(null, ifilter)
-        }
-        val status: Int = batteryStatus?.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1) ?: -1
-        val isCharging: Boolean = status == android.os.BatteryManager.BATTERY_STATUS_CHARGING ||
-                status == android.os.BatteryManager.BATTERY_STATUS_FULL
-
-        val level: Int = batteryStatus?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1) ?: -1
-        val scale: Int = batteryStatus?.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, -1) ?: -1
-        val batteryPct = level * 100 / scale.toFloat()
-        
-        return !isCharging && batteryPct < 15
+    private fun hasNotificationPermission(): Boolean {
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                applicationContext,
+                android.Manifest.permission.POST_NOTIFICATIONS
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        } else true
     }
 
     /**
@@ -137,22 +123,28 @@ class NeuralBriefWorker @AssistedInject constructor(
      * Highlights biometric data if available and appends the recommendation.
      */
     private fun formatBriefContent(
-        insight: com.neon.ascent.core.domain.repository.SocraticInsight?,
-        recommendation: com.neon.ascent.core.domain.repository.RecommendationProjection?
+        insight: SocraticInsight?,
+        recommendation: RecommendationProjection?,
+        activeMissions: List<AscensionMission>
     ): String = buildString {
         if (insight != null) {
             append(insight.content)
             if (!insight.content.endsWith(".")) append(".")
             append(" ")
+        } else {
+            append("Biometrics remain stable. Recovery protocols holding. ")
         }
         
         if (recommendation != null) {
             append(recommendation.content)
             if (!recommendation.content.endsWith(".")) append(".")
+        } else if (activeMissions.isNotEmpty()) {
+            val mission = activeMissions.randomOrNull() ?: activeMissions.first()
+            append("The window is open for the '${mission.title}' mission. Proceed when ready.")
+        } else {
+            append("Maintain current momentum. No critical directives pending.")
         }
-    }.trim().ifEmpty { 
-        "Systems nominal. Ready for next cycle."
-    }
+    }.trim()
 
     companion object {
         private const val TAG = "NeuralBriefWorker"

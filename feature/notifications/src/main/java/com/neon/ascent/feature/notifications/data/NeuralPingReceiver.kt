@@ -5,6 +5,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.neon.ascent.core.domain.repository.AscensionRepository
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import com.neon.ascent.feature.notifications.data.workers.NeuralBriefWorker
+import java.util.concurrent.TimeUnit
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -55,7 +59,15 @@ class NeuralPingReceiver : BroadcastReceiver() {
                 }
             }
             ACTION_SNOOZE, NeuralBriefManager.ACTION_SNOOZE -> {
-                // Logic for Snooze (e.g., reschedule WorkManager)
+                // Logic for Snooze (reschedule WorkManager for 2 hours)
+                val workManager = WorkManager.getInstance(context)
+                val snoozeRequest = OneTimeWorkRequestBuilder<NeuralBriefWorker>()
+                    .setInitialDelay(2, TimeUnit.HOURS)
+                    .addTag("SNOOZE_BRIEF")
+                    .build()
+                
+                workManager.enqueue(snoozeRequest)
+
                 if (notificationId != -1) {
                     notificationManager.cancel(notificationId)
                 }

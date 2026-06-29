@@ -64,8 +64,7 @@ class DashboardViewModel @Inject constructor(
     private val identityCoordinator: com.neon.ascent.core.common.IdentityCoordinator,
     private val specialRepository: com.neon.ascent.core.domain.SpecialRepository,
     private val memoryPalaceManager: MemoryPalaceManager,
-    private val uplinkManager: NeuralUplinkManager,
-    private val smartPingScheduler: com.neon.ascent.feature.notifications.data.SmartPingScheduler
+    private val uplinkManager: NeuralUplinkManager
 ) : ViewModel() {
     val userCharacter: StateFlow<UserCharacter?> = characterRepository.getUserCharacter()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -128,10 +127,6 @@ class DashboardViewModel @Inject constructor(
 
         viewModelScope.launch {
             benchmarkRepository.populateBenchmarksFromCsv()
-        }
-
-        viewModelScope.launch {
-            smartPingScheduler.enqueueDailyNeuralBrief()
         }
     }
 
