@@ -39,6 +39,14 @@ class NeuralPingManager @Inject constructor(
     fun sendNeuralPing(title: String, message: String, taskId: String? = null) {
         val notificationId = taskId?.hashCode() ?: System.currentTimeMillis().toInt()
 
+        // Content Intent: Open the app (Dashboard) when notification is clicked
+        val mainIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        val contentIntent = PendingIntent.getActivity(
+            context, notificationId, mainIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         val markDoneIntent = Intent(context, NeuralPingReceiver::class.java).apply {
             action = NeuralPingReceiver.ACTION_MARK_DONE
             putExtra(NeuralPingReceiver.EXTRA_TASK_ID, taskId)
@@ -58,13 +66,14 @@ class NeuralPingManager @Inject constructor(
         )
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_neon_deck)
+            .setSmallIcon(R.drawable.ic_neural_ping)
             .setContentTitle(title)
             .setContentText(message)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setAutoCancel(true)
             .setColor(0xFF00FF9F.toInt()) // Neon cyan
+            .setContentIntent(contentIntent) // Click behavior
             .addAction(0, "MARK DONE", markDonePendingIntent)
             .addAction(0, "SNOOZE", snoozePendingIntent)
             .build()
@@ -75,7 +84,7 @@ class NeuralPingManager @Inject constructor(
     fun sendNeuralBrief(taskTitles: List<String>) {
         val message = taskTitles.joinToString("\n") { "• $it" }
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_neon_deck)
+            .setSmallIcon(R.drawable.ic_neural_ping)
             .setContentTitle("⚡ NEURAL BRIEF // MULTIPLE_PROTOCOLS")
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
             .setPriority(NotificationCompat.PRIORITY_HIGH)

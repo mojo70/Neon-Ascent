@@ -21,11 +21,13 @@ class NeuralBriefWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
     private val briefManager: NeuralBriefManager,
-    private val insightRepository: InsightProjectionRepository
+    private val insightRepository: InsightProjectionRepository,
+    private val deepLinkHelper: com.neon.ascent.core.common.DeepLinkHelper
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        Log.d(TAG, "SYNTHESIS_INIT: Starting Neural Brief work cycle")
+        Log.d(TAG, "// NEURAL_BRIEF_WORKER_START")
+        val isTest = inputData.getBoolean("is_test", false)
         return try {
             // Log permission and system state
             val hasNotificationPermission = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -34,24 +36,51 @@ class NeuralBriefWorker @AssistedInject constructor(
                     android.Manifest.permission.POST_NOTIFICATIONS
                 ) == android.content.pm.PackageManager.PERMISSION_GRANTED
             } else true
-            Log.d(TAG, "SYSTEM_STATE: Permission status = $hasNotificationPermission, Attempt = $runAttemptCount")
+            
+            Log.d(TAG, "// SYSTEM_STATE: Permission=$hasNotificationPermission, Attempt=$runAttemptCount, IsBatteryLow=${isLowBattery()}, IsTest=$isTest")
 
-            // 1. Fetch latest insights and recommendations from the projection layer
-            Log.d(TAG, "DATA_FETCH: Accessing InsightProjectionRepository")
-            val insight = insightRepository.getLatestInsight().firstOrNull()
-            val recommendation = insightRepository.getLatestRecommendation().firstOrNull()
+            if (!hasNotificationPermission) {
+                Log.e(TAG, "// ABORT: NOTIFICATION_PERMISSIONS_DENIED")
+                return Result.failure()
+            }
+
+            // 1. Fetch latest insights and recommendations
+            val insight = if (isTest) {
+                com.neon.ascent.core.domain.repository.SocraticInsight(
+                    content = "TEST_INSIGHT: HRV recovered overnight. Body Battery strong. Systems optimal for high-intensity protocols.",
+                    sourceMetrics = listOf("HRV", "SLEEP"),
+                    timestamp = System.currentTimeMillis()
+                )
+            } else {
+                Log.d(TAG, "// FETCHING_PROJECTIONS...")
+                insightRepository.getLatestInsight().firstOrNull()
+            }
+            
+            val recommendation = if (isTest) {
+                com.neon.ascent.core.domain.repository.RecommendationProjection(
+                    content = "Today's Strength protocol looks good. Add the mobility micro-mission?",
+                    relatedDirectiveId = "STRENGTH_PROTOCOL",
+                    relatedSpecialAttribute = "S",
+                    timestamp = System.currentTimeMillis()
+                )
+            } else {
+                insightRepository.getLatestRecommendation().firstOrNull()
+            }
 
             // 2. Build the polite, neon-flavored body
             val title = "⚡ NEURAL BRIEF // SYNC_SUCCESS"
             val body = if (insight == null && recommendation == null) {
-                Log.d(TAG, "SYNTHESIS_FALLBACK: No fresh data found, using default payload")
+                Log.d(TAG, "// SYNTHESIS_FALLBACK: Using default payload")
                 "The network is quiet. Your biometrics remain within stable parameters. Maintain current momentum."
             } else {
-                Log.d(TAG, "SYNTHESIS_SUCCESS: Mapping insights to neon-tone body")
+                Log.d(TAG, "// SYNTHESIS_SUCCESS: Mapping data to neon-tone body")
                 formatBriefContent(insight, recommendation)
             }
 
-            Log.d(TAG, "PAYLOAD_GENERATED: Body length = ${body.length}")
+            Log.d(TAG, "// PAYLOAD_GENERATED: BodyLength=${body.length}")
+            
+            // Log DeepLink targets for debug
+            Log.d(TAG, "// DEEPLINK_TARGET: ${deepLinkHelper.createDashboardIntent().dataString}")
 
             // 3. Define Actions
             val actions = listOf(
@@ -63,7 +92,7 @@ class NeuralBriefWorker @AssistedInject constructor(
                 NeuralBriefManager.BriefAction(
                     label = "LOG COMPLETE",
                     actionName = NeuralBriefManager.ACTION_LOG_COMPLETE,
-                    type = recommendation?.relatedDirectiveId ?: ""
+                    type = recommendation?.relatedDirectiveId ?: "GENERAL"
                 ),
                 NeuralBriefManager.BriefAction(
                     label = "SNOOZE 2H",
@@ -73,19 +102,34 @@ class NeuralBriefWorker @AssistedInject constructor(
             )
 
             // 4. Show Notification
-            Log.d(TAG, "DISPATCH: Sending payload to NeuralBriefManager")
+            Log.d(TAG, "// DISPATCH: Sending to NeuralBriefManager")
             briefManager.showNeuralBrief(
                 title = title,
                 content = body,
                 actions = actions.take(3)
             )
 
-            Log.i(TAG, "SYNTHESIS_COMPLETE: Neural Brief delivered successfully")
+            Log.i(TAG, "// NEURAL_BRIEF_DELIVERED")
             Result.success()
         } catch (e: Exception) {
-            Log.e(TAG, "SYNTHESIS_FAILURE: Critical error during work cycle", e)
+            Log.e(TAG, "// CRITICAL_FAILURE: Neural Brief cycle failed", e)
             if (runAttemptCount < 3) Result.retry() else Result.failure()
         }
+    }
+
+    private fun isLowBattery(): Boolean {
+        val batteryStatus: android.content.Intent? = android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED).let { ifilter ->
+            applicationContext.registerReceiver(null, ifilter)
+        }
+        val status: Int = batteryStatus?.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1) ?: -1
+        val isCharging: Boolean = status == android.os.BatteryManager.BATTERY_STATUS_CHARGING ||
+                status == android.os.BatteryManager.BATTERY_STATUS_FULL
+
+        val level: Int = batteryStatus?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val scale: Int = batteryStatus?.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, -1) ?: -1
+        val batteryPct = level * 100 / scale.toFloat()
+        
+        return !isCharging && batteryPct < 15
     }
 
     /**

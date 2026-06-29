@@ -1,0 +1,15 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Simplified Cyber Head Silhouette for Notifications -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,20 C40,20 30,30 28,45 C27,55 30,65 35,75 L35,85 L73,85 L73,75 C78,65 81,55 80,45 C78,30 68,20 54,20 Z
+                  M30,42 H78 L80,52 H28 Z
+                  M54,25 L48,35 L60,35 Z"
+        android:fillType="evenOdd" />
+
+</vector>

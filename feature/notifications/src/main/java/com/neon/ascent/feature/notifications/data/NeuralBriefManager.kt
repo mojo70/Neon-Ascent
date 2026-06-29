@@ -33,13 +33,12 @@ class NeuralBriefManager @Inject constructor(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val name = "Neural Brief"
             val descriptionText = "Daily compiled insights and gentle guidance from your Neon Guide."
-            val importance = NotificationManager.IMPORTANCE_DEFAULT
+            val importance = NotificationManager.IMPORTANCE_HIGH
             
             val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
                 description = descriptionText
-                // Set vibration and lights off by default for politeness
-                enableLights(false)
-                enableVibration(false)
+                enableLights(true)
+                enableVibration(true)
                 setShowBadge(true)
                 lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
             }
@@ -72,7 +71,7 @@ class NeuralBriefManager @Inject constructor(
         )
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_neon_deck)
+            .setSmallIcon(R.drawable.ic_neural_ping)
             .setContentTitle(title)
             .setContentText(content)
             .setStyle(NotificationCompat.BigTextStyle().bigText(content))
@@ -127,7 +126,7 @@ class NeuralBriefManager @Inject constructor(
     )
 
     companion object {
-        const val CHANNEL_ID = "neural_brief"
+        const val CHANNEL_ID = "neural_brief_v2"
         const val GROUP_KEY = "com.neon.ascent.NEURAL_BRIEF_GROUP"
         const val BRIEF_NOTIFICATION_ID = 8888
         

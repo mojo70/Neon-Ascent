@@ -19,6 +19,7 @@ import javax.inject.Inject
 @HiltViewModel
 class NotificationPreferencesViewModel @Inject constructor(
     private val neuralPingManager: NeuralPingManager,
+    private val neuralBriefManager: com.neon.ascent.feature.notifications.data.NeuralBriefManager,
     private val smartPingScheduler: SmartPingScheduler,
     private val repository: AscensionRepository
 ) : ViewModel() {
@@ -85,16 +86,21 @@ class NotificationPreferencesViewModel @Inject constructor(
     fun sendTestPing() {
         neuralPingManager.sendNeuralPing(
             title = "SINGLE TRANSMISSION // PROTOCOL_READY",
-            message = "Operator. Hydration protocol window is open. 16oz awaits. +10 XP on breach."
+            message = "Operator. Hydration protocol window is open. 16oz awaits. +10 XP on breach.",
+            taskId = "test_id"
         )
     }
 
     fun sendTestBrief() {
-        neuralPingManager.sendNeuralBrief(
-            taskTitles = listOf(
-                "HYDRATION: Log 16oz water",
-                "MEDITATION: 10m Box breathing session",
-                "GROK_DECONSTRUCT: Competitive side-hustle research"
+        neuralBriefManager.showNeuralBrief(
+            title = "⚡ NEURAL BRIEF // TEST_SYNC",
+            content = "Operator, this is a manual override transmission. Biometrics synchronized. All systems operational. Stand by for further guidance.",
+            actions = listOf(
+                com.neon.ascent.feature.notifications.data.NeuralBriefManager.BriefAction(
+                    label = "OPEN DECK",
+                    actionName = com.neon.ascent.feature.notifications.data.NeuralBriefManager.ACTION_OPEN_DECK,
+                    type = "DASHBOARD"
+                )
             )
         )
     }

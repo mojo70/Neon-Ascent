@@ -27,7 +27,15 @@ class NeuralPingReceiver : BroadcastReceiver() {
 
         when (action) {
             ACTION_MARK_DONE -> {
-                taskId?.let { id ->
+                // If it's a test or generic ping, just dismiss it
+                if (taskId == null || taskId == "test_id") {
+                    if (notificationId != -1) {
+                        notificationManager.cancel(notificationId)
+                    }
+                    return
+                }
+
+                taskId.let { id ->
                     CoroutineScope(Dispatchers.IO).launch {
                         val tasks = ascensionRepository.getAllRecurringTasks().first()
                         val task = tasks.find { it.id == id } ?: return@launch
@@ -38,6 +46,12 @@ class NeuralPingReceiver : BroadcastReceiver() {
                             notificationManager.cancel(notificationId)
                         }
                     }
+                }
+            }
+            NeuralBriefManager.ACTION_LOG_COMPLETE -> {
+                // Handle "LOG COMPLETE" for Daily Brief (Test or Real)
+                if (notificationId != -1) {
+                    notificationManager.cancel(notificationId)
                 }
             }
             ACTION_SNOOZE, NeuralBriefManager.ACTION_SNOOZE -> {

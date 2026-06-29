@@ -41,13 +41,19 @@ class SmartPingScheduler @Inject constructor(
      * Enqueues the Daily Neural Brief via NeuralBriefWorker.
      * Respects user quiet hours and delivery preferences.
      */
-    suspend fun enqueueDailyNeuralBrief(isTestRequest: Boolean = false) {
+    fun enqueueDailyNeuralBrief(isTestRequest: Boolean = false) {
+        android.util.Log.d("SmartPingScheduler", "// ENQUEUE_BRIEF: isTest=$isTestRequest")
         if (isTestRequest) {
+            android.util.Log.d("SmartPingScheduler", "// SCHEDULING_TEST_BRIEF...")
+            val inputData = workDataOf("is_test" to true)
             val oneTimeRequest = OneTimeWorkRequestBuilder<NeuralBriefWorker>()
                 .addTag("neural_brief_test")
+                .setInputData(inputData)
+                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST) // Use expedited for test
                 .build()
             workManager.enqueue(oneTimeRequest)
         } else {
+            android.util.Log.d("SmartPingScheduler", "// SCHEDULING_PERIODIC_BRIEF...")
             NeuralBriefWorker.schedule(context)
         }
     }
@@ -57,6 +63,8 @@ class SmartPingScheduler @Inject constructor(
      * Enqueues an expedited brief with a cooldown to prevent spam.
      */
     fun triggerExpeditedBrief(reason: String) {
+        android.util.Log.i("SmartPingScheduler", "// EXPEDITED_BRIEF_TRIGGERED: reason=$reason")
+
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
             .setRequiresBatteryNotLow(true)
