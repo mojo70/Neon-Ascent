@@ -478,7 +478,7 @@ fun AppNavigation(
                 onBack = { navController.popBackStack() },
                 onDirectiveClick = { id -> navController.navigate(Screen.DirectiveDetail(id)) },
                 onTaskClick = { id -> navController.navigate(Screen.TaskDetail(id)) },
-                onForgeClick = { navController.navigate(Screen.AscensionForge) },
+                onForgeClick = { navController.navigate(Screen.AscensionForge()) },
                 onReviewClick = { id -> navController.navigate(Screen.AscensionReview(id)) },
                 onRitualClick = { navController.navigate(Screen.TerminalRitual) }
             )
