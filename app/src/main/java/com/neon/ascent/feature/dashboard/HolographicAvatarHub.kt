@@ -301,6 +301,7 @@ fun HolographicAvatarHub(
                 HeadsUpStatusCards(
                     liveMetrics = liveMetrics,
                     deepMetrics = deepMetrics,
+                    specialState = specialState,
                     systemAdvice = viewModel.systemAdvice.collectAsState().value,
                     onMetricClick = { focus -> onNavigateToBiohacking(focus) },
                     modifier = Modifier
@@ -1196,6 +1197,7 @@ val AttributeProtocols = mapOf(
 fun HeadsUpStatusCards(
     liveMetrics: LiveBiometrics?,
     deepMetrics: DeepBiometrics?,
+    specialState: Map<SpecialType, SpecialAttribute>,
     systemAdvice: String,
     onMetricClick: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -1204,25 +1206,38 @@ fun HeadsUpStatusCards(
         modifier = modifier.width(180.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // HRV Status Card
+        // HRV Status Card (Glanceable item 1)
         StatusCard(
             label = "HRV_STABILITY",
             value = "${liveMetrics?.heartRateVariability?.toInt() ?: "--"} ms",
-            trend = "OPTIMAL", // Placeholder for actual trend logic
+            trend = "OPTIMAL",
+            trendDirection = 1, // Arrow indicating stability/improvement
             color = Color(0xFF00FF9C),
             onClick = { onMetricClick("hrv") }
         )
 
-        // Body Battery Card
+        // Body Battery Card (Glanceable item 2)
         StatusCard(
             label = "NEURAL_RESERVE",
             value = "${deepMetrics?.bodyBattery ?: "--"}%",
             trend = if ((deepMetrics?.bodyBattery ?: 0) > 50) "CHARGED" else "LOW",
+            trendDirection = if ((deepMetrics?.bodyBattery ?: 0) > 70) 1 else if ((deepMetrics?.bodyBattery ?: 0) < 30) -1 else 0,
             color = Color(0xFF00FFFF),
             onClick = { onMetricClick("recovery") }
         )
 
-        // One-line Insight Card
+        // S.P.E.C.I.A.L. Resonance Summary (Glanceable item 3)
+        val topAttr = specialState.values.maxByOrNull { it.currentValue }
+        StatusCard(
+            label = "RESONANCE_SUMMARY",
+            value = topAttr?.type?.name ?: "INITIALIZING",
+            trend = "LVL_${topAttr?.currentValue ?: 0}",
+            trendDirection = 1,
+            color = NeonPink,
+            onClick = { onMetricClick("attributes") }
+        )
+
+        // One-line Socratic Insight Card (Glanceable item 4)
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1231,15 +1246,23 @@ fun HeadsUpStatusCards(
                 .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(4.dp)),
             color = Color.Black.copy(alpha = 0.4f)
         ) {
-            Text(
-                text = systemAdvice,
-                color = Color.White.copy(alpha = 0.8f),
-                fontSize = 9.sp,
-                fontFamily = FontFamily.Monospace,
-                lineHeight = 11.sp,
-                modifier = Modifier.padding(8.dp),
-                maxLines = 2
-            )
+            Column(modifier = Modifier.padding(8.dp)) {
+                Text(
+                    "SOCRATIC_INSIGHT",
+                    color = Color(0xFF00FF9C).copy(alpha = 0.5f),
+                    fontSize = 7.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                Text(
+                    text = systemAdvice,
+                    color = Color.White.copy(alpha = 0.8f),
+                    fontSize = 9.sp,
+                    fontFamily = FontFamily.Monospace,
+                    lineHeight = 11.sp,
+                    modifier = Modifier.padding(top = 2.dp),
+                    maxLines = 2
+                )
+            }
         }
     }
 }
@@ -1249,6 +1272,7 @@ fun StatusCard(
     label: String,
     value: String,
     trend: String,
+    trendDirection: Int = 0, // 1 for up, -1 for down, 0 for stable
     color: Color,
     onClick: () -> Unit
 ) {
@@ -1267,7 +1291,17 @@ fun StatusCard(
         ) {
             Column {
                 Text(label, color = color.copy(alpha = 0.6f), fontSize = 7.sp, fontFamily = FontFamily.Monospace)
-                Text(value, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(value, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
+                    if (trendDirection != 0) {
+                        Icon(
+                            imageVector = if (trendDirection > 0) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = null,
+                            tint = color,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
             }
             Text(
                 text = trend,

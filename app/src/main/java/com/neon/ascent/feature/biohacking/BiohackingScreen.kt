@@ -44,6 +44,7 @@ import java.util.*
 @Composable
 fun BiohackingScreen(
     onBack: () -> Unit,
+    focus: String? = null,
     viewModel: BiohackingViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -200,7 +201,7 @@ fun BiohackingScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // Baselines Section
-            ExpandableBioSection("BASELINES_&_DEMOGRAPHICS", neonCyan) {
+            ExpandableBioSection("BASELINES_&_DEMOGRAPHICS", neonCyan, initiallyExpanded = focus == "baselines") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         BioReadOnlyField("AGE", calculateAge(displayChar.dob), Modifier.weight(1f), neonCyan)
@@ -228,7 +229,7 @@ fun BiohackingScreen(
 
             // Wearable Metrics
             if (uiState.isWearableSynced) {
-                ExpandableBioSection("WEARABLE_METRICS", neonCyan) {
+                ExpandableBioSection("WEARABLE_METRICS", neonCyan, initiallyExpanded = focus == "hrv" || focus == "biometrics") {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         BioReadOnlyField("HEART_RATE", "${uiState.currentHeartRate ?: "--"} BPM", Modifier.weight(1f), neonCyan)
                         BioReadOnlyField("STEPS_TODAY", "${uiState.currentSteps ?: "--"}", Modifier.weight(1f), neonCyan)
@@ -251,7 +252,7 @@ fun BiohackingScreen(
             }
 
             // Lifestyle Stack
-            ExpandableBioSection("LIFESTYLE_STACK", neonCyan) {
+            ExpandableBioSection("LIFESTYLE_STACK", neonCyan, initiallyExpanded = focus == "recovery" || focus == "lifestyle") {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     BioSliderField("ENERGY_SCORE", uiState.energyScore.toFloat(), 1f..10f, neonCyan) {
                         viewModel.updateData { d -> d.copy(energyScore = it.toInt()) }
@@ -274,7 +275,7 @@ fun BiohackingScreen(
             }
 
             // Goals & Constraints
-            ExpandableBioSection("GOALS_&_CONSTRAINTS", neonCyan) {
+            ExpandableBioSection("GOALS_&_CONSTRAINTS", neonCyan, initiallyExpanded = focus == "goals") {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     BioInputField("PRIMARY_OBJECTIVE", uiState.primaryObjective ?: "LONGEVITY", neonCyan)
                     BioInputField("CONTRAINDICATIONS", uiState.contraindications ?: "NONE_DETECTED", neonCyan)
@@ -774,8 +775,13 @@ fun EffectivenessLogItem(log: BioProtocolLog, cyan: Color) {
 }
 
 @Composable
-fun ExpandableBioSection(label: String, color: Color, content: @Composable () -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
+fun ExpandableBioSection(
+    label: String, 
+    color: Color, 
+    initiallyExpanded: Boolean = false,
+    content: @Composable () -> Unit
+) {
+    var expanded by remember(initiallyExpanded) { mutableStateOf(initiallyExpanded) }
     
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(

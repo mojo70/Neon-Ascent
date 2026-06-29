@@ -11,6 +11,9 @@ sealed interface Screen {
     data object MainHub : Screen
 
     @Serializable
+    data class Biohacking(val focus: String? = null) : Screen
+
+    @Serializable
     data object HolographicHub : Screen
 
     @Serializable

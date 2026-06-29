@@ -158,13 +158,19 @@ fun AppNavigation(
             }
         }
 
+        composable<Screen.Biohacking> { backStackEntry ->
+            val bio = backStackEntry.toRoute<Screen.Biohacking>()
+            BiohackingScreen(
+                focus = bio.focus,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
         composable<Screen.HolographicHub> {
             HolographicAvatarHub(
                 onBack = { navController.popBackStack() },
                 onNavigateToBiohacking = { focus ->
-                    navController.popBackStack() // Go back to Dashboard
-                    // The dashboard screen will need to handle the focus navigation
-                    // In a more robust implementation, we'd use a shared event flow
+                    navController.navigate(Screen.Biohacking(focus))
                 },
                 onUpgradeClick = { attrName ->
                     navController.navigate(Screen.AttributeDetail(attrName))
