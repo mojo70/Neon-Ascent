@@ -54,6 +54,7 @@ class NeuralUplinkManager @Inject constructor(
                 heartRate = garmin?.heartRate ?: hc?.heartRate,
                 stepsToday = hc?.stepsToday ?: garmin?.stepsToday,
                 caloriesToday = hc?.caloriesToday ?: garmin?.caloriesToday,
+                heartRateVariability = garmin?.heartRateVariability ?: hc?.heartRateVariability,
                 timestamp = System.currentTimeMillis()
             )
         }.onEach { merged ->

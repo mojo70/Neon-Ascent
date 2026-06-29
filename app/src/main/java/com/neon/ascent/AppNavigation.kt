@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import kotlinx.coroutines.launch
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -108,6 +109,7 @@ fun AppNavigation(
         
         composable<Screen.MainHub> {
             val pagerState = rememberPagerState(pageCount = { 3 }, initialPage = 1)
+            val coroutineScope = rememberCoroutineScope()
             HorizontalPager(state = pagerState) { page ->
                 when (page) {
                     0 -> CyberdeckScreen(
@@ -141,7 +143,15 @@ fun AppNavigation(
                         onGoalSetClick = { navController.navigate(Screen.AscensionTerminal) },
                         onTaskClick = { id -> navController.navigate(Screen.TaskDetail(id)) },
                         onSettingsClick = { navController.navigate(Screen.Settings) },
-                        onDeusExMachinaClick = { navController.navigate(Screen.DeepNode("DEUS_EX_MACHINA")) }
+                        onDeusExMachinaClick = { navController.navigate(Screen.DeepNode("DEUS_EX_MACHINA")) },
+                        onNavigateToBiohacking = { focus ->
+                            // Since Biohacking is in the pager, we navigate to page 2
+                            // and can pass the focus via a shared ViewModel or SavedStateHandle if needed
+                            // For now, just scroll to the page
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(2)
+                            }
+                        }
                     )
                     2 -> BiohackingScreen(onBack = { /* Handled by pager */ })
                 }
@@ -151,6 +161,11 @@ fun AppNavigation(
         composable<Screen.HolographicHub> {
             HolographicAvatarHub(
                 onBack = { navController.popBackStack() },
+                onNavigateToBiohacking = { focus ->
+                    navController.popBackStack() // Go back to Dashboard
+                    // The dashboard screen will need to handle the focus navigation
+                    // In a more robust implementation, we'd use a shared event flow
+                },
                 onUpgradeClick = { attrName ->
                     navController.navigate(Screen.AttributeDetail(attrName))
                 },

@@ -100,7 +100,8 @@ fun DashboardScreen(
     onGoalSetClick: () -> Unit,
     onTaskClick: (String) -> Unit,
     onSettingsClick: () -> Unit,
-    onDeusExMachinaClick: () -> Unit
+    onDeusExMachinaClick: () -> Unit,
+    onNavigateToBiohacking: (String?) -> Unit = {}
 ) {
     val userCharacter by viewModel.userCharacter.collectAsState()
     val weatherState by viewModel.weatherState.collectAsState()
@@ -422,7 +423,9 @@ fun DashboardScreen(
                 label = "SYSTEM_ADVICE // V.01", 
                 accentColor = Color(0xFF00FFFF),
                 borderColor = Color(0xFF00FFFF).copy(alpha = 0.6f),
-                modifier = Modifier.cyberGlitch(intensity = if (neuralLoad > 0.7f) neuralLoad * 0.5f else 0f)
+                modifier = Modifier
+                    .cyberGlitch(intensity = if (neuralLoad > 0.7f) neuralLoad * 0.5f else 0f)
+                    .clickable { onNavigateToBiohacking("insight") }
             ) {
                 Text(
                     text = "\"$systemAdvice\"",
@@ -457,21 +460,21 @@ fun DashboardScreen(
                     value = (liveMetrics?.stepsToday ?: 0).toString(),
                     subValue = "TARGET: 10K", 
                     color = NeonBlue,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).clickable { onNavigateToBiohacking("activity") }
                 )
                 CyberMetricCard(
                     label = "CALORIES", 
                     value = (liveMetrics?.caloriesToday ?: 0.0).toInt().toString(),
                     subValue = "TARGET: 2.2K", 
                     color = NeonOrange,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).clickable { onNavigateToBiohacking("activity") }
                 )
                 CyberMetricCard(
                     label = "CONSISTENCY", 
                     value = "${state.totalHabitDays}", 
                     subValue = "DAYS 🔥", 
                     color = NeonGreen,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).clickable { onNavigateToBiohacking("consistency") }
                 )
             }
 
@@ -549,7 +552,10 @@ fun DashboardScreen(
 
             if (state.bioAgeResult != null) {
                 Spacer(modifier = Modifier.height(32.dp))
-                BioAgeDashboardCard(state.bioAgeResult!!)
+                BioAgeDashboardCard(
+                    result = state.bioAgeResult!!,
+                    modifier = Modifier.clickable { onNavigateToBiohacking("longevity") }
+                )
             }
 
             Spacer(modifier = Modifier.height(64.dp))
@@ -796,11 +802,12 @@ fun DashboardMissionCardV3(mission: AscensionMission, accentColor: Color = Color
 }
 
 @Composable
-fun BioAgeDashboardCard(result: com.neon.ascent.model.BioAgeResult) {
+fun BioAgeDashboardCard(result: com.neon.ascent.model.BioAgeResult, modifier: Modifier = Modifier) {
     CyberFrame(
         label = "BIOLOGICAL_AGE_SCAN",
         accentColor = Color(0xFF00FFFF),
-        borderColor = Color(0xFF00FFFF).copy(alpha = 0.6f)
+        borderColor = Color(0xFF00FFFF).copy(alpha = 0.6f),
+        modifier = modifier
     ) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {

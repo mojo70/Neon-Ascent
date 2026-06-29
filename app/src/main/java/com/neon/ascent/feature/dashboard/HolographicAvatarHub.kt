@@ -46,6 +46,8 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
 
+import com.neon.ascent.feature.health.domain.uplink.DeepBiometrics
+import com.neon.ascent.feature.health.domain.uplink.LiveBiometrics
 import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.core.domain.model.SpecialAttribute
 import com.neon.ascent.feature.attributes.AttributeData
@@ -61,6 +63,7 @@ fun HolographicAvatarHub(
     terminalViewModel: TerminalViewModel = hiltViewModel(),
     healthViewModel: HealthViewModel = hiltViewModel(),
     onBack: () -> Unit,
+    onNavigateToBiohacking: (String?) -> Unit = {},
     onUpgradeClick: (String) -> Unit,
     onNavigateToDiagnostics: () -> Unit,
     onLoreClick: () -> Unit = {},
@@ -293,6 +296,17 @@ fun HolographicAvatarHub(
                     fontWeight = titleFontWeight,
                     modifier = Modifier.align(Alignment.TopStart).padding(12.dp)
                 )
+
+                // --- Heads-Up Status Cards (Metrics Overlay) ---
+                HeadsUpStatusCards(
+                    liveMetrics = liveMetrics,
+                    deepMetrics = deepMetrics,
+                    systemAdvice = viewModel.systemAdvice.collectAsState().value,
+                    onMetricClick = { focus -> onNavigateToBiohacking(focus) },
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(12.dp)
+                )
             }
 
             // --- S.P.E.C.I.A.L. BIO_METRICS ---
@@ -311,7 +325,7 @@ fun HolographicAvatarHub(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        SpecialType.values().forEach { type ->
+                        SpecialType.entries.forEach { type ->
                             val attr = specialState[type]
                             Row(
                                 modifier = Modifier
@@ -1177,6 +1191,97 @@ val AttributeProtocols = mapOf(
         Protocol("Movement Ghost", "Stealth and flexibility", "+0.3 AGI/qtr")
     )
 )
+
+@Composable
+fun HeadsUpStatusCards(
+    liveMetrics: LiveBiometrics?,
+    deepMetrics: DeepBiometrics?,
+    systemAdvice: String,
+    onMetricClick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.width(180.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // HRV Status Card
+        StatusCard(
+            label = "HRV_STABILITY",
+            value = "${liveMetrics?.heartRateVariability?.toInt() ?: "--"} ms",
+            trend = "OPTIMAL", // Placeholder for actual trend logic
+            color = Color(0xFF00FF9C),
+            onClick = { onMetricClick("hrv") }
+        )
+
+        // Body Battery Card
+        StatusCard(
+            label = "NEURAL_RESERVE",
+            value = "${deepMetrics?.bodyBattery ?: "--"}%",
+            trend = if ((deepMetrics?.bodyBattery ?: 0) > 50) "CHARGED" else "LOW",
+            color = Color(0xFF00FFFF),
+            onClick = { onMetricClick("recovery") }
+        )
+
+        // One-line Insight Card
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(4.dp))
+                .clickable { onMetricClick("insight") }
+                .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(4.dp)),
+            color = Color.Black.copy(alpha = 0.4f)
+        ) {
+            Text(
+                text = systemAdvice,
+                color = Color.White.copy(alpha = 0.8f),
+                fontSize = 9.sp,
+                fontFamily = FontFamily.Monospace,
+                lineHeight = 11.sp,
+                modifier = Modifier.padding(8.dp),
+                maxLines = 2
+            )
+        }
+    }
+}
+
+@Composable
+fun StatusCard(
+    label: String,
+    value: String,
+    trend: String,
+    color: Color,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(4.dp))
+            .clickable { onClick() }
+            .border(1.dp, color.copy(alpha = 0.2f), RoundedCornerShape(4.dp)),
+        color = Color.Black.copy(alpha = 0.4f)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(label, color = color.copy(alpha = 0.6f), fontSize = 7.sp, fontFamily = FontFamily.Monospace)
+                Text(value, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
+            }
+            Text(
+                text = trend,
+                color = color,
+                fontSize = 8.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier
+                    .background(color.copy(alpha = 0.1f), RoundedCornerShape(2.dp))
+                    .padding(horizontal = 4.dp, vertical = 2.dp)
+            )
+        }
+    }
+}
 
 @Composable
 fun SpecialLetterHex(

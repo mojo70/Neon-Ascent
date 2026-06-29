@@ -115,10 +115,17 @@ class HealthConnectManager @Inject constructor(
                         .lastOrNull()?.beatsPerMinute?.toInt()
                 } catch (e: Exception) { null }
 
+                // For HRV, get the latest entry in the last hour
+                val recentHRV = try {
+                    readRecords<HeartRateVariabilityRmssdRecord>(now.minusSeconds(3600))
+                        .lastOrNull()?.heartRateVariabilityMillis
+                } catch (e: Exception) { null }
+
                 emit(LiveMetrics(
                     heartRate = recentHR,
                     stepsToday = steps,
-                    caloriesToday = calories
+                    caloriesToday = calories,
+                    heartRateVariability = recentHRV
                 ))
             } else {
                 emit(LiveMetrics())
@@ -140,5 +147,6 @@ data class HealthDataSnapshot(
 data class LiveMetrics(
     val heartRate: Int? = null,
     val stepsToday: Long = 0,
-    val caloriesToday: Double = 0.0
+    val caloriesToday: Double = 0.0,
+    val heartRateVariability: Double? = null
 )
