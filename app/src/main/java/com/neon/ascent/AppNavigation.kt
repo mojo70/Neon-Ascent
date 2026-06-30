@@ -18,6 +18,7 @@ import androidx.navigation.navDeepLink
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.neon.ascent.feature.biohacking.BiohackingScreen
+import com.neon.ascent.feature.biohacking.DopamineMenuScreen
 import com.neon.ascent.feature.charactercreation.AttributeScanScreen
 import com.neon.ascent.feature.charactercreation.AvatarCaptureScreen
 import com.neon.ascent.feature.charactercreation.CharacterCreationScreen
@@ -168,6 +169,9 @@ fun AppNavigation(
                             coroutineScope.launch {
                                 pagerState.animateScrollToPage(3)
                             }
+                        },
+                        onNavigateToDopamineMenu = {
+                            navController.navigate(Screen.DopamineMenu)
                         }
                     )
                     3 -> NeonGuideScreen(
@@ -195,7 +199,8 @@ fun AppNavigation(
                 onNavigateToForge = { type, title, desc, biometrics ->
                     navController.navigate(Screen.AscensionForge(type.name, title, desc, biometrics = biometrics))
                 },
-                onNavigateToGuide = { navController.navigate(Screen.NeonGuide) }
+                onNavigateToGuide = { navController.navigate(Screen.NeonGuide) },
+                onNavigateToDopamineMenu = { navController.navigate(Screen.DopamineMenu) }
             )
         }
 
@@ -734,6 +739,12 @@ fun AppNavigation(
 
         composable<Screen.NeonGuide> {
             NeonGuideScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable<Screen.DopamineMenu> {
+            DopamineMenuScreen(
                 onBack = { navController.popBackStack() }
             )
         }

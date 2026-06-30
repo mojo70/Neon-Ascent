@@ -4,6 +4,8 @@ import androidx.room.TypeConverter
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.neon.ascent.core.domain.model.DataSource
+import com.neon.ascent.core.domain.model.DopamineCategory
+import com.neon.ascent.core.domain.model.EnergyLevel
 import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.core.domain.model.TestType
 import java.time.Instant
@@ -47,6 +49,22 @@ class DataSourceConverter {
 
     @TypeConverter
     fun toDataSource(name: String): DataSource = DataSource.valueOf(name)
+}
+
+class DopamineCategoryConverter {
+    @TypeConverter
+    fun fromCategory(category: DopamineCategory): String = category.name
+
+    @TypeConverter
+    fun toCategory(name: String): DopamineCategory = DopamineCategory.valueOf(name)
+}
+
+class EnergyLevelConverter {
+    @TypeConverter
+    fun fromLevel(level: EnergyLevel): String = level.name
+
+    @TypeConverter
+    fun toLevel(name: String): EnergyLevel = EnergyLevel.valueOf(name)
 }
 
 class StringMapConverter {

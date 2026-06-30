@@ -52,6 +52,7 @@ fun BiohackingScreen(
     focus: String? = null,
     onNavigateToForge: (SpecialType, String?, String?, String?) -> Unit = { _, _, _, _ -> },
     onNavigateToGuide: () -> Unit = {},
+    onNavigateToDopamineMenu: () -> Unit = {},
     viewModel: BiohackingViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -173,6 +174,14 @@ fun BiohackingScreen(
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onNavigateToDopamineMenu) {
+                        Icon(
+                            imageVector = Icons.Default.Bolt,
+                            contentDescription = "Dopamine Menu",
+                            tint = neonMagenta,
+                            modifier = Modifier.cyberGlitch(0.1f)
+                        )
+                    }
                     IconButton(onClick = onNavigateToGuide) {
                         Icon(
                             imageVector = Icons.Default.ChatBubble,

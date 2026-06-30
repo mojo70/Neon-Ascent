@@ -156,4 +156,7 @@ sealed interface Screen {
 
     @Serializable
     data object NeonGuide : Screen
+
+    @Serializable
+    data object DopamineMenu : Screen
 }

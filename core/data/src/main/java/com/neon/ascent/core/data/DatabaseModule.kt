@@ -7,6 +7,7 @@ import com.neon.ascent.core.data.local.UplinkSecurityManager
 import com.neon.ascent.core.data.local.dao.SpecialDao
 import com.neon.ascent.core.data.local.dao.GoalDao
 import com.neon.ascent.core.data.local.dao.AscensionDao
+import com.neon.ascent.core.data.local.dao.DopamineMenuDao
 import com.neon.ascent.core.data.local.dao.InsightDao
 import com.neon.ascent.core.data.local.migration.MIGRATION_2_3
 import com.neon.ascent.core.data.local.migration.MIGRATION_3_4
@@ -105,5 +106,10 @@ object DatabaseModule {
     @Provides
     fun provideInsightDao(database: NeonAscentDatabase): InsightDao {
         return database.insightDao()
+    }
+
+    @Provides
+    fun provideDopamineMenuDao(database: NeonAscentDatabase): DopamineMenuDao {
+        return database.dopamineMenuDao()
     }
 }

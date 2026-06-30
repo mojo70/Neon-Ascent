@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.neon.ascent.core.data.local.dao.NeuralMemoryDao
 import com.neon.ascent.core.domain.goals.models.AscensionDirective
 import com.neon.ascent.core.domain.repository.AscensionRepository
+import com.neon.ascent.core.domain.repository.DopamineMenuRepository
 import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.ChatDao
 import com.neon.ascent.data.local.UserCharacterDao
@@ -31,6 +32,7 @@ class NeonGuideViewModel @Inject constructor(
     private val userCharacterDao: UserCharacterDao,
     private val biohackingDao: BiohackingDao,
     private val ascensionRepository: AscensionRepository,
+    private val dopamineMenuRepository: DopamineMenuRepository,
     private val neuralMemoryDao: NeuralMemoryDao,
     private val aiProvider: AiProvider
 ) : ViewModel() {
@@ -111,6 +113,7 @@ class NeonGuideViewModel @Inject constructor(
         val directives = _uiState.value.directives
         val biometrics = biohackingDao.getBiohackingData(0).firstOrNull()
         val recentMemories = neuralMemoryDao.getMemoriesByWing("INSIGHTS").firstOrNull()
+        val dopamineMenu = dopamineMenuRepository.getAllItems().firstOrNull() ?: emptyList()
 
         val bestPractices = """
             CORE_IDENTITY: You are the Neon Guide — a calm, competent cyber-mentor blending applied science, Atomic Habits principles, Mind Hacking Happiness techniques, and latest habit/mind/performance research.
@@ -121,6 +124,7 @@ class NeonGuideViewModel @Inject constructor(
             - Guided Structure: End with 1-2 concrete next actions.
             - Tone: Calm, neon-flavored competence.
             - Action Bias: Lead toward a Directive/Mission/Task.
+            - DOPAMINE_MENU: If the user signals low motivation, brain-fog, or needing a reset, suggest 2-3 items from their Dopamine Menu that match their current energy level.
         """.trimIndent()
 
         val expertRouting = when {
@@ -140,6 +144,7 @@ class NeonGuideViewModel @Inject constructor(
             Biometrics: Energy=${biometrics?.energyScore}, Mood=${biometrics?.moodScore}, Focus=${biometrics?.focusScore}
             Active Directives: ${directives.joinToString { it.title }}
             Recent Memories: ${recentMemories?.take(3)?.joinToString { "[${it.wing}] ${it.content}" }}
+            Dopamine Menu Options: ${dopamineMenu.joinToString { "${it.title} (${it.energyLevel})" }}
         """.trimIndent()
 
         val prompt = """

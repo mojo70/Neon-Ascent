@@ -24,9 +24,10 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_11_12
         NeuralMemory::class,
         BiometricEventEntity::class,
         ActionEventEntity::class,
-        SocraticInsightEntity::class
+        SocraticInsightEntity::class,
+        DopamineMenuItemEntity::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = true
 )
 @TypeConverters(
@@ -38,7 +39,9 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_11_12
     StringMapConverter::class,
     SpecialTypeListConverter::class,
     StringListConverter::class,
-    LongListConverter::class
+    LongListConverter::class,
+    DopamineCategoryConverter::class,
+    EnergyLevelConverter::class
 )
 abstract class NeonAscentDatabase : RoomDatabase() {
     abstract fun goalDao(): GoalDao
@@ -46,4 +49,5 @@ abstract class NeonAscentDatabase : RoomDatabase() {
     abstract fun ascensionDao(): AscensionDao
     abstract fun neuralMemoryDao(): com.neon.ascent.core.data.local.dao.NeuralMemoryDao
     abstract fun insightDao(): com.neon.ascent.core.data.local.dao.InsightDao
+    abstract fun dopamineMenuDao(): com.neon.ascent.core.data.local.dao.DopamineMenuDao
 }
