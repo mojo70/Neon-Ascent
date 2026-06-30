@@ -155,7 +155,7 @@ sealed interface Screen {
     data object TerminalRitual : Screen
 
     @Serializable
-    data object NeonGuide : Screen
+    data class NeonGuide(val initialMessage: String? = null) : Screen
 
     @Serializable
     data object DopamineMenu : Screen

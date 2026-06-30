@@ -253,6 +253,50 @@ These will be seeded in the DB on first launch and discoverable via avatar or Bi
 
 **Status:** High Priority – Ties avatar, biohacking, and core Ascension system together.
 
+## Self Map (Mind Hacking Happiness Inspired)
+A visual, evolving "Self Map" for spiritual journey, enlightenment, "dying to self," identity reconstruction, and sonship in the cyberpunk narrative.
+
+**Key Features:**
+- Interactive node/graph map (beliefs, strongholds, identity layers, Holy Spirit upgrades).
+- Reflection prompts tied to Scripture (Romans 8, "I Am", parables) and biometric state.
+- Progress linked to S.P.E.C.I.A.L. and Directives.
+- Integration with Neon Guide for guided mapping sessions.
+- Export/share options + privacy-first local storage.
+
+**Status:** Planning. Seed initial templates from Book of Mojo themes (duality, growth mindset, consciousness).
+
+## Learning Courses & "The Book of Mojo" Integration
+Gamified, in-app courses drawing from app themes and "The Book of Mojo" (personal manifesto on learning, meditation, strength, health, love, etc.).
+
+**Initial Courses (from Book of Mojo + App):**
+- Learning Mastery (Feynman, visualization, conscious practice, growth mindset).
+- Meditation & Breathwork (Wim Hof, mindfulness, types from journaling to Kundalini).
+- Strength as Skill (mind-body, visualization, progressive overload).
+- Health Optimization & Biohacking (supplements, methylation, routines).
+- Love, Duality & Relationships (red pill insights, solipsism, connection).
+- Building the Ark (legacy, expansion, consciousness).
+
+**Implementation:**
+- Modular player with XP, quizzes, real-world missions.
+- "The Book of Mojo" as in-app eBook (neon reader with highlights, chapter unlocks via Ascension, AI discussion via Neon Guide).
+- Completion grants shards, menu items, avatar upgrades.
+
+**Status:** Planning. Extract chapters from Book of Mojo for outlines. Prioritize Meditation/Strength/Health first.
+
+## Data Shards System (Cyberpunk Lore & Progression)
+Collectible, combinable fragments of knowledge/power in the Neon Ascent universe.
+
+**Mechanics:**
+- **Acquisition:** Mission completion, biometric milestones, course progress, streaks, cognitive tests.
+- **Types:** Bio, Faith, Hack, Strength, Enlightenment (new for Self Map).
+- **Collecting & Joining:** Gather shards → combine matching sets into "ICE Keys" or full protocols (e.g., Bio shards → Recovery Protocol unlock).
+- **Storage & Reading:** Secure Vault with holographic reader UI (animated assembly, lore text, practical application — auto-suggests menu items or Directives).
+- **Graphics & Feel:** Neon glowing shards, circuit-trace combine animations, scan-line reader with haptic feedback. Cyberpunk aesthetic (data streams, holographic pop-ups).
+
+**Integration:** Feeds Self Map (spiritual shards), courses (knowledge shards), and overall progression. Balance rarity for rewarding grind without paywalls.
+
+**Status:** Planning. Design types, combine logic, Vault UI, and visuals first.
+
 ---
 
 ## Success Metric for V3
@@ -274,5 +318,5 @@ You (and users) open the app every morning because the system feels like a trust
 
 ---
 
-**Last updated:** June 27, 2026 (added Neural Brief spec, WorkManager plan, insight projection architecture, UI split philosophy, and Neon Guide hybrid chat)
+**Last updated:** June 27, 2026 (added Neural Brief spec, WorkManager plan, insight projection architecture, UI split philosophy, Neon Guide hybrid chat, Self Map, Mojo Courses, and Data Shards)
 

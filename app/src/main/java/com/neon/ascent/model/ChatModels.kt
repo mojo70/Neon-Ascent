@@ -23,7 +23,15 @@ data class ChatMessage(
     val senderName: String, // Either contactName or User
     val text: String,
     val timestamp: Long,
-    val isFromUser: Boolean
+    val isFromUser: Boolean,
+    val suggestedActions: List<ChatAction> = emptyList()
+)
+
+@Serializable
+data class ChatAction(
+    val label: String,
+    val type: String, // "MISSION", "DOPAMINE", "LOG"
+    val data: String? = null
 )
 
 data class Fixer(

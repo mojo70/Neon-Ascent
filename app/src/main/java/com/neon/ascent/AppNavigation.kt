@@ -85,6 +85,7 @@ fun AppNavigation(
     val userCharacter by dashboardViewModel.userCharacter.collectAsState()
     val tickerMessages by dashboardViewModel.tickerMessages.collectAsState()
     val showRationale by notificationViewModel.showRationale.collectAsState()
+    var pendingGuideMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(showRationale) {
         if (showRationale) {
@@ -165,7 +166,8 @@ fun AppNavigation(
                         onNavigateToForge = { type, title, desc, biometrics ->
                             navController.navigate(Screen.AscensionForge(type.name, title, desc, biometrics = biometrics))
                         },
-                        onNavigateToGuide = {
+                        onNavigateToGuide = { message ->
+                            pendingGuideMessage = message
                             coroutineScope.launch {
                                 pagerState.animateScrollToPage(3)
                             }
@@ -179,7 +181,9 @@ fun AppNavigation(
                             coroutineScope.launch {
                                 pagerState.animateScrollToPage(1)
                             }
-                        }
+                        },
+                        initialMessage = pendingGuideMessage,
+                        onMessageConsumed = { pendingGuideMessage = null }
                     )
                 }
             }
@@ -737,9 +741,11 @@ fun AppNavigation(
             )
         }
 
-        composable<Screen.NeonGuide> {
+        composable<Screen.NeonGuide> { backStackEntry ->
+            val args = backStackEntry.toRoute<Screen.NeonGuide>()
             NeonGuideScreen(
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                initialMessage = args.initialMessage
             )
         }
 

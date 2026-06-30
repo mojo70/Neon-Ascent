@@ -53,6 +53,9 @@ class BiohackingViewModel @Inject constructor(
     private val _logs = MutableStateFlow<List<BioProtocolLog>>(emptyList())
     val logs: StateFlow<List<BioProtocolLog>> = _logs.asStateFlow()
 
+    private val _trends = MutableStateFlow<List<HealthTrend>>(emptyList())
+    val trends: StateFlow<List<HealthTrend>> = _trends.asStateFlow()
+
     private val _isNeuralCoreThinking = MutableStateFlow(false)
     val isNeuralCoreThinking: StateFlow<Boolean> = _isNeuralCoreThinking.asStateFlow()
 
@@ -105,6 +108,9 @@ class BiohackingViewModel @Inject constructor(
         events.sortedByDescending { it.timestamp }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    private val _selectedTimeRange = MutableStateFlow(7)
+    val selectedTimeRange: StateFlow<Int> = _selectedTimeRange.asStateFlow()
+
     init {
         PDFBoxResourceLoader.init(context)
         viewModelScope.launch {
@@ -123,6 +129,104 @@ class BiohackingViewModel @Inject constructor(
         viewModelScope.launch {
             biohackingDao.getProtocolLogs(0).collectLatest {
                 _logs.value = it
+            }
+        }
+        viewModelScope.launch {
+            _selectedTimeRange.collectLatest { days ->
+                fetchTrends(days)
+            }
+        }
+    }
+
+    fun setTimeRange(days: Int) {
+        _selectedTimeRange.value = days
+    }
+
+    private fun fetchTrends(days: Int) {
+        viewModelScope.launch {
+            if (healthRepository.hasAllPermissions()) {
+                val steps = healthRepository.getSteps(days)
+                val hrv = healthRepository.getHrv(days)
+                val sleep = healthRepository.getSleepDuration(days)
+                
+                // Fetch recent completed tasks for correlation
+                val dailyTasks = taskRepository.getDailyTasks().first()
+                val startDate = LocalDate.now().minusDays(days.toLong())
+                val recentlyCompletedTasks = dailyTasks.filter { task ->
+                    task.completedDates.any { it.isAfter(startDate) || it.isEqual(startDate) }
+                }
+
+                val trendsList = mutableListOf<HealthTrend>()
+
+                if (steps.isNotEmpty()) {
+                    val stepsData = steps.map { it.second.toFloat() }
+                    val avgSteps = stepsData.average().toInt()
+                    val insight = if (recentlyCompletedTasks.any { it.title.contains("Walk", true) || it.title.contains("Run", true) }) {
+                        "Kinetic missions successfully boosted step count. Average: $avgSteps"
+                    } else {
+                        "Consistent kinetic output maintains neural plasticity. Average: $avgSteps"
+                    }
+                    trendsList.add(HealthTrend(
+                        label = "STEPS",
+                        currentValue = steps.last().second.toString(),
+                        dataPoints = stepsData,
+                        unit = "STEPS",
+                        insight = insight
+                    ))
+                }
+
+                if (hrv.isNotEmpty()) {
+                    val hrvData = hrv.map { it.second.toFloat() }
+                    val hrvImproved = if (hrvData.size >= 2) hrvData.last() > hrvData.first() else false
+                    val insight = when {
+                        hrvImproved && recentlyCompletedTasks.any { it.title.contains("Strength", true) || it.title.contains("Gym", true) } -> 
+                            "HRV improved after consistent Strength missions."
+                        hrvImproved -> "Autonomic resilience is trending upward."
+                        else -> "Autonomic resilience is stable; neural load capacity expanded."
+                    }
+                    trendsList.add(HealthTrend(
+                        label = "HRV",
+                        currentValue = String.format(Locale.US, "%.0f", hrv.last().second),
+                        dataPoints = hrvData,
+                        unit = "ms",
+                        insight = insight
+                    ))
+                }
+
+                if (sleep.isNotEmpty()) {
+                    val sleepData = sleep.map { it.second.toFloat() }
+                    val avgSleep = String.format(Locale.US, "%.1f", sleepData.average())
+                    val insight = if (sleepData.last() < 6f) {
+                        "Sub-optimal recovery detected ($avgSleep avg). Prioritize neural cooldown."
+                    } else {
+                        "Deep state recovery essential for synaptic pruning ($avgSleep avg)."
+                    }
+                    trendsList.add(HealthTrend(
+                        label = "SLEEP",
+                        currentValue = String.format(Locale.US, "%.1f", sleep.last().second),
+                        dataPoints = sleepData,
+                        unit = "HRS",
+                        insight = insight
+                    ))
+                }
+
+                // Proxy for Body Battery / Recovery using HRV and Sleep
+                if (hrv.isNotEmpty() && sleep.isNotEmpty()) {
+                    val recoveryScore = ((hrv.last().second / 100.0) * 50.0 + (sleep.last().second / 8.0) * 50.0).coerceIn(0.0, 100.0)
+                    val recoveryData = List(steps.size) { _ ->
+                        // Mocking a recovery trend based on hrv/sleep if we don't have historical daily recovery
+                        (recoveryScore * (0.8 + 0.4 * Math.random())).toFloat().coerceIn(0f, 100f)
+                    }
+                    trendsList.add(HealthTrend(
+                        label = "RECOVERY",
+                        currentValue = String.format(Locale.US, "%.0f", recoveryScore),
+                        dataPoints = recoveryData,
+                        unit = "%",
+                        insight = "Neural battery depleted. Consider dopamine reset."
+                    ))
+                }
+
+                _trends.value = trendsList
             }
         }
     }
@@ -169,6 +273,7 @@ class BiohackingViewModel @Inject constructor(
                     currentSteps = steps,
                     currentHeartRate = heartRate
                 ) }
+                fetchTrends(_selectedTimeRange.value)
             }
         }
     }

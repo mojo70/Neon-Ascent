@@ -9,6 +9,7 @@ import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.Instant
+import java.time.Period
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
@@ -100,4 +101,71 @@ class HealthRepository @Inject constructor(
             0.0
         }
     }
+
+    suspend fun getSteps(days: Int): List<Pair<Instant, Long>> {
+        if (!hasAllPermissions()) return emptyList()
+        val now = ZonedDateTime.now()
+        val end = now.toLocalDateTime()
+        val start = now.minusDays(days.toLong()).toLocalDate().atStartOfDay()
+        
+        return try {
+            val response = healthConnectClient.aggregateGroupByPeriod(
+                androidx.health.connect.client.request.AggregateGroupByPeriodRequest(
+                    metrics = setOf(StepsRecord.COUNT_TOTAL),
+                    timeRangeFilter = TimeRangeFilter.between(start, end),
+                    timeRangeSlicer = Period.ofDays(1)
+                )
+            )
+            response.map { 
+                it.startTime.atZone(now.zone).toInstant() to (it.result[StepsRecord.COUNT_TOTAL] ?: 0L)
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun getHrv(days: Int): List<Pair<Instant, Double>> {
+        if (!hasAllPermissions()) return emptyList()
+        val end = Instant.now()
+        val start = Instant.now().minus(days.toLong(), ChronoUnit.DAYS)
+        
+        return try {
+            val response = healthConnectClient.readRecords(
+                ReadRecordsRequest(
+                    recordType = HeartRateVariabilityRmssdRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(start, end)
+                )
+            )
+            response.records.map { it.time to it.heartRateVariabilityMillis }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun getSleepDuration(days: Int): List<Pair<Instant, Double>> {
+        if (!hasAllPermissions()) return emptyList()
+        val end = Instant.now()
+        val start = Instant.now().minus(days.toLong(), ChronoUnit.DAYS)
+        
+        return try {
+            val response = healthConnectClient.readRecords(
+                ReadRecordsRequest(
+                    recordType = SleepSessionRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(start, end)
+                )
+            )
+            response.records.map { 
+                val duration = java.time.Duration.between(it.startTime, it.endTime).toMinutes() / 60.0
+                it.startTime to duration
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun getWeeklySteps(): List<Pair<Instant, Long>> = getSteps(7)
+
+    suspend fun getWeeklyHrv(): List<Pair<Instant, Double>> = getHrv(7)
+
+    suspend fun getWeeklySleepDuration(): List<Pair<Instant, Double>> = getSleepDuration(7)
 }

@@ -51,11 +51,12 @@ fun BiohackingScreen(
     onBack: () -> Unit,
     focus: String? = null,
     onNavigateToForge: (SpecialType, String?, String?, String?) -> Unit = { _, _, _, _ -> },
-    onNavigateToGuide: () -> Unit = {},
+    onNavigateToGuide: (String?) -> Unit = {},
     onNavigateToDopamineMenu: () -> Unit = {},
     viewModel: BiohackingViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val trends by viewModel.trends.collectAsState()
     val characterState by viewModel.character.collectAsState()
     val logs by viewModel.logs.collectAsState()
     val isNeuralCoreThinking by viewModel.isNeuralCoreThinking.collectAsState()
@@ -68,6 +69,7 @@ fun BiohackingScreen(
     val neuralInsights by viewModel.neuralInsights.collectAsState()
     val uplinkSyncStatuses by viewModel.uplinkSyncStatuses.collectAsState()
     val isLiveMonitoringEnabled by viewModel.liveMonitoringEnabled.collectAsState()
+    val selectedTimeRange by viewModel.selectedTimeRange.collectAsState()
     val context = LocalContext.current
 
     val displayChar = characterState ?: UserCharacter(
@@ -182,7 +184,7 @@ fun BiohackingScreen(
                             modifier = Modifier.cyberGlitch(0.1f)
                         )
                     }
-                    IconButton(onClick = onNavigateToGuide) {
+                    IconButton(onClick = { onNavigateToGuide(null) }) {
                         Icon(
                             imageVector = Icons.Default.ChatBubble,
                             contentDescription = "Neon Guide",
@@ -227,6 +229,14 @@ fun BiohackingScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            CyberActionButton(
+                label = "QUICK_DOPAMINE_RESET // ASK_GUIDE",
+                color = neonMagenta,
+                onClick = { onNavigateToGuide(null) }
+            )
+
             Spacer(modifier = Modifier.height(24.dp))
 
             // Uplink Status Section
@@ -243,6 +253,18 @@ fun BiohackingScreen(
                 }
             )
 
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Biometric Trends Section
+            BiometricTrendsSection(
+                trends = trends,
+                selectedRange = selectedTimeRange,
+                onRangeSelected = { viewModel.setTimeRange(it) },
+                neonCyan = neonCyan,
+                neonMagenta = neonMagenta,
+                onNavigateToGuide = onNavigateToGuide,
+                onNavigateToDopamineMenu = onNavigateToDopamineMenu
+            )
             Spacer(modifier = Modifier.height(24.dp))
 
             // Baselines Section
@@ -1177,5 +1199,300 @@ fun formatTimeAgo(timestamp: Long): String {
         diff < 3600000 -> "${diff / 60000}m ago"
         diff < 86400000 -> "${diff / 3600000}h ago"
         else -> "${diff / 86400000}d ago"
+    }
+}
+
+@Composable
+fun BiometricTrendsSection(
+    trends: List<com.neon.ascent.model.HealthTrend>,
+    selectedRange: Int,
+    onRangeSelected: (Int) -> Unit,
+    neonCyan: Color,
+    neonMagenta: Color,
+    onNavigateToGuide: (String?) -> Unit,
+    onNavigateToDopamineMenu: () -> Unit
+) {
+    val ranges = mapOf(7 to "7D", 30 to "30D", 90 to "90D")
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "BIOMETRIC_TRENDS",
+                color = neonCyan,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Black,
+                fontFamily = FontFamily.Monospace,
+                letterSpacing = 2.sp
+            )
+            
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ranges.forEach { (days, label) ->
+                    Text(
+                        text = label,
+                        color = if (selectedRange == days) neonCyan else Color.Gray,
+                        fontSize = 9.sp,
+                        fontWeight = if (selectedRange == days) FontWeight.Bold else FontWeight.Normal,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier
+                            .clickable { onRangeSelected(days) }
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                            .background(if (selectedRange == days) neonCyan.copy(alpha = 0.1f) else Color.Transparent)
+                    )
+                }
+            }
+        }
+        
+        if (trends.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(140.dp)
+                    .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+                    .border(1.dp, Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                    .clickable { onNavigateToDopamineMenu() },
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
+                    Icon(Icons.Default.Analytics, contentDescription = null, tint = Color.Gray.copy(alpha = 0.5f), modifier = Modifier.size(32.dp))
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "NO_UPLINK_DATA_DETECTED",
+                        color = Color.Gray,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Text(
+                        "Initialize your neural link. Tap here for a Dopamine Menu reset while you wait for sync.",
+                        color = neonMagenta.copy(alpha = 0.7f),
+                        fontSize = 9.sp,
+                        fontFamily = FontFamily.Monospace,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                trends.forEach { trend ->
+                    TrendCard(
+                        trend = trend,
+                        neonCyan = neonCyan,
+                        neonMagenta = neonMagenta,
+                        onNavigateToGuide = onNavigateToGuide,
+                        modifier = Modifier.width(220.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TrendCard(
+    trend: com.neon.ascent.model.HealthTrend,
+    neonCyan: Color,
+    neonMagenta: Color,
+    onNavigateToGuide: (String?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+    
+    // Threshold-based color coding
+    val statusColor = when (trend.label) {
+        "SLEEP" -> if ((trend.currentValue.toFloatOrNull() ?: 8f) < 6.5f) neonMagenta else neonCyan
+        "HRV" -> if ((trend.currentValue.toFloatOrNull() ?: 50f) < 35f) neonMagenta else neonCyan
+        "STEPS" -> if ((trend.currentValue.toFloatOrNull() ?: 10000f) < 5000f) neonMagenta else neonCyan
+        "RECOVERY" -> if ((trend.currentValue.toFloatOrNull() ?: 100f) < 40f) neonMagenta else neonCyan
+        else -> neonCyan
+    }
+    
+    CyberFrame(
+        label = trend.label,
+        borderColor = statusColor.copy(alpha = 0.6f),
+        modifier = modifier.clickable { isExpanded = !isExpanded }
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Text(
+                    text = trend.currentValue,
+                    color = Color.White,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Black,
+                    fontFamily = FontFamily.Monospace
+                )
+                Text(
+                    text = trend.unit,
+                    color = statusColor,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+            }
+            
+            if (trend.label == "STEPS") {
+                BarChart(
+                    data = trend.dataPoints,
+                    color = statusColor,
+                    modifier = Modifier.fillMaxWidth().height(60.dp)
+                )
+            } else {
+                Sparkline(
+                    data = trend.dataPoints,
+                    color = statusColor,
+                    modifier = Modifier.fillMaxWidth().height(60.dp)
+                )
+            }
+            
+            if (trend.insight != null) {
+                Text(
+                    text = trend.insight,
+                    color = Color.White.copy(alpha = 0.8f),
+                    fontSize = 9.sp,
+                    fontFamily = FontFamily.Monospace,
+                    lineHeight = 12.sp,
+                    modifier = Modifier.background(statusColor.copy(alpha = 0.1f)).padding(4.dp)
+                )
+            }
+
+            AnimatedVisibility(visible = isExpanded) {
+                Column {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(color = statusColor.copy(alpha = 0.2f))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Text(
+                        "ANALYSIS: Correlation detected between ${trend.label} and recent Mission adherence. Suggesting neural load optimization.",
+                        color = Color.Gray,
+                        fontSize = 8.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    Button(
+                        onClick = { onNavigateToGuide("Analyze my ${trend.label} trend (${trend.currentValue} ${trend.unit}). How does this correlate with my active Directives?") },
+                        modifier = Modifier.fillMaxWidth().height(32.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = statusColor.copy(alpha = 0.1f)),
+                        border = BorderStroke(1.dp, statusColor.copy(alpha = 0.5f)),
+                        shape = RoundedCornerShape(2.dp),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Psychology, contentDescription = null, modifier = Modifier.size(14.dp), tint = statusColor)
+                            Spacer(Modifier.width(6.dp))
+                            Text("ASK_NEON_GUIDE", color = statusColor, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun BarChart(
+    data: List<Float>,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier) {
+        if (data.isEmpty()) return@Canvas
+        
+        val max = data.maxOrNull()?.coerceAtLeast(1f) ?: 1f
+        val width = size.width
+        val height = size.height
+        val barWidth = (width / data.size) * 0.8f
+        val spacing = (width / data.size) * 0.2f
+        
+        data.forEachIndexed { index, value ->
+            val barHeight = (value / max) * height
+            drawRect(
+                color = color.copy(alpha = 0.6f),
+                topLeft = Offset(x = index * (barWidth + spacing), y = height - barHeight),
+                size = Size(width = barWidth, height = barHeight)
+            )
+            // Cap
+            drawRect(
+                color = color,
+                topLeft = Offset(x = index * (barWidth + spacing), y = height - barHeight),
+                size = Size(width = barWidth, height = 2.dp.toPx())
+            )
+        }
+    }
+}
+
+@Composable
+fun Sparkline(
+    data: List<Float>,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier) {
+        if (data.size < 2) return@Canvas
+        
+        val min = data.minOrNull() ?: 0f
+        val max = data.maxOrNull() ?: 1f
+        val range = (max - min).coerceAtLeast(1f)
+        
+        val width = size.width
+        val height = size.height
+        val stepX = width / (data.size - 1)
+        
+        val points = data.mapIndexed { index, value ->
+            Offset(
+                x = index * stepX,
+                y = height - ((value - min) / range * height)
+            )
+        }
+        
+        val path = Path().apply {
+            moveTo(points.first().x, points.first().y)
+            for (i in 1 until points.size) {
+                lineTo(points[i].x, points[i].y)
+            }
+        }
+        
+        drawPath(
+            path = path,
+            color = color,
+            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+        )
+        
+        // Fill area under sparkline
+        val fillPath = Path().apply {
+            addPath(path)
+            lineTo(width, height)
+            lineTo(0f, height)
+            close()
+        }
+        
+        drawPath(
+            path = fillPath,
+            brush = Brush.verticalGradient(
+                colors = listOf(color.copy(alpha = 0.3f), Color.Transparent)
+            )
+        )
+        
+        // Draw grid lines
+        repeat(4) { i ->
+            val y = (height / 3) * i
+            drawLine(
+                color = color.copy(alpha = 0.05f),
+                start = Offset(0f, y),
+                end = Offset(width, y),
+                strokeWidth = 1f
+            )
+        }
     }
 }

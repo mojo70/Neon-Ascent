@@ -2,20 +2,23 @@ package com.neon.ascent.feature.neonguide
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.neon.ascent.core.data.local.dao.NeuralMemoryDao
 import com.neon.ascent.core.domain.goals.models.AscensionDirective
 import com.neon.ascent.core.domain.repository.AscensionRepository
-import com.neon.ascent.core.domain.repository.DopamineMenuRepository
-import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.ChatDao
 import com.neon.ascent.data.local.UserCharacterDao
-import com.neon.ascent.feature.biohacking.AiProvider
 import com.neon.ascent.model.ChatMessage
 import com.neon.ascent.model.ChatSession
 import com.neon.ascent.model.UserCharacter
+import com.neon.ascent.core.domain.model.DopamineCategory
+import com.neon.ascent.core.domain.model.DopamineMenuItem
+import com.neon.ascent.core.domain.model.EnergyLevel
+import com.neon.ascent.core.domain.repository.DopamineMenuRepository
+import com.neon.ascent.data.local.BiohackingDao
+import com.neon.ascent.model.BioProtocolLog
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.time.Instant
 import java.util.*
 import javax.inject.Inject
 
@@ -33,8 +36,8 @@ class NeonGuideViewModel @Inject constructor(
     private val biohackingDao: BiohackingDao,
     private val ascensionRepository: AscensionRepository,
     private val dopamineMenuRepository: DopamineMenuRepository,
-    private val neuralMemoryDao: NeuralMemoryDao,
-    private val aiProvider: AiProvider
+    private val guideUseCase: NeonGuideUseCase,
+    savedStateHandle: androidx.lifecycle.SavedStateHandle
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(NeonGuideUiState())
@@ -43,6 +46,10 @@ class NeonGuideViewModel @Inject constructor(
     private val contactName = "NEON_GUIDE"
 
     init {
+        val initialMessage: String? = savedStateHandle["initialMessage"]
+        if (initialMessage != null) {
+            sendMessage(initialMessage)
+        }
         viewModelScope.launch {
             chatDao.getMessagesForContact(contactName).collect { msgs ->
                 _uiState.update { it.copy(messages = msgs) }
@@ -86,79 +93,84 @@ class NeonGuideViewModel @Inject constructor(
             chatDao.insertMessage(userMsg)
             _uiState.update { it.copy(isGenerating = true) }
 
-            val response = generateGuideResponse(text)
-
-            val aiMsg = ChatMessage(
-                contactName = contactName,
-                senderName = contactName,
-                text = response,
-                timestamp = System.currentTimeMillis(),
-                isFromUser = false
-            )
-            chatDao.insertMessage(aiMsg)
-            chatDao.updateChatSession(
-                ChatSession(
-                    contactName = contactName,
-                    lastMessage = response,
-                    lastTimestamp = System.currentTimeMillis(),
-                    isFixer = false
+            try {
+                val aiMsg = guideUseCase.generateResponse(text, contactName)
+                chatDao.insertMessage(aiMsg)
+                chatDao.updateChatSession(
+                    ChatSession(
+                        contactName = contactName,
+                        lastMessage = aiMsg.text,
+                        lastTimestamp = System.currentTimeMillis(),
+                        isFixer = false
+                    )
                 )
-            )
-            _uiState.update { it.copy(isGenerating = false) }
+            } catch (e: Exception) {
+                val errorMsg = ChatMessage(
+                    contactName = contactName,
+                    senderName = "SYSTEM",
+                    text = "ERROR: Neural link unstable. Signal dropped. (Details: ${e.message})",
+                    timestamp = System.currentTimeMillis(),
+                    isFromUser = false
+                )
+                chatDao.insertMessage(errorMsg)
+            } finally {
+                _uiState.update { it.copy(isGenerating = false) }
+            }
         }
     }
 
-    private suspend fun generateGuideResponse(userMessage: String): String {
-        val char = _uiState.value.character
-        val directives = _uiState.value.directives
-        val biometrics = biohackingDao.getBiohackingData(0).firstOrNull()
-        val recentMemories = neuralMemoryDao.getMemoriesByWing("INSIGHTS").firstOrNull()
-        val dopamineMenu = dopamineMenuRepository.getAllItems().firstOrNull() ?: emptyList()
-
-        val bestPractices = """
-            CORE_IDENTITY: You are the Neon Guide — a calm, competent cyber-mentor blending applied science, Atomic Habits principles, Mind Hacking Happiness techniques, and latest habit/mind/performance research.
-            ALWAYS_FOLLOW:
-            - Ground in data. Never hallucinate metrics.
-            - Atomic Habits lens: Focus on 1% better actions, habit stacking.
-            - ADHD / Low-Friction Friendly: Grace buffers, minimal decisions.
-            - Guided Structure: End with 1-2 concrete next actions.
-            - Tone: Calm, neon-flavored competence.
-            - Action Bias: Lead toward a Directive/Mission/Task.
-            - DOPAMINE_MENU: If the user signals low motivation, brain-fog, or needing a reset, suggest 2-3 items from their Dopamine Menu that match their current energy level.
-        """.trimIndent()
-
-        val expertRouting = when {
-            userMessage.contains("recovery", ignoreCase = true) || userMessage.contains("sleep", ignoreCase = true) -> 
-                "[EXPERT_ROUTING: RECOVERY_SAGE + BIOHACKER_PREMIUM]"
-            userMessage.contains("directive", ignoreCase = true) || userMessage.contains("goal", ignoreCase = true) -> 
-                "[EXPERT_ROUTING: PROGRESS_ARCHITECT + HABIT_FORGE]"
-            userMessage.contains("mind", ignoreCase = true) || userMessage.contains("morning", ignoreCase = true) -> 
-                "[EXPERT_ROUTING: MIND_HACKER + ADHD_RUNNER]"
-            else -> "[EXPERT_ROUTING: NEON_GENERALIST]"
+    fun handleAction(action: com.neon.ascent.model.ChatAction) {
+        viewModelScope.launch {
+            when (action.type) {
+                "MISSION" -> {
+                    val firstDir = _uiState.value.directives.firstOrNull()
+                    if (firstDir != null) {
+                        val mission = com.neon.ascent.core.domain.goals.models.AscensionMission(
+                            id = UUID.randomUUID().toString(),
+                            directiveId = firstDir.id,
+                            title = action.data ?: action.label,
+                            description = "Guided Mission: ${action.label}",
+                            status = com.neon.ascent.core.domain.goals.models.AscensionMissionStatus.ACTIVE
+                        )
+                        ascensionRepository.insertMission(mission)
+                    }
+                }
+                "DOPAMINE" -> {
+                    val item = DopamineMenuItem(
+                        id = UUID.randomUUID().toString(),
+                        title = action.data ?: action.label,
+                        description = "Suggested by Neon Guide",
+                        durationMinutes = 10,
+                        category = DopamineCategory.RESET,
+                        specialTags = emptyList(),
+                        energyLevel = EnergyLevel.MEDIUM
+                    )
+                    dopamineMenuRepository.upsertItem(item)
+                }
+                "LOG" -> {
+                    val log = BioProtocolLog(
+                        userId = 0,
+                        timestamp = System.currentTimeMillis(),
+                        energyScore = 5,
+                        sleepQuality = 5,
+                        moodScore = 5,
+                        focusScore = 5,
+                        sideEffects = "NONE",
+                        notes = "ACTION_LOG: ${action.label} | ${action.data}",
+                        protocolId = "GUIDE_ACTION_${UUID.randomUUID().toString().take(8)}"
+                    )
+                    biohackingDao.insertProtocolLog(log)
+                }
+            }
+            
+            val confirmation = ChatMessage(
+                contactName = contactName,
+                senderName = "SYSTEM",
+                text = "ACTION_EXECUTED: ${action.label}. Uplink synchronized.",
+                timestamp = System.currentTimeMillis(),
+                isFromUser = false
+            )
+            chatDao.insertMessage(confirmation)
         }
-
-        val context = """
-            [USER_CONTEXT]
-            Character: ${char?.name} (Archetype: ${char?.archetype})
-            S.P.E.C.I.A.L.: S:${char?.strength} P:${char?.perception} E:${char?.endurance} C:${char?.charisma} I:${char?.intelligence} A:${char?.agility} L:${char?.luck}
-            Biometrics: Energy=${biometrics?.energyScore}, Mood=${biometrics?.moodScore}, Focus=${biometrics?.focusScore}
-            Active Directives: ${directives.joinToString { it.title }}
-            Recent Memories: ${recentMemories?.take(3)?.joinToString { "[${it.wing}] ${it.content}" }}
-            Dopamine Menu Options: ${dopamineMenu.joinToString { "${it.title} (${it.energyLevel})" }}
-        """.trimIndent()
-
-        val prompt = """
-            $bestPractices
-            
-            $expertRouting
-            
-            $context
-            
-            USER_QUERY: "$userMessage"
-            
-            Action: Provide a guided, high-impact response. End with 1-2 concrete next actions.
-        """.trimIndent()
-
-        return aiProvider.generateContent(prompt, forceLocal = false)
     }
 }

@@ -58,4 +58,13 @@ class Converters {
 
     @TypeConverter
     fun toQuickHackType(value: String?): QuickHackType? = value?.let { QuickHackType.valueOf(it) }
+
+    @TypeConverter
+    fun fromChatActionList(value: String?): List<com.neon.ascent.model.ChatAction> {
+        if (value.isNullOrEmpty()) return emptyList()
+        return gson.fromJson(value, object : TypeToken<List<com.neon.ascent.model.ChatAction>>() {}.type)
+    }
+
+    @TypeConverter
+    fun toChatActionList(list: List<com.neon.ascent.model.ChatAction>?): String = gson.toJson(list ?: emptyList<com.neon.ascent.model.ChatAction>())
 }

@@ -34,7 +34,7 @@ import com.neon.ascent.model.*
     AssetAccount::class,
     AssetSnapshot::class,
     CorpoTrust::class
-], version = 48)
+], version = 49)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userCharacterDao(): UserCharacterDao
