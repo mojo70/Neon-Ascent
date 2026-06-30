@@ -1,26 +1,43 @@
 package com.neon.ascent.feature.health.data.uplink
 
+import android.content.Context
 import com.neon.ascent.core.data.local.dao.InsightDao
 import com.neon.ascent.core.data.local.entity.BiometricEventEntity
 import com.neon.ascent.core.data.processor.InsightProjectionProcessor
+import com.neon.ascent.core.domain.notifications.BriefService
+import com.neon.ascent.feature.health.data.workers.HealthSyncWorker
 import com.neon.ascent.feature.health.domain.uplink.*
-import kotlinx.coroutines.*
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class NeuralUplinkManager @Inject constructor(
+    @param:ApplicationContext private val context: Context,
     private val garminUplink: GarminUplink,
     private val healthConnectUplink: HealthConnectUplink,
     private val insightDao: InsightDao,
-    private val insightProcessor: InsightProjectionProcessor
+    private val insightProcessor: InsightProjectionProcessor,
+    private val briefService: BriefService
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val _activeUplinks = MutableStateFlow<List<NeuralUplink>>(emptyList())
     val activeUplinks = _activeUplinks.asStateFlow()
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val uplinkSyncStatuses: StateFlow<List<UplinkSyncStatus>> = _activeUplinks.flatMapLatest { uplinks ->
+        if (uplinks.isEmpty()) flowOf(emptyList())
+        else combine(uplinks.map { it.syncStatus }) { it.toList() }
+    }.stateIn(scope, SharingStarted.Eagerly, emptyList())
 
     private val _combinedLiveMetrics = MutableStateFlow<LiveBiometrics?>(null)
     val combinedLiveMetrics = _combinedLiveMetrics.asStateFlow()
@@ -36,6 +53,9 @@ class NeuralUplinkManager @Inject constructor(
         
         // Auto-start BLE sync for providers that support it
         garminUplink.startBLESync()
+
+        // Schedule periodic background sync
+        HealthSyncWorker.schedulePeriodicSync(context)
     }
 
     fun registerUplink(uplink: NeuralUplink) {
@@ -54,7 +74,7 @@ class NeuralUplinkManager @Inject constructor(
             garminUplink.getLiveStream(),
             healthConnectUplink.getLiveStream()
         ) { garmin, hc ->
-            if (garmin == null && hc == null) return@combine null
+            if ((garmin == null) && (hc == null)) return@combine null
             
             LiveBiometrics(
                 heartRate = garmin?.heartRate ?: hc?.heartRate,
@@ -100,11 +120,15 @@ class NeuralUplinkManager @Inject constructor(
     }
 
     suspend fun fetchAllDeepMetrics(): DeepBiometrics {
-        val garminDeep = if (garminUplink.status.value == UplinkStatus.Connected) {
-            garminUplink.fetchDeepMetrics()
-        } else null
+        val garminDeep = runWithRetry(garminUplink.provider.name) {
+            if (garminUplink.status.value == UplinkStatus.Connected) {
+                garminUplink.fetchDeepMetrics()
+            } else null
+        }
         
-        val hcDeep = healthConnectUplink.fetchDeepMetrics()
+        val hcDeep = runWithRetry(healthConnectUplink.provider.name) {
+            healthConnectUplink.fetchDeepMetrics()
+        } ?: DeepBiometrics()
 
         // Merge logic: Garmin provides Body Battery/Stress, HC provides Steps/VO2Max
         val merged = DeepBiometrics(
@@ -122,6 +146,40 @@ class NeuralUplinkManager @Inject constructor(
         _combinedDeepMetrics.value = merged
         ingestDeepMetrics(merged)
         return merged
+    }
+
+    private suspend fun <T> runWithRetry(
+        label: String,
+        maxAttempts: Int = 3,
+        initialDelay: Long = 1000,
+        block: suspend () -> T
+    ): T? {
+        var currentDelay = initialDelay
+        repeat(maxAttempts) { attempt ->
+            try {
+                return block()
+            } catch (e: Exception) {
+                if (attempt == maxAttempts - 1) {
+                    handleCentralError(label, e)
+                    return null
+                }
+                delay(currentDelay)
+                currentDelay *= 2
+            }
+        }
+        return null
+    }
+
+    private fun handleCentralError(provider: String, error: Exception) {
+        val message = "SYNC_FAILURE // $provider: ${error.message ?: "Unknown Error"}"
+        briefService.showNeuralBrief(
+            title = "UPLINK_ALERT",
+            content = message,
+            actions = listOf<BriefService.BriefAction>(
+                BriefService.BriefAction("RE-LINK", BriefService.ACTION_OPEN_DECK, "")
+            )
+        )
+        // Fallback to last known metrics if needed (already handled by returning null/empty from runWithRetry)
     }
 
     private fun ingestDeepMetrics(metrics: DeepBiometrics) {

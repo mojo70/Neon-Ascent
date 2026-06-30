@@ -50,8 +50,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         
-        // Schedule daily health sync
-        HealthSyncWorker.scheduleDailySync(this)
+        // Schedule periodic health sync
+        HealthSyncWorker.schedulePeriodicSync(this)
 
         // Initialize smart notification scheduling with safety
         val exceptionHandler = kotlinx.coroutines.CoroutineExceptionHandler { _, throwable ->

@@ -46,12 +46,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import javax.inject.Inject
 
-data class MentorUiMessage(
-    val text: String,
-    val isFromUser: Boolean,
-    val timestamp: Long = System.currentTimeMillis()
-)
-
 data class NeuralMentorUiState(
     val directives: List<AscensionDirective> = emptyList(),
     val selectedDirective: AscensionDirective? = null,

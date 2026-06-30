@@ -31,7 +31,17 @@ sealed class UplinkStatus {
     object Connected : UplinkStatus()
     data class Syncing(val progress: Float) : UplinkStatus()
     data class Error(val message: String) : UplinkStatus()
+    object PermissionRequired : UplinkStatus()
+    object NeedsReAuth : UplinkStatus()
 }
+
+data class UplinkSyncStatus(
+    val provider: UplinkProvider,
+    val currentStatus: UplinkStatus,
+    val lastSuccessfulSync: Long? = null,
+    val lastError: String? = null,
+    val lastSyncAttempt: Long? = null
+)
 
 enum class UplinkProvider {
     GARMIN,

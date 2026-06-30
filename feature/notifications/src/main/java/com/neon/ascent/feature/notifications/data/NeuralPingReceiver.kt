@@ -4,6 +4,7 @@ import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import com.neon.ascent.core.domain.notifications.BriefService
 import com.neon.ascent.core.domain.repository.AscensionRepository
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -52,13 +53,13 @@ class NeuralPingReceiver : BroadcastReceiver() {
                     }
                 }
             }
-            NeuralBriefManager.ACTION_LOG_COMPLETE -> {
+            BriefService.ACTION_LOG_COMPLETE -> {
                 // Handle "LOG COMPLETE" for Daily Brief (Test or Real)
                 if (notificationId != -1) {
                     notificationManager.cancel(notificationId)
                 }
             }
-            ACTION_SNOOZE, NeuralBriefManager.ACTION_SNOOZE -> {
+            BriefService.ACTION_SNOOZE -> {
                 // Logic for Snooze (reschedule WorkManager for 2 hours)
                 val workManager = WorkManager.getInstance(context)
                 val snoozeRequest = OneTimeWorkRequestBuilder<NeuralBriefWorker>()
@@ -72,7 +73,7 @@ class NeuralPingReceiver : BroadcastReceiver() {
                     notificationManager.cancel(notificationId)
                 }
             }
-            NeuralBriefManager.ACTION_SKIP_REFLECT -> {
+            BriefService.ACTION_SKIP_REFLECT -> {
                 // Handle "Skip + Reflect" (e.g., log a 'skipped' state and open reflection UI)
                 if (notificationId != -1) {
                     notificationManager.cancel(notificationId)

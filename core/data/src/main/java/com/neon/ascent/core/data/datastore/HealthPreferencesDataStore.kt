@@ -26,6 +26,7 @@ class HealthPreferencesDataStore @Inject constructor(
         val ENABLED_ATTRIBUTES = stringSetPreferencesKey("enabled_attributes") // e.g. ["AGILITY", "ENDURANCE"]
         val NOTIFICATION_ON_SYNC = booleanPreferencesKey("notification_on_sync")
         val LAST_SUCCESSFUL_SYNC = longPreferencesKey("last_successful_sync")
+        val LIVE_MONITORING_ENABLED = booleanPreferencesKey("live_monitoring_enabled")
     }
 
     private val dataStore = context.healthDataStore
@@ -65,6 +66,10 @@ class HealthPreferencesDataStore @Inject constructor(
         prefs[Keys.NOTIFICATION_ON_SYNC] ?: false
     }
 
+    val liveMonitoringEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.LIVE_MONITORING_ENABLED] ?: false
+    }
+
     // === Update Functions ===
     suspend fun setAutoSyncEnabled(enabled: Boolean) {
         dataStore.edit { it[Keys.AUTO_SYNC_ENABLED] = enabled }
@@ -82,6 +87,10 @@ class HealthPreferencesDataStore @Inject constructor(
 
     suspend fun setShowSyncNotification(enabled: Boolean) {
         dataStore.edit { it[Keys.NOTIFICATION_ON_SYNC] = enabled }
+    }
+
+    suspend fun setLiveMonitoringEnabled(enabled: Boolean) {
+        dataStore.edit { it[Keys.LIVE_MONITORING_ENABLED] = enabled }
     }
 
     /** Reset all health preferences (useful for debugging or user "Reset Data" option) */

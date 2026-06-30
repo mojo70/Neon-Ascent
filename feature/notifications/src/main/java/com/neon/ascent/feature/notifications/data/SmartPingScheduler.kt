@@ -2,9 +2,10 @@ package com.neon.ascent.feature.notifications.data
 
 import android.content.Context
 import androidx.work.*
-import com.neon.ascent.core.domain.repository.AscensionRepository
+import com.neon.ascent.core.domain.NeuralPingScheduler
 import com.neon.ascent.core.domain.goals.models.*
-import com.neon.ascent.feature.health.data.HealthConnectManager
+import com.neon.ascent.core.domain.health.HealthManager
+import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.feature.notifications.data.workers.*
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
@@ -17,13 +18,13 @@ import javax.inject.Singleton
 class SmartPingScheduler @Inject constructor(
     @ApplicationContext private val context: Context,
     private val ascensionRepository: AscensionRepository,
-    private val healthConnectManager: HealthConnectManager
-) {
+    private val healthManager: HealthManager
+) : NeuralPingScheduler {
 
     private val workManager = WorkManager.getInstance(context)
 
     /** Main scheduling entry point — call after onboarding and on app start */
-    suspend fun scheduleSmartPings() {
+    override suspend fun scheduleSmartPings() {
         val activeTasks = ascensionRepository.getAllRecurringTasks().first()
 
         activeTasks.forEach { task ->
@@ -44,7 +45,7 @@ class SmartPingScheduler @Inject constructor(
      * Enqueues the Daily Neural Brief via NeuralBriefWorker.
      * Respects user quiet hours and delivery preferences.
      */
-    fun enqueueDailyNeuralBrief(isTestRequest: Boolean = false) {
+    override fun enqueueDailyNeuralBrief(isTestRequest: Boolean) {
         android.util.Log.d("SmartPingScheduler", "// ENQUEUE_BRIEF: isTest=$isTestRequest")
         if (isTestRequest) {
             android.util.Log.d("SmartPingScheduler", "// SCHEDULING_TEST_BRIEF...")
@@ -65,7 +66,7 @@ class SmartPingScheduler @Inject constructor(
      * Triggered when a high-value insight is projected.
      * Enqueues an expedited brief with a cooldown to prevent spam.
      */
-    fun triggerExpeditedBrief(reason: String) {
+    override fun triggerExpeditedBrief(reason: String) {
         android.util.Log.i("SmartPingScheduler", "// EXPEDITED_BRIEF_TRIGGERED: reason=$reason")
 
         val constraints = Constraints.Builder()

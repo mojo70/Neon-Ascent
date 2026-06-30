@@ -101,3 +101,9 @@ data class NeuralLog(
     val content: String,
     val metadata: String? = null
 )
+
+data class MentorUiMessage(
+    val text: String,
+    val isFromUser: Boolean,
+    val timestamp: Long = System.currentTimeMillis()
+)

@@ -22,7 +22,6 @@ dependencies {
     implementation(project(":core:data"))
     implementation(project(":feature:goals"))
     implementation(project(":feature:habits"))
-    implementation(project(":feature:health"))
 
     implementation(libs.androidx.health.connect.client)
     implementation(libs.hilt.android)

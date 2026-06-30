@@ -5,8 +5,8 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.health.connect.client.records.*
+import com.neon.ascent.core.domain.health.HealthManager
 import com.neon.ascent.core.domain.repository.AscensionRepository
-import com.neon.ascent.feature.health.data.HealthConnectManager
 import com.neon.ascent.feature.notifications.data.NeuralPingManager
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -19,19 +19,19 @@ import java.time.ZoneId
 class HealthTriggerWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
-    private val healthConnectManager: HealthConnectManager,
+    private val healthManager: HealthManager,
     private val ascensionRepository: AscensionRepository,
     private val neuralPingManager: NeuralPingManager
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        if (!healthConnectManager.isAvailableAndHasPermissions()) return Result.success()
+        if (!healthManager.isAvailableAndHasPermissions()) return Result.success()
 
         val now = Instant.now()
         val localTime = LocalTime.now()
         
         // 1. Detect "Wake" - check if sleep session ended in last 30 mins
-        val recentData = healthConnectManager.readRecentData(1)
+        val recentData = healthManager.readRecentData(1)
         val lastSleep = recentData.sleep.maxByOrNull { it.endTime }
         
         val isWakeDetected = (lastSleep != null) && 

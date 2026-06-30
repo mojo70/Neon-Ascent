@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 interface NeuralUplink {
     val provider: UplinkProvider
     val status: StateFlow<UplinkStatus>
+    val syncStatus: StateFlow<UplinkSyncStatus>
     
     /**
      * High-frequency biometric stream (e.g. BLE HR).

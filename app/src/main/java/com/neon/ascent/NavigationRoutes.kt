@@ -143,7 +143,9 @@ sealed interface Screen {
     data class AscensionForge(
         val attribute: String? = null,
         val title: String? = null,
-        val description: String? = null
+        val description: String? = null,
+        val vision: String? = null,
+        val biometrics: String? = null
     ) : Screen
 
     @Serializable
@@ -151,4 +153,7 @@ sealed interface Screen {
 
     @Serializable
     data object TerminalRitual : Screen
+
+    @Serializable
+    data object NeonGuide : Screen
 }

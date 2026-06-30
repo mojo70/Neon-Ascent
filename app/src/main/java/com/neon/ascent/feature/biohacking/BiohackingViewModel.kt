@@ -10,6 +10,9 @@ import com.neon.ascent.data.repository.*
 import com.neon.ascent.model.*
 import com.neon.ascent.core.data.local.dao.NeuralMemoryDao
 import com.neon.ascent.core.data.local.entity.NeuralMemory
+import com.neon.ascent.core.data.datastore.HealthPreferencesDataStore
+import com.neon.ascent.feature.health.data.uplink.NeuralUplinkManager
+import com.neon.ascent.feature.health.domain.uplink.UplinkSyncStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
@@ -30,11 +33,13 @@ class BiohackingViewModel @Inject constructor(
     private val userCharacterDao: UserCharacterDao,
     private val healthRepository: HealthRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
+    private val healthPrefs: HealthPreferencesDataStore,
     private val taskRepository: TaskRepository,
     private val goalRepository: GoalRepository,
     private val aiProvider: AiProvider,
     private val bioAgeRepository: BioAgeRepository,
     private val neuralMemoryDao: NeuralMemoryDao,
+    private val uplinkManager: NeuralUplinkManager,
     val modelDownloadManager: ModelDownloadManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -58,6 +63,11 @@ class BiohackingViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val activeAiType: StateFlow<AiType> = aiProvider.activeAiType
+
+    val liveMonitoringEnabled: StateFlow<Boolean> = healthPrefs.liveMonitoringEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val uplinkSyncStatuses: StateFlow<List<UplinkSyncStatus>> = uplinkManager.uplinkSyncStatuses
 
     val measurementUnit: StateFlow<String> = userPreferencesRepository.measurementUnit
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Metric")
@@ -270,6 +280,12 @@ class BiohackingViewModel @Inject constructor(
             result
         } catch (e: Exception) {
             emptyMap()
+        }
+    }
+
+    fun toggleLiveMonitoring(enabled: Boolean) {
+        viewModelScope.launch {
+            healthPrefs.setLiveMonitoringEnabled(enabled)
         }
     }
 

@@ -9,6 +9,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.neon.ascent.core.common.DeepLinkHelper
+import com.neon.ascent.core.domain.notifications.BriefService
 import com.neon.ascent.feature.notifications.R
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -22,7 +23,7 @@ import javax.inject.Singleton
 class NeuralBriefManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val deepLinkHelper: DeepLinkHelper
-) {
+) : BriefService {
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
     init {
@@ -52,12 +53,12 @@ class NeuralBriefManager @Inject constructor(
      * 
      * @param title The headline of the brief (e.g., "SYSTEM_SYNC // OPTIMIZED")
      * @param content The main body text (aggregated biometrics and guidance)
-     * @param actions List of [BriefAction] to be added as buttons
+     * @param actions List of [BriefService.BriefAction] to be added as buttons
      */
-    fun showNeuralBrief(
+    override fun showNeuralBrief(
         title: String,
         content: String,
-        actions: List<BriefAction> = emptyList()
+        actions: List<BriefService.BriefAction>
     ) {
         val notificationId = BRIEF_NOTIFICATION_ID
 
@@ -86,18 +87,25 @@ class NeuralBriefManager @Inject constructor(
         // Add quick actions
         actions.forEachIndexed { index, action ->
             val pendingIntent = when (action.actionName) {
-                ACTION_OPEN_DECK -> {
+                BriefService.ACTION_OPEN_DECK -> {
                     val intent = deepLinkHelper.createDashboardIntent()
                     PendingIntent.getActivity(context, notificationId + index, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
                 }
-                ACTION_LOG_COMPLETE -> {
+                BriefService.ACTION_LOG_COMPLETE -> {
                     // Use a generic log deep link or specific task if available in 'type'
                     val intent = deepLinkHelper.createTaskCompletionIntent(action.type.ifBlank { "generic" })
                     // Set component to ensure it opens the app's main activity if it's a deep link
                     intent.setPackage(context.packageName)
                     PendingIntent.getActivity(context, notificationId + index, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
                 }
-                ACTION_SKIP_REFLECT -> {
+                BriefService.ACTION_FORGE_DIRECTIVE -> {
+                    val intent = deepLinkHelper.createForgeIntent(
+                        title = action.type.takeIf { it.isNotBlank() },
+                        description = "Suggested from Neural Brief."
+                    )
+                    PendingIntent.getActivity(context, notificationId + index, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                }
+                BriefService.ACTION_SKIP_REFLECT -> {
                     // Deep link to a reflection/journaling UI
                     val intent = Intent(
                         Intent.ACTION_VIEW,
@@ -130,26 +138,11 @@ class NeuralBriefManager @Inject constructor(
         }
     }
 
-    /**
-     * Data class representing a quick action in the notification.
-     */
-    data class BriefAction(
-        val label: String,
-        val actionName: String,
-        val type: String
-    )
-
     companion object {
         const val CHANNEL_ID = "neural_brief_v2"
         const val GROUP_KEY = "com.neon.ascent.NEURAL_BRIEF_GROUP"
         const val BRIEF_NOTIFICATION_ID = 8888
         
         const val EXTRA_ACTION_TYPE = "extra_brief_action_type"
-        
-        // Action Types defined in Roadmap
-        const val ACTION_LOG_COMPLETE = "com.neon.ascent.ACTION_LOG_COMPLETE"
-        const val ACTION_OPEN_DECK = "com.neon.ascent.ACTION_OPEN_DECK"
-        const val ACTION_SNOOZE = "com.neon.ascent.ACTION_SNOOZE"
-        const val ACTION_SKIP_REFLECT = "com.neon.ascent.ACTION_SKIP_REFLECT"
     }
 }

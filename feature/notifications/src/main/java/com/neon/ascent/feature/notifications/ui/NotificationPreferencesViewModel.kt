@@ -2,6 +2,7 @@ package com.neon.ascent.feature.notifications.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.neon.ascent.core.domain.notifications.BriefService
 import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.feature.notifications.data.NeuralPingManager
 import com.neon.ascent.feature.notifications.data.SmartPingScheduler
@@ -19,7 +20,7 @@ import javax.inject.Inject
 @HiltViewModel
 class NotificationPreferencesViewModel @Inject constructor(
     private val neuralPingManager: NeuralPingManager,
-    private val neuralBriefManager: com.neon.ascent.feature.notifications.data.NeuralBriefManager,
+    private val briefService: BriefService,
     private val smartPingScheduler: SmartPingScheduler,
     private val repository: AscensionRepository
 ) : ViewModel() {
@@ -92,13 +93,13 @@ class NotificationPreferencesViewModel @Inject constructor(
     }
 
     fun sendTestBrief() {
-        neuralBriefManager.showNeuralBrief(
+        briefService.showNeuralBrief(
             title = "⚡ NEURAL BRIEF // TEST_SYNC",
             content = "Operator, this is a manual override transmission. Biometrics synchronized. All systems operational. Stand by for further guidance.",
             actions = listOf(
-                com.neon.ascent.feature.notifications.data.NeuralBriefManager.BriefAction(
+                BriefService.BriefAction(
                     label = "OPEN DECK",
-                    actionName = com.neon.ascent.feature.notifications.data.NeuralBriefManager.ACTION_OPEN_DECK,
+                    actionName = BriefService.ACTION_OPEN_DECK,
                     type = "DASHBOARD"
                 )
             )

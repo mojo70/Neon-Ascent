@@ -17,14 +17,18 @@ class HealthSyncUseCase @Inject constructor(
     private val updateSpecialFromHealthUseCase: UpdateSpecialFromHealthUseCase,
     private val healthPrefs: HealthPreferencesDataStore
 ) {
-    suspend operator fun invoke() {
-        // 1. One-time manual sync via Worker (background robustness)
-        HealthSyncWorker.triggerImmediateSync(context)
+    suspend fun triggerExpeditedSync() {
+        // 1. One-time manual sync via Worker (Expedited)
+        HealthSyncWorker.triggerManualSync(context)
 
         // 2. Run immediate UseCase for instant feedback in the current session
         updateSpecialFromHealthUseCase()
 
         // 3. Update the last sync time tracking
         healthPrefs.updateLastSyncTime(Instant.now())
+    }
+
+    suspend operator fun invoke() {
+        triggerExpeditedSync()
     }
 }

@@ -68,6 +68,7 @@ import com.neon.ascent.feature.lore.LoreScreen
 import com.neon.ascent.feature.notifications.ui.NeuralPingPermissionScreen
 import com.neon.ascent.feature.notifications.ui.NotificationPermissionViewModel
 import com.neon.ascent.feature.notifications.ui.NotificationPreferencesScreen
+import com.neon.ascent.feature.neonguide.NeonGuideScreen
 import com.neon.ascent.feature.wallet.EurodollarWalletScreen
 import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.core.common.cyberGlitch
@@ -108,7 +109,7 @@ fun AppNavigation(
         }
         
         composable<Screen.MainHub> {
-            val pagerState = rememberPagerState(pageCount = { 3 }, initialPage = 1)
+            val pagerState = rememberPagerState(pageCount = { 4 }, initialPage = 1)
             val coroutineScope = rememberCoroutineScope()
             HorizontalPager(state = pagerState) { page ->
                 when (page) {
@@ -151,9 +152,31 @@ fun AppNavigation(
                             coroutineScope.launch {
                                 pagerState.animateScrollToPage(2)
                             }
+                        },
+                        onNavigateToGuide = {
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(3)
+                            }
                         }
                     )
-                    2 -> BiohackingScreen(onBack = { /* Handled by pager */ })
+                    2 -> BiohackingScreen(
+                        onBack = { /* Handled by pager */ },
+                        onNavigateToForge = { type, title, desc, biometrics ->
+                            navController.navigate(Screen.AscensionForge(type.name, title, desc, biometrics = biometrics))
+                        },
+                        onNavigateToGuide = {
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(3)
+                            }
+                        }
+                    )
+                    3 -> NeonGuideScreen(
+                        onBack = {
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(1)
+                            }
+                        }
+                    )
                 }
             }
         }
@@ -168,7 +191,11 @@ fun AppNavigation(
             val bio = backStackEntry.toRoute<Screen.Biohacking>()
             BiohackingScreen(
                 focus = bio.focus,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onNavigateToForge = { type, title, desc, biometrics ->
+                    navController.navigate(Screen.AscensionForge(type.name, title, desc, biometrics = biometrics))
+                },
+                onNavigateToGuide = { navController.navigate(Screen.NeonGuide) }
             )
         }
 
@@ -185,8 +212,8 @@ fun AppNavigation(
                     navController.navigate(Screen.Diagnostics)
                 },
                 onLoreClick = { navController.navigate(Screen.Lore) },
-                onNavigateToForge = { type, title, desc ->
-                    navController.navigate(Screen.AscensionForge(type.name, title, desc))
+                onNavigateToForge = { type, title, desc, biometrics ->
+                    navController.navigate(Screen.AscensionForge(type.name, title, desc, biometrics = biometrics))
                 }
             )
         }
@@ -484,13 +511,22 @@ fun AppNavigation(
             )
         }
 
-        composable<Screen.AscensionForge> { backStackEntry ->
+        composable<Screen.AscensionForge>(
+            deepLinks = listOf(
+                navDeepLink {
+                    uriPattern = "neon-ascent://forge?attribute={attribute}&title={title}&description={description}&vision={vision}&biometrics={biometrics}"
+                }
+            )
+        ) { backStackEntry ->
             val forge = backStackEntry.toRoute<Screen.AscensionForge>()
             AscensionForgeScreen(
                 onBack = { navController.popBackStack() },
                 prefilledAttribute = forge.attribute,
                 prefilledTitle = forge.title,
-                prefilledDescription = forge.description
+                prefilledDescription = forge.description,
+                prefilledVision = forge.vision,
+                prefilledBiometrics = forge.biometrics,
+                onNavigateToGuide = { navController.navigate(Screen.NeonGuide) }
             )
         }
 
@@ -693,6 +729,12 @@ fun AppNavigation(
                 attributeName = attr.attributeName,
                 onBack = { navController.popBackStack() },
                 onNavigateToDatabase = { navController.navigate(Screen.Journal) }
+            )
+        }
+
+        composable<Screen.NeonGuide> {
+            NeonGuideScreen(
+                onBack = { navController.popBackStack() }
             )
         }
     }

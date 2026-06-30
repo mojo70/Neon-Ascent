@@ -9,26 +9,35 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.core.common.NeonCyan
 import com.neon.ascent.core.common.NeonPink
+import com.neon.ascent.core.common.neonBorder
+import com.neon.ascent.core.common.CelebrationOverlay
 import com.neon.ascent.core.domain.goals.models.*
 import com.neon.ascent.core.domain.model.SpecialType
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.runtime.Composable
 import java.time.DayOfWeek
 
@@ -75,13 +84,16 @@ fun AscensionForgeScreen(
     prefilledAttribute: String? = null,
     prefilledTitle: String? = null,
     prefilledDescription: String? = null,
+    prefilledVision: String? = null,
+    prefilledBiometrics: String? = null,
+    onNavigateToGuide: () -> Unit = {},
     viewModel: AscensionForgeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(Unit) {
-        if (prefilledAttribute != null || prefilledTitle != null || prefilledDescription != null) {
-            viewModel.prefill(prefilledAttribute, prefilledTitle, prefilledDescription)
+        if (prefilledAttribute != null || prefilledTitle != null || prefilledDescription != null || prefilledVision != null || prefilledBiometrics != null) {
+            viewModel.prefill(prefilledAttribute, prefilledTitle, prefilledDescription, prefilledVision, prefilledBiometrics)
         }
     }
 
@@ -95,6 +107,9 @@ fun AscensionForgeScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onNavigateToGuide) {
+                        Icon(Icons.Default.Psychology, contentDescription = "Neon Guide", tint = NeonCyan)
+                    }
                     IconButton(onClick = { 
                         viewModel.save()
                         onBack()
@@ -118,8 +133,34 @@ fun AscensionForgeScreen(
                 ForgeTypeTab("DIRECTIVE", uiState.forgeType == ForgeType.DIRECTIVE, Modifier.weight(1f)) {
                     viewModel.updateType(ForgeType.DIRECTIVE)
                 }
+                ForgeTypeTab("MISSION", uiState.forgeType == ForgeType.MISSION, Modifier.weight(1f)) {
+                    viewModel.updateType(ForgeType.MISSION)
+                }
                 ForgeTypeTab("TASK", uiState.forgeType == ForgeType.TASK, Modifier.weight(1f)) {
                     viewModel.updateType(ForgeType.TASK)
+                }
+            }
+
+            if (uiState.isFromInsight) {
+                Surface(
+                    color = NeonCyan.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(4.dp),
+                    border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.5f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Default.Psychology, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(16.dp))
+                        Text(
+                            "PROTO-SYNTHESIS: STARTED FROM EXTERNAL_INSIGHT",
+                            color = NeonCyan,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 
@@ -131,7 +172,7 @@ fun AscensionForgeScreen(
                         onValueChange = viewModel::updateTitle,
                         label = { Text("IDENTIFIER", fontSize = 10.sp) },
                         modifier = Modifier.fillMaxWidth(),
-                        textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace)
+                        textStyle = TextStyle(color = Color.White, fontFamily = FontFamily.Monospace)
                     )
                     OutlinedTextField(
                         value = uiState.description,
@@ -139,13 +180,19 @@ fun AscensionForgeScreen(
                         label = { Text("OBJECTIVE_DATA", fontSize = 10.sp) },
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 3,
-                        textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace)
+                        textStyle = TextStyle(color = Color.White, fontFamily = FontFamily.Monospace)
                     )
                 }
             }
 
+            if (uiState.useAiMentor && uiState.forgeType == ForgeType.DIRECTIVE) {
+                MentorConversationalBuilder(uiState, viewModel)
+            }
+
             if (uiState.forgeType == ForgeType.DIRECTIVE) {
                 DirectiveSpecificFields(uiState, viewModel)
+            } else if (uiState.forgeType == ForgeType.MISSION) {
+                MissionSpecificFields(uiState, viewModel)
             } else {
                 TaskSpecificFields(uiState, viewModel)
             }
@@ -153,7 +200,6 @@ fun AscensionForgeScreen(
             Button(
                 onClick = { 
                     viewModel.save()
-                    onBack()
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = Color.Black),
@@ -161,6 +207,17 @@ fun AscensionForgeScreen(
             ) {
                 Text("INITIATE_DEPLOYMENT", fontFamily = FontFamily.Monospace)
             }
+        }
+
+        if (uiState.isSuccess) {
+            CelebrationOverlay(
+                event = com.neon.ascent.core.common.DopamineEvent(
+                    level = com.neon.ascent.core.common.CelebrationLevel.ASCENSION,
+                    message = "PROTOCOL_ACTIVE // NEURAL_PINGS_ONLINE",
+                    xpGained = 50
+                ),
+                onFinished = { onBack() }
+            )
         }
     }
 }
@@ -181,6 +238,25 @@ fun ForgeTypeTab(label: String, isSelected: Boolean, modifier: Modifier = Modifi
             fontFamily = FontFamily.Monospace,
             fontSize = 12.sp
         )
+    }
+}
+
+@Composable
+fun MissionSpecificFields(uiState: AscensionForgeUiState, viewModel: AscensionForgeViewModel) {
+    CyberFrame(label = "MISSION_PARAMETERS", accentColor = NeonCyan) {
+        Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text("MISSIONS are mid-level campaigns that belong to a DIRECTIVE.", color = Color.Gray, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+            
+            // In a real app, we'd have a dropdown of directives here.
+            // For now, we'll just show it's a mission.
+            OutlinedTextField(
+                value = uiState.parentDirectiveId ?: "",
+                onValueChange = viewModel::updateParentDirective,
+                label = { Text("PARENT_DIRECTIVE_ID (OPTIONAL)", fontSize = 10.sp) },
+                modifier = Modifier.fillMaxWidth(),
+                textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace)
+            )
+        }
     }
 }
 
@@ -314,6 +390,99 @@ fun TaskSpecificFields(uiState: AscensionForgeUiState, viewModel: AscensionForge
                         label = { Text(window, fontSize = 10.sp) },
                         trailingIcon = { Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(14.dp)) }
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MentorConversationalBuilder(uiState: AscensionForgeUiState, viewModel: AscensionForgeViewModel) {
+    CyberFrame(label = "NEURAL_MENTOR // REFINEMENT_SYNAPSE", accentColor = NeonCyan) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                "CYBR-TES is analyzing your protocol for optimal mission structure.",
+                color = Color.Gray,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace
+            )
+
+            // Chat History Area
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 200.dp)
+                    .background(Color.Black.copy(alpha = 0.3f))
+                    .border(1.dp, Color.White.copy(alpha = 0.05f))
+                    .padding(8.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (uiState.chatHistory.isEmpty()) {
+                        Text(
+                            "Waiting for neural handshake...",
+                            color = Color.DarkGray,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    } else {
+                        uiState.chatHistory.forEach { msg ->
+                            val label = if (msg.isFromUser) "OPERATOR" else "CYBR-TES"
+                            val color = if (msg.isFromUser) NeonPink else NeonCyan
+                            Column {
+                                Text(
+                                    label,
+                                    color = color.copy(alpha = 0.6f),
+                                    fontSize = 8.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    msg.text,
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    lineHeight = 14.sp
+                                )
+                            }
+                        }
+                    }
+                    
+                    if (uiState.isGenerating) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            CircularProgressIndicator(modifier = Modifier.size(10.dp), color = NeonCyan, strokeWidth = 1.dp)
+                            Text("DECRYPTING...", color = NeonCyan.copy(alpha = 0.5f), fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                        }
+                    }
+                }
+            }
+
+            // Chat Input
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp)
+                    .border(1.dp, NeonCyan.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                BasicTextField(
+                    value = uiState.mentorInput,
+                    onValueChange = { viewModel.updateMentorInput(it) },
+                    textStyle = TextStyle(color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 12.sp),
+                    modifier = Modifier.weight(1f),
+                    cursorBrush = SolidColor(NeonCyan),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(onSend = { viewModel.sendMentorMessage() }),
+                    decorationBox = { innerTextField ->
+                        if (uiState.mentorInput.isEmpty()) {
+                            Text("Refine with AI...", color = Color.Gray, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                        }
+                        innerTextField()
+                    }
+                )
+                IconButton(onClick = { viewModel.sendMentorMessage() }, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.AutoMirrored.Filled.Send, "Send", tint = NeonCyan, modifier = Modifier.size(16.dp))
                 }
             }
         }

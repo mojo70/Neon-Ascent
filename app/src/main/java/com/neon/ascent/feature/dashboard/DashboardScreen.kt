@@ -101,7 +101,8 @@ fun DashboardScreen(
     onTaskClick: (String) -> Unit,
     onSettingsClick: () -> Unit,
     onDeusExMachinaClick: () -> Unit,
-    onNavigateToBiohacking: (String?) -> Unit = {}
+    onNavigateToBiohacking: (String?) -> Unit = {},
+    onNavigateToGuide: () -> Unit = {}
 ) {
     val userCharacter by viewModel.userCharacter.collectAsState()
     val weatherState by viewModel.weatherState.collectAsState()
@@ -449,7 +450,8 @@ fun DashboardScreen(
                 onSend = viewModel::sendTerminalMessage,
                 isExpanded = isTerminalExpanded,
                 onToggleExpand = { isTerminalExpanded = !isTerminalExpanded },
-                accentColor = systemColor
+                accentColor = systemColor,
+                onGuideClick = onNavigateToGuide
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -612,7 +614,8 @@ fun AiTerminal(
     onSend: () -> Unit,
     isExpanded: Boolean,
     onToggleExpand: () -> Unit,
-    accentColor: Color
+    accentColor: Color,
+    onGuideClick: () -> Unit = {}
 ) {
     CyberFrame(
         label = "AI_TERMINAL // CYBR-TES", 
@@ -628,13 +631,27 @@ fun AiTerminal(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        "CONNECTION_SECURE",
-                        color = accentColor.copy(alpha = 0.4f),
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "CONNECTION_SECURE",
+                            color = accentColor.copy(alpha = 0.4f),
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "[NEON_GUIDE]",
+                            color = NeonCyan,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Black,
+                            modifier = Modifier
+                                .clickable { onGuideClick() }
+                                .padding(4.dp)
+                                .cyberGlitch(0.1f)
+                        )
+                    }
                     Text(
                         "[MINIMIZE]",
                         color = accentColor.copy(alpha = 0.8f),

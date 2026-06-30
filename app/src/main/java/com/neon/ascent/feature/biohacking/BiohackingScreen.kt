@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
@@ -32,6 +33,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.core.common.*
+import com.neon.ascent.core.domain.model.SpecialType
+import com.neon.ascent.feature.health.domain.uplink.*
+import com.neon.ascent.feature.health.data.workers.HealthSyncWorker
+import com.neon.ascent.feature.health.data.services.LiveBiometricService
 import com.neon.ascent.model.BioProtocolLog
 import com.neon.ascent.model.BiohackingData
 import com.neon.ascent.model.UserCharacter
@@ -45,6 +50,8 @@ import java.util.*
 fun BiohackingScreen(
     onBack: () -> Unit,
     focus: String? = null,
+    onNavigateToForge: (SpecialType, String?, String?, String?) -> Unit = { _, _, _, _ -> },
+    onNavigateToGuide: () -> Unit = {},
     viewModel: BiohackingViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -58,6 +65,9 @@ fun BiohackingScreen(
     val isDownloading by viewModel.modelDownloadManager.isDownloading.collectAsState()
     val measurementUnit by viewModel.measurementUnit.collectAsState()
     val neuralInsights by viewModel.neuralInsights.collectAsState()
+    val uplinkSyncStatuses by viewModel.uplinkSyncStatuses.collectAsState()
+    val isLiveMonitoringEnabled by viewModel.liveMonitoringEnabled.collectAsState()
+    val context = LocalContext.current
 
     val displayChar = characterState ?: UserCharacter(
         name = "PROTAGONIST", sex = "NON_BINARY", dob = "2077.01.01", units = measurementUnit, weight = "75", somatotype = 0.5f
@@ -162,10 +172,20 @@ fun BiohackingScreen(
                         }
                     }
                 }
-                NeuralLoadGauge(
-                    load = if (isNeuralCoreThinking) 0.9f else displayChar.neuralLoad, 
-                    modifier = Modifier.size(64.dp)
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onNavigateToGuide) {
+                        Icon(
+                            imageVector = Icons.Default.ChatBubble,
+                            contentDescription = "Neon Guide",
+                            tint = neonCyan,
+                            modifier = Modifier.cyberGlitch(0.1f)
+                        )
+                    }
+                    NeuralLoadGauge(
+                        load = if (isNeuralCoreThinking) 0.9f else displayChar.neuralLoad, 
+                        modifier = Modifier.size(64.dp)
+                    )
+                }
             }
             
             Spacer(modifier = Modifier.height(24.dp))
@@ -197,6 +217,22 @@ fun BiohackingScreen(
                     SectorLabel("RECOVERY", Alignment.BottomEnd, selectedSector == "MOTOR_EXTREMITIES", neonCyan, neonMagenta)
                 }
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Uplink Status Section
+            UplinkStatusPanel(
+                syncStatuses = uplinkSyncStatuses,
+                neonCyan = neonCyan,
+                neonMagenta = neonMagenta,
+                onManualSyncClick = { HealthSyncWorker.triggerManualSync(context) },
+                isLiveMonitoringEnabled = isLiveMonitoringEnabled,
+                onLiveMonitoringToggle = { enabled ->
+                    viewModel.toggleLiveMonitoring(enabled)
+                    if (enabled) LiveBiometricService.start(context)
+                    else LiveBiometricService.stop(context)
+                }
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -354,19 +390,48 @@ fun BiohackingScreen(
                 CyberFrame(label = "NEURAL_INSIGHTS // MEMORY_PALACE", borderColor = neonCyan) {
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         neuralInsights.take(3).forEach { insight ->
-                            Text(
-                                text = insight.content,
-                                color = Color.White,
-                                fontSize = 12.sp,
-                                fontFamily = FontFamily.Monospace,
-                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                            )
-                            Text(
-                                text = "LOGGED: ${java.time.Instant.ofEpochMilli(insight.timestamp).toString()}",
-                                color = neonCyan.copy(alpha = 0.5f),
-                                fontSize = 8.sp,
-                                fontFamily = FontFamily.Monospace
-                            )
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = insight.content,
+                                        color = Color.White,
+                                        fontSize = 12.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    IconButton(
+                                        onClick = { 
+                                            onNavigateToForge(
+                                                SpecialType.INTELLIGENCE, 
+                                                "Neural Insight: ${insight.content.take(15)}...", 
+                                                insight.content,
+                                                "Neural Load: ${((displayChar.neuralLoad) * 100).toInt()}%"
+                                            ) 
+                                        }
+                                    ) {
+                                        val isHighValue = insight.content.contains("Forge", ignoreCase = true) || 
+                                                          insight.content.contains("Sync", ignoreCase = true) ||
+                                                          insight.content.length > 40
+                                        Icon(
+                                            imageVector = if (isHighValue) Icons.Default.Bolt else Icons.Default.Add, 
+                                            "Forge Directive", 
+                                            tint = if (isHighValue) neonMagenta else neonCyan,
+                                            modifier = if (isHighValue) Modifier.cyberGlitch(0.3f) else Modifier
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = "LOGGED: ${java.time.Instant.ofEpochMilli(insight.timestamp)}",
+                                    color = neonCyan.copy(alpha = 0.5f),
+                                    fontSize = 8.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
                             if (insight != neuralInsights.take(3).last()) {
                                 HorizontalDivider(color = neonCyan.copy(alpha = 0.2f))
                             }
@@ -381,7 +446,15 @@ fun BiohackingScreen(
                 ProtocolReport(
                     report = viewModel.latestReport.collectAsState().value,
                     magenta = neonMagenta, 
-                    cyan = neonCyan
+                    cyan = neonCyan,
+                    onForgeClick = { report ->
+                        onNavigateToForge(
+                            SpecialType.ENDURANCE, 
+                            "Bio Protocol: ${report.take(15)}...", 
+                            report,
+                            "Bio Age: ${uiState.calculatedBioAge ?: "Unknown"}"
+                        )
+                    }
                 ) {
                     showEffectivenessLogger = true
                 }
@@ -674,7 +747,13 @@ fun PrivacyToggle(label: String, checked: Boolean, color: Color, onCheckedChange
 }
 
 @Composable
-fun ProtocolReport(report: String?, magenta: Color, cyan: Color, onLogClick: () -> Unit) {
+fun ProtocolReport(
+    report: String?, 
+    magenta: Color, 
+    cyan: Color, 
+    onForgeClick: (String) -> Unit = {},
+    onLogClick: () -> Unit
+) {
     CyberFrame(label = "AI_GENERATED_PROTOCOL", borderColor = magenta, accentColor = cyan) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (report == null) {
@@ -698,13 +777,24 @@ fun ProtocolReport(report: String?, magenta: Color, cyan: Color, onLogClick: () 
                 )
             }
             
-            Button(
-                onClick = onLogClick,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = cyan.copy(alpha = 0.1f)),
-                border = BorderStroke(1.dp, cyan)
-            ) {
-                Text("INITIATE EFFECTIVENESS_LOG", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Black)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = onLogClick,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = cyan.copy(alpha = 0.1f)),
+                    border = BorderStroke(1.dp, cyan)
+                ) {
+                    Text("LOG_EFF", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Black)
+                }
+                
+                Button(
+                    onClick = { report?.let { onForgeClick(it) } },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = magenta.copy(alpha = 0.1f)),
+                    border = BorderStroke(1.dp, magenta)
+                ) {
+                    Text("FORGE_DIRECTIVE", color = magenta, fontSize = 10.sp, fontWeight = FontWeight.Black)
+                }
             }
         }
     }
@@ -925,5 +1015,158 @@ fun ReportCard(title: String, detail: String, description: String, magenta: Colo
         ) {
             Text("LOG EFFECTIVENESS", fontSize = 10.sp, color = cyan, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
         }
+    }
+}
+
+@Composable
+fun UplinkStatusPanel(
+    syncStatuses: List<UplinkSyncStatus>,
+    neonCyan: Color,
+    neonMagenta: Color,
+    onManualSyncClick: () -> Unit,
+    isLiveMonitoringEnabled: Boolean,
+    onLiveMonitoringToggle: (Boolean) -> Unit
+) {
+    CyberFrame(label = "NEURAL_UPLINK_STATUS", borderColor = neonCyan.copy(alpha = 0.6f)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "LIVE_MONITORING (BLE)",
+                    color = Color.White,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                Switch(
+                    checked = isLiveMonitoringEnabled,
+                    onCheckedChange = onLiveMonitoringToggle,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = neonCyan,
+                        checkedTrackColor = neonCyan.copy(alpha = 0.5f)
+                    ),
+                    modifier = Modifier.scale(0.7f)
+                )
+            }
+
+            HorizontalDivider(color = neonCyan.copy(alpha = 0.2f), thickness = 0.5.dp)
+
+            if (syncStatuses.isEmpty()) {
+                Text(
+                    "NO_ACTIVE_UPLINKS_FOUND",
+                    color = Color.Gray,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+            syncStatuses.forEach { status ->
+                UplinkStatusItem(status, neonCyan, neonMagenta)
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            Button(
+                onClick = onManualSyncClick,
+                modifier = Modifier.fillMaxWidth().height(32.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = neonCyan.copy(alpha = 0.1f)),
+                border = BorderStroke(1.dp, neonCyan.copy(alpha = 0.5f)),
+                shape = RoundedCornerShape(4.dp),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Icon(Icons.Default.Refresh, contentDescription = null, tint = neonCyan, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("MANUAL_DEEP_SYNC", color = neonCyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+fun UplinkStatusItem(
+    syncStatus: UplinkSyncStatus,
+    neonCyan: Color,
+    neonMagenta: Color
+) {
+    val statusColor = when (syncStatus.currentStatus) {
+        is UplinkStatus.Connected -> neonCyan
+        is UplinkStatus.Error -> neonMagenta
+        is UplinkStatus.PermissionRequired -> neonMagenta
+        is UplinkStatus.NeedsReAuth -> neonMagenta
+        is UplinkStatus.Syncing -> Color.Yellow
+        else -> Color.Gray
+    }
+
+    val statusText = when (val s = syncStatus.currentStatus) {
+        is UplinkStatus.Connected -> "CONNECTED"
+        is UplinkStatus.Error -> "ERROR: ${s.message}"
+        is UplinkStatus.PermissionRequired -> "NO_PERMISSION"
+        is UplinkStatus.NeedsReAuth -> "RE-AUTH_REQUIRED"
+        is UplinkStatus.Syncing -> "SYNCING (${(s.progress * 100).toInt()}%)"
+        is UplinkStatus.Authenticating -> "AUTHENTICATING..."
+        is UplinkStatus.Disconnected -> "DISCONNECTED"
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = syncStatus.provider.name.replace("_", " "),
+                color = Color.White,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+            Text(
+                text = statusText,
+                color = statusColor,
+                fontSize = 9.sp,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 1
+            )
+            syncStatus.lastSuccessfulSync?.let { lastSync ->
+                val timeAgo = formatTimeAgo(lastSync)
+                Text(
+                    text = "LAST_SYNC: $timeAgo",
+                    color = Color.Gray,
+                    fontSize = 8.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+            if (syncStatus.lastError != null && syncStatus.currentStatus !is UplinkStatus.Error) {
+                Text(
+                    text = "LAST_ERR: ${syncStatus.lastError}",
+                    color = neonMagenta.copy(alpha = 0.7f),
+                    fontSize = 8.sp,
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1
+                )
+            }
+        }
+        
+        if (syncStatus.currentStatus is UplinkStatus.Error || syncStatus.currentStatus is UplinkStatus.PermissionRequired || syncStatus.currentStatus is UplinkStatus.Disconnected || syncStatus.currentStatus is UplinkStatus.NeedsReAuth) {
+            TextButton(
+                onClick = { /* In a real app, trigger re-auth here */ },
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                modifier = Modifier.height(24.dp)
+            ) {
+                Text("RE-LINK", color = neonCyan, fontSize = 10.sp, fontWeight = FontWeight.Black)
+            }
+        }
+    }
+}
+
+fun formatTimeAgo(timestamp: Long): String {
+    val now = System.currentTimeMillis()
+    val diff = now - timestamp
+    return when {
+        diff < 60000 -> "Just now"
+        diff < 3600000 -> "${diff / 60000}m ago"
+        diff < 86400000 -> "${diff / 3600000}h ago"
+        else -> "${diff / 86400000}d ago"
     }
 }

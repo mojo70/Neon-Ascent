@@ -7,9 +7,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.neon.ascent.core.data.datastore.HealthPreferencesDataStore
+import com.neon.ascent.core.domain.health.HealthManager
 import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.feature.health.HealthSyncUseCase
-import com.neon.ascent.feature.health.data.HealthConnectManager
 import com.neon.ascent.feature.health.data.uplink.NeuralUplinkManager
 import com.neon.ascent.feature.health.domain.uplink.LiveBiometrics
 import com.neon.ascent.feature.health.data.workers.HealthSyncWorker
@@ -23,7 +23,7 @@ import javax.inject.Inject
 @HiltViewModel
 class HealthViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    val healthManager: HealthConnectManager,
+    val healthManager: HealthManager,
     private val healthSyncUseCase: HealthSyncUseCase,
     private val healthPrefs: HealthPreferencesDataStore,
     private val uplinkManager: NeuralUplinkManager,
@@ -158,7 +158,7 @@ class HealthViewModel @Inject constructor(
         viewModelScope.launch {
             healthPrefs.setAutoSyncEnabled(enabled)
             if (enabled) {
-                HealthSyncWorker.scheduleDailySync(context)
+                HealthSyncWorker.schedulePeriodicSync(context)
             }
         }
     }

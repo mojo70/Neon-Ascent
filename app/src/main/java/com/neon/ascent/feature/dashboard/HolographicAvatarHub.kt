@@ -70,7 +70,7 @@ fun HolographicAvatarHub(
     onUpgradeClick: (String) -> Unit,
     onNavigateToDiagnostics: () -> Unit,
     onLoreClick: () -> Unit = {},
-    onNavigateToForge: (SpecialType, String?, String?) -> Unit = { _, _, _ -> }
+    onNavigateToForge: (SpecialType, String?, String?, String?) -> Unit = { _, _, _, _ -> }
 ) {
     val userCharacter by viewModel.userCharacter.collectAsState()
     val state by viewModel.uiState.collectAsState()
@@ -383,12 +383,39 @@ fun HolographicAvatarHub(
                         color = Color.Black.copy(alpha = 0.4f)
                     ) {
                         Column(modifier = Modifier.padding(8.dp)) {
-                            Text(
-                                "SOCRATIC_INSIGHT",
-                                color = state.identity.resonance.getColor().copy(alpha = 0.5f),
-                                fontSize = 7.sp,
-                                fontFamily = FontFamily.Monospace
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "SOCRATIC_INSIGHT",
+                                    color = state.identity.resonance.getColor().copy(alpha = 0.5f),
+                                    fontSize = 7.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                                val advice by viewModel.systemAdvice.collectAsState()
+                                val isHighAction = advice.contains("Forge", ignoreCase = true) || 
+                                                   advice.contains("Sync", ignoreCase = true) || 
+                                                   advice.contains("Start", ignoreCase = true) || 
+                                                   advice.length > 50
+                                Icon(
+                                    imageVector = if (isHighAction) Icons.Default.Bolt else Icons.Default.Add,
+                                    contentDescription = "Forge Directive",
+                                    tint = if (isHighAction) NeonCyan else state.identity.resonance.getColor().copy(alpha = 0.5f),
+                                    modifier = Modifier
+                                        .size(if (isHighAction) 20.dp else 14.dp)
+                                        .cyberGlitch(intensity = if (isHighAction) 0.4f else 0f)
+                                        .clickable { 
+                                            onNavigateToForge(
+                                                SpecialType.INTELLIGENCE, 
+                                                "Insight: ${advice.take(20)}...", 
+                                                advice,
+                                                "Neural Load: ${((userCharacter?.neuralLoad ?: 0f) * 100).toInt()}%"
+                                            )
+                                        }
+                                )
+                            }
                             val advice by viewModel.systemAdvice.collectAsState()
                             Text(
                                 text = advice,
@@ -570,11 +597,11 @@ fun HolographicAvatarHub(
                     sleepScore = deepMetrics?.sleepScore,
                     onHackClick = {
                         showAttributeSheet = false
-                        onNavigateToForge(selectedAttribute!!, null, null)
+                        onNavigateToForge(selectedAttribute!!, null, null, null)
                     },
                     onProtocolClick = { protocol ->
                         showAttributeSheet = false
-                        onNavigateToForge(selectedAttribute!!, protocol.title, protocol.description)
+                        onNavigateToForge(selectedAttribute!!, protocol.title, protocol.description, null)
                     },
                     onDismiss = { showAttributeSheet = false }
                 )

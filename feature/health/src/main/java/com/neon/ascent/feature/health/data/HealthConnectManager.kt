@@ -7,16 +7,20 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.*
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
+import com.neon.ascent.core.domain.health.HealthDataSnapshot
+import com.neon.ascent.core.domain.health.HealthManager
+import com.neon.ascent.core.domain.health.LiveMetrics
 import com.neon.ascent.core.domain.special.HealthDataProcessor
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.Instant
+import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class HealthConnectManager(
-    private val context: Context,
+class HealthConnectManager @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val processor: HealthDataProcessor
-) {
+) : HealthManager {
 
     private val healthConnectClient by lazy {
         HealthConnectClient.getOrCreate(context)
@@ -34,7 +38,7 @@ class HealthConnectManager(
     )
 
     /** Check if Health Connect is available and permissions are granted */
-    suspend fun isAvailableAndHasPermissions(): Boolean {
+    override suspend fun isAvailableAndHasPermissions(): Boolean {
         return try {
             val availability = HealthConnectClient.getSdkStatus(context)
             if (availability != HealthConnectClient.SDK_AVAILABLE) return false
@@ -49,7 +53,7 @@ class HealthConnectManager(
     /**
      * Get permissions to request.
      */
-    suspend fun getPermissionsToRequest(): Set<String> {
+    override suspend fun getPermissionsToRequest(): Set<String> {
         val granted = healthConnectClient.permissionController.getGrantedPermissions()
         return requiredPermissions - granted
     }
@@ -57,7 +61,7 @@ class HealthConnectManager(
     /**
      * Transparent permission explanation flow
      */
-    fun getPermissionRationale(): Map<String, String> = mapOf(
+    override fun getPermissionRationale(): Map<String, String> = mapOf(
         StepsRecord::class.simpleName!! to "Steps and movement data power your Agility attribute and daily missions.",
         SleepSessionRecord::class.simpleName!! to "Sleep duration & stages directly improve your Endurance stat.",
         HeartRateVariabilityRmssdRecord::class.simpleName!! to "HRV reflects recovery quality and feeds Endurance + biohacking nodes.",
@@ -68,7 +72,7 @@ class HealthConnectManager(
     )
 
     /** Read data from the last N days (default 7) */
-    suspend fun readRecentData(days: Int = 7): HealthDataSnapshot {
+    override suspend fun readRecentData(days: Int): HealthDataSnapshot {
         val startTime = Instant.now().minusSeconds(days * 86400L)
 
         return HealthDataSnapshot(
@@ -104,13 +108,13 @@ class HealthConnectManager(
     }
 
     /** One-shot sync that feeds directly into S.P.E.C.I.A.L. */
-    suspend fun performDailySync() {
+    override suspend fun performDailySync() {
         if (!isAvailableAndHasPermissions()) return
         // This will be triggered by a WorkManager or manual sync
     }
 
     /** Reactive flow for real-time dashboard updates */
-    fun liveMetricsFlow(): kotlinx.coroutines.flow.Flow<LiveMetrics> = kotlinx.coroutines.flow.flow {
+    override fun liveMetricsFlow(): kotlinx.coroutines.flow.Flow<LiveMetrics> = kotlinx.coroutines.flow.flow {
         while (true) {
             val availability = try {
                 HealthConnectClient.getSdkStatus(context)
@@ -166,20 +170,3 @@ class HealthConnectManager(
         }
     }
 }
-
-/** Simple container for batched data */
-data class HealthDataSnapshot(
-    val steps: List<StepsRecord>,
-    val sleep: List<SleepSessionRecord>,
-    val hrv: List<HeartRateVariabilityRmssdRecord>,
-    val activeCalories: List<ActiveCaloriesBurnedRecord>,
-    val totalCalories: List<TotalCaloriesBurnedRecord>,
-    val distance: List<DistanceRecord>
-)
-
-data class LiveMetrics(
-    val heartRate: Int? = null,
-    val stepsToday: Long? = null,
-    val caloriesToday: Double? = null,
-    val heartRateVariability: Double? = null
-)

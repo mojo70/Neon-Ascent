@@ -6,6 +6,10 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <!-- Bluetooth Permissions for 1Hz Live Heart Rate -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
@@ -96,6 +100,12 @@
                 <action android:name="com.neon.ascent.ACTION_SNOOZE" />
             </intent-filter>
         </receiver>
+
+        <service
+            android:name="com.neon.ascent.feature.health.data.services.LiveBiometricService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="health|connectedDevice" />
 
     </application>
 </manifest>

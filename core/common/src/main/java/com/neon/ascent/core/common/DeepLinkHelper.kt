@@ -38,4 +38,23 @@ class DeepLinkHelper @Inject constructor(@ApplicationContext private val context
             Uri.parse("neon-ascent://biohacking")
         )
     }
+
+    fun createForgeIntent(attribute: String? = null, title: String? = null, description: String? = null): Intent {
+        val uri = Uri.Builder()
+            .scheme("neon-ascent")
+            .authority("forge")
+            .appendQueryParameter("attribute", attribute ?: "")
+            .appendQueryParameter("title", title ?: "")
+            .appendQueryParameter("description", description ?: "")
+            .build()
+        
+        return Intent(
+            Intent.ACTION_VIEW,
+            uri,
+            context,
+            context.packageManager.getLaunchIntentForPackage(context.packageName)?.component?.let { 
+                Class.forName(it.className) 
+            } ?: return Intent()
+        )
+    }
 }

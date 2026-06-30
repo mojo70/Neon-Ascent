@@ -9,7 +9,7 @@ import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.core.domain.repository.InsightProjectionRepository
 import com.neon.ascent.core.domain.repository.RecommendationProjection
 import com.neon.ascent.core.domain.repository.SocraticInsight
-import com.neon.ascent.feature.notifications.data.NeuralBriefManager
+import com.neon.ascent.core.domain.notifications.BriefService
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.firstOrNull
@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit
 class NeuralBriefWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
-    private val briefManager: NeuralBriefManager,
+    private val briefService: BriefService,
     private val insightRepository: InsightProjectionRepository,
     private val ascensionRepository: AscensionRepository
 ) : CoroutineWorker(context, params) {
@@ -71,31 +71,31 @@ class NeuralBriefWorker @AssistedInject constructor(
             Log.d(TAG, "// PAYLOAD_GENERATED: BodyLength=${body.length}")
 
             // 3. Define Actions
-            val actions = mutableListOf<NeuralBriefManager.BriefAction>()
+            val actions = mutableListOf<BriefService.BriefAction>()
             
             val logActionType = recommendation?.relatedDirectiveId ?: activeMissions.firstOrNull()?.id ?: "GENERAL"
             
-            actions.add(NeuralBriefManager.BriefAction(
+            actions.add(BriefService.BriefAction(
                 label = "LOG COMPLETE",
-                actionName = NeuralBriefManager.ACTION_LOG_COMPLETE,
+                actionName = BriefService.ACTION_LOG_COMPLETE,
                 type = logActionType
             ))
 
-            actions.add(NeuralBriefManager.BriefAction(
+            actions.add(BriefService.BriefAction(
                 label = "SKIP + REFLECT",
-                actionName = NeuralBriefManager.ACTION_SKIP_REFLECT,
+                actionName = BriefService.ACTION_SKIP_REFLECT,
                 type = logActionType
             ))
 
-            actions.add(NeuralBriefManager.BriefAction(
+            actions.add(BriefService.BriefAction(
                 label = "SNOOZE 2H",
-                actionName = NeuralBriefManager.ACTION_SNOOZE,
+                actionName = BriefService.ACTION_SNOOZE,
                 type = "DEFER_2H"
             ))
 
             // 4. Show Notification
             Log.d(TAG, "// DISPATCH: Sending to NeuralBriefManager")
-            briefManager.showNeuralBrief(
+            briefService.showNeuralBrief(
                 title = title,
                 content = body,
                 actions = actions.take(3)
