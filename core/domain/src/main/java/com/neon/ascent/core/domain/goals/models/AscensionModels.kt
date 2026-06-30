@@ -105,5 +105,20 @@ data class NeuralLog(
 data class MentorUiMessage(
     val text: String,
     val isFromUser: Boolean,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val proposedMissions: List<ProposedMission> = emptyList()
+)
+
+data class ProposedMission(
+    val title: String,
+    val description: String,
+    val tasks: List<ProposedTask> = emptyList()
+)
+
+data class ProposedTask(
+    val title: String,
+    val description: String,
+    val type: AscensionTaskType,
+    val recurrence: RecurrenceV3? = null,
+    val timeWindows: List<String> = emptyList()
 )

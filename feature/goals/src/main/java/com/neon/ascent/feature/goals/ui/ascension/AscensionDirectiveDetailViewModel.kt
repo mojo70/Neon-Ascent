@@ -185,7 +185,7 @@ class AscensionDirectiveDetailViewModel @Inject constructor(
                 mode = _uiState.value.selectedMentorMode,
                 message = message
             )
-            val mentorMsg = DirectiveDetailUiState.ChatMessage(text = response, isUser = false)
+            val mentorMsg = DirectiveDetailUiState.ChatMessage(text = response.text, isUser = false)
             _uiState.update { 
                 it.copy(
                     chatHistory = it.chatHistory + mentorMsg,

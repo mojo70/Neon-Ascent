@@ -411,13 +411,13 @@ fun MentorConversationalBuilder(uiState: AscensionForgeUiState, viewModel: Ascen
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 200.dp)
+                    .heightIn(max = 400.dp)
                     .background(Color.Black.copy(alpha = 0.3f))
                     .border(1.dp, Color.White.copy(alpha = 0.05f))
                     .padding(8.dp)
                     .verticalScroll(rememberScrollState())
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     if (uiState.chatHistory.isEmpty()) {
                         Text(
                             "Waiting for neural handshake...",
@@ -429,7 +429,7 @@ fun MentorConversationalBuilder(uiState: AscensionForgeUiState, viewModel: Ascen
                         uiState.chatHistory.forEach { msg ->
                             val label = if (msg.isFromUser) "OPERATOR" else "CYBR-TES"
                             val color = if (msg.isFromUser) NeonPink else NeonCyan
-                            Column {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
                                     label,
                                     color = color.copy(alpha = 0.6f),
@@ -444,6 +444,15 @@ fun MentorConversationalBuilder(uiState: AscensionForgeUiState, viewModel: Ascen
                                     fontFamily = FontFamily.Monospace,
                                     lineHeight = 14.sp
                                 )
+
+                                if (msg.proposedMissions.isNotEmpty()) {
+                                    ProposalTreeView(
+                                        missions = msg.proposedMissions,
+                                        expandedMissions = uiState.expandedMissions,
+                                        onToggleExpansion = viewModel::toggleMissionExpansion,
+                                        onAccept = { viewModel.acceptProposals(msg.proposedMissions) }
+                                    )
+                                }
                             }
                         }
                     }
@@ -485,6 +494,112 @@ fun MentorConversationalBuilder(uiState: AscensionForgeUiState, viewModel: Ascen
                     Icon(Icons.AutoMirrored.Filled.Send, "Send", tint = NeonCyan, modifier = Modifier.size(16.dp))
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun ProposalTreeView(
+    missions: List<ProposedMission>,
+    expandedMissions: Set<String>,
+    onToggleExpansion: (String) -> Unit,
+    onAccept: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+            .border(1.dp, NeonCyan.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+            .background(Color.Black.copy(alpha = 0.5f))
+            .padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            "PROPOSED_STRUCTURE",
+            color = NeonCyan,
+            fontSize = 9.sp,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Bold
+        )
+
+        missions.forEach { mission ->
+            val isExpanded = expandedMissions.contains(mission.title)
+            Column {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onToggleExpansion(mission.title) }
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        tint = NeonCyan,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        mission.title,
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                if (isExpanded) {
+                    Column(
+                        modifier = Modifier.padding(start = 24.dp, top = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            mission.description,
+                            color = Color.Gray,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            lineHeight = 12.sp
+                        )
+                        mission.tasks.forEach { task ->
+                            Row(
+                                modifier = Modifier.padding(vertical = 2.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Text("•", color = NeonCyan, modifier = Modifier.padding(end = 8.dp))
+                                Column {
+                                    Text(
+                                        task.title,
+                                        color = Color.LightGray,
+                                        fontSize = 10.sp,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                    val recurrence = task.recurrence
+                                    if (recurrence != null) {
+                                        Text(
+                                            "Protocol: ${recurrence.type}",
+                                            color = NeonCyan.copy(alpha = 0.7f),
+                                            fontSize = 8.sp,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Button(
+            onClick = onAccept,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = Color.Black),
+            shape = RoundedCornerShape(2.dp),
+            contentPadding = PaddingValues(0.dp)
+        ) {
+            Text("ACCEPT_ALL_PARAMETERS", fontSize = 10.sp, fontFamily = FontFamily.Monospace)
         }
     }
 }

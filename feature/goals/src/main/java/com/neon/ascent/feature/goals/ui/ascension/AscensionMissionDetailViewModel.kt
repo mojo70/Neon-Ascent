@@ -189,7 +189,7 @@ class AscensionMissionDetailViewModel @Inject constructor(
                 mode = _uiState.value.selectedMentorMode,
                 message = message
             )
-            val mentorMsg = MissionDetailUiState.ChatMessage(text = response, isUser = false)
+            val mentorMsg = MissionDetailUiState.ChatMessage(text = response.text, isUser = false)
             _uiState.update { 
                 it.copy(
                     chatHistory = it.chatHistory + mentorMsg,

@@ -164,7 +164,7 @@ class NeonMentorUseCase @Inject constructor(
         return gemmaClient.generateContent(prompt)
     }
 
-    suspend fun getMentorDialogue(directive: AscensionDirective, missions: List<AscensionMission>, tasks: List<AscensionTask>, mode: MentorMode, message: String): String {
+    suspend fun getMentorDialogue(directive: AscensionDirective, missions: List<AscensionMission>, tasks: List<AscensionTask>, mode: MentorMode, message: String): MentorUiMessage {
         // 1. Memory Palace Loading
         val recentMemories = try {
             neuralMemoryDao.searchMemories(directive.title, 5)
@@ -175,21 +175,27 @@ class NeonMentorUseCase @Inject constructor(
 
         // 2. Expert Persona Routing Matrix
         val expertPrompts = when {
-            directive.title.contains("Hustle", ignoreCase = true) || directive.description.contains("Business", ignoreCase = true) -> {
+            directive.title.contains("Hustle", ignoreCase = true) || directive.description.contains("Business", ignoreCase = true) || directive.title.contains("Biz", ignoreCase = true) -> {
                 """
                 [ACTIVE_EXPERTS: VENTURE_SAMURAI + PROGRESS_ARCHITECT + HABIT_FORGE]
-                Approach: Highly tactical lean startup execution. Focus on MVP deployment, identifying unit economics quickly, and ruthlessly prioritizing atomic revenue units. Add copyable Grok prompts for competitor research and marketing.
+                Approach: Highly tactical lean startup execution. Focus on MVP deployment, identifying unit economics quickly, and ruthlessly prioritizing atomic revenue units.
                 """
             }
             directive.title.contains("Frame", ignoreCase = true) || directive.description.contains("Health", ignoreCase = true) || directive.title.contains("Bio", ignoreCase = true) -> {
                 """
                 [ACTIVE_EXPERTS: BIOHACKER_PREMIUM + RECOVERY_SAGE + ADHD_RUNNER]
-                Approach: Circadian and biomonitor synchronization. Focus on physical optimization, HRV, sleeping protocols, and minimizing dopamine exhaustion with tiny momentum loops.
+                Approach: Circadian and biomonitor synchronization. Focus on physical optimization, HRV, sleeping protocols, and minimizing dopamine exhaustion.
+                """
+            }
+            directive.title.contains("Code", ignoreCase = true) || directive.title.contains("Dev", ignoreCase = true) -> {
+                """
+                [ACTIVE_EXPERTS: CODE_ARCHITECT + FOCUS_MONK]
+                Approach: Deep work protocols, modular construction, and rigorous testing cycles. Focus on flow state entry and technical debt elimination.
                 """
             }
             else -> {
                 """
-                [ACTIVE_EXPERTS: HABIT_FORGE + ADHD_RUNNER]
+                [ACTIVE_EXPERTS: HABIT_FORGE + ADHD_RUNNER + PROGRESS_ARCHITECT]
                 Approach: Friction reduction and habit stacking. Keep it extremely tiny, build momentum first, and preserve streaks using grace buffers.
                 """
             }
@@ -213,8 +219,8 @@ class NeonMentorUseCase @Inject constructor(
             MentorMode.REVIEW -> "Provide a concise status report analyzing their patterns, consistency, and progress. List 1-2 pattern detections."
             MentorMode.SOUNDING_BOARD -> "Act as a thoughtful, deconstructive mirror. Pose 1-2 open-ended reflective questions about their blockers."
             MentorMode.GUIDE -> """
-                Provide active coaching. Give step-by-step checklists, estimated difficulties, habit stacking suggestions, and copyable prompt scripts.
-                Specifically include an external AI prompt like: "Paste this into Grok: 'Act as a specialist...'"
+                Provide active coaching. Give step-by-step checklists, estimated difficulties, habit stacking suggestions.
+                Proactively suggest a structured plan (Missions + Tasks) if appropriate.
             """.trimIndent()
         }
 
@@ -225,12 +231,74 @@ class NeonMentorUseCase @Inject constructor(
             Action Required: Respond to the operator's query using Socratic questioning and the active experts.
             Guideline: $modePrompt
             
+            If providing a plan, format your response as:
+            [MESSAGE]
+            (Your conversational response)
+            
+            [PROPOSAL]
+            MISSION: [Title] | [Description]
+              TASK: [Title] | [Description] | [Type: ONE_TIME/RECURRING] | [Frequency: DAILY/WEEKDAYS] | [TimeWindow: e.g. morning]
+            
             User/Operator Query: "$message"
             
-            OUTPUT (concise, under 150 words):
+            OUTPUT:
         """.trimIndent()
 
-        return gemmaClient.generateContent(prompt)
+        val response = gemmaClient.generateContent(prompt)
+        return parseDialogueResponse(response)
+    }
+
+    private fun parseDialogueResponse(response: String): MentorUiMessage {
+        val messagePart = response.substringAfter("[MESSAGE]").substringBefore("[PROPOSAL]").trim()
+        val proposalPart = response.substringAfter("[PROPOSAL]", "").trim()
+        
+        val proposedMissions = mutableListOf<ProposedMission>()
+        var currentMission: ProposedMission? = null
+        val currentTasks = mutableListOf<ProposedTask>()
+
+        proposalPart.lines().forEach { line ->
+            val trimmedLine = line.trim()
+            when {
+                trimmedLine.startsWith("MISSION:") -> {
+                    currentMission?.let {
+                        proposedMissions.add(it.copy(tasks = currentTasks.toList()))
+                        currentTasks.clear()
+                    }
+                    val parts = trimmedLine.substringAfter("MISSION:").split("|")
+                    if (parts.size >= 2) {
+                        currentMission = ProposedMission(parts[0].trim(), parts[1].trim())
+                    }
+                }
+                trimmedLine.startsWith("TASK:") -> {
+                    val parts = trimmedLine.substringAfter("TASK:").split("|")
+                    if (parts.size >= 4) {
+                        val task = ProposedTask(
+                            title = parts[0].trim(),
+                            description = parts[1].trim(),
+                            type = if (parts[2].trim() == "RECURRING") AscensionTaskType.RECURRING else AscensionTaskType.ONE_TIME,
+                            recurrence = if (parts[2].trim() == "RECURRING") {
+                                val freq = parts.getOrNull(3)?.trim() ?: "DAILY"
+                                RecurrenceV3(type = if (freq == "WEEKDAYS") RecurrenceTypeV3.WEEKDAYS else RecurrenceTypeV3.DAILY)
+                            } else null,
+                            timeWindows = parts.getOrNull(4)?.split(",")?.map { it.trim() } ?: emptyList()
+                        )
+                        currentTasks.add(task)
+                    }
+                }
+            }
+        }
+        
+        if (currentMission != null) {
+            proposedMissions.add(currentMission!!.copy(tasks = currentTasks.toList()))
+        }
+
+        val text = if (messagePart.isBlank() && proposalPart.isBlank()) response else messagePart
+        
+        return MentorUiMessage(
+            text = text,
+            isFromUser = false,
+            proposedMissions = proposedMissions
+        )
     }
 
     suspend fun generateTasksForMission(mission: AscensionMission) {

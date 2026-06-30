@@ -136,10 +136,9 @@ class NeuralMentorViewModel @Inject constructor(
                     mode = mode,
                     message = input
                 )
-                val aiMsg = MentorUiMessage(response, isFromUser = false)
                 _uiState.update { state ->
                     state.copy(
-                        messages = state.messages + aiMsg,
+                        messages = state.messages + response,
                         isGenerating = false
                     )
                 }
@@ -169,7 +168,7 @@ class NeuralMentorViewModel @Inject constructor(
                 )
                 _uiState.update { state ->
                     state.copy(
-                        messages = state.messages + MentorUiMessage(response, isFromUser = false),
+                        messages = state.messages + response,
                         isGenerating = false
                     )
                 }

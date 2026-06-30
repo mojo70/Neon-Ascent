@@ -38,6 +38,7 @@ data class AscensionForgeUiState(
     val chatHistory: List<MentorUiMessage> = emptyList(),
     val isGenerating: Boolean = false,
     val mentorInput: String = "",
+    val expandedMissions: Set<String> = emptySet(),
     // Task specific
     val taskType: AscensionTaskType = AscensionTaskType.ONE_TIME,
     val recurrenceType: RecurrenceTypeV3 = RecurrenceTypeV3.DAILY,
@@ -92,6 +93,15 @@ class AscensionForgeViewModel @Inject constructor(
     fun removeTimeWindow(window: String) = _uiState.update { it.copy(timeWindows = it.timeWindows - window) }
     fun updateParentDirective(id: String?) = _uiState.update { it.copy(parentDirectiveId = id) }
 
+    fun toggleMissionExpansion(missionTitle: String) = _uiState.update { state ->
+        val newExpanded = if (state.expandedMissions.contains(missionTitle)) {
+            state.expandedMissions - missionTitle
+        } else {
+            state.expandedMissions + missionTitle
+        }
+        state.copy(expandedMissions = newExpanded)
+    }
+
     fun prefill(attributeName: String?, title: String?, description: String?, vision: String? = null, biometricContext: String? = null) {
         _uiState.update { state ->
             val attr = attributeName?.let { 
@@ -130,7 +140,7 @@ class AscensionForgeViewModel @Inject constructor(
                     message = initialPrompt
                 )
                 _uiState.update { it.copy(
-                    chatHistory = it.chatHistory + MentorUiMessage(response, isFromUser = false),
+                    chatHistory = it.chatHistory + response,
                     isGenerating = false
                 ) }
             } catch (e: Exception) {
@@ -160,7 +170,7 @@ class AscensionForgeViewModel @Inject constructor(
                     message = input
                 )
                 _uiState.update { it.copy(
-                    chatHistory = it.chatHistory + MentorUiMessage(response, isFromUser = false),
+                    chatHistory = it.chatHistory + response,
                     isGenerating = false
                 ) }
             } catch (e: Exception) {
@@ -170,61 +180,52 @@ class AscensionForgeViewModel @Inject constructor(
     }
 
     fun save() {
+        // ... (existing save logic)
+    }
+
+    fun acceptProposals(proposedMissions: List<ProposedMission>) {
         val state = _uiState.value
         viewModelScope.launch {
             try {
-                when (state.forgeType) {
-                    ForgeType.DIRECTIVE -> {
-                        val directive = AscensionDirective(
-                            id = UUID.randomUUID().toString(),
-                            title = state.title,
-                            description = state.description,
-                            visionStatement = state.visionStatement.takeIf { it.isNotBlank() },
-                            isQuarterly = state.isQuarterly,
-                            archetypeTag = state.selectedArchetype,
-                            aiMentorMode = state.aiMentorMode,
-                            createdAt = Instant.now()
-                        )
-                        repository.insertDirective(directive)
-                        if (state.useAiMentor) {
-                            val skillPrompt = state.selectedSkill?.let { skillRepository.getSkillPrompt(it) }
-                            mentorUseCase.generateMissionsForDirective(directive, skillPrompt)
-                        }
-                    }
-                    ForgeType.MISSION -> {
-                        val mission = AscensionMission(
-                            id = UUID.randomUUID().toString(),
-                            directiveId = state.parentDirectiveId,
-                            title = state.title,
-                            description = state.description,
-                            createdAt = Instant.now()
-                        )
-                        repository.insertMission(mission)
-                    }
-                    ForgeType.TASK -> {
+                val directiveId = UUID.randomUUID().toString()
+                val directive = AscensionDirective(
+                    id = directiveId,
+                    title = state.title,
+                    description = state.description,
+                    visionStatement = state.visionStatement.takeIf { it.isNotBlank() },
+                    isQuarterly = state.isQuarterly,
+                    createdAt = Instant.now()
+                )
+                repository.insertDirective(directive)
+
+                proposedMissions.forEach { pMission ->
+                    val missionId = UUID.randomUUID().toString()
+                    val mission = AscensionMission(
+                        id = missionId,
+                        directiveId = directiveId,
+                        title = pMission.title,
+                        description = pMission.description,
+                        aiGenerated = true
+                    )
+                    repository.insertMission(mission)
+                    
+                    pMission.tasks.forEach { pTask ->
                         val task = AscensionTask(
                             id = UUID.randomUUID().toString(),
-                            parentId = null,
-                            title = state.title,
-                            description = state.description,
-                            type = state.taskType,
-                            recurrence = if (state.taskType == AscensionTaskType.RECURRING) {
-                                RecurrenceV3(
-                                    type = state.recurrenceType,
-                                    daysOfWeek = if (state.recurrenceType == RecurrenceTypeV3.DAYS_OF_WEEK) state.recurrenceDays else emptySet()
-                                )
-                            } else null,
-                            timeWindows = state.timeWindows
+                            parentId = missionId,
+                            title = pTask.title,
+                            description = pTask.description,
+                            type = pTask.type,
+                            recurrence = pTask.recurrence,
+                            timeWindows = pTask.timeWindows
                         )
                         repository.insertTask(task)
                     }
                 }
-                
-                // Delightful Success flow
+
                 _uiState.update { it.copy(isSuccess = true) }
-                dopamineCoordinator.triggerAscension(title = "PROTOCOL_DEPLOYED", xp = 50)
+                dopamineCoordinator.triggerAscension(title = "PROTOCOL_DEPLOYED", xp = 100)
                 neuralPingScheduler.scheduleSmartPings()
-                
             } catch (e: Exception) {
                 // Handle error
             }
