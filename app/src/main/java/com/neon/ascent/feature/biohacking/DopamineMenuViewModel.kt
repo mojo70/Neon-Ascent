@@ -31,6 +31,12 @@ class DopamineMenuViewModel @Inject constructor(
     private val aiProvider: AiProvider
 ) : ViewModel() {
 
+    init {
+        viewModelScope.launch {
+            repository.seedDefaultMenu()
+        }
+    }
+
     private val _selectedEnergy = MutableStateFlow<EnergyLevel?>(null)
     val selectedEnergy: StateFlow<EnergyLevel?> = _selectedEnergy.asStateFlow()
 
@@ -105,14 +111,7 @@ class DopamineMenuViewModel @Inject constructor(
 
     fun seedDefaultItems() {
         viewModelScope.launch {
-            val defaults = listOf(
-                DopamineMenuItem(UUID.randomUUID().toString(), "Deep Breathing", "5-5-5 Box breathing for CNS reset.", 2, DopamineCategory.RESET, emptyList(), EnergyLevel.LOW),
-                DopamineMenuItem(UUID.randomUUID().toString(), "Cold Splash", "Neural shock via cold water on face.", 1, DopamineCategory.RESET, emptyList(), EnergyLevel.LOW),
-                DopamineMenuItem(UUID.randomUUID().toString(), "10 Push-ups", "Quick burst of physical activity.", 1, DopamineCategory.MOVEMENT, emptyList(), EnergyLevel.MEDIUM),
-                DopamineMenuItem(UUID.randomUUID().toString(), "Sunlight Exposure", "Reset circadian rhythm.", 5, DopamineCategory.SENSORY, emptyList(), EnergyLevel.LOW),
-                DopamineMenuItem(UUID.randomUUID().toString(), "Journal Win", "Log one small success.", 3, DopamineCategory.PRODUCTIVE, emptyList(), EnergyLevel.LOW)
-            )
-            defaults.forEach { repository.upsertItem(it) }
+            repository.seedDefaultMenu()
         }
     }
 }

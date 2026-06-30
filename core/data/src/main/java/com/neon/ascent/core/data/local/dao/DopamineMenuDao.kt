@@ -17,6 +17,9 @@ interface DopamineMenuDao {
     @Query("SELECT * FROM dopamine_menu_items WHERE id = :id")
     suspend fun getItemById(id: String): DopamineMenuItemEntity?
 
+    @Query("SELECT COUNT(*) FROM dopamine_menu_items")
+    suspend fun getItemCount(): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertItem(item: DopamineMenuItemEntity)
 

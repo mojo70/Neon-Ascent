@@ -12,4 +12,5 @@ interface DopamineMenuRepository {
     suspend fun upsertItem(item: DopamineMenuItem)
     suspend fun deleteItem(item: DopamineMenuItem)
     suspend fun logUsage(id: String, timestamp: Instant)
+    suspend fun seedDefaultMenu()
 }
