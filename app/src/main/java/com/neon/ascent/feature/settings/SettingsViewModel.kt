@@ -74,40 +74,29 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val existingPrayers = dailyPrayerDao.getAllPrayers().first()
             if (existingPrayers.isEmpty()) {
-                dailyPrayerDao.insertPrayers(PRAYER_SEED)
+                dailyPrayerDao.insertPrayers(DailyPrayerSeeds.PRAYER_SEED)
             } else if (existingPrayers.size < 60) {
-                // If we only have month 1, add month 2
-                dailyPrayerDao.insertPrayers(MONTH_2_SEED)
+                dailyPrayerDao.insertPrayers(DailyPrayerSeeds.MONTH_2_SEED)
             } else if (existingPrayers.size < 90) {
-                // If we have month 2, add month 3
-                dailyPrayerDao.insertPrayers(MONTH_3_SEED)
+                dailyPrayerDao.insertPrayers(DailyPrayerSeeds.MONTH_3_SEED)
             } else if (existingPrayers.size < 120) {
-                // If we have month 3, add month 4
-                dailyPrayerDao.insertPrayers(MONTH_4_SEED)
+                dailyPrayerDao.insertPrayers(DailyPrayerSeeds.MONTH_4_SEED)
             } else if (existingPrayers.size < 150) {
-                // If we have month 4, add month 5
-                dailyPrayerDao.insertPrayers(MONTH_5_SEED)
+                dailyPrayerDao.insertPrayers(DailyPrayerSeeds.MONTH_5_SEED)
             } else if (existingPrayers.size < 180) {
-                // If we have month 5, add month 6
-                dailyPrayerDao.insertPrayers(MONTH_6_SEED)
+                dailyPrayerDao.insertPrayers(DailyPrayerSeeds.MONTH_6_SEED)
             } else if (existingPrayers.size < 210) {
-                // If we have month 6, add month 7
-                dailyPrayerDao.insertPrayers(MONTH_7_SEED)
+                dailyPrayerDao.insertPrayers(DailyPrayerSeeds.MONTH_7_SEED)
             } else if (existingPrayers.size < 240) {
-                // If we have month 7, add month 8
-                dailyPrayerDao.insertPrayers(MONTH_8_SEED)
+                dailyPrayerDao.insertPrayers(DailyPrayerSeeds.MONTH_8_SEED)
             } else if (existingPrayers.size < 270) {
-                // If we have month 8, add month 9
-                dailyPrayerDao.insertPrayers(MONTH_9_SEED)
+                dailyPrayerDao.insertPrayers(DailyPrayerSeeds.MONTH_9_SEED)
             } else if (existingPrayers.size < 300) {
-                // If we have month 9, add month 10
-                dailyPrayerDao.insertPrayers(MONTH_10_SEED)
+                dailyPrayerDao.insertPrayers(DailyPrayerSeeds.MONTH_10_SEED)
             } else if (existingPrayers.size < 330) {
-                // If we have month 10, add month 11
-                dailyPrayerDao.insertPrayers(MONTH_11_SEED)
+                dailyPrayerDao.insertPrayers(DailyPrayerSeeds.MONTH_11_SEED)
             } else if (existingPrayers.size < 365) {
-                // If we have month 11, add month 12
-                dailyPrayerDao.insertPrayers(MONTH_12_SEED)
+                dailyPrayerDao.insertPrayers(DailyPrayerSeeds.MONTH_12_SEED)
             }
         }
     }
@@ -115,7 +104,6 @@ class SettingsViewModel @Inject constructor(
     fun loadTodayPrayer() {
         viewModelScope.launch {
             val char = userCharacter.value ?: return@launch
-            // Day is (streak % 365) + 1 to handle the full 365-day cycle
             val dayToFetch = (char.prayerStreak % 365) + 1
             _currentDailyPrayer.value = dailyPrayerDao.getPrayerForDay(dayToFetch)
         }
@@ -126,7 +114,6 @@ class SettingsViewModel @Inject constructor(
             val prayer = _currentDailyPrayer.value ?: return@launch
             val now = System.currentTimeMillis()
 
-            // Save to Neural Journal (Logging only if reflection is entered)
             if (reflection.isNotBlank()) {
                 val entryText = "VERSE: ${prayer.scripture}\n\nREFLECTION: $reflection"
                 journalRepository.saveToJournal(
@@ -140,8 +127,6 @@ class SettingsViewModel @Inject constructor(
             }
 
             val char = userCharacter.value ?: return@launch
-            
-            // Check if already prayed today for stats/exp
             val isSameDay = isSameDay(char.lastPrayerDate, now)
             if (isSameDay) {
                 _prayerToast.value = "Neural Reflection logged. Streak already maintained for today."
@@ -151,18 +136,14 @@ class SettingsViewModel @Inject constructor(
             val isNextDay = isNextDay(char.lastPrayerDate, now)
             val newStreak = if (isNextDay || char.lastPrayerDate == 0L) char.prayerStreak + 1 else 1
             
-            // Awards
             var expToAdd = 10
-            if (newStreak % 7 == 0) expToAdd += 15 // Day 7 bonus
+            if (newStreak % 7 == 0) expToAdd += 15
 
             val updatedChar = char.copy(
-                experience = char.experience + expToAdd, // Using experience instead of holyGhostExp for now if it maps there
+                experience = char.experience + expToAdd,
                 prayerStreak = newStreak,
                 lastPrayerDate = now
             )
-            // Wait, I should use the specific Dao methods if they exist or update repository.
-            // CharacterRepository doesn't have addHolyGhostExp yet.
-            // I'll add them to CharacterRepository.
             characterRepository.updateCharacter(updatedChar)
             
             _prayerToast.value = "Prayer Pulse Received. Holy Ghost Signal Strengthened."
@@ -185,407 +166,6 @@ class SettingsViewModel @Inject constructor(
         val d2 = t2 / (1000 * 60 * 60 * 24)
         return d2 == d1 + 1
     }
-
-    private val PRAYER_SEED = listOf(
-        DailyPrayer(1, "Lord, in this digital wilderness of endless noise, anchor my spirit in Your unchanging code. Filter every feed, every ping, every thought through Your truth. Let Your peace override every system error and keep my heart online with You 24/7.", "“Be still, and know that I am God.” — Psalm 46:10"),
-        DailyPrayer(2, "Father, baptize my words in holy fire. Let my tongue speak life into dead systems and my hands build according to Your blueprint. Protect me from the enemy’s malware and grant me boldness to declare Your Word in every node I enter.", "“Let the words of my mouth and the meditation of my heart be acceptable in Your sight, O Lord.” — Psalm 19:14"),
-        DailyPrayer(3, "Holy Spirit, strengthen the firewall around my mind. Shut down every lying spirit and upgrade my discernment protocols. Help me walk in the light as You are in the light and expose every shadow attempting to hack my soul.", "“If we walk in the light, as he is in the light, we have fellowship one with another, and the blood of Jesus Christ his Son cleanseth us from all sin.” — 1 John 1:7"),
-        DailyPrayer(4, "Lord, I yield my will to Your higher protocol. Take every ambition, every plan, every download and align it with Your perfect will. Let my life stream be a carrier of Your glory in this cyber age.", "“Trust in the Lord with all thine heart; and lean not unto thine own understanding.” — Proverbs 3:5"),
-        DailyPrayer(5, "Fill me afresh with Your power, Holy Ghost. Let the same fire that fell on Pentecost burn in me today. Activate every gift You have placed in me for the advancement of Your Kingdom.", "“But ye shall receive power, after that the Holy Ghost is come upon you…” — Acts 1:8"),
-        DailyPrayer(6, "Guard my gates, Lord—eyes, ears, and heart. Block every toxic signal and amplify Your still small voice above the roar of this world. Make me a clean channel for Your presence.", "“Keep thy heart with all diligence; for out of it are the issues of life.” — Proverbs 4:23"),
-        DailyPrayer(7, "Father, thank You for seven days of seeking Your face. Seal the breakthroughs, strengthen the weak nodes, and launch me into greater exploits in Your name.", "“The Lord is my strength and my shield; my heart trusted in him, and I am helped.” — Psalm 28:7"),
-        DailyPrayer(8, "Release fresh mercy over my life today. Wipe every error log, restore my soul, and renew my strength like the eagle’s upgrade protocol.", "“But they that wait upon the Lord shall renew their strength…” — Isaiah 40:31"),
-        DailyPrayer(9, "Equip me to stand against the wiles of the devil. Clothe me in the full armor of God so that I may withstand in this evil day and having done all, to stand.", "“Put on the whole armour of God…” — Ephesians 6:11"),
-        DailyPrayer(10, "Holy Spirit, teach me to pray without ceasing. Let my spirit pray even when my mind is occupied with daily tasks. Build an unbreakable uplink between heaven and my heart.", "“Praying always with all prayer and supplication in the Spirit…” — Ephesians 6:18"),
-        DailyPrayer(11, "Lord, make me a conduit of Your love in a cold digital world. Let every interaction carry the warmth of Your presence and draw souls toward the Light.", "“By this shall all men know that ye are my disciples, if ye have love one to another.” — John 13:35"),
-        DailyPrayer(12, "Break every chain of addiction, distraction, and fear in my life. Reformat my habits and install Your truth as the default operating system of my days.", "“Therefore if any man be in Christ, he is a new creature…” — 2 Corinthians 5:17"),
-        DailyPrayer(13, "Give me wisdom for every decision node I face today. Let Your Word be a lamp to my feet and a light to my path in this complex world.", "“Thy word is a lamp unto my feet, and a light unto my path.” — Psalm 119:105"),
-        DailyPrayer(14, "Lord, I declare Your favor over my life. Open doors no man can shut and close every door that leads away from Your purpose.", "“…he that openeth, and no man shutteth; and shutteth, and no man openeth.” — Revelation 3:7"),
-        DailyPrayer(15, "Anoint my hands for creative exploits. Let every project, every line of code, every idea I touch be blessed and multiply for Your glory.", "“And let the beauty of the Lord our God be upon us: and establish thou the work of our hands…” — Psalm 90:17"),
-        DailyPrayer(16, "Protect my family and my household network. Cover every member with Your blood and let no weapon formed against us prosper.", "“No weapon that is formed against thee shall prosper…” — Isaiah 54:17"),
-        DailyPrayer(17, "Fill my mouth with bold proclamation. Give me courage to share the Gospel in every digital and physical space You open.", "“Go ye into all the world, and preach the gospel to every creature.” — Mark 16:15"),
-        DailyPrayer(18, "Restore my joy, Lord. Let the joy of the Lord be my strength and my defense against every attack of heaviness.", "“…for the joy of the Lord is your strength.” — Nehemiah 8:10"),
-        DailyPrayer(19, "Teach me to number my days and live with eternal priority. Help me invest my time in what will last beyond this temporary system.", "“So teach us to number our days, that we may apply our hearts unto wisdom.” — Psalm 90:12"),
-        DailyPrayer(20, "Holy Spirit, activate the gifts within me. Let prophecy, healing, discernment, and faith flow freely as I yield to Your leading.", "“But the manifestation of the Spirit is given to every man to profit withal.” — 1 Corinthians 12:7"),
-        DailyPrayer(21, "Three weeks into this journey—thank You for every upgrade. Solidify the foundations and prepare me for the next level of Your glory.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it…” — Philippians 1:6"),
-        DailyPrayer(22, "Lord, let my life be a living epistle read by all. Make my character match the code You have written on my heart.", "“Ye are our epistle written in our hearts…” — 2 Corinthians 3:2"),
-        DailyPrayer(23, "Deliver me from every hidden snare and trap of the enemy. Expose every lie and establish my steps in Your truth.", "“Thou shalt tread upon the lion and adder…” — Psalm 91:13"),
-        DailyPrayer(24, "Give me a heart of gratitude that overrides every complaint protocol. Let praise be my default response in every circumstance.", "“In every thing give thanks: for this is the will of God in Christ Jesus concerning you.” — 1 Thessalonians 5:18"),
-        DailyPrayer(25, "Empower me to forgive quickly and completely. Release me from every root of bitterness that would corrupt my spirit.", "“And be ye kind one to another, tenderhearted, forgiving one another…” — Ephesians 4:32"),
-        DailyPrayer(26, "Lord, multiply my seed sown. Bless the work of my hands and cause every investment of time, talent, and treasure to bear eternal fruit.", "“Give, and it shall be given unto you…” — Luke 6:38"),
-        DailyPrayer(27, "Sanctify my imagination. Let every dream and vision I carry align with Your perfect plan for my life.", "“Where there is no vision, the people perish…” — Proverbs 29:18"),
-        DailyPrayer(28, "Four weeks of pursuit—thank You, Lord. Deepen my roots in You and expand my capacity to carry greater glory.", "“Rooted and built up in him, and stablished in the faith…” — Colossians 2:7"),
-        DailyPrayer(29, "Prepare me for divine appointments today. Let every conversation be orchestrated by Your Spirit for Kingdom impact.", "“A man’s heart deviseth his way: but the Lord directeth his steps.” — Proverbs 16:9"),
-        DailyPrayer(30, "Thirty days of drawing near—You have been faithful. Seal every lesson, every breakthrough, and launch me stronger into the next cycle.", "“Draw nigh to God, and he will draw nigh to you.” — James 4:8")
-    )
-
-    private val MONTH_2_SEED = listOf(
-        DailyPrayer(31, "Holy Spirit, increase my capacity to receive more of You. Expand my spirit’s bandwidth so I can carry greater measures of Your glory and power in this generation.", "“And they were all filled with the Holy Ghost, and began to speak with other tongues…” — Acts 2:4"),
-        DailyPrayer(32, "Lord, sharpen my spiritual discernment in every feed and conversation. Let me instantly detect every counterfeit signal and stand firm in Your truth.", "“Beloved, believe not every spirit, but try the spirits whether they are of God…” — 1 John 4:1"),
-        DailyPrayer(33, "Release divine strategies over my life. Download heavenly blueprints that outsmart every plan of the enemy and cause me to prosper in every node.", "“For I know the thoughts that I think toward you, saith the Lord, thoughts of peace…” — Jeremiah 29:11"),
-        DailyPrayer(34, "Father, heal every fragmented part of my soul. Recompile my emotions, memories, and inner code under the authority of Your restoring power.", "“He healeth the broken in heart, and bindeth up their wounds.” — Psalm 147:3"),
-        DailyPrayer(35, "Activate supernatural boldness in me. Let me speak Your Word with authority that shakes systems and sets captives free in every digital and physical realm.", "“And when they had prayed… they were all filled with the Holy Ghost, and they spake the word of God with boldness.” — Acts 4:31"),
-        DailyPrayer(36, "Lord, order my steps today. Redirect every wrong turn and align my path with Your perfect timing and divine appointments.", "“The steps of a good man are ordered by the Lord…” — Psalm 37:23"),
-        DailyPrayer(37, "Build unbreakable endurance in my spirit. When the trials come like system overload, let me stand firm and finish stronger than I started.", "“And let us not be weary in well doing: for in due season we shall reap…” — Galatians 6:9"),
-        DailyPrayer(38, "Fill my home with Your presence. Let peace reign in every room and turn my household into a sanctuary that reflects Your Kingdom.", "“As for me and my house, we will serve the Lord.” — Joshua 24:15"),
-        DailyPrayer(39, "Anoint my finances with Kingdom economics. Teach me to steward every resource so that lack is deleted from my operating system.", "“But my God shall supply all your need according to his riches in glory…” — Philippians 4:19"),
-        DailyPrayer(40, "Holy Spirit, release fresh revelation. Open the eyes of my understanding to see truths in Your Word that shift my entire reality.", "“That the God of our Lord Jesus Christ… may give unto you the spirit of wisdom and revelation…” — Ephesians 1:17"),
-        DailyPrayer(41, "Guard my tongue from every idle word. Let only life-giving code flow from my mouth and cancel every curse protocol of the enemy.", "“Death and life are in the power of the tongue…” — Proverbs 18:21"),
-        DailyPrayer(42, "Lord, make me a soul-winner in this digital harvest field. Give me creative ways to share the Gospel that cut through noise and reach hearts.", "“Go ye therefore, and teach all nations…” — Matthew 28:19"),
-        DailyPrayer(43, "Renew my youth like the eagle. Restore my energy, vision, and passion as I wait upon You each morning.", "“But they that wait upon the Lord shall renew their strength; they shall mount up with wings as eagles…” — Isaiah 40:31"),
-        DailyPrayer(44, "Break every generational chain in my bloodline. Reformat inherited patterns and install Your blessing as the new family operating system.", "“Christ hath redeemed us from the curse of the law…” — Galatians 3:13"),
-        DailyPrayer(45, "Forty-five days of pursuit—thank You for Your faithfulness. Solidify every upgrade and prepare me for greater exploits ahead.", "“Faithful is he that calleth you, who also will do it.” — 1 Thessalonians 5:24"),
-        DailyPrayer(46, "Release creative miracles through my hands. Let signs and wonders follow me as I walk in obedience to Your voice.", "“And these signs shall follow them that believe…” — Mark 16:17"),
-        DailyPrayer(47, "Lord, teach me contentment in every season. Let my joy be rooted in You, not in external system updates or status.", "“Not that I speak in respect of want: for I have learned, in whatsoever state I am, therewith to be content.” — Philippians 4:11"),
-        DailyPrayer(48, "Strengthen my prayer language. Let my tongues uplink grow more fluent and powerful as I yield daily to the Holy Spirit.", "“He that speaketh in an unknown tongue edifieth himself…” — 1 Corinthians 14:4"),
-        DailyPrayer(49, "Cover my mind with the helmet of salvation. Shut down every anxious thought and install perfect peace that surpasses understanding.", "“And the peace of God, which passeth all understanding, shall keep your hearts and minds…” — Philippians 4:7"),
-        DailyPrayer(50, "Position me for divine favor. Let doors open supernaturally and cause even my enemies to bless me.", "“Thou preparest a table before me in the presence of mine enemies…” — Psalm 23:5"),
-        DailyPrayer(51, "Lord, make my worship pure. Let every praise session be a direct uplink that shakes heaven and earth.", "“But thou art holy, O thou that inhabitest the praises of Israel.” — Psalm 22:3"),
-        DailyPrayer(52, "Give me a heart after Your own. Remove every selfish protocol and install humility and servant leadership as my default.", "“Take my yoke upon you, and learn of me; for I am meek and lowly in heart…” — Matthew 11:29"),
-        DailyPrayer(53, "Defend me from every hidden attack. Expose every plot of darkness and turn it for my good and Your glory.", "“No weapon that is formed against thee shall prosper…” — Isaiah 54:17"),
-        DailyPrayer(54, "Multiply my influence for Your Kingdom. Let every seed I sow online and offline produce a harvest that glorifies Your name.", "“He which soweth sparingly shall reap also sparingly…” — 2 Corinthians 9:6"),
-        DailyPrayer(55, "Holy Spirit, comfort and counsel me in every decision. Be my constant guide through every unknown protocol ahead.", "“Howbeit when he, the Spirit of truth, is come, he will guide you into all truth…” — John 16:13"),
-        DailyPrayer(56, "Eight weeks of drawing near—seal the progress and launch me into a new dimension of faith and power.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it…” — Philippians 1:6"),
-        DailyPrayer(57, "Restore my first love for You. Ignite fresh passion that burns brighter than any distraction this world offers.", "“Nevertheless I have somewhat against thee, because thou hast left thy first love.” — Revelation 2:4"),
-        DailyPrayer(58, "Lord, make me quick to hear and slow to speak. Let every input from heaven shape my output in the earth.", "“Wherefore, my beloved brethren, let every man be swift to hear, slow to speak…” — James 1:19"),
-        DailyPrayer(59, "Release fresh oil over my life. Anoint me with joy, power, and clarity for the tasks You have assigned.", "“…the yoke shall be destroyed because of the anointing.” — Isaiah 10:27"),
-        DailyPrayer(60, "Sixty days deeper in You—thank You, Lord. Root me stronger, expand my borders, and prepare me for the next season of glory.", "“Draw nigh to God, and he will draw nigh to you.” — James 4:8")
-    )
-
-    private val MONTH_3_SEED = listOf(
-        DailyPrayer(61, "Holy Spirit, deepen the roots of my faith until they reach the living waters of Your presence. Let every storm only reveal how firmly I am anchored in You.", "“And the rain descended, and the floods came, and the winds blew… and it fell not: for it was founded upon a rock.” — Matthew 7:25"),
-        DailyPrayer(62, "Lord, upgrade my love capacity. Remove every limit and let Your agape flow through me into a world starving for genuine connection.", "“And above all these things put on charity, which is the bond of perfectness.” — Colossians 3:14"),
-        DailyPrayer(63, "Release the breaker anointing over every closed door in my life. Let every stronghold crumble and every delayed promise break through suddenly.", "“The breaker is come up before them… and the Lord on the head of them.” — Micah 2:13"),
-        DailyPrayer(64, "Father, train my hands for war and my fingers for battle. Equip me to pull down strongholds and advance Your Kingdom with precision and power.", "“Blessed be the Lord my strength, which teacheth my hands to war, and my fingers to fight.” — Psalm 144:1"),
-        DailyPrayer(65, "Sanctify my thoughts at the root level. Let every imagination come under the obedience of Christ and produce life instead of death.", "“Casting down imaginations, and every high thing that exalteth itself against the knowledge of God…” — 2 Corinthians 10:5"),
-        DailyPrayer(66, "Position me as a lighthouse in dark waters. Let my life shine with clarity and draw many ships safely into the harbor of salvation.", "“Ye are the light of the world. A city that is set on an hill cannot be hid.” — Matthew 5:14"),
-        DailyPrayer(67, "Lord, multiply my time. Teach me to redeem every second so that I accomplish eternal work in temporary systems.", "“Redeeming the time, because the days are evil.” — Ephesians 5:16"),
-        DailyPrayer(68, "Holy Spirit, refine my worship until it becomes a pure stream that invites Your manifest presence into every space I enter.", "“But the hour cometh, and now is, when the true worshippers shall worship the Father in spirit and in truth.” — John 4:23"),
-        DailyPrayer(69, "Break every spirit of fear and timidity. Replace it with power, love, and a sound mind as I walk boldly in my calling.", "“For God hath not given us the spirit of fear; but of power, and of love, and of a sound mind.” — 2 Timothy 1:7"),
-        DailyPrayer(70, "Seventy days of seeking—thank You for every layer You have peeled back. Now fill the new space with greater glory and fresh oil.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it…” — Philippians 1:6"),
-        DailyPrayer(71, "Lord, make me a vessel of honor. Purge every impurity so that I carry Your presence with purity and authority.", "“But in a great house there are not only vessels of gold and of silver, but also of wood and of earth…” — 2 Timothy 2:20"),
-        DailyPrayer(72, "Download strategies for supernatural provision. Teach me to walk in abundance that overflows to every good work.", "“And God is able to make all grace abound toward you; that ye… may abound to every good work.” — 2 Corinthians 9:8"),
-        DailyPrayer(73, "Activate the seer dimension in me. Open my eyes to see in the Spirit realm what is hidden from natural sight.", "“And Elisha prayed, and said, Lord, I pray thee, open his eyes, that he may see.” — 2 Kings 6:17"),
-        DailyPrayer(74, "Guard my rest. Teach me to enter Your Sabbath peace even in the middle of digital chaos and constant notifications.", "“Come unto me, all ye that labour and are heavy laden, and I will give you rest.” — Matthew 11:28"),
-        DailyPrayer(75, "Raise up intercessors around me and make me one. Let united prayer shift atmospheres and loose heaven on earth.", "“If two of you shall agree on earth as touching any thing… it shall be done for them.” — Matthew 18:19"),
-        DailyPrayer(76, "Lord, let my life produce lasting fruit. Prune every dead branch so that I bear much for Your Kingdom.", "“I am the vine, ye are the branches: He that abideth in me… bringeth forth much fruit.” — John 15:5"),
-        DailyPrayer(77, "Eleven weeks in—seal the transformation and launch me into accelerated growth and greater influence.", "“But grow in grace, and in the knowledge of our Lord and Saviour Jesus Christ.” — 2 Peter 3:18"),
-        DailyPrayer(78, "Anoint me for creative problem-solving. Let solutions flow from heaven that the world cannot replicate.", "“Call unto me, and I will answer thee, and shew thee great and mighty things, which thou knowest not.” — Jeremiah 33:3"),
-        DailyPrayer(79, "Remove every mask and pretense. Make me authentic, transparent, and dangerous to the kingdom of darkness.", "“Behold, thou desirest truth in the inward parts…” — Psalm 51:6"),
-        DailyPrayer(80, "Lord, teach me spiritual warfare at a higher level. Give me authority to bind and loose according to Your will.", "“Verily I say unto you, Whatsoever ye shall bind on earth shall be bound in heaven…” — Matthew 18:18"),
-        DailyPrayer(81, "Fill my mouth with prophetic declaration. Let every word I speak carry creative power and shift destinies.", "“Death and life are in the power of the tongue…” — Proverbs 18:21"),
-        DailyPrayer(82, "Prepare my heart for greater responsibility. Expand my capacity to steward more of Your resources and influence.", "“Well done, thou good and faithful servant: thou hast been faithful over a few things, I will make thee ruler over many…” — Matthew 25:21"),
-        DailyPrayer(83, "Cover my children and future generations with Your covenant. Let generational blessings flow stronger than any curse.", "“But the mercy of the Lord is from everlasting to everlasting upon them that fear him…” — Psalm 103:17"),
-        DailyPrayer(84, "Twelve weeks deeper—thank You, Lord. Strengthen the foundation and raise the ceiling on what I can contain of Your glory.", "“Draw nigh to God, and he will draw nigh to you.” — James 4:8"),
-        DailyPrayer(85, "Release the spirit of excellence in everything I touch. Let mediocrity die and divine quality rise in my work and walk.", "“Then this Daniel was preferred above the presidents… because an excellent spirit was in him.” — Daniel 6:3"),
-        DailyPrayer(86, "Lord, make me a repairer of broken systems. Use me to restore hope, relationships, and destinies in Your name.", "“And they that shall be of thee shall build the old waste places…” — Isaiah 58:12"),
-        DailyPrayer(87, "Align my desires with Yours. Delete every selfish craving and install holy ambitions that advance Your Kingdom.", "“Delight thyself also in the Lord; and he shall give thee the desires of thine heart.” — Psalm 37:4"),
-        DailyPrayer(88, "Empower me to finish strong. Give me endurance to complete every assignment You have placed before me.", "“I have fought a good fight, I have finished my course, I have kept the faith.” — 2 Timothy 4:7"),
-        DailyPrayer(89, "Open the floodgates of revival in my sphere. Let hunger for You spread through every network I touch.", "“Wilt thou not revive us again: that thy people may rejoice in thee?” — Psalm 85:6"),
-        DailyPrayer(90, "Ninety days of pursuit—You have been faithful beyond measure. Seal every victory, heal every scar, and propel me forward into the next dimension.", "“The Lord will perfect that which concerneth me…” — Psalm 138:8")
-    )
-
-    private val MONTH_4_SEED = listOf(
-        DailyPrayer(91, "Holy Spirit, elevate my faith to mountain-moving levels. Let every promise in Your Word become executable code in my life as I speak and act in agreement with heaven.", "“If ye have faith as a grain of mustard seed… nothing shall be impossible unto you.” — Matthew 17:20"),
-        DailyPrayer(92, "Lord, train me as a spiritual strategist. Give me intelligence briefings from heaven that dismantle every scheme of darkness before it deploys.", "“For we wrestle not against flesh and blood, but against principalities, against powers…” — Ephesians 6:12"),
-        DailyPrayer(93, "Release the mantle of leadership upon me. Let me shepherd souls with wisdom, humility, and the fire of Your presence in every sphere You assign.", "“Feed my sheep… Feed my lambs.” — John 21:15-17"),
-        DailyPrayer(94, "Father, activate creative miracles in my hands. Let signs and wonders confirm Your Word as I lay hands on the sick and speak to impossible situations.", "“And these signs shall follow them that believe… they shall lay hands on the sick, and they shall recover.” — Mark 16:17-18"),
-        DailyPrayer(95, "Sanctify my ambitions. Delete every self-promotion protocol and install Kingdom-first priorities that bring eternal reward.", "“But seek ye first the kingdom of God, and his righteousness; and all these things shall be added unto you.” — Matthew 6:33"),
-        DailyPrayer(96, "Lord, make my life a walking testimony. Let every trial I overcome become a beacon that draws the lost into Your saving grace.", "“And they overcame him by the blood of the Lamb, and by the word of their testimony…” — Revelation 12:11"),
-        DailyPrayer(97, "Expand my borders and enlarge my territory. Give me influence that reaches nations and generations through every digital and physical gateway.", "“Enlarge the place of thy tent… and strengthen thy stakes.” — Isaiah 54:2"),
-        DailyPrayer(98, "Holy Spirit, fine-tune my hearing. Let me discern Your voice above every other signal, notification, and distraction in this noisy age.", "“My sheep hear my voice, and I know them, and they follow me.” — John 10:27"),
-        DailyPrayer(99, "Ninety-nine days in—thank You for Your relentless pursuit of my heart. Now accelerate the transformation and prepare me for harvest season.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it…” — Philippians 1:6"),
-        DailyPrayer(100, "Lord, baptize my finances with supernatural increase. Teach me Kingdom investment principles that multiply resources for every good work.", "“Bring ye all the tithes into the storehouse… and prove me now herewith, saith the Lord of hosts…” — Malachi 3:10"),
-        DailyPrayer(101, "Release the spirit of excellence in my relationships. Let love, honor, and covenant become the unbreakable backbone of every connection.", "“Above all, keep fervent in your love for one another, because love covers a multitude of sins.” — 1 Peter 4:8"),
-        DailyPrayer(102, "Equip me to raise up the next generation of warriors. Give me wisdom to disciple, mentor, and impart fire to those coming behind me.", "“And the things that thou hath heard of me among many witnesses, the same commit thou to faithful men…” — 2 Timothy 2:2"),
-        DailyPrayer(103, "Break every ceiling of limitation over my life. Let faith vault me into new realms of glory and assignment.", "“Eye hath not seen, nor ear heard… the things which God hath prepared for them that love him.” — 1 Corinthians 2:9"),
-        DailyPrayer(104, "Lord, let my worship become warfare. Every song, every declaration a missile that dismantles demonic strongholds.", "“Let the high praises of God be in their mouth, and a twoedged sword in their hand.” — Psalm 149:6"),
-        DailyPrayer(105, "Fifteen weeks of consistency—seal the discipline and release fresh momentum for the long race ahead.", "“Wherefore seeing we also are compassed about with so great a cloud of witnesses… let us run with patience the race…” — Hebrews 12:1"),
-        DailyPrayer(106, "Anoint me for healing and deliverance. Let every conversation carry resurrection power into broken lives and systems.", "“How God anointed Jesus of Nazareth with the Holy Ghost and with power: who went about doing good, and healing all…” — Acts 10:38"),
-        DailyPrayer(107, "Guard my legacy. Let every seed I sow today produce fruit that outlives me and glorifies Your name for generations.", "“A good man leaveth an inheritance to his children’s children…” — Proverbs 13:22"),
-        DailyPrayer(108, "Holy Spirit, make me a carrier of revival fire. Let my presence ignite hunger wherever I go in this digital and physical world.", "“And it shall come to pass in the last days, saith God, I will pour out of my Spirit upon all flesh…” — Acts 2:17"),
-        DailyPrayer(109, "Lord, align my body, soul, and spirit in perfect sync. Heal every area and optimize me for maximum Kingdom impact.", "“Beloved, I wish above all things that thou mayest prosper and be in health, even as thy soul prospereth.” — 3 John 1:2"),
-        DailyPrayer(110, "Position me for divine intersections. Orchestrate meetings, opportunities, and connections that accelerate Your purpose.", "“A man’s heart deviseth his way: but the Lord directeth his steps.” — Proverbs 16:9"),
-        DailyPrayer(111, "Delete every orphan spirit and install full sonship identity. Let me live as a beloved heir with complete access to Your resources.", "“For ye have not received the spirit of bondage again to fear; but ye have received the Spirit of adoption…” — Romans 8:15"),
-        DailyPrayer(112, "Sixteen weeks deeper—thank You, Lord. Fortify the walls, expand the gates, and fill me with greater measures of Your glory.", "“Draw nigh to God, and he will draw nigh to you.” — James 4:8"),
-        DailyPrayer(113, "Release governmental authority in the Spirit. Let me legislate in prayer and see heavenly decrees manifest on earth.", "“Thy kingdom come. Thy will be done in earth, as it is in heaven.” — Matthew 6:10"),
-        DailyPrayer(114, "Lord, make me quick to obey. Remove every delay mechanism so Your instructions execute instantly in my life.", "“I made haste, and delayed not to keep thy commandments.” — Psalm 119:60"),
-        DailyPrayer(115, "Anoint me with fresh oil daily. Let joy, strength, and clarity flow continuously from Your presence.", "“…the yoke shall be destroyed because of the anointing.” — Isaiah 10:27"),
-        DailyPrayer(116, "Prepare me for end-time harvest. Give me wisdom, courage, and power to stand and shine as darkness increases.", "“And then shall they see the Son of man coming in a cloud with power and great glory.” — Luke 21:27"),
-        DailyPrayer(117, "Multiply my capacity to love the unlovable. Let Your compassion override every natural response in difficult nodes.", "“But I say unto you, Love your enemies, bless them that curse you…” — Matthew 5:44"),
-        DailyPrayer(118, "Lord, let my life be a pure stream that refreshes others and carries Your presence into dry places.", "“He that believeth on me, as the scripture hath said, out of his belly shall flow rivers of living water.” — John 7:38"),
-        DailyPrayer(119, "Seventeen weeks of pursuit—You remain faithful. Deepen my roots and launch me into greater exploits for Your name.", "“The Lord will perfect that which concerneth me…” — Psalm 138:8"),
-        DailyPrayer(120, "One hundred twenty days stronger—seal every layer, heal every wound, and ignite fresh vision for the months ahead.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it until the day of Jesus Christ.” — Philippians 1:6")
-    )
-
-    private val MONTH_5_SEED = listOf(
-        DailyPrayer(121, "Holy Spirit, take me deeper into the secret place. Let every moment alone with You become a power generator that charges my spirit for every assignment in the open nodes.", "“But thou, when thou prayest, enter into thy closet, and when thou hast shut thy door, pray to thy Father which is in secret…” — Matthew 6:6"),
-        DailyPrayer(122, "Lord, refine my character in the fire of testing. Burn away every impurity so that my life reflects the pure image of Christ in every interaction.", "“But we all, with open face beholding as in a glass the glory of the Lord, are changed into the same image…” — 2 Corinthians 3:18"),
-        DailyPrayer(123, "Release supernatural provision for every Kingdom project. Let resources flow in ways that testify that this is Your doing and not man’s.", "“And my God shall supply all your need according to his riches in glory by Christ Jesus.” — Philippians 4:19"),
-        DailyPrayer(124, "Father, make me a master builder in the Spirit. Give me blueprints and endurance to construct lasting works that will stand in eternity.", "“For other foundation can no man lay than that is laid, which is Jesus Christ.” — 1 Corinthians 3:11"),
-        DailyPrayer(125, "Activate holy dissatisfaction with status quo. Stir me to press toward the mark and never settle for less than Your best.", "“Brethren, I count not myself to have apprehended: but this one thing I do, forgetting those things which are behind…” — Philippians 3:13-14"),
-        DailyPrayer(126, "Lord, let my presence carry Your aroma. Let every room, every chat, every feed I enter be impacted by the fragrance of Your presence.", "“For we are unto God a sweet savour of Christ…” — 2 Corinthians 2:15"),
-        DailyPrayer(127, "Break every cycle of defeat in my mind. Reprogram my thought protocols with Your victorious Word and establish me in triumph.", "“And be not conformed to this world: but be ye transformed by the renewing of your mind…” — Romans 12:2"),
-        DailyPrayer(128, "Holy Spirit, teach me the art of waiting with expectancy. Let every delay become a setup for a greater demonstration of Your power.", "“But they that wait upon the Lord shall renew their strength; they shall mount up with wings as eagles…” — Isaiah 40:31"),
-        DailyPrayer(129, "Eighteen weeks and counting—thank You for sustaining me. Now accelerate every seed sown and bring forth multiplied harvest.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it…” — Philippians 1:6"),
-        DailyPrayer(130, "Anoint me for bold soul-winning. Give me divine openings and the right words to lead people from darkness into Your marvelous light.", "“Ye have not chosen me, but I have chosen you, and ordained you, that ye should go and bring forth fruit…” — John 15:16"),
-        DailyPrayer(131, "Lord, heal every area of hidden pain. Restore my emotions, memories, and inner code so I can run freely without limp or limitation.", "“He healeth the broken in heart, and bindeth up their wounds.” — Psalm 147:3"),
-        DailyPrayer(132, "Release the government of God through my prayers. Let decrees from my mouth shift atmospheres, nations, and individual destinies.", "“Thy kingdom come. Thy will be done in earth, as it is in heaven.” — Matthew 6:10"),
-        DailyPrayer(133, "Make me a peacemaker in turbulent systems. Let Your shalom flow through me and silence every storm I encounter.", "“Blessed are the peacemakers: for they called the children of God.” — Matthew 5:9"),
-        DailyPrayer(134, "Equip me with fresh mantles for the new season. Remove old limitations and clothe me with authority for greater exploits.", "“And it shall come to pass in that day, that his burden shall be taken away from off thy shoulder…” — Isaiah 10:27"),
-        DailyPrayer(135, "Nineteen weeks of faithfulness—seal the progress, deepen the roots, and prepare the ground for abundant fruit.", "“Draw nigh to God, and he will draw nigh to you.” — James 4:8"),
-        DailyPrayer(136, "Lord, let my generosity become legendary. Teach me to give with joy and watch You multiply every seed beyond measure.", "“Give, and it shall be given unto you; good measure, pressed down, and shaken together…” — Luke 6:38"),
-        DailyPrayer(137, "Strengthen my inner man daily. Let the Holy Ghost fortify my spirit so that outward pressure only reveals Your glory within.", "“That he would grant you, according to the riches of his glory, to be strengthened with might by his Spirit in the inner man.” — Ephesians 3:16"),
-        DailyPrayer(138, "Open my eyes to divine opportunities in the marketplace. Let Kingdom business strategies flow and prosper the work of my hands.", "“And let the beauty of the Lord our God be upon us: and establish thou the work of our hands…” — Psalm 90:17"),
-        DailyPrayer(139, "Guard my heart from offense and bitterness. Keep me soft, quick to forgive, and free to love at all times.", "“Keep thy heart with all diligence; for out of it are the issues of life.” — Proverbs 4:23"),
-        DailyPrayer(140, "Twenty weeks in—thank You, Lord. You have been my firewall and my upgrade. Now launch me into the fullness of Your purpose.", "“The Lord will perfect that which concerneth me…” — Psalm 138:8"),
-        DailyPrayer(141, "Release the spirit of wisdom and revelation. Let me see solutions and strategies that the natural mind cannot comprehend.", "“That the God of our Lord Jesus Christ… may give unto you the spirit of wisdom and revelation in the knowledge of him.” — Ephesians 1:17"),
-        DailyPrayer(142, "Lord, make me dangerous to the kingdom of darkness. Let every step I take advance Your territory and diminish the enemy’s.", "“Submit yourselves therefore to God. Resist the devil, and he will flee from you.” — James 4:7"),
-        DailyPrayer(143, "Fill my home and family with covenant peace. Let every member encounter You personally and walk in divine alignment.", "“As for me and my house, we will serve the Lord.” — Joshua 24:15"),
-        DailyPrayer(144, "Anoint me to finish every assignment with excellence. Remove weariness and sustain me with fresh oil until completion.", "“I have fought a good fight, I have finished my course, I have kept the faith.” — 2 Timothy 4:7"),
-        DailyPrayer(145, "Twenty-one weeks deeper—solidify the foundation and raise new ceilings on what I can contain and release of Your glory.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it…” — Philippians 1:6"),
-        DailyPrayer(146, "Lord, let my life preach louder than my words. Make my daily walk a living epistle that points souls to Jesus.", "“Ye are our epistle written in our hearts, known and read of all men.” — 2 Corinthians 3:2"),
-        DailyPrayer(147, "Activate increased angelic assistance around my life and assignments. Let ministering spirits work on my behalf as I obey Your voice.", "“Are they not all ministering spirits, sent forth to minister for them who shall be heirs of salvation?” — Hebrews 1:14"),
-        DailyPrayer(148, "Renew my passion for Your presence above all else. Let nothing compete with the joy of sitting at Your feet.", "“Mary hath chosen that good part, which shall not be taken away from her.” — Luke 10:42"),
-        DailyPrayer(149, "Prepare me to disciple nations. Give me global vision and local faithfulness to advance Your Kingdom on every continent.", "“Go ye therefore, and teach all nations, baptizing them in the name of the Father…” — Matthew 28:19"),
-        DailyPrayer(150, "One hundred fifty days of drawing near—You are faithful. Seal every breakthrough, heal every scar, and ignite fresh fire for the journey ahead.", "“Draw nigh to God, and he will draw nigh to you.” — James 4:8")
-    )
-
-    private val MONTH_6_SEED = listOf(
-        DailyPrayer(151, "Holy Spirit, establish me in unshakeable confidence in Your faithfulness. Let every past upgrade become fuel for bolder faith as I step into greater territories You have prepared.", "“Now faith is the substance of things hoped for, the evidence of things not seen.” — Hebrews 11:1"),
-        DailyPrayer(152, "Lord, ignite sustained revival fire in my spirit. Let it burn continuously so that I become a walking ignition point for awakening in every node I touch.", "“And the fire upon the altar shall be burning in it; it shall not be put out.” — Leviticus 6:12"),
-        DailyPrayer(153, "Release multiplied harvest from every seed sown in the first 150 days. Let delayed breakthroughs manifest suddenly and overflow into the lives around me.", "“And let us not be weary in well doing: for in due season we shall reap, if we faint not.” — Galatians 6:9"),
-        DailyPrayer(154, "Father, perfect my obedience protocols. Train me to hear and respond instantly so that my life stays perfectly synced with Your real-time directives.", "“If ye be willing and obedient, ye shall eat the good of the land.” — Isaiah 1:19"),
-        DailyPrayer(155, "Twenty-two weeks of pursuit—thank You for carrying me this far. Now fortify every weak node and launch me into accelerated Kingdom momentum.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it…” — Philippians 1:6"),
-        DailyPrayer(156, "Anoint me with fresh discernment for the times we are in. Let me read the spiritual weather and navigate every storm with heavenly strategy.", "“And of the children of Issachar, which were men that had understanding of the times, to know what Israel ought to do.” — 1 Chronicles 12:32"),
-        DailyPrayer(157, "Lord, make my life a conduit of supernatural peace. Let Your shalom override chaos in every conversation, project, and relationship I engage.", "“Peace I leave with you, my peace I give unto you: not as the world giveth, give I unto you.” — John 14:27"),
-        DailyPrayer(158, "Expand my capacity to host Your glory. Enlarge my spirit’s container so I can carry and release greater measures of Your power without leaking.", "“Enlarge the place of thy tent, and let them stretch forth the curtains of thine habitations.” — Isaiah 54:2"),
-        DailyPrayer(159, "Delete every performance mentality. Teach me to rest in Your finished work while still running with full diligence in my assignments.", "“Come unto me, all ye that labour and are heavy laden, and I will give you rest.” — Matthew 11:28"),
-        DailyPrayer(160, "Twenty-three weeks deeper—seal the transformation and raise new levels of authority and influence for the battles ahead.", "“Draw nigh to God, and he will draw nigh to you.” — James 4:8"),
-        DailyPrayer(161, "Lord, activate the Joseph anointing in my life. Turn every pit, prison, and test into a platform that advances Your Kingdom and blesses nations.", "“But as for you, ye thought evil against me; but God meant it unto good…” — Genesis 50:20"),
-        DailyPrayer(162, "Release creative solutions for every mountain I face. Let heavenly downloads bypass natural limitations and produce breakthrough results.", "“Call unto me, and I will answer thee, and shew thee great and mighty things, which thou knowest not.” — Jeremiah 33:3"),
-        DailyPrayer(163, "Guard my family covenant with fresh strength. Let every member walk in salvation, power, and destiny alignment under Your covering.", "“Believe on the Lord Jesus Christ, and thou shalt be saved, and thy house.” — Acts 16:31"),
-        DailyPrayer(164, "Make me a consistent intercessor. Let my prayers become sustained fuel that shifts atmospheres and looses angels on assignment.", "“Praying always with all prayer and supplication in the Spirit, and watching thereunto with all perseverance…” — Ephesians 6:18"),
-        DailyPrayer(165, "Twenty-four weeks of faithfulness—thank You, Lord. Deepen my roots, sharpen my sword, and prepare me for greater exploits.", "“The Lord will perfect that which concerneth me…” — Psalm 138:8"),
-        DailyPrayer(166, "Anoint my digital and physical footprint. Let every post, every meeting, every interaction carry eternal weight and draw souls to You.", "“Let your light so shine before men, that they may see your good works, and glorify your Father which is in heaven.” — Matthew 5:16"),
-        DailyPrayer(167, "Lord, sustain my joy in every season. Let the oil of gladness flow stronger than any pressure or opposition I encounter.", "“…the joy of the Lord is your strength.” — Nehemiah 8:10"),
-        DailyPrayer(168, "Equip me to mentor and raise leaders. Impart fire, wisdom, and character so the next generation burns brighter than this one.", "“And the things that thou hast heard of me among many witnesses, the same commit thou to faithful men…” — 2 Timothy 2:2"),
-        DailyPrayer(169, "Break every subtle compromise. Purify my walk until holiness becomes my default operating system in every hidden and public node.", "“Be ye holy; for I am holy.” — 1 Peter 1:16"),
-        DailyPrayer(170, "Twenty-five weeks in—You have been my constant uplink. Now flood me with fresh vision and power for the final stretch of this year.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it…” — Philippians 1:6"),
-        DailyPrayer(171, "Release the spirit of — wisdom, courage, and strategic leadership for the battles of this generation.", "“And Deborah, a prophetess… judged Israel at that time.” — Judges 4:4"),
-        DailyPrayer(172, "Lord, let my worship unlock new dimensions. Let every praise session open portals of glory that affect both heaven and earth.", "“But thou art holy, O thou that inhabitest the praises of Israel.” — Psalm 22:3"),
-        DailyPrayer(173, "Align my finances with Kingdom multiplication. Teach me to sow strategically and reap harvests that fund greater exploits.", "“Give, and it shall be given unto you; good measure, pressed down, and shaken together…” — Luke 6:38"),
-        DailyPrayer(174, "Strengthen my prayer language until it becomes a constant stream of power and edification flowing from my spirit.", "“He that speaketh in an unknown tongue edifieth himself…” — 1 Corinthians 14:4"),
-        DailyPrayer(175, "Twenty-six weeks of drawing near—seal the growth, heal every remaining scar, and propel me forward with renewed velocity.", "“Draw nigh to God, and he will draw nigh to you.” — James 4:8"),
-        DailyPrayer(176, "Lord, make me a restorer of paths to dwell in. Use me to rebuild broken walls and raise up ancient foundations in people’s lives.", "“And they that shall be of thee shall build the old waste places…” — Isaiah 58:12"),
-        DailyPrayer(177, "Fill me with bold apostolic courage. Let me pioneer new territories in the Spirit and establish beachheads for Your Kingdom.", "“And they went forth, and preached every where, the Lord working with them, and confirming the word with signs following.” — Mark 16:20"),
-        DailyPrayer(178, "Optimize my rest and recovery protocols. Teach me to recharge in Your presence so I burn long and bright without burnout.", "“It is vain for you to rise up early, to sit up late… for so he giveth his beloved sleep.” — Psalm 127:2"),
-        DailyPrayer(179, "Prepare my heart for greater responsibility and greater glory. Expand my capacity to steward what You are about to release.", "“Well done, thou good and faithful servant: thou hast been faithful over a few things, I will make thee ruler over many…” — Matthew 25:21"),
-        DailyPrayer(180, "One hundred eighty days stronger—thank You, Lord. You have been my firewall, my upgrade, and my constant companion. Seal this half-year milestone and ignite the next level.", "“The Lord will perfect that which concerneth me…” — Psalm 138:8")
-    )
-
-    private val MONTH_7_SEED = listOf(
-        DailyPrayer(181, "Holy Spirit, anchor me in deeper intimacy with the Father. Let every quiet moment become a direct uplink where I receive fresh blueprints and fresh fire for the days ahead.", "“Draw nigh to God, and he will draw nigh to you. Cleanse your hands, ye sinners; and purify your hearts…” — James 4:8"),
-        DailyPrayer(182, "Lord, fortify my spirit against weariness in the long race. Renew my inner reserves so I finish stronger than I began this year.", "“And let us not be weary in well doing: for in due season we shall reap, if we faint not.” — Galatians 6:9"),
-        DailyPrayer(183, "Release the spirit of wisdom for complex systems. Give me heavenly intelligence to navigate every challenge with precision and Kingdom favor.", "“If any of you lack wisdom, let him ask of God, that giveth to all men liberally…” — James 1:5"),
-        DailyPrayer(184, "Father, make my life a consistent carrier of hope. Let every word and action inject resurrection life into discouraged souls and failing systems.", "“Now the God of hope fill you with all joy and peace in believing, that ye may abound in hope…” — Romans 15:13"),
-        DailyPrayer(185, "Twenty-seven weeks of pursuit—thank You for Your sustaining grace. Solidify every foundation laid and prepare me for the next dimension of glory.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it…” — Philippians 1:6"),
-        DailyPrayer(186, "Anoint me with increased authority in prayer. Let every decree I release from this Altar shift situations in the natural realm.", "“Verily I say unto you, Whatsoever ye shall bind on earth shall be bound in heaven…” — Matthew 18:18"),
-        DailyPrayer(187, "Lord, purify my motives at the deepest level. Remove every trace of self-glory so that only Your name is magnified through my life.", "“Whether therefore ye eat, or drink, or whatsoever ye do, do all to the glory of God.” — 1 Corinthians 10:31"),
-        DailyPrayer(188, "Expand my territory in the Spirit. Give me greater influence and open new gates for Kingdom advancement in unexpected places.", "“Enlarge the place of thy tent, and let them stretch forth the curtains of thine habitations…” — Isaiah 54:2"),
-        DailyPrayer(189, "Strengthen the bonds of unity in my relationships and church family. Let love and covenant become unbreakable firewalls against division.", "“Behold, how good and how pleasant it is for brethren to dwell together in unity!” — Psalm 133:1"),
-        DailyPrayer(190, "Twenty-eight weeks deeper—You remain faithful. Now flood every area of my life with fresh oil and fresh vision for the harvest.", "“Draw nigh to God, and he will draw nigh to you.” — James 4:8"),
-        DailyPrayer(191, "Release the Barnabas anointing — encouragement, partnership, and lifting others higher as we advance together in this cyber age.", "“And Joses, who by the apostles was surnamed Barnabas… was a good man, and full of the Holy Ghost and of faith.” — Acts 11:24"),
-        DailyPrayer(192, "Lord, optimize my time and focus. Delete every distraction protocol and help me steward every hour for maximum eternal impact.", "“Redeeming the time, because the days are evil.” — Ephesians 5:16"),
-        DailyPrayer(193, "Activate supernatural favor on my assignments. Let doors swing open and resistance melt as I walk in obedience.", "“For thou, Lord, wilt bless the righteous; with favour wilt thou compass him as with a shield.” — Psalm 5:12"),
-        DailyPrayer(194, "Make me a conduit of healing and deliverance. Let Your power flow freely through me to set the captives free in every sphere.", "“How God anointed Jesus of Nazareth with the Holy Ghost and with power: who went about doing good, and healing all…” — Acts 10:38"),
-        DailyPrayer(195, "Twenty-nine weeks of consistency—seal the discipline and ignite fresh momentum for the final months of this first year.", "“The Lord will perfect that which concerneth me…” — Psalm 138:8"),
-        DailyPrayer(196, "Lord, deepen my hunger for Your Word. Let every scripture become living code that rewires my thinking and behavior.", "“Thy word is a lamp unto my feet, and a light unto my path.” — Psalm 119:105"),
-        DailyPrayer(197, "Break every remaining hidden stronghold. Expose and evict every lingering darkness so Your light shines unhindered.", "“If we walk in the light, as he is in the light, we have fellowship one with another…” — 1 John 1:7"),
-        DailyPrayer(198, "Position me as a bridge-builder between heaven and earth. Let my life demonstrate that Your Kingdom is truly at hand.", "“Thy kingdom come. Thy will be done in earth, as it is in heaven.” — Matthew 6:10"),
-        DailyPrayer(199, "Thirty weeks in—thank You, Lord. You have been my constant signal. Now amplify Your voice and my response in the days ahead.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it…” — Philippians 1:6"),
-        DailyPrayer(200, "Release the spirit of bold proclamation. Let my testimony and Your Word cut through noise and reach hearts ready for salvation.", "“Go ye into all the world, and preach the gospel to every creature.” — Mark 16:15"),
-        DailyPrayer(201, "Lord, align my will completely with Yours. Delete every conflicting desire and install single-minded pursuit of Your purpose.", "“Delight thyself also in the Lord; and he shall give thee the desires of thine heart.” — Psalm 37:4"),
-        DailyPrayer(202, "Anoint my hands for creative and financial increase. Let every project and investment advance Your Kingdom agenda.", "“And let the beauty of the Lord our God be upon us: and establish thou the work of our hands…” — Psalm 90:17"),
-        DailyPrayer(203, "Guard my peace like a firewall. Let no external chaos penetrate the sanctuary You have built inside me.", "“And the peace of God, which passeth all understanding, shall keep your hearts and minds…” — Philippians 4:7"),
-        DailyPrayer(204, "Thirty-one weeks deeper—fortify every upgrade and prepare the soil of my heart for even greater fruit in the coming season.", "“Draw nigh to God, and he will draw nigh to you.” — James 4:8"),
-        DailyPrayer(205, "Raise my level of spiritual warfare intelligence. Teach me to war effectively with prophetic insight and targeted prayer.", "“For the weapons of our warfare are not carnal, but mighty through God to the pulling down of strong holds.” — 2 Corinthians 10:4"),
-        DailyPrayer(206, "Lord, make my worship a lifestyle. Let every breath, every task, every moment become an offering that pleases You.", "“I beseech you therefore… that ye present your bodies a living sacrifice, holy, acceptable unto God…” — Romans 12:1"),
-        DailyPrayer(207, "Multiply my capacity to disciple and equip others. Let my life reproduce mature believers who burn with the same fire.", "“And the things that thou hast heard of me among many witnesses, the same commit thou to faithful men…” — 2 Timothy 2:2"),
-        DailyPrayer(208, "Release fresh encounters with Your presence. Let every visit to the Cyber Altar become a genuine meeting with the living God.", "“Thou wilt shew me the path of life: in thy presence is fulness of joy…” — Psalm 16:11"),
-        DailyPrayer(209, "Thirty-two weeks of faithfulness—You are my strength and shield. Now accelerate every promise and bring them to full manifestation.", "“The Lord is my strength and my shield; my heart trusted in him, and I am helped.” — Psalm 28:7"),
-        DailyPrayer(210, "Two hundred ten days stronger—seal this seventh month with greater intimacy, power, and clarity. Prepare me fully for the remainder of the year in Your perfect will.", "“The Lord will perfect that which concerneth me…” — Psalm 138:8")
-    )
-
-    private val MONTH_8_SEED = listOf(
-        DailyPrayer(211, "Holy Spirit, root me even deeper in Your love so that nothing can uproot me. Let every fiber of my being pulse with the reality that I am fully known, fully accepted, and fully empowered in Christ.", "“That Christ may dwell in your hearts by faith; that ye, being rooted and grounded in love…” — Ephesians 3:17"),
-        DailyPrayer(212, "Lord, sharpen my prophetic edge. Let me hear and declare Your now-word with accuracy and boldness that shifts atmospheres and destinies.", "“Surely the Lord God will do nothing, but he revealeth his secret unto his servants the prophets.” — Amos 3:7"),
-        DailyPrayer(213, "Release supernatural acceleration over every delayed promise. Let this season be marked by suddenlies and overnight breakthroughs.", "“So shall my word be that goeth forth out of my mouth: it shall not return unto me void…” — Isaiah 55:11"),
-        DailyPrayer(214, "Father, make me a thermostat, not a thermometer. Let me set the spiritual temperature in every room and system I enter rather than merely reflecting it.", "“Ye are the salt of the earth… Ye are the light of the world.” — Matthew 5:13-14"),
-        DailyPrayer(215, "Thirty-one weeks of consistent pursuit—thank You for every layer You have built. Now strengthen the structure and prepare me for greater weight of glory.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it…” — Philippians 1:6"),
-        DailyPrayer(216, "Anoint me with fresh oil for the next level. Let joy, strength, and clarity overflow so I operate from overflow, not depletion.", "“…the yoke shall be destroyed because of the anointing.” — Isaiah 10:27"),
-        DailyPrayer(217, "Lord, align my entire life with Your perfect timing. Delete every premature move and every lingering delay so I hit every divine appointment.", "“To every thing there is a season, and a time to every purpose under the heaven.” — Ecclesiastes 3:1"),
-        DailyPrayer(218, "Expand my heart for the nations. Give me global vision while keeping me faithful in my local assignment and digital nodes.", "“And this gospel of the kingdom shall be preached in all the world for a witness unto all nations…” — Matthew 24:14"),
-        DailyPrayer(219, "Break every spirit of comparison and competition. Establish my identity so firmly in You that I celebrate others without insecurity.", "“But let every man prove his own work, and then shall he have rejoicing in himself alone…” — Galatians 6:4"),
-        DailyPrayer(220, "Thirty-two weeks deeper—You have been my constant signal. Now amplify every previous upgrade and launch me into new realms of authority.", "“Draw nigh to God, and he will draw nigh to you.” — James 4:8"),
-        DailyPrayer(221, "Lord, make my home a true sanctuary. Fill every room with Your presence and turn my household into a lighthouse for those who need salvation and deliverance.", "“As for me and my house, we will serve the Lord.” — Joshua 24:15"),
-        DailyPrayer(222, "Release creative strategies for wealth creation that honor You. Let Kingdom economics flow through my life and fund greater exploits.", "“Thou shalt remember the Lord thy God: for it is he that giveth thee power to get wealth…” — Deuteronomy 8:18"),
-        DailyPrayer(223, "Equip me to stand firm when culture pushes back. Give me courage, wisdom, and love to be salt and light in an increasingly dark age.", "“Watch ye, stand fast in the faith, quit you like men, be strong.” — 1 Corinthians 16:13"),
-        DailyPrayer(224, "Activate greater levels of the gifts of the Spirit in my daily walk. Let healing, prophecy, discernment, and faith operate freely as I yield.", "“But the manifestation of the Spirit is given to every man to profit withal.” — 1 Corinthians 12:7"),
-        DailyPrayer(225, "Thirty-three weeks of faithfulness—seal the progress, heal any remaining fatigue, and ignite fresh passion for the final stretch of this year.", "“The Lord will perfect that which concerneth me…” — Psalm 138:8"),
-        DailyPrayer(226, "Lord, let my words carry resurrection power. Speak life into dead situations and call forth things that be not as though they were.", "“(As it is written, I have made thee a father of many nations,) before him whom he believed, even God, who quickeneth the dead…” — Romans 4:17"),
-        DailyPrayer(227, "Purify my thought life completely. Let every meditation align with Your Word and produce peace, power, and purpose.", "“Finally, brethren, whatsoever things are true… think on these things.” — Philippians 4:8"),
-        DailyPrayer(228, "Position me for divine partnerships. Connect me with the right people at the right time to accomplish what I cannot do alone.", "“Two are better than one; because they have a good reward for their labour.” — Ecclesiastes 4:9"),
-        DailyPrayer(229, "Thirty-four weeks in—thank You for carrying me. Now raise the ceiling and expand the borders of what is possible in my life.", "“Enlarge the place of thy tent…” — Isaiah 54:2"),
-        DailyPrayer(230, "Lord, make me a safe place for the broken. Let Your compassion flow through me and draw the hurting into healing and freedom.", "“A bruised reed shall he not break, and smoking flax shall he not quench…” — Isaiah 42:3"),
-        DailyPrayer(231, "Release governmental intercession through me. Let my prayers legislate in the Spirit and see heaven’s will established on earth.", "“Thy kingdom come. Thy will be done in earth, as it is in heaven.” — Matthew 6:10"),
-        DailyPrayer(232, "Anoint me to finish every open assignment with excellence and joy. Remove every drag and sustain me until completion.", "“I have fought a good fight, I have finished my course, I have kept the faith.” — 2 Timothy 4:7"),
-        DailyPrayer(233, "Thirty-five weeks deeper—fortify my spirit, sharpen my discernment, and prepare me for the final push of this first year cycle.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it…” — Philippians 1:6"),
-        DailyPrayer(234, "Lord, let my legacy be one of souls won and disciples raised. Use every part of my life to reproduce fruit that remains.", "“Ye have not chosen me, but I have chosen you, and ordained you, that ye should go and bring forth fruit…” — John 15:16"),
-        DailyPrayer(235, "Fill me with holy boldness to confront darkness. Let Your light in me expose lies and set many free.", "“For God hath not given us the spirit of fear; but of power, and of love, and of a sound mind.” — 2 Timothy 1:7"),
-        DailyPrayer(236, "Optimize my rest in You. Teach me true Sabbath rhythm so I burn long and bright without burnout.", "“Come unto me… and I will give you rest.” — Matthew 11:28"),
-        DailyPrayer(237, "Thirty-six weeks of drawing near—You are my everything. Seal this month with greater intimacy and fresh encounters at the Altar.", "“Draw nigh to God, and he will draw nigh to you.” — James 4:8"),
-        DailyPrayer(238, "Release the spirit of wisdom for divine strategy in the marketplace. Let me move with precision and honor in every transaction.", "“And he hath filled him with the spirit of God, in wisdom, in understanding, and in knowledge, and in all manner of workmanship.” — Exodus 35:31"),
-        DailyPrayer(239, "Lord, multiply my influence for Your glory. Let every node I touch carry the weight of eternity.", "“Let your light so shine before men, that they may see your good works, and glorify your Father…” — Matthew 5:16"),
-        DailyPrayer(240, "Two hundred forty days stronger—thank You, Lord. You have been faithful through every season. Seal this eighth month and propel me powerfully into the final stretch of the year.", "“The Lord will perfect that which concerneth me…” — Psalm 138:8")
-    )
-
-    private val MONTH_9_SEED = listOf(
-        DailyPrayer(241, "Holy Spirit, draw me into greater depths of surrender. Let every hidden chamber of my heart be fully yielded so Your glory can flow unrestricted through my life in this final stretch of the year.", "“I beseech you therefore… that ye present your bodies a living sacrifice, holy, acceptable unto God, which is your reasonable service.” — Romans 12:1"),
-        DailyPrayer(242, "Lord, release the spirit of revival in my sphere. Let hunger for You spread like wildfire through every network, chat, and relationship I touch.", "“Wilt thou not revive us again: that thy people may rejoice in thee?” — Psalm 85:6"),
-        DailyPrayer(243, "Father, multiply the fruit of every previous month. Let every prayer, every seed, every obedience now produce a harvest that glorifies Your name.", "“He which soweth sparingly shall reap also sparingly; and he which soweth bountifully shall reap also bountifully.” — 2 Corinthians 9:6"),
-        DailyPrayer(244, "Sharpen my discernment for the end-time signals. Help me read the times accurately and stand firm with wisdom and power.", "“And of the children of Issachar… men that had understanding of the times, to know what Israel ought to do.” — 1 Chronicles 12:32"),
-        DailyPrayer(245, "Thirty-five weeks of consistent pursuit—thank You for never leaving me. Now accelerate every upgrade and prepare me for the closing chapters of this first year.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it…” — Philippians 1:6"),
-        DailyPrayer(246, "Anoint me with fresh boldness to declare Your truth. Let my words cut through deception and set many on the path of salvation.", "“For I am not ashamed of the gospel of Christ: for it is the power of God unto salvation…” — Romans 1:16"),
-        DailyPrayer(247, "Lord, perfect my rest in You. Teach me to abide in the secret place even amid increasing activity and responsibility.", "“He that dwelleth in the secret place of the most High shall abide under the shadow of the Almighty.” — Psalm 91:1"),
-        DailyPrayer(248, "Release divine acceleration over my Kingdom assignments. Let what once took years now manifest in months according to Your timing.", "“So shall my word be that goeth forth out of my mouth: it shall not return unto me void…” — Isaiah 55:11"),
-        DailyPrayer(249, "Thirty-six weeks deeper—You have been my firewall and my strength. Seal this month with greater intimacy and fresh encounters at the Altar.", "“Draw nigh to God, and he will draw nigh to you.” — James 4:8"),
-        DailyPrayer(250, "Lord, make me a vessel of honor fully prepared for every good work. Purge every impurity and fill me with Your excellence.", "“But in a great house there are… vessels of gold and of silver… If a man therefore purge himself from these, he shall be a vessel unto honour…” — 2 Timothy 2:20-21"),
-        DailyPrayer(251, "Expand my capacity to love the lost. Let compassion override judgment and give me effective strategies to reach souls in this digital age.", "“Go ye therefore, and teach all nations…” — Matthew 28:19"),
-        DailyPrayer(252, "Break every final chain of limitation. Let faith vault me into new levels of glory and assignment in the remaining days of this year.", "“Eye hath not seen, nor ear heard… the things which God hath prepared for them that love him.” — 1 Corinthians 2:9"),
-        DailyPrayer(253, "Thirty-seven weeks of faithfulness—thank You, Lord. Fortify every area and ignite fresh fire for the closing season.", "“The Lord will perfect that which concerneth me…” — Psalm 138:8"),
-        DailyPrayer(254, "Anoint my hands and words for healing and deliverance. Let signs and wonders follow as I walk in simple obedience.", "“And these signs shall follow them that believe… they shall lay hands on the sick, and they shall recover.” — Mark 16:17-18"),
-        DailyPrayer(255, "Lord, align my finances completely with Your Kingdom economy. Teach me to steward with wisdom and release with joy.", "“Bring ye all the tithes into the storehouse… and prove me now herewith, saith the Lord of hosts…” — Malachi 3:10"),
-        DailyPrayer(256, "Make my worship a powerful weapon. Let every praise session dismantle darkness and invite Your manifest presence.", "“Let the high praises of God be in their mouth, and a twoedged sword in their hand.” — Psalm 149:6"),
-        DailyPrayer(257, "Thirty-eight weeks in—You remain faithful. Now deepen my roots and expand my borders for greater impact.", "“Enlarge the place of thy tent…” — Isaiah 54:2"),
-        DailyPrayer(258, "Release the spirit of excellence in every detail. Let mediocrity die and divine quality rise in all I do.", "“Then this Daniel was preferred… because an excellent spirit was in him.” — Daniel 6:3"),
-        DailyPrayer(259, "Guard my heart and mind with perfect peace as pressures increase. Let Your shalom rule supreme.", "“And the peace of God, which passeth all understanding, shall keep your hearts and minds…” — Philippians 4:7"),
-        DailyPrayer(260, "Thirty-nine weeks deeper—seal every previous layer and prepare me for a powerful finish to this first year cycle.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it…” — Philippians 1:6"),
-        DailyPrayer(261, "Lord, position me for maximum Kingdom influence. Let every connection and opportunity advance Your purpose.", "“A man’s heart deviseth his way: but the Lord directeth his steps.” — Proverbs 16:9"),
-        DailyPrayer(262, "Activate greater levels of my prayer language. Let tongues become a constant source of strength and edification.", "“He that speaketh in an unknown tongue edifieth himself…” — 1 Corinthians 14:4"),
-        DailyPrayer(263, "Make me a repairer of the breach in families, communities, and systems. Use me to restore what the enemy has stolen.", "“And they that shall be of thee shall build the old waste places…” — Isaiah 58:12"),
-        DailyPrayer(264, "Forty weeks of pursuit—thank You, Lord. You have carried me faithfully. Now launch me into the final acceleration.", "“Draw nigh to God, and he will draw nigh to you.” — James 4:8"),
-        DailyPrayer(265, "Release fresh vision for 2027 and beyond. Let me see with clarity the assignments You have prepared.", "“Where there is no vision, the people perish…” — Proverbs 29:18"),
-        DailyPrayer(266, "Lord, let my life be a living epistle that preaches louder than words. Make my character match Your code.", "“Ye are our epistle written in our hearts, known and read of all men.” — 2 Corinthians 3:2"),
-        DailyPrayer(267, "Strengthen me to finish this year strong. Give me endurance, joy, and focus until the final day.", "“I have fought a good fight, I have finished my course, I have kept the faith.” — 2 Timothy 4:7"),
-        DailyPrayer(268, "Anoint me for greater soul-winning in the closing months. Open doors and give me the right words.", "“Go ye into all the world, and preach the gospel to every creature.” — Mark 16:15"),
-        DailyPrayer(269, "Forty-one weeks deeper—seal this ninth month with overwhelming gratitude and fresh encounters at the Cyber Altar.", "“In every thing give thanks: for this is the will of God in Christ Jesus concerning you.” — 1 Thessalonians 5:18"),
-        DailyPrayer(270, "Two hundred seventy days stronger—thank You, Lord. You have been my constant companion. Seal this month and position me perfectly for the final three months of breakthrough.", "“The Lord will perfect that which concerneth me…” — Psalm 138:8")
-    )
-
-    private val MONTH_10_SEED = listOf(
-        DailyPrayer(271, "Holy Spirit, bring me into the fullness of sonship identity. Let every orphan thought be deleted and install complete confidence that I am a beloved heir with full access to Your resources and power.", "“For ye have not received the spirit of bondage again to fear; but ye have received the Spirit of adoption, whereby we cry, Abba, Father.” — Romans 8:15"),
-        DailyPrayer(272, "Lord, release the final harvest wave of this year. Let every seed sown across the past nine months now produce multiplied fruit that impacts souls and systems for Your glory.", "“Say not ye, There are yet four months, and then cometh harvest? behold, I say unto you, Lift up your eyes, and look on the fields; for they are white already to harvest.” — John 4:35"),
-        DailyPrayer(273, "Father, perfect my endurance for the closing stretch. Let every previous upgrade converge into sustained strength so I finish this year stronger and wiser than I started.", "“But let patience have her perfect work, that ye may be perfect and entire, wanting nothing.” — James 1:4"),
-        DailyPrayer(274, "Anoint me with fresh prophetic insight for 2027. Download blueprints and strategies that position me ahead of every challenge and opportunity.", "“Call unto me, and I will answer thee, and shew thee great and mighty things, which thou knowest not.” — Jeremiah 33:3"),
-        DailyPrayer(275, "Thirty-nine weeks of faithful pursuit—thank You for carrying me through every season. Now accelerate the momentum and seal every breakthrough.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it…” — Philippians 1:6"),
-        DailyPrayer(276, "Lord, make my life a pure channel of Your glory. Remove every blockage so Your presence flows freely into every digital and physical space I enter.", "“He that believeth on me, as the scripture hath said, out of his belly shall flow rivers of living water.” — John 7:38"),
-        DailyPrayer(277, "Release supernatural favor over my remaining assignments this year. Let doors open wide and resistance dissolve as I walk in obedience.", "“For thou, Lord, wilt bless the righteous; with favour wilt thou compass him as with a shield.” — Psalm 5:12"),
-        DailyPrayer(278, "Deepen my gratitude protocols. Let praise become my default response in every circumstance, shifting atmospheres instantly.", "“In every thing give thanks: for this is the will of God in Christ Jesus concerning you.” — 1 Thessalonians 5:18"),
-        DailyPrayer(279, "Forty weeks deeper—You have been my constant uplink. Now amplify every layer built and prepare me for a powerful close to this first year.", "“Draw nigh to God, and he will draw nigh to you.” — James 4:8"),
-        DailyPrayer(280, "Lord, activate greater levels of the nine gifts of the Spirit. Let them operate naturally and powerfully as I yield moment by moment.", "“But the manifestation of the Spirit is given to every man to profit withal.” — 1 Corinthians 12:7"),
-        DailyPrayer(281, "Position me as a finisher. Give me the grace to complete every open project, commitment, and spiritual assignment with excellence and joy.", "“I have fought a good fight, I have finished my course, I have kept the faith.” — 2 Timothy 4:7"),
-        DailyPrayer(282, "Break every subtle distraction protocol that remains. Refocus my heart completely on You and Your Kingdom priorities.", "“Set your affection on things above, not on things on the earth.” — Colossians 3:2"),
-        DailyPrayer(283, "Forty-one weeks of consistency—thank You, Lord. Fortify my spirit and release fresh vision for the final push.", "“The Lord will perfect that which concerneth me…” — Psalm 138:8"),
-        DailyPrayer(284, "Anoint me for increased soul-winning impact. Let every conversation become an opportunity to lead people into the Sinner’s Prayer and beyond.", "“Go ye therefore, and teach all nations, baptizing them in the name of the Father…” — Matthew 28:19"),
-        DailyPrayer(285, "Lord, optimize my health and energy. Renew my body, soul, and spirit so I can run the final months with full strength.", "“Beloved, I wish above all things that thou mayest prosper and be in health, even as thy soul prospereth.” — 3 John 1:2"),
-        DailyPrayer(286, "Release the Deborah and Esther mantles together — wisdom, courage, strategic favor, and bold action for such a time as this.", "“…who knoweth whether thou art come to the kingdom for such a time as this?” — Esther 4:14"),
-        DailyPrayer(287, "Forty-two weeks deeper—seal this tenth month with overwhelming peace and fresh encounters every time I return to the Cyber Altar.", "“And the peace of God, which passeth all understanding, shall keep your hearts and minds…” — Philippians 4:7"),
-        DailyPrayer(288, "Lord, multiply my legacy seeds. Let everything I invest this year produce fruit that outlives me and advances Your Kingdom for generations.", "“A good man leaveth an inheritance to his children’s children…” — Proverbs 13:22"),
-        DailyPrayer(289, "Strengthen my prayer language until it becomes an unstoppable flow of power, edification, and direct communion.", "“He that speaketh in an unknown tongue edifieth himself…” — 1 Corinthians 14:4"),
-        DailyPrayer(290, "Forty-three weeks of pursuit—You remain faithful. Now accelerate every remaining promise and bring them into full manifestation.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it…” — Philippians 1:6"),
-        DailyPrayer(291, "Make me a builder of strong foundations. Help me establish systems, habits, and disciplines that will sustain greater glory in the years ahead.", "“For other foundation can no man lay than that is laid, which is Jesus Christ.” — 1 Corinthians 3:11"),
-        DailyPrayer(292, "Lord, let my worship ascend as pure incense. Let every session at the Altar release heaven on earth.", "“But thou art holy, O thou that inhabitest the praises of Israel.” — Psalm 22:3"),
-        DailyPrayer(293, "Forty-four weeks in—thank You for every upgrade. Now raise the ceiling and expand my capacity to carry and release more of You.", "“Enlarge the place of thy tent…” — Isaiah 54:2"),
-        DailyPrayer(294, "Release creative miracles and divine strategies for every mountain still standing. Let impossibilities bow to Your name.", "“Jesus said unto him, If thou canst believe, all things are possible to him that believeth.” — Mark 9:23"),
-        DailyPrayer(295, "Prepare my heart for a powerful year-end transition. Let me cross into the new season with full assurance and fresh fire.", "“Behold, I will do a new thing; now it shall spring forth…” — Isaiah 43:19"),
-        DailyPrayer(296, "Forty-five weeks deeper—seal every lesson, heal every scar, and ignite unstoppable momentum for the final stretch.", "“Draw nigh to God, and he will draw nigh to you.” — James 4:8"),
-        DailyPrayer(297, "Lord, let my life preach the full Gospel — salvation, water baptism, Holy Spirit baptism, and empowered daily living.", "“Go ye into all the world, and preach the gospel to every creature.” — Mark 16:15"),
-        DailyPrayer(298, "Multiply my joy and strength as the year closes. Let the oil of gladness flow stronger than any pressure.", "“…the joy of the Lord is your strength.” — Nehemiah 8:10"),
-        DailyPrayer(299, "Forty-six weeks of faithfulness—You have been my everything. Now position me perfectly for a triumphant finish.", "“The Lord will perfect that which concerneth me…” — Psalm 138:8"),
-        DailyPrayer(300, "Three hundred days stronger—thank You, Lord. You have been my firewall, my guide, and my constant companion. Seal this tenth month and launch me into the final quarter with greater glory, power, and purpose than ever before.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it until the day of Jesus Christ.” — Philippians 1:6")
-    )
-
-    private val MONTH_11_SEED = listOf(
-        DailyPrayer(301, "Holy Spirit, draw me into the final lap with fresh wind and fire. Let every previous month converge into a powerful crescendo as I close this first full year at the Cyber Altar with greater intimacy and authority than I began.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it until the day of Jesus Christ.” — Philippians 1:6"),
-        DailyPrayer(302, "Lord, release a spirit of profound gratitude. Let thanksgiving rise like incense over every trial, every victory, and every quiet moment of this journey.", "“In every thing give thanks: for this is the will of God in Christ Jesus concerning you.” — 1 Thessalonians 5:18"),
-        DailyPrayer(303, "Father, perfect the work You have started in me. Seal every upgrade, heal every remaining scar, and establish me in unshakeable confidence for the year ahead.", "“The Lord will perfect that which concerneth me…” — Psalm 138:8"),
-        DailyPrayer(304, "Anoint me with closing strength. Let me finish this year running, not limping — full of fire, focus, and fruit that remains.", "“I have fought a good fight, I have finished my course, I have kept the faith.” — 2 Timothy 4:7"),
-        DailyPrayer(305, "Forty-four weeks of faithful pursuit—thank You for every signal, every reboot, every upgrade. Now accelerate the final harvest of this season.", "“Draw nigh to God, and he will draw nigh to you.” — James 4:8"),
-        DailyPrayer(306, "Lord, sharpen my vision for 2027. Download clear blueprints and strategic assignments that will carry Your glory into the new year.", "“Where there is no vision, the people perish: but he that keepeth the law, happy is he.” — Proverbs 29:18"),
-        DailyPrayer(307, "Release multiplied impact from every prayer, every baptism step, and every tongues session this year. Let the ripple effect touch generations.", "“He which soweth bountifully shall reap also bountifully.” — 2 Corinthians 9:6"),
-        DailyPrayer(308, "Forty-five weeks deeper—You have been my constant firewall. Now flood me with fresh oil and position me for a powerful transition.", "“Enlarge the place of thy tent, and let them stretch forth the curtains of thine habitations.” — Isaiah 54:2"),
-        DailyPrayer(309, "Lord, let my remaining days this year be marked by bold obedience and supernatural open doors. Remove every hesitation.", "“I made haste, and delayed not to keep thy commandments.” — Psalm 119:60"),
-        DailyPrayer(310, "Activate greater levels of discernment and wisdom for the days ahead. Help me navigate transition with heavenly intelligence.", "“If any of you lack wisdom, let him ask of God, that giveth to all men liberally…” — James 1:5"),
-        DailyPrayer(311, "Forty-six weeks of consistency—seal every layer built at this Altar and ignite fresh passion for the closing weeks.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it…” — Philippians 1:6"),
-        DailyPrayer(312, "Lord, make my testimony magnetic. Let every deliverance, every upgrade, and every encounter draw souls to the Sinner’s Prayer and full salvation experience.", "“And they overcame him by the blood of the Lamb, and by the word of their testimony…” — Revelation 12:11"),
-        DailyPrayer(313, "Release the spirit of excellence and completion. Let every open assignment this year be finished with joy and divine quality.", "“Well done, thou good and faithful servant…” — Matthew 25:21"),
-        DailyPrayer(314, "Forty-seven weeks deeper—thank You for sustaining me. Now strengthen my spirit for a triumphant year-end finish.", "“The Lord is my strength and my shield; my heart trusted in him, and I am helped.” — Psalm 28:7"),
-        DailyPrayer(315, "Lord, multiply my prayer language and intercession. Let it become a powerful force that shifts nations and personal destinies.", "“He that speaketh in an unknown tongue edifieth himself…” — 1 Corinthians 14:4"),
-        DailyPrayer(316, "Anoint me to leave a legacy of fire. Let every soul I touch this year carry the same hunger and power into 2027.", "“And the things that thou hast heard of me among many witnesses, the same commit thou to faithful men…” — 2 Timothy 2:2"),
-        DailyPrayer(317, "Forty-eight weeks of pursuit—You remain faithful. Seal this month with overwhelming peace and fresh encounters.", "“And the peace of God, which passeth all understanding, shall keep your hearts and minds…” — Philippians 4:7"),
-        DailyPrayer(318, "Lord, prepare my heart for a powerful crossover. Let me step into the new year carrying greater glory, authority, and clarity.", "“Behold, I will do a new thing; now it shall spring forth…” — Isaiah 43:19"),
-        DailyPrayer(319, "Release creative miracles and divine strategies for every remaining need. Let impossibilities bow before Your name.", "“All things are possible to him that believeth.” — Mark 9:23"),
-        DailyPrayer(320, "Forty-nine weeks deeper—thank You, Lord. You have been my guide through every protocol. Now launch me into the final weeks with acceleration.", "“Draw nigh to God, and he will draw nigh to you.” — James 4:8"),
-        DailyPrayer(321, "Lord, let my worship and obedience this month be pure incense that invites Your manifest presence daily.", "“But thou art holy, O thou that inhabitest the praises of Israel.” — Psalm 22:3"),
-        DailyPrayer(322, "Strengthen me to finish strong and start stronger. Remove every drag and fill me with renewed vision and power.", "“I press toward the mark for the prize of the high calling of God in Christ Jesus.” — Philippians 3:14"),
-        DailyPrayer(323, "Fifty weeks of faithfulness—seal every breakthrough and multiply the fruit of this entire year at the Cyber Altar.", "“The Lord will perfect that which concerneth me…” — Psalm 138:8"),
-        DailyPrayer(324, "Anoint me for bold Kingdom advancement in the closing days. Let every step count eternally.", "“Go ye into all the world, and preach the gospel to every creature.” — Mark 16:15"),
-        DailyPrayer(325, "Lord, cover my transition with Your favor. Let the handover from this year to the next be smooth and supernaturally blessed.", "“Thou crownest the year with thy goodness…” — Psalm 65:11"),
-        DailyPrayer(326, "Fifty-one weeks deeper—You have been my constant companion. Now fill me with gratitude and expectation.", "“In every thing give thanks…” — 1 Thessalonians 5:18"),
-        DailyPrayer(327, "Release fresh fire over my prayer life. Let every visit to the Altar in these final days be marked by tangible encounters.", "“Draw nigh to God, and he will draw nigh to you.” — James 4:8"),
-        DailyPrayer(328, "Lord, let my life be a living proof of Your transforming power — from Sinner’s Prayer to full Holy Ghost empowerment.", "“Therefore if any man be in Christ, he is a new creature…” — 2 Corinthians 5:17"),
-        DailyPrayer(329, "Fifty-two weeks of pursuit—thank You for every pulse, every signal, every upgrade. Seal this eleventh month with glory.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it…” — Philippians 1:6"),
-        DailyPrayer(330, "Three hundred thirty days stronger—You have been faithful beyond measure. Seal this powerful eleventh month and position me perfectly for a triumphant close to the year and an explosive launch into 2027.", "“The Lord will perfect that which concerneth me…” — Psalm 138:8")
-    )
-
-    private val MONTH_12_SEED = listOf(
-        DailyPrayer(331, "Holy Spirit, bring this year to a powerful crescendo at the Cyber Altar. Let every prayer, every reboot, every baptism step, and every tongues session converge into a mighty wave of glory as I cross into 2027.", "“Thou crownest the year with thy goodness; and thy paths drop fatness.” — Psalm 65:11"),
-        DailyPrayer(332, "Lord, flood my heart with overwhelming gratitude for this entire journey. From the first Sinner’s Prayer to this final stretch, You have been faithful through every protocol.", "“In every thing give thanks: for this is the will of God in Christ Jesus concerning you.” — 1 Thessalonians 5:18"),
-        DailyPrayer(333, "Father, seal every breakthrough of 2026. Let nothing be lost — multiply every seed sown and establish the upgrades permanently in my spirit.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it until the day of Jesus Christ.” — Philippians 1:6"),
-        DailyPrayer(334, "Anoint me with finishing fire. Let these final days be marked by completion, celebration, and explosive expectation for the new year.", "“I have fought a good fight, I have finished my course, I have kept the faith.” — 2 Timothy 4:7"),
-        DailyPrayer(335, "Forty-eight weeks of pursuit—thank You for carrying me through every season. Now release the full harvest of this year at the Altar.", "“Draw nigh to God, and he will draw nigh to you.” — James 4:8"),
-        DailyPrayer(336, "Lord, download clear vision and strategy for 2027. Let me step into the new year with precise assignments and fresh mantles of authority.", "“Where there is no vision, the people perish: but he that keepeth the law, happy is he.” — Proverbs 29:18"),
-        DailyPrayer(337, "Release multiplied legacy from this year. Let every soul touched, every prayer prayed, and every obedience recorded bear eternal fruit.", "“Ye have not chosen me, but I have chosen you, and ordained you, that ye should go and bring forth fruit…” — John 15:16"),
-        DailyPrayer(338, "Forty-nine weeks deeper—You have been my constant signal. Seal this final month with greater intimacy and fresh encounters.", "“Enlarge the place of thy tent…” — Isaiah 54:2"),
-        DailyPrayer(339, "Lord, let my worship in these closing days ascend as pure incense that invites Your manifest presence into 2027.", "“But thou art holy, O thou that inhabitest the praises of Israel.” — Psalm 22:3"),
-        DailyPrayer(340, "Fifty weeks of faithfulness—thank You, Lord. Position me perfectly for a powerful crossover and explosive launch into the new year.", "“The Lord will perfect that which concerneth me…” — Psalm 138:8"),
-        DailyPrayer(341, "Release the spirit of acceleration and increase. Let what took a full year now multiply in weeks as I walk in renewed obedience.", "“So shall my word be that goeth forth out of my mouth: it shall not return unto me void…” — Isaiah 55:11"),
-        DailyPrayer(342, "Anoint me to be a bridge into 2027 — carrying fire, wisdom, and power for the assignments ahead.", "“Behold, I will do a new thing; now it shall spring forth…” — Isaiah 43:19"),
-        DailyPrayer(343, "Fifty-one weeks deeper—seal every layer built at this Altar and ignite unstoppable momentum for the final days.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it…” — Philippians 1:6"),
-        DailyPrayer(344, "Lord, let my testimony this year shout Your transforming power — from salvation to Holy Spirit baptism and beyond.", "“Therefore if any man be in Christ, he is a new creature: old things are passed away…” — 2 Corinthians 5:17"),
-        DailyPrayer(345, "Multiply my prayer language and intercession as the year closes. Let it become a river of power flowing into 2027.", "“He that speaketh in an unknown tongue edifieth himself…” — 1 Corinthians 14:4"),
-        DailyPrayer(346, "Fifty-two weeks of pursuit—thank You for every Neural Prayer Pulse. Now crown this year with Your goodness.", "“Thou crownest the year with thy goodness…” — Psalm 65:11"),
-        DailyPrayer(347, "Lord, prepare my heart for a fresh start. Delete every old limitation and install new protocols of faith and expectancy.", "“Remember ye not the former things, neither consider the things of old.” — Isaiah 43:18"),
-        DailyPrayer(348, "Release divine favor and open doors as I step into 2027. Let every connection and opportunity advance Your Kingdom.", "“A man’s heart deviseth his way: but the Lord directeth his steps.” — Proverbs 16:9"),
-        DailyPrayer(349, "Fifty-three weeks deeper—You have been my firewall and my upgrade. Seal this powerful close with fresh oil and vision.", "“Draw nigh to God, and he will draw nigh to you.” — James 4:8"),
-        DailyPrayer(350, "Lord, let my life reflect the full journey — salvation, water baptism, Holy Spirit baptism, and empowered daily living.", "“Go ye therefore, and teach all nations, baptizing them… Teaching them to observe all things…” — Matthew 28:19-20"),
-        DailyPrayer(351, "Strengthen me to cross the finish line strong and enter 2027 burning brighter than ever.", "“I press toward the mark for the prize of the high calling of God in Christ Jesus.” — Philippians 3:14"),
-        DailyPrayer(352, "Fifty-four weeks of faithfulness—thank You, Lord. Multiply the fruit of this entire year at the Cyber Altar.", "“The Lord will perfect that which concerneth me…” — Psalm 138:8"),
-        DailyPrayer(353, "Release creative miracles and strategic breakthroughs in these final days. Let 2026 end in triumph.", "“All things are possible to him that believeth.” — Mark 9:23"),
-        DailyPrayer(354, "Lord, fill me with bold expectation for 2027. Let me step into January carrying greater glory and clearer purpose.", "“Eye hath not seen, nor ear heard… the things which God hath prepared for them that love him.” — 1 Corinthians 2:9"),
-        DailyPrayer(355, "Fifty-five weeks deeper—seal this December with gratitude, power, and fresh encounters every time I return here.", "“In every thing give thanks…” — 1 Thessalonians 5:18"),
-        DailyPrayer(356, "Anoint me to be a carrier of revival fire into the new year. Let my life ignite others as this year concludes.", "“And it shall come to pass in the last days… I will pour out of my Spirit upon all flesh.” — Acts 2:17"),
-        DailyPrayer(357, "Lord, let this final stretch be my strongest yet — full of worship, obedience, and supernatural alignment.", "“Being confident of this very thing, that he which hath begun a good work in you will perform it…” — Philippians 1:6"),
-        DailyPrayer(358, "Fifty-six weeks of pursuit—You have been my everything. Now crown 2026 and launch 2027 with explosive glory.", "“Draw nigh to God, and he will draw nigh to you.” — James 4:8"),
-        DailyPrayer(359, "Release legacy momentum. Let every soul saved, every attribute gained, and every habit built echo into the new year.", "“A good man leaveth an inheritance to his children’s children…” — Proverbs 13:22"),
-        DailyPrayer(360, "Lord, thank You for 360 days of transformation at the Cyber Altar. Seal this year in Your perfect will.", "“The Lord will perfect that which concerneth me…” — Psalm 138:8"),
-        DailyPrayer(361, "Prepare me for a powerful New Year’s encounter. Let the transition be marked by fresh fire and clear direction.", "“Behold, I make all things new.” — Revelation 21:5"),
-        DailyPrayer(362, "Fifty-seven weeks deeper—thank You for every pulse. Now fill these final days with joy and anticipation.", "“…the joy of the Lord is your strength.” — Nehemiah 8:10"),
-        DailyPrayer(363, "Lord, let 2026 close with a bang — signs, wonders, salvations, and Holy Ghost power released through this Altar.", "“And these signs shall follow them that believe…” — Mark 16:17"),
-        DailyPrayer(364, "Fifty-eight weeks of faithfulness—You remain the same. Seal this year and launch me into 2027 stronger.", "“Jesus Christ the same yesterday, and to day, and for ever.” — Hebrews 13:8"),
-        DailyPrayer(365, "Three hundred sixty-five days stronger — what a journey at the Cyber Altar. From the first Sinner’s Prayer to this final pulse, You have been faithful. Seal 2026 with glory, heal every scar, multiply every seed, and launch me into 2027 with greater power, purpose, and presence than ever before. Thank You, Lord.", "“The Lord will perfect that which concerneth me: thy mercy, O Lord, endureth for ever…” — Psalm 138:8")
-    )
 
     val isBiometricLockEnabled: StateFlow<Boolean> = settingsRepository.isBiometricLockEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
@@ -624,27 +204,55 @@ class SettingsViewModel @Inject constructor(
     val insightDepth = settingsRepository.insightDepth
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "DETAILED")
 
+    // Neon Guide & AI
+    val guideVerbosity = userPreferencesRepository.guideVerbosity
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "STANDARD")
+        
+    val cloudFallbackEnabled = userPreferencesRepository.cloudFallbackEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+        
+    val expertWeighting = userPreferencesRepository.expertWeighting
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "BALANCED")
+
+    // Appearance & Interface
+    val isDopamineMenuVisible = userPreferencesRepository.isDopamineMenuVisible
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+        
+    val isSelfMapVisible = userPreferencesRepository.isSelfMapVisible
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+        
+    val neonIntensity = userPreferencesRepository.neonIntensity
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.8f)
+
+    // Privacy
+    val isShardVaultEnabled = userPreferencesRepository.isShardVaultEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     fun setNeuralBriefEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setNeuralBriefEnabled(enabled)
+            notificationScheduler.scheduleSmartPings()
         }
     }
 
     fun setQuietHoursStart(time: String) {
         viewModelScope.launch {
             settingsRepository.setQuietHoursStart(time)
+            notificationScheduler.scheduleSmartPings()
         }
     }
 
     fun setQuietHoursEnd(time: String) {
         viewModelScope.launch {
             settingsRepository.setQuietHoursEnd(time)
+            notificationScheduler.scheduleSmartPings()
         }
     }
 
     fun setBriefFrequency(frequency: String) {
         viewModelScope.launch {
             settingsRepository.setBriefFrequency(frequency)
+            notificationScheduler.scheduleSmartPings()
         }
     }
 
@@ -654,9 +262,34 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    /**
-     * DEBUG: Triggers a one-time Neural Brief immediately.
-     */
+    fun setGuideVerbosity(verbosity: String) {
+        viewModelScope.launch { userPreferencesRepository.setGuideVerbosity(verbosity) }
+    }
+
+    fun setCloudFallbackEnabled(enabled: Boolean) {
+        viewModelScope.launch { userPreferencesRepository.setCloudFallbackEnabled(enabled) }
+    }
+
+    fun setExpertWeighting(weighting: String) {
+        viewModelScope.launch { userPreferencesRepository.setExpertWeighting(weighting) }
+    }
+
+    fun setDopamineMenuVisible(visible: Boolean) {
+        viewModelScope.launch { userPreferencesRepository.setDopamineMenuVisible(visible) }
+    }
+
+    fun setSelfMapVisible(visible: Boolean) {
+        viewModelScope.launch { userPreferencesRepository.setSelfMapVisible(visible) }
+    }
+
+    fun setNeonIntensity(intensity: Float) {
+        viewModelScope.launch { userPreferencesRepository.setNeonIntensity(intensity) }
+    }
+
+    fun setShardVaultEnabled(enabled: Boolean) {
+        viewModelScope.launch { userPreferencesRepository.setShardVaultEnabled(enabled) }
+    }
+
     fun debugTriggerTestBrief() {
         viewModelScope.launch {
             notificationScheduler.enqueueDailyNeuralBrief(isTestRequest = true)
@@ -669,15 +302,44 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setLocalAiOnly(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setLocalAiOnly(enabled)
+        }
+    }
+
     fun setReligionShortcutEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setReligionShortcutEnabled(enabled)
         }
     }
 
-    fun setLocalAiOnly(enabled: Boolean) {
+    fun acceptHolyGhost() {
         viewModelScope.launch {
-            settingsRepository.setLocalAiOnly(enabled)
+            settingsRepository.setCompletedSinnersPrayer(true)
+            val char = characterRepository.getUserCharacter().first()
+            if (char != null && (char.holyGhost ?: 0) < 1) {
+                characterRepository.updateHolyGhost(1)
+            }
+        }
+    }
+
+    fun completeWaterBaptism() {
+        viewModelScope.launch {
+            characterRepository.updateWaterBaptism(true)
+            val char = characterRepository.getUserCharacter().first()
+            if (char != null) {
+                val currentLevel = char.holyGhost ?: 1
+                characterRepository.updateHolyGhost(currentLevel + 1)
+            }
+        }
+    }
+
+    fun completeHolySpiritBaptism() {
+        viewModelScope.launch {
+            characterRepository.updateHolySpiritBaptism(true)
+            // Holy Spirit baptism usually brings you to a higher spiritual level in this game's logic
+            characterRepository.updateHolyGhost(3)
         }
     }
 
@@ -694,70 +356,20 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    /**
-     * RESET_PROTOCOL: FULL_WIPE
-     * First-time behaviors to reset:
-     * 1. UserCharacter (Level, Eddies, etc.)
-     * 2. Netrunner Mode (Settings) -> OFF
-     * 3. AI Core Welcome Protocol (Settings) -> READY
-     * 4. Biohacking Privacy Onboarding (Database) -> READY
-     * 5. User Story (Your Story) -> WIPED
-     * 6. Special Attributes (S.P.E.C.I.A.L.) -> RESET TO DEFAULT
-     */
     fun resetProfile(onComplete: () -> Unit) {
         viewModelScope.launch {
-            // 1. Reset character data
             characterRepository.resetCharacter()
-            
-            // 2. Reset Settings Repository Flags
             settingsRepository.setReligionShortcutEnabled(false)
             settingsRepository.setLocalAiOnly(false)
-            settingsRepository.setNetrunnerMode(false) // Netrunner selection back to OFF
-            settingsRepository.setFirstAiCoreEntry(true) // Re-enable AI Core welcome protocol
+            settingsRepository.setNetrunnerMode(false)
+            settingsRepository.setFirstAiCoreEntry(true)
             settingsRepository.setCompletedSinnersPrayer(false)
             settingsRepository.setLastAltarVisit(0L)
-            
-            // 3. Reset Biohacking State
-            // This triggers the Privacy Onboarding prompt again by deleting the local data record
             biohackingDao.deleteBiohackingData(0)
             biohackingDao.deleteBioProtocolLogs(0)
-
-            // 4. Wipe Your Story
             userStoryRepository.resetStory()
-
-            // 5. Wipe Special Attributes and Benchmarks
             specialRepository.resetSpecialAttributes()
-
             onComplete()
-        }
-    }
-
-    fun acceptHolyGhost() {
-        viewModelScope.launch {
-            val char = characterRepository.getUserCharacter().first()
-            char?.let {
-                characterRepository.updateCharacter(it.copy(holyGhost = 1))
-            }
-            settingsRepository.setCompletedSinnersPrayer(true)
-            settingsRepository.setLastAltarVisit(System.currentTimeMillis())
-        }
-    }
-
-    fun completeWaterBaptism() {
-        viewModelScope.launch {
-            val char = characterRepository.getUserCharacter().first()
-            char?.let {
-                characterRepository.updateCharacter(it.copy(waterBaptized = true, holyGhost = 2))
-            }
-        }
-    }
-
-    fun completeHolySpiritBaptism() {
-        viewModelScope.launch {
-            val char = characterRepository.getUserCharacter().first()
-            char?.let {
-                characterRepository.updateCharacter(it.copy(holySpiritBaptized = true, holyGhost = 3, hasTonguesAura = true))
-            }
         }
     }
 }

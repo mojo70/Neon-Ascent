@@ -2,6 +2,7 @@ package com.neon.ascent.feature.settings
 
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -14,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,7 +25,6 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -79,17 +80,36 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onResetComplete: () -> Unit,
     onDeepNodeUnlock: () -> Unit,
-    onNavigateToHealthPreferences: () -> Unit,
-    onNavigateToNotificationPreferences: () -> Unit
+    onNavigateToHealthPreferences: () -> Unit
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
-    val biometricLockEnabled by viewModel.isBiometricLockEnabled.collectAsState()
-    val localAiOnly by viewModel.isLocalAiOnly.collectAsState()
-    val measurementUnit by viewModel.measurementUnit.collectAsState()
-    val isHealthGranted by viewModel.isHealthConnectGranted.collectAsState()
-    val biometricAuthManager = remember { BiometricAuthManager(context) }
     
+    // Notifications State
+    val isNeuralBriefEnabled by viewModel.isNeuralBriefEnabled.collectAsState()
+    val quietHoursStart by viewModel.quietHoursStart.collectAsState()
+    val quietHoursEnd by viewModel.quietHoursEnd.collectAsState()
+    val briefFrequency by viewModel.briefFrequency.collectAsState()
+
+    // Neon Guide State
+    val guideVerbosity by viewModel.guideVerbosity.collectAsState()
+    val cloudFallbackEnabled by viewModel.cloudFallbackEnabled.collectAsState()
+    val expertWeighting by viewModel.expertWeighting.collectAsState()
+
+    // Biometrics & Sync State
+    val isHealthGranted by viewModel.isHealthConnectGranted.collectAsState()
+    val biometricLockEnabled by viewModel.isBiometricLockEnabled.collectAsState()
+    
+    // Appearance State
+    val neonIntensity by viewModel.neonIntensity.collectAsState()
+    val isDopamineMenuVisible by viewModel.isDopamineMenuVisible.collectAsState()
+    val isSelfMapVisible by viewModel.isSelfMapVisible.collectAsState()
+
+    // Privacy State
+    val isShardVaultEnabled by viewModel.isShardVaultEnabled.collectAsState()
+    val localAiOnly by viewModel.isLocalAiOnly.collectAsState()
+
+    val biometricAuthManager = remember { BiometricAuthManager(context) }
     val healthPermissionsLauncher = rememberLauncherForActivityResult(
         androidx.health.connect.client.PermissionController.createRequestPermissionResultContract()
     ) { granted ->
@@ -97,11 +117,6 @@ fun SettingsScreen(
     }
     
     var showResetDialog by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    var showPinDialog by remember { mutableStateOf(false) }
-    var pinAction by remember { mutableStateOf<(() -> Unit)?>(null) }
-
-    // Secret screen states
     var buildHashClickCount by remember { mutableStateOf(0) }
     var showPasswordDialog by remember { mutableStateOf(false) }
 
@@ -149,7 +164,7 @@ fun SettingsScreen(
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF00FF9C))
                 }
                 Text(
-                    "//SYS_SETTINGS v0.8.4",
+                    "//SYS_SETTINGS_CONSOLIDATED",
                     style = MaterialTheme.typography.headlineSmall.copy(
                         color = Color(0xFF00FF9C),
                         fontFamily = FontFamily.Monospace,
@@ -161,309 +176,235 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            CyberFrame(label = "CHARACTER CORE") {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    SettingsItem("EDIT AVATAR / BIO", onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    })
-                    SettingsItem("RESET NEURAL PROFILE", color = Color(0xFFFF006E), onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        val action = { showResetDialog = true }
-                        if (biometricLockEnabled) {
-                            if (biometricAuthManager.canAuthenticate()) {
-                                biometricAuthManager.authenticate(
-                                    context as FragmentActivity,
-                                    "RESET PROFILE",
-                                    "Confirm biometric signature to wipe profile",
-                                    onSuccess = action,
-                                    onError = { 
-                                        pinAction = action
-                                        showPinDialog = true 
-                                    }
-                                )
-                            } else {
-                                pinAction = action
-                                showPinDialog = true
-                            }
-                        } else {
-                            action()
+            // 1. Notifications
+            SettingsSection(label = "NEURAL_PINGS", icon = Icons.Default.Notifications) {
+                ToggleSetting("Neural Brief Protocol", isNeuralBriefEnabled) {
+                    viewModel.setNeuralBriefEnabled(it)
+                }
+                
+                AnimatedVisibility(visible = isNeuralBriefEnabled) {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Text("QUIET HOURS", color = Color(0xFF00FF9C).copy(alpha = 0.6f), fontSize = 10.sp)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TimeField(label = "START", time = quietHoursStart, modifier = Modifier.weight(1f), onTimeSelected = {
+                                viewModel.setQuietHoursStart(it)
+                            })
+                            TimeField(label = "END", time = quietHoursEnd, modifier = Modifier.weight(1f), onTimeSelected = {
+                                viewModel.setQuietHoursEnd(it)
+                            })
                         }
-                    })
-                    SettingsItem("EXPORT_CHARACTER [.JSON]", onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        val action = { /* Proceed with export */ }
-                        if (biometricLockEnabled) {
-                            if (biometricAuthManager.canAuthenticate()) {
-                                biometricAuthManager.authenticate(
-                                    context as FragmentActivity,
-                                    "EXPORT DATA",
-                                    "Confirm biometric signature to download character data",
-                                    onSuccess = action,
-                                    onError = { 
-                                        pinAction = action
-                                        showPinDialog = true 
-                                    }
+                        
+                        Text("FREQUENCY", color = Color(0xFF00FF9C).copy(alpha = 0.6f), fontSize = 10.sp)
+                        Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf("DAILY", "BI_DAILY", "WEEKLY").forEach { freq ->
+                                CyberTabButton(
+                                    selected = briefFrequency == freq,
+                                    onClick = { viewModel.setBriefFrequency(freq) },
+                                    label = freq,
+                                    modifier = Modifier.weight(1f)
                                 )
-                            } else {
-                                pinAction = action
-                                showPinDialog = true
                             }
-                        } else {
-                            action()
                         }
-                    })
-                    SettingsItem("IMPORT_CHARACTER [.JSON]", onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    })
+                        
+                        Button(
+                            onClick = { viewModel.debugTriggerTestBrief() },
+                            modifier = Modifier.fillMaxWidth().height(44.dp).border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.5f), CyberButtonShape),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
+                        ) {
+                            Text("TEST NEURAL BRIEF", color = Color(0xFF00FF9C), fontSize = 11.sp)
+                        }
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            CyberFrame(label = "WEARABLE LINKS") {
+            // 2. Neon Guide
+            SettingsSection(label = "NEON_GUIDE_CORE", icon = Icons.Default.Psychology) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text("VERBOSITY", color = Color(0xFF00FF9C).copy(alpha = 0.6f), fontSize = 10.sp)
+                    Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("MINIMAL", "STANDARD", "VERBOSE").forEach { verb ->
+                            CyberTabButton(
+                                selected = guideVerbosity == verb,
+                                onClick = { viewModel.setGuideVerbosity(verb) },
+                                label = verb,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+
+                    ToggleSetting("Cloud Fallback Support", cloudFallbackEnabled) {
+                        viewModel.setCloudFallbackEnabled(it)
+                    }
+
+                    Text("EXPERT WEIGHTING", color = Color(0xFF00FF9C).copy(alpha = 0.6f), fontSize = 10.sp)
+                    Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("LOGIC", "BALANCED", "CREATIVE").forEach { weight ->
+                            CyberTabButton(
+                                selected = expertWeighting == weight,
+                                onClick = { viewModel.setExpertWeighting(weight) },
+                                label = weight,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 3. Biometrics & Sync
+            SettingsSection(label = "UPLINK_STATUS", icon = Icons.Default.Sync) {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     if (!isHealthGranted) {
                         Button(
-                            onClick = { 
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                healthPermissionsLauncher.launch(viewModel.getHealthPermissions())
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp)
-                                .clip(CyberButtonShape)
-                                .border(1.dp, Color(0xFF00FF9C), CyberButtonShape),
+                            onClick = { healthPermissionsLauncher.launch(viewModel.getHealthPermissions()) },
+                            modifier = Modifier.fillMaxWidth().height(48.dp).border(1.dp, Color(0xFF00FF9C), CyberButtonShape),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A1A1A))
                         ) {
-                            Text("+ JACK IN HEALTH CONNECT", color = Color(0xFF00FF9C), fontWeight = FontWeight.Black)
+                            Text("+ JACK IN HEALTH CONNECT", color = Color(0xFF00FF9C), fontSize = 12.sp)
                         }
                     } else {
-                        DeviceStatusCard("HEALTH_CONNECT_API", "OPTIMAL", "CONNECTED // SYNCED")
+                        DeviceStatusCard("HEALTH_CONNECT_API", "OPTIMAL", "SYNC_ACTIVE")
                     }
-
-                    SettingsItem("HEALTH & BIOMETRICS CONFIG", onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    
+                    SettingsItem("SYNC PREFERENCES") {
                         onNavigateToHealthPreferences()
-                    })
-
-                    SettingsItem("NEURAL PING CONFIG", onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onNavigateToNotificationPreferences()
-                    })
-                    
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(
-                            checked = isHealthGranted, 
-                            onCheckedChange = { 
-                                if (!isHealthGranted) {
-                                    healthPermissionsLauncher.launch(viewModel.getHealthPermissions())
-                                }
-                            },
-                            colors = CheckboxDefaults.colors(checkedColor = Color(0xFF00FF9C), uncheckedColor = Color.DarkGray)
-                        )
-                        Text("SHARE BIOMETRICS TO BOOST STATS", color = Color.White, fontSize = 12.sp)
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            CyberFrame(label = "INTERFACE PROTOCOLS") {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Column {
-                        Text("NEON INTENSITY", color = Color.White.copy(alpha = 0.6f), fontSize = 10.sp)
-                        Slider(
-                            value = 0.8f, 
-                            onValueChange = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) }, 
-                            colors = SliderDefaults.colors(thumbColor = Color(0xFF00FF9C), activeTrackColor = Color(0xFF00FF9C))
-                        )
                     }
                     
-                    ToggleSetting("TERMINAL BEEPS", true, onCheckedChange = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) })
-                    ToggleSetting("RAIN NOISE", false, onCheckedChange = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) })
-                    ToggleSetting("ICE ALERTS", true, onCheckedChange = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) })
-                    ToggleSetting("RUNNER BOUNTIES", true, onCheckedChange = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) })
-                    
-                    ToggleSetting(
-                        label = "LOCAL AI CORE ONLY", 
-                        checked = localAiOnly,
-                        onCheckedChange = { 
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            viewModel.setLocalAiOnly(it)
-                        }
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    Text("SYSTEM_UNITS", color = Color(0xFF00FF9C).copy(alpha = 0.6f), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        Modifier.fillMaxWidth().selectableGroup(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    Button(
+                        onClick = { viewModel.checkHealthConnectStatus() },
+                        modifier = Modifier.fillMaxWidth().height(44.dp).border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.5f), CyberButtonShape),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
                     ) {
-                        CyberTabButton(
-                            selected = measurementUnit == "Imperial", 
-                            onClick = { 
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                viewModel.setMeasurementUnit("Imperial") 
-                            }, 
-                            label = "IMPERIAL", 
-                            modifier = Modifier.weight(1f)
-                        )
-                        CyberTabButton(
-                            selected = measurementUnit == "Metric", 
-                            onClick = { 
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                viewModel.setMeasurementUnit("Metric") 
-                            }, 
-                            label = "METRIC", 
-                            modifier = Modifier.weight(1f)
-                        )
+                        Text("FORCE MANUAL UPLINK", color = Color(0xFF00FF9C), fontSize = 11.sp)
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            CyberFrame(label = "SECURITY & LOGS") {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    SettingsItem("EXPORT_NEURAL_LOG [.MD]", onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        val action = { viewModel.exportNeuralLog() }
-                        if (biometricLockEnabled) {
-                            if (biometricAuthManager.canAuthenticate()) {
-                                biometricAuthManager.authenticate(
-                                    context as FragmentActivity,
-                                    "EXPORT NEURAL LOG",
-                                    "Confirm biometric signature to export your journey archive",
-                                    onSuccess = action,
-                                    onError = { 
-                                        pinAction = action
-                                        showPinDialog = true 
-                                    }
-                                )
-                            } else {
-                                pinAction = action
-                                showPinDialog = true
-                            }
-                        } else {
-                            action()
-                        }
-                    })
-                    SettingsItem("DELETE ACCOUNT", color = Color(0xFFFF006E), onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        showDeleteDialog = true
-                    })
-                    ToggleSetting(
-                        label = "BIOMETRIC LOCK", 
-                        checked = biometricLockEnabled,
-                        onCheckedChange = { enabled ->
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            if (enabled) {
-                                if (biometricAuthManager.canAuthenticate()) {
-                                    biometricAuthManager.authenticate(
-                                        context as FragmentActivity,
-                                        "ENABLE BIOMETRIC LOCK",
-                                        "Confirm identity to secure system nodes",
-                                        onSuccess = { viewModel.setBiometricLockEnabled(true) },
-                                        onError = { /* Error handling */ }
-                                    )
-                                }
-                            } else {
-                                biometricAuthManager.authenticate(
-                                    context as FragmentActivity,
-                                    "DISABLE BIOMETRIC LOCK",
-                                    "Confirm identity to unlock system nodes",
-                                    onSuccess = { viewModel.setBiometricLockEnabled(false) },
-                                    onError = { /* Error handling */ }
-                                )
-                            }
-                        }
+            // 4. Dopamine Menu & Self Map
+            SettingsSection(label = "NEURAL_INTERFACE", icon = Icons.Default.Dashboard) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    ToggleSetting("Show Dopamine Menu", isDopamineMenuVisible) {
+                        viewModel.setDopamineMenuVisible(it)
+                    }
+                    ToggleSetting("Show Self Map Grid", isSelfMapVisible) {
+                        viewModel.setSelfMapVisible(it)
+                    }
+                    SettingsItem("EDIT INTERFACE LAYOUT") {
+                        // TODO: Navigate to layout editor
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 5. Appearance & Theme
+            SettingsSection(label = "VISUAL_STIMULI", icon = Icons.Default.Palette) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text("NEON INTENSITY", color = Color(0xFF00FF9C).copy(alpha = 0.6f), fontSize = 10.sp)
+                    Slider(
+                        value = neonIntensity,
+                        onValueChange = { viewModel.setNeonIntensity(it) },
+                        colors = SliderDefaults.colors(thumbColor = Color(0xFF00FF9C), activeTrackColor = Color(0xFF00FF9C))
                     )
+                    
+                    SettingsItem("CUSTOM AVATAR MODULE") {
+                        // TODO: Open avatar selection
+                    }
+                    
+                    SettingsItem("COLOR SCHEME: MATRIX_EMERALD") {
+                        // TODO: Theme picker
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 6. Privacy & Data
+            SettingsSection(label = "SHARD_VAULT", icon = Icons.Default.Security) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    ToggleSetting("Shard Vault Encryption", isShardVaultEnabled) {
+                        viewModel.setShardVaultEnabled(it)
+                    }
+                    
+                    ToggleSetting("Local AI Core Only", localAiOnly) {
+                        viewModel.setLocalAiOnly(it)
+                    }
+
+                    ToggleSetting("Biometric Node Lock", biometricLockEnabled) { enabled ->
+                        if (enabled) {
+                            biometricAuthManager.authenticate(
+                                context as FragmentActivity,
+                                "ENABLE LOCK",
+                                "Confirm identity",
+                                onSuccess = { viewModel.setBiometricLockEnabled(true) },
+                                onError = {}
+                            )
+                        } else {
+                            biometricAuthManager.authenticate(
+                                context as FragmentActivity,
+                                "DISABLE LOCK",
+                                "Confirm identity",
+                                onSuccess = { viewModel.setBiometricLockEnabled(false) },
+                                onError = {}
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+
+                    SettingsItem("EXPORT NEURAL LOG [.MD]") {
+                        viewModel.exportNeuralLog()
+                    }
+
+                    SettingsItem("WIPE NEURAL PROFILE", color = Color(0xFFFF006E)) {
+                        showResetDialog = true
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            // Footer
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally, 
                 modifier = Modifier.fillMaxWidth().padding(bottom = 40.dp)
             ) {
                 Text(
-                    text = "BUILD_HASH: 7F2A91X_STABLE", 
+                    text = "BUILD_HASH: 7F2A91X_CONSOLIDATED", 
                     color = Color.Gray, 
                     fontSize = 10.sp, 
                     fontFamily = FontFamily.Monospace,
                     modifier = Modifier
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) {
+                        .clickable {
                             buildHashClickCount++
-                            Log.d("SettingsScreen", "Build hash clicked: $buildHashClickCount")
                             if (buildHashClickCount >= 7) {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 showPasswordDialog = true
                                 buildHashClickCount = 0
                             }
                         }
-                        .padding(16.dp) // Increase touch target size
+                        .padding(16.dp)
                 )
-                Text("MEET THE DECKERS WHO BUILT THIS", color = Color(0xFF00FF9C).copy(alpha = 0.5f), fontSize = 10.sp, modifier = Modifier.clickable {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                })
-                Text("REPORT BUG", color = Color(0xFF00FF9C).copy(alpha = 0.5f), fontSize = 10.sp, modifier = Modifier.clickable {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                })
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    "JACK OUT", 
-                    color = Color(0xFFFF006E), 
-                    fontWeight = FontWeight.Black, 
-                    letterSpacing = 4.sp,
-                    modifier = Modifier.clickable { 
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    }
-                )
+                Text("JACK OUT", color = Color(0xFFFF006E), fontWeight = FontWeight.Black, letterSpacing = 4.sp, modifier = Modifier.clickable { onBack() })
             }
         }
 
         if (showResetDialog) {
             CyberConfirmDialog(
-                title = "RESET NEURAL PROFILE?",
-                description = "This will wipe all progress. Enter 'JACKIN' to proceed.",
+                title = "WIPE PROFILE?",
+                description = "Permanent deletion of all neural progress. Type 'JACKIN' to confirm.",
                 confirmText = "JACKIN",
                 onConfirm = { 
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     viewModel.resetProfile { 
                         showResetDialog = false
                         onResetComplete()
                     }
                 },
                 onDismiss = { showResetDialog = false }
-            )
-        }
-
-        if (showDeleteDialog) {
-            CyberConfirmDialog(
-                title = "TERMINATE ACCOUNT?",
-                description = "Permanent data deletion. 30-day grace period applies.",
-                confirmText = "TERMINATE",
-                onConfirm = { 
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    showDeleteDialog = false 
-                },
-                onDismiss = { showDeleteDialog = false }
-            )
-        }
-
-        if (showPinDialog) {
-            CyberPinDialog(
-                onConfirm = { 
-                    showPinDialog = false
-                    pinAction?.invoke()
-                },
-                onDismiss = { showPinDialog = false }
             )
         }
 
@@ -475,6 +416,169 @@ fun SettingsScreen(
                 },
                 onDismiss = { showPasswordDialog = false }
             )
+        }
+    }
+}
+
+@Composable
+fun SettingsSection(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    content: @Composable () -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color(0xFF00FF9C).copy(alpha = if (expanded) 0.5f else 0.1f), CyberButtonShape)
+            .background(Color(0xFF111111).copy(alpha = 0.5f), CyberButtonShape)
+            .clip(CyberButtonShape)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = !expanded }
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, contentDescription = null, tint = Color(0xFF00FF9C), modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    label,
+                    color = Color(0xFF00FF9C),
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+            }
+            Icon(
+                if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                contentDescription = null,
+                tint = Color.Gray
+            )
+        }
+        
+        AnimatedVisibility(
+            visible = expanded,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            Box(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
+                content()
+            }
+        }
+    }
+}
+
+@Composable
+fun TimeField(label: String, time: String, modifier: Modifier = Modifier, onTimeSelected: (String) -> Unit) {
+    var showDialog by remember { mutableStateOf(false) }
+    var tempTime by remember { mutableStateOf(time) }
+
+    Column(modifier = modifier) {
+        Text(label, color = Color.Gray, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp)
+                .background(Color(0xFF1A1A1A))
+                .border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.2f))
+                .clickable { showDialog = true }
+                .padding(horizontal = 12.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Text(time, color = Color.White, fontSize = 13.sp, fontFamily = FontFamily.Monospace)
+        }
+    }
+
+    if (showDialog) {
+        Dialog(onDismissRequest = { showDialog = false }) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFF0F0F0F))
+                    .border(1.dp, Color(0xFF00FF9C))
+                    .padding(24.dp)
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("MANUAL_TIME_ENTRY", color = Color(0xFF00FF9C), fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = tempTime,
+                        onValueChange = { tempTime = it },
+                        placeholder = { Text("HH:mm", color = Color.Gray) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF00FF9C),
+                            unfocusedBorderColor = Color.DarkGray,
+                            focusedTextColor = Color.White
+                        )
+                    )
+                    Spacer(Modifier.height(24.dp))
+                    Button(
+                        onClick = {
+                            onTimeSelected(tempTime)
+                            showDialog = false
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C))
+                    ) {
+                        Text("SET_TIME", color = Color.Black)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ToggleSetting(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().height(48.dp), 
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, color = Color.White, fontSize = 13.sp)
+        Switch(
+            checked = checked, 
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color(0xFF00FF9C),
+                checkedTrackColor = Color(0xFF00FF9C).copy(alpha = 0.3f),
+                uncheckedThumbColor = Color.DarkGray
+            )
+        )
+    }
+}
+
+@Composable
+fun SettingsItem(label: String, color: Color = Color(0xFF00FF9C), onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(vertical = 12.dp)
+    ) {
+        Text(label, color = color, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, fontSize = 13.sp)
+    }
+}
+
+@Composable
+fun DeviceStatusCard(name: String, signal: String, status: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFF0F0F0F))
+            .border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.2f))
+            .padding(12.dp)
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Column {
+                Text(name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Text("SIGNAL: $signal", color = Color(0xFF00FF9C), fontSize = 9.sp)
+            }
+            Text(status, color = Color(0xFF00FF9C), fontSize = 10.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -530,70 +634,6 @@ fun SecretPasswordDialog(onCorrectPassword: () -> Unit, onDismiss: () -> Unit) {
 }
 
 @Composable
-fun CyberPinDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    var pin by remember { mutableStateOf("") }
-    
-    Dialog(onDismissRequest = onDismiss) {
-        Box(
-            modifier = Modifier
-                .clip(CyberButtonShape)
-                .background(Color(0xFF0F0F0F))
-                .border(2.dp, Color(0xFF00FF9C), CyberButtonShape)
-                .padding(24.dp)
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("ENTER_PIN_CODE", color = Color(0xFF00FF9C), fontWeight = FontWeight.Black, fontSize = 20.sp)
-                Spacer(Modifier.height(16.dp))
-                
-                OutlinedTextField(
-                    value = pin,
-                    onValueChange = { if (it.length <= 4) pin = it },
-                    placeholder = { Text("####", color = Color.Gray) },
-                    modifier = Modifier.width(120.dp),
-                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF00FF9C),
-                        unfocusedBorderColor = Color.DarkGray,
-                        focusedTextColor = Color.White
-                    )
-                )
-                
-                Spacer(Modifier.height(24.dp))
-                
-                Button(
-                    onClick = onConfirm,
-                    enabled = pin.length == 4, // Assuming a 4-digit PIN for now
-                    modifier = Modifier.fillMaxWidth().height(50.dp).clip(CyberButtonShape),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C))
-                ) {
-                    Text("VALIDATE", color = Color.Black, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ToggleSetting(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(), 
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, color = Color.White, fontSize = 14.sp)
-        Switch(
-            checked = checked, 
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color(0xFF00FF9C),
-                checkedTrackColor = Color(0xFF00FF9C).copy(alpha = 0.3f),
-                uncheckedThumbColor = Color.DarkGray
-            )
-        )
-    }
-}
-
-@Composable
 fun CyberConfirmDialog(
     title: String,
     description: String,
@@ -603,6 +643,7 @@ fun CyberConfirmDialog(
 ) {
     var input by remember { mutableStateOf("") }
     var countdown by remember { mutableStateOf(3) }
+    val haptic = LocalHapticFeedback.current
     
     LaunchedEffect(Unit) {
         while(countdown > 0) {
@@ -640,7 +681,10 @@ fun CyberConfirmDialog(
                 Spacer(Modifier.height(16.dp))
                 
                 Button(
-                    onClick = onConfirm,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onConfirm()
+                    },
                     enabled = input == confirmText && countdown == 0,
                     modifier = Modifier.fillMaxWidth().height(50.dp).clip(CyberButtonShape),
                     colors = ButtonDefaults.buttonColors(
@@ -650,41 +694,6 @@ fun CyberConfirmDialog(
                 ) {
                     Text(if (countdown > 0) "WAITING... $countdown" else "EXECUTE OVERRIDE", color = Color.White)
                 }
-            }
-        }
-    }
-}
-
-@Composable
-fun SettingsItem(label: String, color: Color = Color(0xFF00FF9C), onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(vertical = 12.dp)
-    ) {
-        Text(label, color = color, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, fontSize = 14.sp)
-    }
-}
-
-@Composable
-fun DeviceStatusCard(name: String, signal: String, lastSync: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color(0xFF0F0F0F))
-            .border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.2f))
-            .padding(12.dp)
-    ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Column {
-                Text(name, color = Color.White, fontWeight = FontWeight.Bold)
-                Text("SIGNAL: $signal", color = Color(0xFF00FF9C), fontSize = 10.sp)
-                Text(lastSync, color = Color.Gray, fontSize = 10.sp)
-            }
-            Column(horizontalAlignment = Alignment.End) {
-                Text("CONNECTED", color = Color(0xFF00FF9C), fontSize = 10.sp)
-                Text("RE-SYNC", color = Color(0xFF00FF9C), fontSize = 10.sp, modifier = Modifier.clickable { }.padding(top = 4.dp))
             }
         }
     }

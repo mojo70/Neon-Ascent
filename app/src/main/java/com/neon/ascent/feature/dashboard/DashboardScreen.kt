@@ -130,6 +130,7 @@ fun DashboardScreen(
 
     var isTerminalExpanded by rememberSaveable { mutableStateOf(false) }
     var showQuickTaskSheet by remember { mutableStateOf(false) }
+    var showAllTasksDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         while(true) {
@@ -390,7 +391,9 @@ fun DashboardScreen(
                         fontFamily = FontFamily.Monospace,
                         letterSpacing = 2.sp
                     ),
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    modifier = Modifier
+                        .padding(bottom = 8.dp)
+                        .clickable { showAllTasksDialog = true }
                 )
                 val displayTasks = state.todayTasks.take(3)
                 displayTasks.forEach { task ->
@@ -412,7 +415,7 @@ fun DashboardScreen(
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { /* Could navigate to a full task list if we had one, or just expand */ }
+                            .clickable { showAllTasksDialog = true }
                             .padding(vertical = 4.dp),
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
@@ -599,6 +602,16 @@ fun DashboardScreen(
             )
         }
 
+        if (showAllTasksDialog) {
+            AllTasksDialog(
+                tasks = state.todayTasks,
+                onComplete = { viewModel.markTaskCompleted(it) },
+                onTaskClick = { onTaskClick(it) },
+                onDismiss = { showAllTasksDialog = false },
+                systemColor = systemColor
+            )
+        }
+
         CelebrationOverlay(
             event = state.dopamineEvent,
             onFinished = { viewModel.clearDopamineEvent() }
@@ -729,6 +742,69 @@ fun AiTerminal(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(8.dp)
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun AllTasksDialog(
+    tasks: List<AscensionTask>,
+    onComplete: (String) -> Unit,
+    onTaskClick: (String) -> Unit,
+    onDismiss: () -> Unit,
+    systemColor: Color
+) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(CyberButtonShape)
+                .background(Color(0xFF0F0F0F))
+                .border(2.dp, systemColor, CyberButtonShape)
+                .padding(24.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 500.dp)
+            ) {
+                Text(
+                    "DAILY_PROTOCOLS",
+                    color = systemColor,
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.Black,
+                        fontFamily = FontFamily.Monospace,
+                        letterSpacing = 2.sp
+                    ),
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    tasks.forEach { task ->
+                        DashboardTaskItem(
+                            task = task,
+                            onComplete = { onComplete(task.id) },
+                            onClick = { onTaskClick(task.id) }
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth().clip(CyberButtonShape),
+                    colors = ButtonDefaults.buttonColors(containerColor = systemColor)
+                ) {
+                    Text("CLOSE", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }

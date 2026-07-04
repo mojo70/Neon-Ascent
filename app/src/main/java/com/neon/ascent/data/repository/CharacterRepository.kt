@@ -31,4 +31,20 @@ class CharacterRepository @Inject constructor(
             userCharacterDao.updateUserCharacter(it.copy(chessElo = newElo))
         }
     }
+
+    suspend fun updateHolyGhost(level: Int) {
+        userCharacterDao.updateHolyGhost(level)
+    }
+
+    suspend fun updateWaterBaptism(isBaptized: Boolean) {
+        userCharacterDao.updateWaterBaptized(isBaptized)
+    }
+
+    suspend fun updateHolySpiritBaptism(isBaptized: Boolean) {
+        userCharacterDao.updateHolySpiritBaptized(isBaptized)
+    }
+
+    suspend fun addHolyGhostExp(points: Int) {
+        userCharacterDao.addHolyGhostExp(points)
+    }
 }

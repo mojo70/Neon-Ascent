@@ -24,6 +24,19 @@ class UserPreferencesRepository @Inject constructor(
         val LAST_BIO_AGE = floatPreferencesKey("last_bio_age")
         val LAST_BIO_AGE_TIMESTAMP = longPreferencesKey("last_bio_age_timestamp")
         val YEARLY_REVIEW_ENABLED = booleanPreferencesKey("yearly_review_enabled")
+        
+        // Neon Guide
+        val GUIDE_VERBOSITY = stringPreferencesKey("guide_verbosity")
+        val CLOUD_FALLBACK_ENABLED = booleanPreferencesKey("cloud_fallback_enabled")
+        val EXPERT_WEIGHTING = stringPreferencesKey("expert_weighting")
+
+        // Interface & Visibility
+        val DOPAMINE_MENU_VISIBLE = booleanPreferencesKey("dopamine_menu_visible")
+        val SELF_MAP_VISIBLE = booleanPreferencesKey("self_map_visible")
+        val NEON_INTENSITY = floatPreferencesKey("neon_intensity")
+        
+        // Privacy
+        val SHARD_VAULT_ENABLED = booleanPreferencesKey("shard_vault_enabled")
     }
 
     val measurementUnit: Flow<String> = context.dataStore.data
@@ -37,6 +50,27 @@ class UserPreferencesRepository @Inject constructor(
         .map { preferences ->
             preferences[PreferencesKeys.MEASUREMENT_UNIT] ?: "Metric"
         }
+
+    val guideVerbosity: Flow<String> = context.dataStore.data
+        .map { it[PreferencesKeys.GUIDE_VERBOSITY] ?: "STANDARD" }
+
+    val cloudFallbackEnabled: Flow<Boolean> = context.dataStore.data
+        .map { it[PreferencesKeys.CLOUD_FALLBACK_ENABLED] ?: true }
+
+    val expertWeighting: Flow<String> = context.dataStore.data
+        .map { it[PreferencesKeys.EXPERT_WEIGHTING] ?: "BALANCED" }
+
+    val isDopamineMenuVisible: Flow<Boolean> = context.dataStore.data
+        .map { it[PreferencesKeys.DOPAMINE_MENU_VISIBLE] ?: true }
+
+    val isSelfMapVisible: Flow<Boolean> = context.dataStore.data
+        .map { it[PreferencesKeys.SELF_MAP_VISIBLE] ?: true }
+
+    val neonIntensity: Flow<Float> = context.dataStore.data
+        .map { it[PreferencesKeys.NEON_INTENSITY] ?: 0.8f }
+
+    val isShardVaultEnabled: Flow<Boolean> = context.dataStore.data
+        .map { it[PreferencesKeys.SHARD_VAULT_ENABLED] ?: false }
 
     val lastBioAge: Flow<Float?> = context.dataStore.data
         .map { preferences ->
@@ -52,6 +86,34 @@ class UserPreferencesRepository @Inject constructor(
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.MEASUREMENT_UNIT] = unit
         }
+    }
+
+    suspend fun setGuideVerbosity(verbosity: String) {
+        context.dataStore.edit { it[PreferencesKeys.GUIDE_VERBOSITY] = verbosity }
+    }
+
+    suspend fun setCloudFallbackEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.CLOUD_FALLBACK_ENABLED] = enabled }
+    }
+
+    suspend fun setExpertWeighting(weighting: String) {
+        context.dataStore.edit { it[PreferencesKeys.EXPERT_WEIGHTING] = weighting }
+    }
+
+    suspend fun setDopamineMenuVisible(visible: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.DOPAMINE_MENU_VISIBLE] = visible }
+    }
+
+    suspend fun setSelfMapVisible(visible: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.SELF_MAP_VISIBLE] = visible }
+    }
+
+    suspend fun setNeonIntensity(intensity: Float) {
+        context.dataStore.edit { it[PreferencesKeys.NEON_INTENSITY] = intensity }
+    }
+
+    suspend fun setShardVaultEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.SHARD_VAULT_ENABLED] = enabled }
     }
 
     suspend fun cacheBioAge(age: Float) {

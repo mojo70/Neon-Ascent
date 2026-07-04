@@ -448,9 +448,6 @@ fun AppNavigation(
                 },
                 onNavigateToHealthPreferences = {
                     navController.navigate(Screen.HealthPreferences)
-                },
-                onNavigateToNotificationPreferences = {
-                    navController.navigate(Screen.NotificationPreferences)
                 }
             )
         }
