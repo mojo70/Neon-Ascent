@@ -36,7 +36,7 @@ class GeminiNanoClient @Inject constructor(
                 this.context = this@GeminiNanoClient.context
                 temperature = 0.4f
                 topK = 16
-                maxOutputTokens = 128
+                maxOutputTokens = 1024
             }
             
             GenerativeModel(generationConfig = config).also { model = it }

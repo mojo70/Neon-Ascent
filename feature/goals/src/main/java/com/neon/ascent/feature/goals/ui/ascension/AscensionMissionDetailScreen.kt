@@ -674,7 +674,7 @@ fun AscensionMissionDetailScreen(
                                                 fontWeight = FontWeight.Bold
                                             )
                                             Text(
-                                                text = "GRACE_BUFFER: ${task.graceBufferDays} DAYS",
+                                                text = "IMPACT: ${(task.impactWeight * 100).toInt()}% | GRACE: ${task.graceBufferDays}D",
                                                 color = Color.Gray,
                                                 fontSize = 8.sp,
                                                 fontFamily = FontFamily.Monospace

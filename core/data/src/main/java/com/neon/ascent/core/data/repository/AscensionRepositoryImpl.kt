@@ -93,6 +93,51 @@ class AscensionRepositoryImpl @Inject constructor(
             longestStreak = if (newStreak > task.longestStreak) newStreak else task.longestStreak
         )
         dao.completeTask(completion, updatedTask.toEntity())
+        
+        // Auto-update progress hierarchy
+        task.parentId?.let { parentId ->
+            updateHierarchyProgress(parentId)
+        }
+    }
+
+    private suspend fun updateHierarchyProgress(parentId: String) {
+        // 1. Check if parent is a Mission
+        val missionEntity = dao.getMissionById(parentId)
+        if (missionEntity != null) {
+            val tasks = dao.getTasksForParentSync(parentId)
+            val totalWeight = tasks.sumOf { it.impactWeight.toDouble() }.toFloat()
+            val completedWeight = tasks.filter { it.lastCompleted != null }
+                .sumOf { it.impactWeight.toDouble() }.toFloat()
+            
+            val progress = if (totalWeight > 0) completedWeight / totalWeight else 0f
+            val updatedMission = missionEntity.copy(progress = progress)
+            dao.updateMission(updatedMission)
+            
+            // 2. Bubble up to Directive
+            updatedMission.directiveId?.let { updateDirectiveProgress(it) }
+        } else {
+            // Parent might be a Directive directly
+            updateDirectiveProgress(parentId)
+        }
+    }
+
+    private suspend fun updateDirectiveProgress(directiveId: String) {
+        val directiveEntity = dao.getDirectiveById(directiveId) ?: return
+        
+        val missions = dao.getMissionsForDirectiveSync(directiveId)
+        val directTasks = dao.getTasksForParentSync(directiveId)
+        
+        val mTotal = missions.sumOf { it.contributionWeight.toDouble() }.toFloat()
+        val mProgress = missions.sumOf { (it.progress * it.contributionWeight).toDouble() }.toFloat()
+        
+        val tTotal = directTasks.sumOf { it.impactWeight.toDouble() }.toFloat()
+        val tCompleted = directTasks.filter { it.lastCompleted != null }.sumOf { it.impactWeight.toDouble() }.toFloat()
+        
+        val totalWeight = mTotal + tTotal
+        val totalProgress = mProgress + tCompleted
+        
+        val finalProgress = if (totalWeight > 0) totalProgress / totalWeight else 0f
+        dao.updateDirective(directiveEntity.copy(currentProgress = finalProgress))
     }
 
     override fun getCompletionsForTask(taskId: String): Flow<List<AscensionTaskCompletion>> =

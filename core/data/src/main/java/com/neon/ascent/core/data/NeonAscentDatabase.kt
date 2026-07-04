@@ -27,7 +27,7 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_11_12
         SocraticInsightEntity::class,
         DopamineMenuItemEntity::class
     ],
-    version = 14,
+    version = 16,
     exportSchema = true
 )
 @TypeConverters(
@@ -41,7 +41,8 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_11_12
     StringListConverter::class,
     LongListConverter::class,
     DopamineCategoryConverter::class,
-    EnergyLevelConverter::class
+    EnergyLevelConverter::class,
+    SuccessMetricListConverter::class
 )
 abstract class NeonAscentDatabase : RoomDatabase() {
     abstract fun goalDao(): GoalDao

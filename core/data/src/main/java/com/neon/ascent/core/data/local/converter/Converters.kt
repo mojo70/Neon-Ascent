@@ -106,3 +106,19 @@ class LongListConverter {
     @TypeConverter
     fun toList(data: String?): List<Long>? = data?.split(",")?.filter { it.isNotBlank() }?.map { it.toLong() }
 }
+
+class SuccessMetricListConverter {
+    private val gson = Gson()
+
+    @TypeConverter
+    fun fromList(list: List<com.neon.ascent.core.domain.goals.models.SuccessMetric>?): String? {
+        return list?.let { gson.toJson(it) }
+    }
+
+    @TypeConverter
+    fun toList(json: String?): List<com.neon.ascent.core.domain.goals.models.SuccessMetric> {
+        return json?.let {
+            gson.fromJson(it, object : TypeToken<List<com.neon.ascent.core.domain.goals.models.SuccessMetric>>() {}.type)
+        } ?: emptyList()
+    }
+}

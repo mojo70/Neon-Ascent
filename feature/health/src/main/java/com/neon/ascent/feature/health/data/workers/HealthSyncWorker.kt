@@ -6,6 +6,7 @@ import androidx.work.*
 import com.neon.ascent.core.data.datastore.HealthPreferencesDataStore
 import com.neon.ascent.core.domain.health.HealthManager
 import com.neon.ascent.core.domain.special.usecases.UpdateSpecialFromHealthUseCase
+import com.neon.ascent.core.domain.goals.usecases.SyncBiometricMetricsUseCase
 import com.neon.ascent.feature.health.data.uplink.NeuralUplinkManager
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -26,6 +27,7 @@ class HealthSyncWorker @AssistedInject constructor(
     private val healthManager: HealthManager,
     private val uplinkManager: NeuralUplinkManager,
     private val updateSpecialFromHealthUseCase: UpdateSpecialFromHealthUseCase,
+    private val syncBiometricMetricsUseCase: SyncBiometricMetricsUseCase,
     private val healthPrefs: HealthPreferencesDataStore
 ) : CoroutineWorker(appContext, workerParams) {
 
@@ -59,7 +61,11 @@ class HealthSyncWorker @AssistedInject constructor(
                 startTime = Instant.now().minus(Duration.ofHours(48))
             )
 
-            // 3. Update sync state
+            // 3. Update Ascension Success Metrics
+            Log.d("HealthSyncWorker", "Updating Ascension Directive Success Metrics")
+            syncBiometricMetricsUseCase()
+
+            // 4. Update sync state
             healthPrefs.updateLastSyncTime()
             Log.i("HealthSyncWorker", "Health sync complete. Updated ${updatedAttributes.size} attributes.")
 

@@ -7,7 +7,8 @@ import kotlinx.serialization.Serializable
 @Entity(tableName = "chat_sessions")
 @Serializable
 data class ChatSession(
-    @PrimaryKey val contactName: String,
+    @PrimaryKey val sessionId: String,
+    val contactName: String,
     val lastMessage: String,
     val lastTimestamp: Long,
     val isUnread: Boolean = false,
@@ -19,6 +20,7 @@ data class ChatSession(
 @Serializable
 data class ChatMessage(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val sessionId: String,
     val contactName: String,
     val senderName: String, // Either contactName or User
     val text: String,

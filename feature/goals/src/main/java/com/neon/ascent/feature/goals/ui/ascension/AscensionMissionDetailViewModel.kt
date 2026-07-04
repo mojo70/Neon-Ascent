@@ -147,17 +147,16 @@ class AscensionMissionDetailViewModel @Inject constructor(
                 description = description,
                 type = if (isRecurring) AscensionTaskType.RECURRING else AscensionTaskType.ONE_TIME,
                 recurrence = if (isRecurring) RecurrenceV3(type = RecurrenceTypeV3.DAILY) else null,
-                lastCompleted = null
+                lastCompleted = null,
+                impactWeight = 1.0f
             )
             repository.insertTask(task)
-            recalculateProgress()
         }
     }
 
     fun completeTask(task: AscensionTask) {
         viewModelScope.launch {
             repository.completeTask(task, "Completed from Mission context", 3, null)
-            recalculateProgress()
         }
     }
 
@@ -209,50 +208,6 @@ class AscensionMissionDetailViewModel @Inject constructor(
         viewModelScope.launch {
             mentorUseCase.generateTasksForMission(mis)
             _uiState.update { it.copy(isGeneratingTasks = false) }
-            recalculateProgress()
-        }
-    }
-
-    private suspend fun recalculateProgress() {
-        val mis = _uiState.value.mission ?: return
-        val tasks = _uiState.value.tasks
-
-        val calculatedProgress = if (tasks.isNotEmpty()) {
-            val completedCount = tasks.count { it.lastCompleted != null }
-            completedCount.toFloat() / tasks.size
-        } else {
-            0f
-        }
-
-        repository.updateMission(mis.copy(progress = calculatedProgress))
-        
-        // Propagate progress to parent directive
-        val dirId = mis.directiveId
-        if (dirId != null) {
-            val siblingMissions = repository.getMissionsForDirective(dirId).first()
-            val directiveTasks = repository.getTasksForParent(dirId).first()
-            
-            val missionWeight = 0.7f
-            val taskWeight = 0.3f
-
-            val missionsProgress = if (siblingMissions.isNotEmpty()) siblingMissions.map { it.progress }.average().toFloat() else 1.0f
-            val tasksProgress = if (directiveTasks.isNotEmpty()) {
-                val completedCount = directiveTasks.count { it.lastCompleted != null }
-                completedCount.toFloat() / directiveTasks.size
-            } else {
-                1.0f
-            }
-
-            val calculatedDirProgress = when {
-                siblingMissions.isEmpty() && directiveTasks.isEmpty() -> 0f
-                siblingMissions.isEmpty() -> tasksProgress
-                directiveTasks.isEmpty() -> missionsProgress
-                else -> (missionsProgress * missionWeight) + (tasksProgress * taskWeight)
-            }
-            
-            repository.getAllDirectives().first().find { it.id == dirId }?.let { directive ->
-                repository.updateDirective(directive.copy(currentProgress = calculatedDirProgress))
-            }
         }
     }
 }

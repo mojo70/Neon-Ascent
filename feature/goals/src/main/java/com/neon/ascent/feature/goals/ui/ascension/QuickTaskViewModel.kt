@@ -214,6 +214,7 @@ class QuickTaskViewModel @Inject constructor(
                 adaptiveWakeEnabled = adaptiveWakeEnabled,
                 reminderEnabled = true,
                 xpValue = xpValue,
+                impactWeight = 1.0f,
                 currentStreak = 0,
                 longestStreak = 0,
                 graceBufferDays = graceBufferDays,

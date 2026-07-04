@@ -192,7 +192,8 @@ class AscensionForgeViewModel @Inject constructor(
                             visionStatement = state.visionStatement.takeIf { it.isNotBlank() },
                             isQuarterly = state.isQuarterly,
                             linkedAttributes = state.linkedAttributes,
-                            createdAt = Instant.now()
+                            createdAt = Instant.now(),
+                            successMetrics = emptyList() // User can add via chat
                         )
                         repository.insertDirective(directive)
                     }
@@ -203,7 +204,8 @@ class AscensionForgeViewModel @Inject constructor(
                             title = state.title,
                             description = state.description,
                             linkedAttributes = state.linkedAttributes,
-                            createdAt = Instant.now()
+                            createdAt = Instant.now(),
+                            contributionWeight = 1.0f
                         )
                         repository.insertMission(mission)
                     }
@@ -221,7 +223,8 @@ class AscensionForgeViewModel @Inject constructor(
                                 )
                             } else null,
                             timeWindows = state.timeWindows,
-                            linkedAttributes = state.linkedAttributes
+                            linkedAttributes = state.linkedAttributes,
+                            impactWeight = 1.0f
                         )
                         repository.insertTask(task)
                     }
@@ -235,7 +238,7 @@ class AscensionForgeViewModel @Inject constructor(
         }
     }
 
-    fun acceptProposals(proposedMissions: List<ProposedMission>) {
+    fun acceptProposals(proposedMissions: List<ProposedMission>, proposedMetrics: List<SuccessMetric>) {
         val state = _uiState.value
         viewModelScope.launch {
             try {
@@ -246,7 +249,8 @@ class AscensionForgeViewModel @Inject constructor(
                     description = state.description,
                     visionStatement = state.visionStatement.takeIf { it.isNotBlank() },
                     isQuarterly = state.isQuarterly,
-                    createdAt = Instant.now()
+                    createdAt = Instant.now(),
+                    successMetrics = proposedMetrics
                 )
                 repository.insertDirective(directive)
 
@@ -257,7 +261,8 @@ class AscensionForgeViewModel @Inject constructor(
                         directiveId = directiveId,
                         title = pMission.title,
                         description = pMission.description,
-                        aiGenerated = true
+                        aiGenerated = true,
+                        contributionWeight = pMission.contributionWeight
                     )
                     repository.insertMission(mission)
                     
@@ -268,9 +273,11 @@ class AscensionForgeViewModel @Inject constructor(
                             title = pTask.title,
                             description = pTask.description,
                             type = pTask.type,
+                            isPulse = pTask.isPulse,
                             recurrence = pTask.recurrence,
                             timeWindows = pTask.timeWindows,
-                            linkedAttributes = pTask.linkedAttributes
+                            linkedAttributes = pTask.linkedAttributes,
+                            impactWeight = pTask.impactWeight
                         )
                         repository.insertTask(task)
                     }

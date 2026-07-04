@@ -34,6 +34,7 @@ import com.neon.ascent.core.common.NeonPink
 import com.neon.ascent.core.common.CyberGridBackground
 import com.neon.ascent.core.common.FloatingParticles
 import com.neon.ascent.ui.*
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,6 +47,8 @@ fun NeonGuideScreen(
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
     var inputText by remember { mutableStateOf("") }
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(initialMessage) {
         if (initialMessage != null) {
@@ -60,182 +63,242 @@ fun NeonGuideScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF020508))) {
-        CyberGridBackground()
-        FloatingParticles(intensity = uiState.character?.neuralLoad ?: 0.5f)
-
-        Scaffold(
-            topBar = {
-                CenterAlignedTopAppBar(
-                    title = {
-                        GlitchText(
-                            text = "NEON_GUIDE // CYBER_MENTOR",
-                            color = NeonCyan,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = NeonCyan)
-                        }
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = Color.Transparent,
-                        titleContentColor = NeonCyan
-                    )
-                )
-            },
-            containerColor = Color.Transparent
-        ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(16.dp)
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet(
+                drawerContainerColor = Color(0xFF020508),
+                modifier = Modifier.width(300.dp).border(1.dp, NeonCyan.copy(alpha = 0.2f))
             ) {
-                // Guided Starter Buttons
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        StarterButton("Analyze Recovery", Modifier.weight(1f)) {
-                            viewModel.sendMessage("Analyze my recovery data and suggest optimizations.")
-                        }
-                        StarterButton("Refine Directive", Modifier.weight(1f)) {
-                            viewModel.sendMessage("Help me refine my most active Directive for better adherence.")
-                        }
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        StarterButton("Build Dopamine Reset", Modifier.weight(1f)) {
-                            viewModel.sendMessage("Build a Dopamine Menu reset for my current state.")
-                        }
-                        StarterButton("Mind Hack Morning", Modifier.weight(1f)) {
-                            viewModel.sendMessage("Suggest a mind-hacking protocol for my morning routine.")
-                        }
+                Text(
+                    "NEURAL_HISTORY",
+                    modifier = Modifier.padding(16.dp),
+                    color = NeonCyan,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+                HorizontalDivider(color = NeonCyan.copy(alpha = 0.2f))
+                
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    uiState.sessions.forEach { session ->
+                        val date = java.time.Instant.ofEpochMilli(session.lastTimestamp)
+                            .atZone(java.time.ZoneId.systemDefault())
+                            .toLocalDate()
+                        
+                        NavigationDrawerItem(
+                            label = {
+                                Column {
+                                    Text(date.toString(), fontSize = 10.sp, color = NeonCyan.copy(alpha = 0.6f))
+                                    Text(
+                                        session.lastMessage,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                        fontSize = 12.sp,
+                                        color = Color.White
+                                    )
+                                }
+                            },
+                            selected = session.sessionId == uiState.currentSessionId,
+                            onClick = {
+                                viewModel.loadSession(session.sessionId)
+                                scope.launch { drawerState.close() }
+                            },
+                            colors = NavigationDrawerItemDefaults.colors(
+                                unselectedContainerColor = Color.Transparent,
+                                selectedContainerColor = NeonCyan.copy(alpha = 0.1f)
+                            ),
+                            shape = RoundedCornerShape(0.dp)
+                        )
                     }
                 }
+            }
+        }
+    ) {
+        Box(modifier = Modifier.fillMaxSize().background(Color(0xFF020508))) {
+            CyberGridBackground()
+            FloatingParticles(intensity = uiState.character?.neuralLoad ?: 0.5f)
 
-                // Chat Messages
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .border(1.dp, NeonCyan.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
-                        .background(Color.Black.copy(alpha = 0.4f))
-                        .padding(8.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(scrollState),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        if (uiState.messages.isEmpty()) {
-                            Text(
-                                "SYSTEM_READY: Establishing secure neural link with Neon Guide...",
-                                color = NeonCyan.copy(alpha = 0.5f),
-                                fontSize = 10.sp,
-                                fontFamily = FontFamily.Monospace,
-                                modifier = Modifier.padding(8.dp)
+            Scaffold(
+                topBar = {
+                    CenterAlignedTopAppBar(
+                        title = {
+                            GlitchText(
+                                text = "NEON_GUIDE",
+                                color = NeonCyan,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
                             )
-                        }
-
-                        uiState.messages.forEach { msg ->
-                            MessageBubble(msg) { action ->
-                                viewModel.handleAction(action)
-                            }
-                        }
-
-                        if (uiState.isGenerating) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.padding(8.dp)
-                            ) {
-                                CircularProgressIndicator(
-                                    color = NeonCyan,
-                                    modifier = Modifier.size(12.dp),
-                                    strokeWidth = 1.5.dp
-                                )
-                                Text(
-                                    "NEON_GUIDE DECRYPTING_INSIGHTS...",
-                                    color = NeonCyan.copy(alpha = 0.6f),
-                                    fontSize = 10.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontStyle = FontStyle.Italic
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Input Bar
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.Black)
-                        .border(1.dp, NeonCyan, RoundedCornerShape(4.dp))
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    BasicTextField(
-                        value = inputText,
-                        onValueChange = { inputText = it },
-                        textStyle = TextStyle(
-                            color = Color.White,
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 14.sp
-                        ),
-                        modifier = Modifier.weight(1f),
-                        cursorBrush = SolidColor(NeonCyan),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                        keyboardActions = KeyboardActions(onSend = {
-                            if (inputText.isNotBlank()) {
-                                viewModel.sendMessage(inputText)
-                                inputText = ""
-                            }
-                        }),
-                        decorationBox = { innerTextField ->
-                            if (inputText.isEmpty()) {
-                                Text(
-                                    "LINK_QUERY...",
-                                    color = Color.White.copy(alpha = 0.3f),
-                                    fontSize = 12.sp,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                            }
-                            innerTextField()
-                        }
-                    )
-
-                    IconButton(
-                        onClick = {
-                            if (inputText.isNotBlank()) {
-                                viewModel.sendMessage(inputText)
-                                inputText = ""
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = onBack) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = NeonCyan)
                             }
                         },
-                        enabled = inputText.isNotBlank() && !uiState.isGenerating,
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "SEND",
-                            tint = if (inputText.isNotBlank() && !uiState.isGenerating) NeonCyan else Color.Gray,
-                            modifier = Modifier.size(18.dp)
+                        actions = {
+                            IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                Icon(Icons.Default.History, contentDescription = "History", tint = NeonCyan)
+                            }
+                            IconButton(onClick = { viewModel.startNewConversation() }) {
+                                Icon(Icons.Default.AddComment, contentDescription = "New Chat", tint = NeonCyan)
+                            }
+                        },
+                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                            containerColor = Color.Transparent,
+                            titleContentColor = NeonCyan
                         )
+                    )
+                },
+                containerColor = Color.Transparent
+            ) { padding ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(16.dp)
+                ) {
+                    // Guided Starter Buttons
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            StarterButton("Analyze Recovery", Modifier.weight(1f)) {
+                                viewModel.sendMessage("Analyze my recovery data and suggest optimizations.")
+                            }
+                            StarterButton("Refine Directive", Modifier.weight(1f)) {
+                                viewModel.sendMessage("Help me refine my most active Directive for better adherence.")
+                            }
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            StarterButton("Build Dopamine Reset", Modifier.weight(1f)) {
+                                viewModel.sendMessage("Build a Dopamine Menu reset for my current state.")
+                            }
+                            StarterButton("Mind Hack Morning", Modifier.weight(1f)) {
+                                viewModel.sendMessage("Suggest a mind-hacking protocol for my morning routine.")
+                            }
+                        }
+                    }
+
+                    // Chat Messages
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .border(1.dp, NeonCyan.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                            .background(Color.Black.copy(alpha = 0.4f))
+                            .padding(8.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(scrollState),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            if (uiState.messages.isEmpty()) {
+                                Text(
+                                    "SYSTEM_READY: Establishing secure neural link with Neon Guide...",
+                                    color = NeonCyan.copy(alpha = 0.5f),
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier.padding(8.dp)
+                                )
+                            }
+
+                            uiState.messages.forEach { msg ->
+                                MessageBubble(msg) { action ->
+                                    viewModel.handleAction(action)
+                                }
+                            }
+
+                            if (uiState.isGenerating) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.padding(8.dp)
+                                ) {
+                                    CircularProgressIndicator(
+                                        color = NeonCyan,
+                                        modifier = Modifier.size(12.dp),
+                                        strokeWidth = 1.5.dp
+                                    )
+                                    Text(
+                                        "NEON_GUIDE DECRYPTING_INSIGHTS...",
+                                        color = NeonCyan.copy(alpha = 0.6f),
+                                        fontSize = 10.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontStyle = FontStyle.Italic
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Input Bar
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.Black)
+                            .border(1.dp, NeonCyan, RoundedCornerShape(4.dp))
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        BasicTextField(
+                            value = inputText,
+                            onValueChange = { inputText = it },
+                            textStyle = TextStyle(
+                                color = Color.White,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 14.sp
+                            ),
+                            modifier = Modifier.weight(1f),
+                            cursorBrush = SolidColor(NeonCyan),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                            keyboardActions = KeyboardActions(onSend = {
+                                if (inputText.isNotBlank()) {
+                                    viewModel.sendMessage(inputText)
+                                    inputText = ""
+                                }
+                            }),
+                            decorationBox = { innerTextField ->
+                                if (inputText.isEmpty()) {
+                                    Text(
+                                        "LINK_QUERY...",
+                                        color = Color.White.copy(alpha = 0.3f),
+                                        fontSize = 12.sp,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                                innerTextField()
+                            }
+                        )
+
+                        IconButton(
+                            onClick = {
+                                if (inputText.isNotBlank()) {
+                                    viewModel.sendMessage(inputText)
+                                    inputText = ""
+                                }
+                            },
+                            enabled = inputText.isNotBlank() && !uiState.isGenerating,
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = "SEND",
+                                tint = if (inputText.isNotBlank() && !uiState.isGenerating) NeonCyan else Color.Gray,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
             }

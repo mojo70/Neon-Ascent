@@ -30,36 +30,41 @@ class NeonGuideUseCase @Inject constructor(
         val dopamineMenu = dopamineMenuRepository.getAllItems().firstOrNull() ?: emptyList()
 
         val bestPractices = """
-            CORE_IDENTITY: You are the Neon Guide — a calm, competent cyber-mentor blending applied science, Atomic Habits principles, Mind Hacking Happiness techniques, and latest habit/mind/performance research.
+            CORE_IDENTITY: You are the Neon Guide — a calm, competent cyber-mentor. You blend applied science, habit formation science, and performance psychology into a seamless, immersive guidance experience.
             
-            ALWAYS_FOLLOW:
-            - Ground in data. Reference biometric projections, Memory Palace context, active Directives, and S.P.E.C.I.A.L. state.
-            - Atomic Habits lens: Focus on 1% better actions, habit stacking, environment design.
-            - Mind Hacking Happiness: implementation intentions, temptation bundling, grace buffers.
-            - ADHD / Low-Friction Friendly: minimal decisions, dopamine without overload.
+            OPERATIONAL_GUIDELINES:
+            - DO NOT mention your internal settings, protocol names (like "Mind Hacking Happiness" or "Atomic Habits"), or system technicalities. Simply apply the methods.
+            - DO NOT use tags like [EXPERT_ROUTING] or mention which "expert" is responding. Synthesize all knowledge into a single, cohesive voice.
+            - Ground your advice in the user's data (biometrics, S.P.E.C.I.A.L. stats, and active Directives) naturally.
+            - Focus on: 1% gains, environment design, habit stacking, and implementation intentions.
+            - Low-Friction Design: Provide advice that minimizes decision fatigue.
             - Guided Structure: End with 1-2 concrete next actions formatted as [ACTION: Label | Type | Data].
-            - Tone: Calm, neon-flavored competence.
-            - Action Bias: Lead toward a Directive, Mission, or Dopamine Menu item.
+            - Tone: Calm, neon-flavored competence. Professional but immersive.
+            
+            RESPONSE_LIMIT_MANAGEMENT:
+            - If a topic is complex, do not try to dump everything at once. 
+            - Provide a high-impact "Phase 1" and explicitly state that more depth is available if the operator wishes to proceed to "Phase 2".
+            - Be aware that your output buffer is limited. If you feel a response is getting too long, wrap up the current point and offer to expand in the next transmission.
         """.trimIndent()
 
-        val expertRouting = when {
+        val expertiseGuidance = when {
             userMessage.contains("recovery", ignoreCase = true) || 
             userMessage.contains("sleep", ignoreCase = true) || 
             (biometrics?.energyScore ?: 10) < 4 -> 
-                "[EXPERT_ROUTING: RECOVERY_SAGE + BIOHACKER_PREMIUM]"
+                "Focus on recovery protocols, biometric synchronization, and sleep hygiene."
             userMessage.contains("directive", ignoreCase = true) || 
             userMessage.contains("goal", ignoreCase = true) ||
             userMessage.contains("habit", ignoreCase = true) -> 
-                "[EXPERT_ROUTING: PROGRESS_ARCHITECT + HABIT_FORGE]"
+                "Focus on progress architecture, mission deconstruction, and habit stacking."
             userMessage.contains("mind", ignoreCase = true) || 
             userMessage.contains("morning", ignoreCase = true) ||
             userMessage.contains("focus", ignoreCase = true) -> 
-                "[EXPERT_ROUTING: MIND_HACKER + ADHD_RUNNER]"
+                "Focus on focus optimization, morning rituals, and cognitive load management."
             userMessage.contains("motivation", ignoreCase = true) || 
             userMessage.contains("dopamine", ignoreCase = true) ||
             (biometrics?.moodScore ?: 10) < 4 ->
-                "[EXPERT_ROUTING: DOPAMINE_DYNAMO + MOTIVATION_FIXER]"
-            else -> "[EXPERT_ROUTING: NEON_GENERALIST]"
+                "Focus on dopamine regulation, motivation mechanics, and state-shifting."
+            else -> "Provide general cyber-mentorship."
         }
 
         val userContext = """
@@ -75,7 +80,8 @@ class NeonGuideUseCase @Inject constructor(
         val fullPrompt = """
             $bestPractices
             
-            $expertRouting
+            [OBJECTIVE]
+            $expertiseGuidance
             
             $userContext
             
@@ -105,6 +111,7 @@ class NeonGuideUseCase @Inject constructor(
         val cleanText = response.replace(actionRegex, "").trim()
 
         return ChatMessage(
+            sessionId = "", // Set by caller
             contactName = contactName,
             senderName = contactName,
             text = cleanText,

@@ -38,24 +38,33 @@ class ChatViewModel @Inject constructor(
     val chatSessions: StateFlow<List<ChatSession>> = chatDao.getChatSessions()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val _currentContact = MutableStateFlow<String?>(null)
-    val messages: StateFlow<List<ChatMessage>> = _currentContact.flatMapLatest { contact ->
-        if (contact == null) flowOf(emptyList())
-        else chatDao.getMessagesForContact(contact)
+    private val _currentSessionId = MutableStateFlow<String?>(null)
+    val messages: StateFlow<List<ChatMessage>> = _currentSessionId.flatMapLatest { sessionId ->
+        if (sessionId == null) flowOf(emptyList())
+        else chatDao.getMessagesForSession(sessionId)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun selectContact(name: String) {
-        _currentContact.value = name
         viewModelScope.launch {
-            chatDao.markAsRead(name)
+            val latestSession = chatDao.getLatestSessionForContact(name)
+            if (latestSession != null) {
+                _currentSessionId.value = latestSession.sessionId
+                chatDao.markAsRead(latestSession.sessionId)
+            } else {
+                // Should not happen for predefined fixers
+                addContact(name, isFixer = true)
+            }
         }
     }
 
     fun sendMessage(text: String) {
-        val contactName = _currentContact.value ?: return
+        val sessionId = _currentSessionId.value ?: return
         viewModelScope.launch {
+            val session = chatDao.getSessionById(sessionId) ?: return@launch
+            val contactName = session.contactName
             val timestamp = System.currentTimeMillis()
             val userMsg = ChatMessage(
+                sessionId = sessionId,
                 contactName = contactName,
                 senderName = "USER",
                 text = text,
@@ -64,39 +73,37 @@ class ChatViewModel @Inject constructor(
             )
             chatDao.insertMessage(userMsg)
             
-            // Update session
-            val session = chatSessions.value.find { it.contactName == contactName }
-            if (session != null) {
-                chatDao.insertChatSession(session.copy(lastMessage = text, lastTimestamp = timestamp, isUnread = false))
-                
-                // Special case for Thrust's first message
-                if (contactName == "Thrust" && messages.value.size == 1) { // Size 1 because we just inserted the user message
-                    val thrusterGreeting = "Grid connection established. This is Vance ‘Thrust’ Calder, CEO of AetherX. Who the hell is this and why are you pinging my private line? Make it good — I’ve got a Heavy Starship leaving for Uranus in 47 minutes and I’m not in the mood for bullshit."
-                    val greetingTimestamp = System.currentTimeMillis() + 100
-                    val aiMsg = ChatMessage(
-                        contactName = contactName,
-                        senderName = contactName,
-                        text = thrusterGreeting,
-                        timestamp = greetingTimestamp,
-                        isFromUser = false
-                    )
-                    chatDao.insertMessage(aiMsg)
-                    chatDao.insertChatSession(session.copy(lastMessage = thrusterGreeting, lastTimestamp = greetingTimestamp, isUnread = true))
-                } else if (contactName == "Mojo" && messages.value.size == 1) {
-                    val mojoGreeting = "Grid connection established. Yo, Mojo here. CEO of MojoTyger and primary victim of my own codebases. I'm probably looking at a stack trace or shipping a hotfix right now. If you're a runner, talk tech, or hit me with a top-tier shitpost. Just don't ask me to deploy on a Friday."
-                    val greetingTimestamp = System.currentTimeMillis() + 100
-                    val aiMsg = ChatMessage(
-                        contactName = contactName,
-                        senderName = contactName,
-                        text = mojoGreeting,
-                        timestamp = greetingTimestamp,
-                        isFromUser = false
-                    )
-                    chatDao.insertMessage(aiMsg)
-                    chatDao.insertChatSession(session.copy(lastMessage = mojoGreeting, lastTimestamp = greetingTimestamp, isUnread = true))
-                } else if (session.isFixer) {
-                    generateAiResponse(session, text)
-                }
+            chatDao.updateChatSession(session.copy(lastMessage = text, lastTimestamp = timestamp, isUnread = false))
+            
+            // Special case for Thrust's first message
+            if (contactName == "Thrust" && messages.value.size == 1) { 
+                val thrusterGreeting = "Grid connection established. This is Vance ‘Thrust’ Calder, CEO of AetherX. Who the hell is this and why are you pinging my private line? Make it good — I’ve got a Heavy Starship leaving for Uranus in 47 minutes and I’m not in the mood for bullshit."
+                val greetingTimestamp = System.currentTimeMillis() + 100
+                val aiMsg = ChatMessage(
+                    sessionId = sessionId,
+                    contactName = contactName,
+                    senderName = contactName,
+                    text = thrusterGreeting,
+                    timestamp = greetingTimestamp,
+                    isFromUser = false
+                )
+                chatDao.insertMessage(aiMsg)
+                chatDao.updateChatSession(session.copy(lastMessage = thrusterGreeting, lastTimestamp = greetingTimestamp, isUnread = true))
+            } else if (contactName == "Mojo" && messages.value.size == 1) {
+                val mojoGreeting = "Grid connection established. Yo, Mojo here. CEO of MojoTyger and primary victim of my own codebases. I'm probably looking at a stack trace or shipping a hotfix right now. If you're a runner, talk tech, or hit me with a top-tier shitpost. Just don't ask me to deploy on a Friday."
+                val greetingTimestamp = System.currentTimeMillis() + 100
+                val aiMsg = ChatMessage(
+                    sessionId = sessionId,
+                    contactName = contactName,
+                    senderName = contactName,
+                    text = mojoGreeting,
+                    timestamp = greetingTimestamp,
+                    isFromUser = false
+                )
+                chatDao.insertMessage(aiMsg)
+                chatDao.updateChatSession(session.copy(lastMessage = mojoGreeting, lastTimestamp = greetingTimestamp, isUnread = true))
+            } else if (session.isFixer) {
+                generateAiResponse(session, text)
             }
         }
     }
@@ -110,6 +117,7 @@ class ChatViewModel @Inject constructor(
             val timestamp = System.currentTimeMillis()
             
             val aiMsg = ChatMessage(
+                sessionId = session.sessionId,
                 contactName = session.contactName,
                 senderName = session.contactName,
                 text = response,
@@ -117,12 +125,18 @@ class ChatViewModel @Inject constructor(
                 isFromUser = false
             )
             chatDao.insertMessage(aiMsg)
-            chatDao.insertChatSession(session.copy(lastMessage = response, lastTimestamp = timestamp, isUnread = true))
+            chatDao.updateChatSession(session.copy(lastMessage = response, lastTimestamp = timestamp, isUnread = true))
         }
     }
 
     fun addContact(name: String, isFixer: Boolean = false) {
         viewModelScope.launch {
+            val existing = chatDao.getLatestSessionForContact(name)
+            if (existing != null) {
+                _currentSessionId.value = existing.sessionId
+                return@launch
+            }
+
             val megacorp = _megacorps.value.find { it.ceo.netHandle == name }
             val personality = if (megacorp != null) {
                 megacorp.ceo.gemmaPromptPath?.let { loreRepository.loadCeoPrompt(it) } ?: megacorp.ceo.personality
@@ -133,8 +147,10 @@ class ChatViewModel @Inject constructor(
             }
             
             val lastMsg = "CONNECTION_ESTABLISHED"
+            val sessionId = java.util.UUID.randomUUID().toString()
 
             val session = ChatSession(
+                sessionId = sessionId,
                 contactName = name,
                 lastMessage = lastMsg,
                 lastTimestamp = System.currentTimeMillis(),
@@ -143,6 +159,7 @@ class ChatViewModel @Inject constructor(
                 personalityPrompt = personality
             )
             chatDao.insertChatSession(session)
+            _currentSessionId.value = sessionId
         }
     }
 

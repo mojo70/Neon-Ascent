@@ -169,7 +169,7 @@ class NeonMentorUseCase @Inject constructor(
             
             Operator's question: "$question"
             
-            Provide a piercing, concise, dialectic guidance in response. Keep it under 120 words. Focus on deconstructing their resistance or helping them start immediately.
+            Provide a piercing, dialectic guidance in response. Focus on deconstructing their resistance or helping them start immediately. Keep the response substantial but focused.
         """.trimIndent()
         return gemmaClient.generateContent(prompt)
     }
@@ -229,8 +229,12 @@ class NeonMentorUseCase @Inject constructor(
             MentorMode.REVIEW -> "Provide a concise status report analyzing their patterns, consistency, and progress. List 1-2 pattern detections."
             MentorMode.SOUNDING_BOARD -> "Act as a thoughtful, deconstructive mirror. Pose 1-2 open-ended reflective questions about their blockers."
             MentorMode.GUIDE -> """
-                Provide active coaching. Give step-by-step checklists, estimated difficulties, habit stacking suggestions.
-                Proactively suggest a structured plan (Missions + Pulses) if appropriate.
+                Act as a SYSTEMS_ARCHITECT. 
+                1. If the Directive is vague, use Socratic questioning to define a measurable outcome.
+                2. Propose 2-3 Success Metrics (MetricType: MANUAL/BIOMETRIC/STREAK).
+                3. Propose a structured plan (Missions + Pulses). 
+                4. Ensure Missions have a 'contributionWeight' (0.0 to 1.0) toward the Directive.
+                5. Ensure Pulses (recurring tasks) have an 'impactWeight'.
             """.trimIndent()
         }
 
@@ -245,9 +249,12 @@ class NeonMentorUseCase @Inject constructor(
             [MESSAGE]
             (Your conversational response)
             
+            [METRICS]
+            METRIC: [Description] | [TargetValue] | [Unit] | [Type: MANUAL/BIOMETRIC/STREAK] | [BiometricKey: steps/sleep_hours/hrv/NONE]
+            
             [PROPOSAL]
-            MISSION: [Title] | [Description]
-              PULSE: [Title] | [Description] | [Type: ONE_TIME/RECURRING] | [Frequency: DAILY/WEEKDAYS] | [TimeWindow: e.g. morning] | [STATS: COMMA_SEP_LIST]
+            MISSION: [Title] | [Description] | [Weight: 0.0-1.0]
+              PULSE: [Title] | [Description] | [Type: ONE_TIME/RECURRING] | [Frequency: DAILY/WEEKDAYS] | [TimeWindow] | [STATS] | [Impact: 0.0-1.0]
             
             User/Operator Query: "$message"
             
@@ -259,9 +266,27 @@ class NeonMentorUseCase @Inject constructor(
     }
 
     private fun parseDialogueResponse(response: String): MentorUiMessage {
-        val messagePart = response.substringAfter("[MESSAGE]").substringBefore("[PROPOSAL]").trim()
+        val messagePart = response.substringAfter("[MESSAGE]").substringBefore("[METRICS]").substringBefore("[PROPOSAL]").trim()
+        val metricsPart = response.substringAfter("[METRICS]", "").substringBefore("[PROPOSAL]").trim()
         val proposalPart = response.substringAfter("[PROPOSAL]", "").trim()
         
+        val proposedMetrics = mutableListOf<SuccessMetric>()
+        metricsPart.lines().forEach { line ->
+            if (line.trim().startsWith("METRIC:")) {
+                val parts = line.substringAfter("METRIC:").split("|")
+                if (parts.size >= 4) {
+                    proposedMetrics.add(SuccessMetric(
+                        id = UUID.randomUUID().toString(),
+                        description = parts[0].trim(),
+                        targetValue = parts[1].trim().toFloatOrNull() ?: 1.0f,
+                        unit = parts[2].trim().takeIf { it != "NONE" },
+                        type = try { MetricType.valueOf(parts[3].trim().uppercase()) } catch(e: Exception) { MetricType.MANUAL },
+                        biometricKey = parts.getOrNull(4)?.trim()?.takeIf { it != "NONE" }
+                    ))
+                }
+            }
+        }
+
         val proposedMissions = mutableListOf<ProposedMission>()
         var currentMission: ProposedMission? = null
         val currentTasks = mutableListOf<ProposedTask>()
@@ -276,7 +301,11 @@ class NeonMentorUseCase @Inject constructor(
                     }
                     val parts = trimmedLine.substringAfter("MISSION:").split("|")
                     if (parts.size >= 2) {
-                        currentMission = ProposedMission(parts[0].trim(), parts[1].trim())
+                        currentMission = ProposedMission(
+                            title = parts[0].trim(),
+                            description = parts[1].trim(),
+                            contributionWeight = parts.getOrNull(2)?.trim()?.toFloatOrNull() ?: 1.0f
+                        )
                     }
                 }
                 trimmedLine.startsWith("PULSE:") || trimmedLine.startsWith("TASK:") -> {
@@ -293,12 +322,14 @@ class NeonMentorUseCase @Inject constructor(
                             title = parts[0].trim(),
                             description = parts[1].trim(),
                             type = if (parts[2].trim() == "RECURRING") AscensionTaskType.RECURRING else AscensionTaskType.ONE_TIME,
+                            isPulse = trimmedLine.startsWith("PULSE:"),
                             recurrence = if (parts[2].trim() == "RECURRING") {
                                 val freq = parts.getOrNull(3)?.trim() ?: "DAILY"
                                 RecurrenceV3(type = if (freq == "WEEKDAYS") RecurrenceTypeV3.WEEKDAYS else RecurrenceTypeV3.DAILY)
                             } else null,
                             timeWindows = parts.getOrNull(4)?.split(",")?.map { it.trim() } ?: emptyList(),
-                            linkedAttributes = stats
+                            linkedAttributes = stats,
+                            impactWeight = parts.getOrNull(6)?.trim()?.toFloatOrNull() ?: 1.0f
                         )
                         currentTasks.add(task)
                     }
@@ -310,11 +341,12 @@ class NeonMentorUseCase @Inject constructor(
             proposedMissions.add(currentMission!!.copy(tasks = currentTasks.toList()))
         }
 
-        val text = if (messagePart.isBlank() && proposalPart.isBlank()) response else messagePart
+        val text = if (messagePart.isBlank() && metricsPart.isBlank() && proposalPart.isBlank()) response else messagePart
         
         return MentorUiMessage(
             text = text,
             isFromUser = false,
+            proposedMetrics = proposedMetrics,
             proposedMissions = proposedMissions
         )
     }

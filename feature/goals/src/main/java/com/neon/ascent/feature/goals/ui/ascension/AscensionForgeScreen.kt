@@ -457,12 +457,13 @@ fun MentorConversationalBuilder(uiState: AscensionForgeUiState, viewModel: Ascen
                                     lineHeight = 14.sp
                                 )
 
-                                if (msg.proposedMissions.isNotEmpty()) {
+                                if (msg.proposedMissions.isNotEmpty() || msg.proposedMetrics.isNotEmpty()) {
                                     ProposalTreeView(
                                         missions = msg.proposedMissions,
+                                        metrics = msg.proposedMetrics,
                                         expandedMissions = uiState.expandedMissions,
                                         onToggleExpansion = viewModel::toggleMissionExpansion,
-                                        onAccept = { viewModel.acceptProposals(msg.proposedMissions) }
+                                        onAccept = { viewModel.acceptProposals(msg.proposedMissions, msg.proposedMetrics) }
                                     )
                                 }
                             }
@@ -513,6 +514,7 @@ fun MentorConversationalBuilder(uiState: AscensionForgeUiState, viewModel: Ascen
 @Composable
 fun ProposalTreeView(
     missions: List<ProposedMission>,
+    metrics: List<SuccessMetric>,
     expandedMissions: Set<String>,
     onToggleExpansion: (String) -> Unit,
     onAccept: () -> Unit
@@ -533,6 +535,18 @@ fun ProposalTreeView(
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Bold
         )
+
+        if (metrics.isNotEmpty()) {
+            Text("SUCCESS_METRICS", color = NeonPink, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+            metrics.forEach { metric ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Analytics, null, tint = NeonPink, modifier = Modifier.size(12.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("${metric.description}: ${metric.targetValue} ${metric.unit ?: ""}", color = Color.LightGray, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                }
+            }
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = Color.White.copy(alpha = 0.1f))
+        }
 
         missions.forEach { mission ->
             val isExpanded = expandedMissions.contains(mission.title)

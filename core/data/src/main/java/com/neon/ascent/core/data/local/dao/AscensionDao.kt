@@ -20,9 +20,18 @@ interface AscensionDao {
     @Query("DELETE FROM ascension_directives WHERE id = :id")
     suspend fun deleteDirective(id: String)
 
+    @Query("SELECT * FROM ascension_directives WHERE id = :id")
+    suspend fun getDirectiveById(id: String): AscensionDirectiveEntity?
+
     // Missions
     @Query("SELECT * FROM ascension_missions WHERE directiveId = :directiveId")
     fun getMissionsForDirective(directiveId: String): Flow<List<AscensionMissionEntity>>
+
+    @Query("SELECT * FROM ascension_missions WHERE directiveId = :directiveId")
+    suspend fun getMissionsForDirectiveSync(directiveId: String): List<AscensionMissionEntity>
+
+    @Query("SELECT * FROM ascension_missions WHERE id = :id")
+    suspend fun getMissionById(id: String): AscensionMissionEntity?
 
     @Query("SELECT * FROM ascension_missions WHERE status = 'ACTIVE'")
     fun getActiveMissions(): Flow<List<AscensionMissionEntity>>
@@ -36,6 +45,9 @@ interface AscensionDao {
     // Tasks
     @Query("SELECT * FROM ascension_tasks WHERE parentId = :parentId")
     fun getTasksForParent(parentId: String): Flow<List<AscensionTaskEntity>>
+
+    @Query("SELECT * FROM ascension_tasks WHERE parentId = :parentId")
+    suspend fun getTasksForParentSync(parentId: String): List<AscensionTaskEntity>
 
     @Query("SELECT * FROM ascension_tasks WHERE type = 'RECURRING'")
     fun getAllRecurringTasks(): Flow<List<AscensionTaskEntity>>

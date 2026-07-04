@@ -357,7 +357,20 @@ fun AscensionDirectiveDetailScreen(
                             }
                         }
 
-                        // 2. MISSION OVERVIEW (Active Campaigns Carousel)
+                        // 2. SUCCESS METRICS SECTOR
+                        if (directive.successMetrics.isNotEmpty()) {
+                            item {
+                                CyberFrame(label = "SUCCESS_METRIC_TELEMETRY", accentColor = NeonPink) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        directive.successMetrics.forEach { metric ->
+                                            SuccessMetricRow(metric)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // 3. MISSION OVERVIEW (Active Campaigns Carousel)
                         item {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -1063,5 +1076,61 @@ fun AscensionDirectiveDetailScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun SuccessMetricRow(metric: SuccessMetric) {
+    val progress = if (metric.targetValue > 0) (metric.currentValue / metric.targetValue).coerceIn(0f, 1f) else 0f
+    val color = when (metric.type) {
+        MetricType.BIOMETRIC -> NeonCyan
+        MetricType.STREAK -> Color.Yellow
+        else -> NeonPink
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Icon(
+                    imageVector = when (metric.type) {
+                        MetricType.BIOMETRIC -> Icons.Default.Favorite
+                        MetricType.STREAK -> Icons.Default.Timeline
+                        MetricType.XP -> Icons.Default.Bolt
+                        MetricType.MANUAL -> Icons.Default.Analytics
+                    },
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(14.dp)
+                )
+                Text(
+                    text = metric.description.uppercase(),
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Text(
+                text = "${metric.currentValue.toInt()} / ${metric.targetValue.toInt()} ${metric.unit ?: ""}",
+                color = color,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp)
+                .clip(RoundedCornerShape(2.dp)),
+            color = color,
+            trackColor = color.copy(alpha = 0.1f)
+        )
     }
 }

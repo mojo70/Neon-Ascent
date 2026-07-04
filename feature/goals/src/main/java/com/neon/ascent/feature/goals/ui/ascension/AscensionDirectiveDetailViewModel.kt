@@ -135,10 +135,10 @@ class AscensionDirectiveDetailViewModel @Inject constructor(
                 description = description,
                 status = AscensionMissionStatus.ACTIVE,
                 progress = 0f,
-                aiGenerated = false
+                aiGenerated = false,
+                contributionWeight = 1.0f
             )
             repository.insertMission(mission)
-            recalculateProgress()
         }
     }
 
@@ -151,17 +151,16 @@ class AscensionDirectiveDetailViewModel @Inject constructor(
                 title = title,
                 description = description,
                 type = AscensionTaskType.ONE_TIME,
-                lastCompleted = null
+                lastCompleted = null,
+                impactWeight = 1.0f
             )
             repository.insertTask(task)
-            recalculateProgress()
         }
     }
 
     fun completeStandaloneTask(task: AscensionTask) {
         viewModelScope.launch {
             repository.completeTask(task, "Completed directly", 3, null)
-            recalculateProgress()
         }
     }
 
@@ -197,31 +196,5 @@ class AscensionDirectiveDetailViewModel @Inject constructor(
 
     fun clearChat() {
         _uiState.update { it.copy(chatHistory = emptyList()) }
-    }
-
-    private suspend fun recalculateProgress() {
-        val dir = _uiState.value.directive ?: return
-        val missions = _uiState.value.missions
-        val tasks = _uiState.value.directTasks
-
-        val missionWeight = 0.7f
-        val taskWeight = 0.3f
-
-        val missionsProgress = if (missions.isNotEmpty()) missions.map { it.progress }.average().toFloat() else 1.0f
-        val tasksProgress = if (tasks.isNotEmpty()) {
-            val completedCount = tasks.count { it.lastCompleted != null }
-            completedCount.toFloat() / tasks.size
-        } else {
-            1.0f
-        }
-
-        val calculatedProgress = when {
-            missions.isEmpty() && tasks.isEmpty() -> 0f
-            missions.isEmpty() -> tasksProgress
-            tasks.isEmpty() -> missionsProgress
-            else -> (missionsProgress * missionWeight) + (tasksProgress * taskWeight)
-        }
-
-        repository.updateDirective(dir.copy(currentProgress = calculatedProgress))
     }
 }

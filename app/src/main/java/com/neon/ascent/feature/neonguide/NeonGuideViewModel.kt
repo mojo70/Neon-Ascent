@@ -26,7 +26,9 @@ data class NeonGuideUiState(
     val messages: List<ChatMessage> = emptyList(),
     val isGenerating: Boolean = false,
     val character: UserCharacter? = null,
-    val directives: List<AscensionDirective> = emptyList()
+    val directives: List<AscensionDirective> = emptyList(),
+    val sessions: List<ChatSession> = emptyList(),
+    val currentSessionId: String? = null
 )
 
 @HiltViewModel
@@ -37,7 +39,7 @@ class NeonGuideViewModel @Inject constructor(
     private val ascensionRepository: AscensionRepository,
     private val dopamineMenuRepository: DopamineMenuRepository,
     private val guideUseCase: NeonGuideUseCase,
-    savedStateHandle: androidx.lifecycle.SavedStateHandle
+    private val savedStateHandle: androidx.lifecycle.SavedStateHandle
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(NeonGuideUiState())
@@ -46,44 +48,87 @@ class NeonGuideViewModel @Inject constructor(
     private val contactName = "NEON_GUIDE"
 
     init {
-        val initialMessage: String? = savedStateHandle["initialMessage"]
-        if (initialMessage != null) {
-            sendMessage(initialMessage)
-        }
         viewModelScope.launch {
-            chatDao.getMessagesForContact(contactName).collect { msgs ->
-                _uiState.update { it.copy(messages = msgs) }
+            chatDao.getSessionsForContact(contactName).collect { sessions ->
+                _uiState.update { it.copy(sessions = sessions) }
             }
         }
+
         viewModelScope.launch {
             userCharacterDao.getUserCharacter().collect { char ->
                 _uiState.update { it.copy(character = char) }
             }
         }
+
         viewModelScope.launch {
             ascensionRepository.getAllDirectives().collect { dirs ->
                 _uiState.update { it.copy(directives = dirs) }
             }
         }
 
-        // Initialize session if needed
+        initializeSession()
+    }
+
+    private fun initializeSession() {
         viewModelScope.launch {
-            chatDao.insertChatSession(
-                ChatSession(
-                    contactName = contactName,
-                    lastMessage = "Awaiting neural uplink...",
-                    lastTimestamp = System.currentTimeMillis(),
-                    isFixer = false
-                )
-            )
+            val latestSession = chatDao.getLatestSessionForContact(contactName)
+            val now = System.currentTimeMillis()
+            val dayInMillis = 24 * 60 * 60 * 1000L
+
+            val sessionId = if (latestSession == null || (now - latestSession.lastTimestamp) > dayInMillis) {
+                startNewConversationSync()
+            } else {
+                latestSession.sessionId
+            }
+            
+            loadSession(sessionId)
+            
+            // Handle initial message from deep link
+            savedStateHandle.get<String>("initialMessage")?.let { 
+                sendMessage(it)
+                savedStateHandle.remove<String>("initialMessage")
+            }
+        }
+    }
+
+    private suspend fun startNewConversationSync(): String {
+        val newSessionId = UUID.randomUUID().toString()
+        val session = ChatSession(
+            sessionId = newSessionId,
+            contactName = contactName,
+            lastMessage = "CONNECTION_ESTABLISHED",
+            lastTimestamp = System.currentTimeMillis(),
+            isFixer = false
+        )
+        chatDao.insertChatSession(session)
+        return newSessionId
+    }
+
+    fun startNewConversation() {
+        viewModelScope.launch {
+            val id = startNewConversationSync()
+            loadSession(id)
+        }
+    }
+
+    fun loadSession(sessionId: String) {
+        _uiState.update { it.copy(currentSessionId = sessionId) }
+        viewModelScope.launch {
+            chatDao.getMessagesForSession(sessionId).collect { msgs ->
+                if (_uiState.value.currentSessionId == sessionId) {
+                    _uiState.update { it.copy(messages = msgs) }
+                }
+            }
         }
     }
 
     fun sendMessage(text: String) {
+        val sessionId = _uiState.value.currentSessionId ?: return
         if (text.isBlank()) return
 
         viewModelScope.launch {
             val userMsg = ChatMessage(
+                sessionId = sessionId,
                 contactName = contactName,
                 senderName = "Operator",
                 text = text,
@@ -94,18 +139,20 @@ class NeonGuideViewModel @Inject constructor(
             _uiState.update { it.copy(isGenerating = true) }
 
             try {
-                val aiMsg = guideUseCase.generateResponse(text, contactName)
+                val aiMsg = guideUseCase.generateResponse(text, contactName).copy(sessionId = sessionId)
                 chatDao.insertMessage(aiMsg)
-                chatDao.updateChatSession(
-                    ChatSession(
-                        contactName = contactName,
-                        lastMessage = aiMsg.text,
-                        lastTimestamp = System.currentTimeMillis(),
-                        isFixer = false
+                
+                chatDao.getSessionById(sessionId)?.let { session ->
+                    chatDao.updateChatSession(
+                        session.copy(
+                            lastMessage = aiMsg.text.take(50) + "...",
+                            lastTimestamp = System.currentTimeMillis()
+                        )
                     )
-                )
+                }
             } catch (e: Exception) {
                 val errorMsg = ChatMessage(
+                    sessionId = sessionId,
                     contactName = contactName,
                     senderName = "SYSTEM",
                     text = "ERROR: Neural link unstable. Signal dropped. (Details: ${e.message})",
@@ -120,6 +167,7 @@ class NeonGuideViewModel @Inject constructor(
     }
 
     fun handleAction(action: com.neon.ascent.model.ChatAction) {
+        val sessionId = _uiState.value.currentSessionId ?: return
         viewModelScope.launch {
             when (action.type) {
                 "MISSION" -> {
@@ -164,6 +212,7 @@ class NeonGuideViewModel @Inject constructor(
             }
             
             val confirmation = ChatMessage(
+                sessionId = sessionId,
                 contactName = contactName,
                 senderName = "SYSTEM",
                 text = "ACTION_EXECUTED: ${action.label}. Uplink synchronized.",

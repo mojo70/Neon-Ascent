@@ -11,6 +11,7 @@ data class AscensionDirective(
     val description: String,
     val visionStatement: String? = null,
     val status: DirectiveStatus = DirectiveStatus.ACTIVE,
+    val successMetrics: List<SuccessMetric> = emptyList(),
     val targetEndDate: LocalDate? = null,
     val isQuarterly: Boolean = false,
     val createdAt: Instant = Instant.now(),
@@ -27,6 +28,18 @@ data class AscensionDirective(
     val completionHistorySummary: String? = null,
     val lastReviewDate: LocalDate? = null
 )
+
+data class SuccessMetric(
+    val id: String,
+    val description: String,
+    val targetValue: Float,
+    val currentValue: Float = 0f,
+    val unit: String? = null,
+    val type: MetricType = MetricType.MANUAL,
+    val biometricKey: String? = null // e.g., "steps", "sleep_hours", "hrv"
+)
+
+enum class MetricType { MANUAL, BIOMETRIC, STREAK, XP }
 
 enum class DirectiveStatus { ACTIVE, PAUSED, COMPLETED, ARCHIVED }
 
@@ -45,6 +58,7 @@ data class AscensionMission(
     val completedAt: Instant? = null,
     val archivedAt: Instant? = null,
     val progress: Float = 0f,
+    val contributionWeight: Float = 1.0f,
     val totalXPContributed: Long = 0L,
     val xpTarget: Long? = null,
     val aiMentorMode: MentorMode = MentorMode.REVIEW,
@@ -65,11 +79,13 @@ data class AscensionTask(
     val title: String,
     val description: String,
     val type: AscensionTaskType = AscensionTaskType.ONE_TIME,
+    val isPulse: Boolean = false,
     val recurrence: RecurrenceV3? = null,
     val timeWindows: List<String> = emptyList(), // e.g. ["within 60min of wake", "20:00"]
     val adaptiveWakeEnabled: Boolean = false,
     val reminderEnabled: Boolean = true,
     val xpValue: Int = 10,
+    val impactWeight: Float = 1.0f,
     val currentStreak: Int = 0,
     val longestStreak: Int = 0,
     val graceBufferDays: Int = 1,
@@ -110,12 +126,14 @@ data class MentorUiMessage(
     val text: String,
     val isFromUser: Boolean,
     val timestamp: Long = System.currentTimeMillis(),
+    val proposedMetrics: List<SuccessMetric> = emptyList(),
     val proposedMissions: List<ProposedMission> = emptyList()
 )
 
 data class ProposedMission(
     val title: String,
     val description: String,
+    val contributionWeight: Float = 1.0f,
     val tasks: List<ProposedTask> = emptyList()
 )
 
@@ -123,7 +141,9 @@ data class ProposedTask(
     val title: String,
     val description: String,
     val type: AscensionTaskType,
+    val isPulse: Boolean = false,
     val recurrence: RecurrenceV3? = null,
     val timeWindows: List<String> = emptyList(),
-    val linkedAttributes: List<SpecialType> = emptyList()
+    val linkedAttributes: List<SpecialType> = emptyList(),
+    val impactWeight: Float = 1.0f
 )
