@@ -211,7 +211,7 @@ fun AppNavigation(
                 onNavigateToForge = { type, title, desc, biometrics ->
                     navController.navigate(Screen.AscensionForge(type.name, title, desc, biometrics = biometrics))
                 },
-                onNavigateToGuide = { navController.navigate(Screen.NeonGuide) },
+                onNavigateToGuide = { navController.navigate(Screen.NeonGuide()) },
                 onNavigateToDopamineMenu = { navController.navigate(Screen.DopamineMenu) }
             )
         }
@@ -540,7 +540,7 @@ fun AppNavigation(
                 prefilledDescription = forge.description,
                 prefilledVision = forge.vision,
                 prefilledBiometrics = forge.biometrics,
-                onNavigateToGuide = { navController.navigate(Screen.NeonGuide) }
+                onNavigateToGuide = { navController.navigate(Screen.NeonGuide()) }
             )
         }
 
