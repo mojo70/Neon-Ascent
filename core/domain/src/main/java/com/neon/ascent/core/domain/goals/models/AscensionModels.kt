@@ -1,5 +1,6 @@
 package com.neon.ascent.core.domain.goals.models
 
+import com.neon.ascent.core.domain.model.SpecialType
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
@@ -19,6 +20,7 @@ data class AscensionDirective(
     val xpTarget: Long? = null,
     val archetypeTag: String? = null,
     val tags: List<String> = emptyList(),
+    val linkedAttributes: List<SpecialType> = emptyList(),
     val aiMentorMode: MentorMode = MentorMode.REVIEW,
     val aiGenerated: Boolean = false,
     val notes: String? = null,
@@ -51,6 +53,7 @@ data class AscensionMission(
     val successCriteria: String? = null,
     val completionHistorySummary: String? = null,
     val tags: List<String> = emptyList(),
+    val linkedAttributes: List<SpecialType> = emptyList(),
     val linkedArchetype: String? = null
 )
 
@@ -71,6 +74,7 @@ data class AscensionTask(
     val longestStreak: Int = 0,
     val graceBufferDays: Int = 1,
     val lastCompleted: Instant? = null,
+    val linkedAttributes: List<SpecialType> = emptyList(),
     val userNotesTemplate: String? = null
 )
 
@@ -120,5 +124,6 @@ data class ProposedTask(
     val description: String,
     val type: AscensionTaskType,
     val recurrence: RecurrenceV3? = null,
-    val timeWindows: List<String> = emptyList()
+    val timeWindows: List<String> = emptyList(),
+    val linkedAttributes: List<SpecialType> = emptyList()
 )

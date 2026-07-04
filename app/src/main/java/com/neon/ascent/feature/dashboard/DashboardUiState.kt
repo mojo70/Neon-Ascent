@@ -10,9 +10,9 @@ import com.neon.ascent.core.common.OperatorIdentity
 data class DashboardUiState(
     val userStory: UserStory = UserStory(),
     val cyberLoreSnippet: String = "",
-    val activeDirectives: List<AscensionDirective> = emptyList(),
+    val operationalDirectives: List<AscensionDirective> = emptyList(),
     val activeMissions: List<AscensionMission> = emptyList(),
-    val todayTasks: List<AscensionTask> = emptyList(),
+    val todayPulses: List<AscensionTask> = emptyList(),
     val terminalFeed: List<TerminalEvent> = emptyList(),
     val bioAgeResult: BioAgeResult? = null,
     val totalHabitDays: Int = 0,

@@ -180,7 +180,59 @@ class AscensionForgeViewModel @Inject constructor(
     }
 
     fun save() {
-        // ... (existing save logic)
+        val state = _uiState.value
+        viewModelScope.launch {
+            try {
+                when (state.forgeType) {
+                    ForgeType.DIRECTIVE -> {
+                        val directive = AscensionDirective(
+                            id = UUID.randomUUID().toString(),
+                            title = state.title,
+                            description = state.description,
+                            visionStatement = state.visionStatement.takeIf { it.isNotBlank() },
+                            isQuarterly = state.isQuarterly,
+                            linkedAttributes = state.linkedAttributes,
+                            createdAt = Instant.now()
+                        )
+                        repository.insertDirective(directive)
+                    }
+                    ForgeType.MISSION -> {
+                        val mission = AscensionMission(
+                            id = UUID.randomUUID().toString(),
+                            directiveId = state.parentDirectiveId,
+                            title = state.title,
+                            description = state.description,
+                            linkedAttributes = state.linkedAttributes,
+                            createdAt = Instant.now()
+                        )
+                        repository.insertMission(mission)
+                    }
+                    ForgeType.TASK -> {
+                        val task = AscensionTask(
+                            id = UUID.randomUUID().toString(),
+                            parentId = state.parentDirectiveId,
+                            title = state.title,
+                            description = state.description,
+                            type = state.taskType,
+                            recurrence = if (state.taskType == AscensionTaskType.RECURRING) {
+                                RecurrenceV3(
+                                    type = state.recurrenceType,
+                                    daysOfWeek = state.recurrenceDays
+                                )
+                            } else null,
+                            timeWindows = state.timeWindows,
+                            linkedAttributes = state.linkedAttributes
+                        )
+                        repository.insertTask(task)
+                    }
+                }
+                _uiState.update { it.copy(isSuccess = true) }
+                dopamineCoordinator.triggerSync(xp = 50)
+                neuralPingScheduler.scheduleSmartPings()
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
     }
 
     fun acceptProposals(proposedMissions: List<ProposedMission>) {
@@ -217,7 +269,8 @@ class AscensionForgeViewModel @Inject constructor(
                             description = pTask.description,
                             type = pTask.type,
                             recurrence = pTask.recurrence,
-                            timeWindows = pTask.timeWindows
+                            timeWindows = pTask.timeWindows,
+                            linkedAttributes = pTask.linkedAttributes
                         )
                         repository.insertTask(task)
                     }

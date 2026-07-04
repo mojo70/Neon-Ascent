@@ -1,5 +1,6 @@
 package com.neon.ascent.core.data.mapper
 
+import com.neon.ascent.core.domain.model.SpecialType
 import java.time.DayOfWeek
 import com.neon.ascent.core.data.local.entity.*
 import com.neon.ascent.core.domain.goals.models.*
@@ -19,6 +20,7 @@ fun AscensionDirectiveEntity.toDomain() = AscensionDirective(
     xpTarget = xpTarget,
     archetypeTag = archetypeTag,
     tags = tags,
+    linkedAttributes = linkedAttributes.map { try { SpecialType.valueOf(it) } catch (e: Exception) { SpecialType.LUCK } },
     aiMentorMode = try { MentorMode.valueOf(aiMentorMode) } catch (e: Exception) { MentorMode.REVIEW },
     aiGenerated = aiGenerated,
     notes = notes,
@@ -41,6 +43,7 @@ fun AscensionDirective.toEntity() = AscensionDirectiveEntity(
     xpTarget = xpTarget,
     archetypeTag = archetypeTag,
     tags = tags,
+    linkedAttributes = linkedAttributes.map { it.name },
     aiMentorMode = aiMentorMode.name,
     aiGenerated = aiGenerated,
     notes = notes,
@@ -69,6 +72,7 @@ fun AscensionMissionEntity.toDomain() = AscensionMission(
     successCriteria = successCriteria,
     completionHistorySummary = completionHistorySummary,
     tags = tags,
+    linkedAttributes = linkedAttributes.map { try { SpecialType.valueOf(it) } catch (e: Exception) { SpecialType.LUCK } },
     linkedArchetype = linkedArchetype
 )
 
@@ -93,6 +97,7 @@ fun AscensionMission.toEntity() = AscensionMissionEntity(
     successCriteria = successCriteria,
     completionHistorySummary = completionHistorySummary,
     tags = tags,
+    linkedAttributes = linkedAttributes.map { it.name },
     linkedArchetype = linkedArchetype
 )
 
@@ -117,6 +122,7 @@ fun AscensionTaskEntity.toDomain() = AscensionTask(
     longestStreak = longestStreak,
     graceBufferDays = graceBufferDays,
     lastCompleted = lastCompleted,
+    linkedAttributes = linkedAttributes.map { try { SpecialType.valueOf(it) } catch (e: Exception) { SpecialType.LUCK } },
     userNotesTemplate = userNotesTemplate
 )
 
@@ -138,6 +144,7 @@ fun AscensionTask.toEntity() = AscensionTaskEntity(
     longestStreak = longestStreak,
     graceBufferDays = graceBufferDays,
     lastCompleted = lastCompleted,
+    linkedAttributes = linkedAttributes.map { it.name },
     userNotesTemplate = userNotesTemplate
 )
 

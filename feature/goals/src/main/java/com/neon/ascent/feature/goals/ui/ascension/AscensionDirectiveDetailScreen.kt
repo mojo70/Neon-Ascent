@@ -202,7 +202,7 @@ fun AscensionDirectiveDetailScreen(
                     contentColor = Color.Black,
                     modifier = Modifier.neonBorder(color = NeonPink, width = 2.dp, cornerRadius = 16.dp)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Standalone Task")
+                    Icon(Icons.Default.Add, contentDescription = "Add Standalone Pulse")
                 }
             }
         },
@@ -475,10 +475,10 @@ fun AscensionDirectiveDetailScreen(
                             }
                         }
 
-                        // 3. DIRECT STANDALONE TASKS
+                        // 3. DIRECT STANDALONE PULSES
                         item {
                             Text(
-                                "DIRECT_STANDALONE_PROTOCOLS",
+                                "DIRECT_STANDALONE_PULSES",
                                 color = NeonPink,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Black,
@@ -497,7 +497,7 @@ fun AscensionDirectiveDetailScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        "NO_DIRECT_STANDALONE_PROTOCOLS_FOUND",
+                                        "NO_DIRECT_STANDALONE_PULSES_FOUND",
                                         color = Color.Gray,
                                         fontSize = 10.sp,
                                         fontFamily = FontFamily.Monospace
@@ -526,7 +526,7 @@ fun AscensionDirectiveDetailScreen(
                                         ) {
                                             Icon(
                                                 imageVector = if (completed) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                                                contentDescription = "Complete task",
+                                                contentDescription = "Synchronize pulse",
                                                 tint = if (completed) Color.Green else Color.Gray
                                             )
                                         }

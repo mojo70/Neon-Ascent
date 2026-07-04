@@ -27,7 +27,7 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_11_12
         SocraticInsightEntity::class,
         DopamineMenuItemEntity::class
     ],
-    version = 13,
+    version = 14,
     exportSchema = true
 )
 @TypeConverters(

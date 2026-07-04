@@ -3,6 +3,7 @@ package com.neon.ascent.feature.goals.domain.usecases
 import com.neon.ascent.core.ai.GemmaClient
 import com.neon.ascent.core.ai.AiPersona
 import com.neon.ascent.core.domain.goals.models.*
+import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.core.domain.repository.SkillRepository
 import com.neon.ascent.core.data.local.dao.NeuralMemoryDao
@@ -25,20 +26,20 @@ class NeonMentorUseCase @Inject constructor(
         val prompt = """
             ${AiPersona.CYBER_SOCRATES_PROMPT}
             ${skillPrompt ?: ""}
-            [PROTOCOL: ASCENSION_GENESIS]
+            [PROTOCOL: ARCHITECT_GENESIS]
             [OBJECTIVE: DECONSTRUCT_DIRECTIVE]
             
             Directive Title: ${directive.title}
             Directive Description: ${directive.description}
             
-            Task: Generate 2 specific, actionable Missions to fulfill this directive.
-            For each Mission, generate 3-4 granular, recurring or one-time Tasks.
-            Ensure these tasks are "atomic" and "sticky" (easy to start, hard to ignore).
-            If multiple skills were provided, synthesize their methods (e.g., combine Trading logic with Biohacking stability).
+            Task: Generate 2 specific, actionable MISSIONS to fulfill this DIRECTIVE.
+            For each MISSION, generate 3-4 granular PULSES (daily or weekly tasks).
+            Ensure these PULSES are "atomic" and "sticky".
+            Map each PULSE to relevant S.P.E.C.I.A.L. stats (STRENGTH, PERCEPTION, ENDURANCE, CHARISMA, INTELLIGENCE, AGILITY, LUCK).
             
             Format your response as a JSON-like structured list:
             MISSION: [Title] | [Description]
-              TASK: [Title] | [Description] | [Type: ONE_TIME/RECURRING] | [Frequency: DAILY/WEEKDAYS]
+              PULSE: [Title] | [Description] | [Type: ONE_TIME/RECURRING] | [Frequency: DAILY/WEEKDAYS] | [STATS: COMMA_SEP_LIST]
         """.trimIndent()
 
         val response = gemmaClient.generateContent(prompt)
@@ -77,9 +78,10 @@ class NeonMentorUseCase @Inject constructor(
         var currentMissionId: String? = null
         
         response.lines().forEach { line ->
+            val trimmed = line.trim()
             when {
-                line.trim().startsWith("MISSION:") -> {
-                    val parts = line.substringAfter("MISSION:").split("|")
+                trimmed.startsWith("MISSION:") -> {
+                    val parts = trimmed.substringAfter("MISSION:").split("|")
                     if (parts.size >= 2) {
                         val mission = AscensionMission(
                             id = UUID.randomUUID().toString(),
@@ -92,9 +94,16 @@ class NeonMentorUseCase @Inject constructor(
                         currentMissionId = mission.id
                     }
                 }
-                line.trim().startsWith("TASK:") -> {
-                    val parts = line.substringAfter("TASK:").split("|")
+                trimmed.startsWith("PULSE:") || trimmed.startsWith("TASK:") -> {
+                    val label = if (trimmed.startsWith("PULSE:")) "PULSE:" else "TASK:"
+                    val parts = trimmed.substringAfter(label).split("|")
                     if (parts.size >= 4) {
+                        val stats = if (parts.size >= 5) {
+                            parts[4].substringAfter("STATS:").split(",")
+                                .map { it.trim().uppercase() }
+                                .mapNotNull { try { SpecialType.valueOf(it) } catch(e: Exception) { null } }
+                        } else emptyList()
+
                         val task = AscensionTask(
                             id = UUID.randomUUID().toString(),
                             parentId = currentMissionId ?: directiveId,
@@ -103,7 +112,8 @@ class NeonMentorUseCase @Inject constructor(
                             type = if (parts[2].trim() == "RECURRING") AscensionTaskType.RECURRING else AscensionTaskType.ONE_TIME,
                             recurrence = if (parts[2].trim() == "RECURRING") {
                                 RecurrenceV3(type = if (parts[3].trim() == "WEEKDAYS") RecurrenceTypeV3.WEEKDAYS else RecurrenceTypeV3.DAILY)
-                            } else null
+                            } else null,
+                            linkedAttributes = stats
                         )
                         repository.insertTask(task)
                     }
@@ -206,7 +216,7 @@ class NeonMentorUseCase @Inject constructor(
             Vision: ${directive.visionStatement ?: "None"}. 
             Mode: ${mode.name}. 
             Missions: ${missions.joinToString { it.title }}. 
-            Direct Tasks: ${tasks.joinToString { it.title }}.
+            Direct Pulses: ${tasks.joinToString { it.title }}.
             
             Memory Palace Context:
             $recentMemories
@@ -220,7 +230,7 @@ class NeonMentorUseCase @Inject constructor(
             MentorMode.SOUNDING_BOARD -> "Act as a thoughtful, deconstructive mirror. Pose 1-2 open-ended reflective questions about their blockers."
             MentorMode.GUIDE -> """
                 Provide active coaching. Give step-by-step checklists, estimated difficulties, habit stacking suggestions.
-                Proactively suggest a structured plan (Missions + Tasks) if appropriate.
+                Proactively suggest a structured plan (Missions + Pulses) if appropriate.
             """.trimIndent()
         }
 
@@ -237,7 +247,7 @@ class NeonMentorUseCase @Inject constructor(
             
             [PROPOSAL]
             MISSION: [Title] | [Description]
-              TASK: [Title] | [Description] | [Type: ONE_TIME/RECURRING] | [Frequency: DAILY/WEEKDAYS] | [TimeWindow: e.g. morning]
+              PULSE: [Title] | [Description] | [Type: ONE_TIME/RECURRING] | [Frequency: DAILY/WEEKDAYS] | [TimeWindow: e.g. morning] | [STATS: COMMA_SEP_LIST]
             
             User/Operator Query: "$message"
             
@@ -269,9 +279,16 @@ class NeonMentorUseCase @Inject constructor(
                         currentMission = ProposedMission(parts[0].trim(), parts[1].trim())
                     }
                 }
-                trimmedLine.startsWith("TASK:") -> {
-                    val parts = trimmedLine.substringAfter("TASK:").split("|")
+                trimmedLine.startsWith("PULSE:") || trimmedLine.startsWith("TASK:") -> {
+                    val label = if (trimmedLine.startsWith("PULSE:")) "PULSE:" else "TASK:"
+                    val parts = trimmedLine.substringAfter(label).split("|")
                     if (parts.size >= 4) {
+                        val stats = if (parts.size >= 6) {
+                            parts[5].substringAfter("STATS:").split(",")
+                                .map { it.trim().uppercase() }
+                                .mapNotNull { try { SpecialType.valueOf(it) } catch(e: Exception) { null } }
+                        } else emptyList()
+
                         val task = ProposedTask(
                             title = parts[0].trim(),
                             description = parts[1].trim(),
@@ -280,7 +297,8 @@ class NeonMentorUseCase @Inject constructor(
                                 val freq = parts.getOrNull(3)?.trim() ?: "DAILY"
                                 RecurrenceV3(type = if (freq == "WEEKDAYS") RecurrenceTypeV3.WEEKDAYS else RecurrenceTypeV3.DAILY)
                             } else null,
-                            timeWindows = parts.getOrNull(4)?.split(",")?.map { it.trim() } ?: emptyList()
+                            timeWindows = parts.getOrNull(4)?.split(",")?.map { it.trim() } ?: emptyList(),
+                            linkedAttributes = stats
                         )
                         currentTasks.add(task)
                     }

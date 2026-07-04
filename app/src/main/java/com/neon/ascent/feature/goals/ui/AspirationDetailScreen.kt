@@ -107,7 +107,7 @@ fun AspirationDetailScreen(
             // Supporting Missions
             item {
                 Text(
-                    text = "SUPPORTING MISSIONS",
+                    text = "CAMPAIGN_MISSIONS",
                     style = MaterialTheme.typography.titleLarge,
                     color = NeonCyan
                 )
@@ -138,7 +138,7 @@ fun AspirationDetailScreen(
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = Color.Black)
                     ) {
-                        Text("GENERATE NEW MISSIONS")
+                        Text("SYNTHESIZE MISSIONS")
                     }
                 }
             }

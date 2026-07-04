@@ -132,14 +132,14 @@ fun MissionDetailScreen(
             if (contributingHabits.isNotEmpty()) {
                 item {
                     Text(
-                        text = "CONTRIBUTING PROTOCOLS",
+                        text = "CONTRIBUTING PULSES",
                         style = MaterialTheme.typography.titleMedium,
                         color = NeonCyan
                     )
                 }
 
                 items(contributingHabits) { habit ->
-                    HabitContributionCard(habit)
+                    PulseContributionCard(habit)
                 }
             }
 
@@ -179,7 +179,7 @@ fun MissionDetailScreen(
 }
 
 @Composable
-private fun HabitContributionCard(habit: Habit) {
+private fun PulseContributionCard(habit: Habit) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0xFF1A0033)),
         modifier = Modifier.fillMaxWidth()
@@ -190,7 +190,7 @@ private fun HabitContributionCard(habit: Habit) {
         ) {
             Column(Modifier.weight(1f)) {
                 Text(habit.title, fontWeight = FontWeight.Medium, color = Color.White)
-                Text("${habit.streak} day streak", color = NeonOrange, style = MaterialTheme.typography.labelSmall)
+                Text("${habit.streak} day pulse streak", color = NeonOrange, style = MaterialTheme.typography.labelSmall)
             }
 
             Text(

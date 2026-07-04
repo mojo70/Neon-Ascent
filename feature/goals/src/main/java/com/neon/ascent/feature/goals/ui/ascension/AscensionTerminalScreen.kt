@@ -37,7 +37,7 @@ fun AscensionTerminalScreen(
                 title = { Text("NEURAL ASCENSION TERMINAL") },
                 actions = {
                     IconButton(onClick = onRitualClick) {
-                        Icon(Icons.Default.Terminal, contentDescription = "TERMINAL_RITUAL", tint = NeonCyan)
+                        Icon(Icons.Default.Terminal, contentDescription = "SYSTEM_RITUAL", tint = NeonCyan)
                     }
                 }
             )
@@ -57,7 +57,7 @@ fun AscensionTerminalScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 item {
-                    Text("ACTIVE DIRECTIVES", style = MaterialTheme.typography.titleLarge)
+                    Text("OPERATIONAL DIRECTIVES", style = MaterialTheme.typography.titleLarge)
                 }
                 
                 items(uiState.directives.filter { it.status == DirectiveStatus.ACTIVE }) { directive ->
@@ -70,7 +70,7 @@ fun AscensionTerminalScreen(
                 }
 
                 item {
-                    Text("MISSION LOG", style = MaterialTheme.typography.titleLarge)
+                    Text("ACTIVE MISSIONS", style = MaterialTheme.typography.titleLarge)
                 }
 
                 items(uiState.activeMissions) { mission ->

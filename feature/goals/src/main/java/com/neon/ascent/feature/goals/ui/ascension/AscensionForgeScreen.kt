@@ -136,7 +136,7 @@ fun AscensionForgeScreen(
                 ForgeTypeTab("MISSION", uiState.forgeType == ForgeType.MISSION, Modifier.weight(1f)) {
                     viewModel.updateType(ForgeType.MISSION)
                 }
-                ForgeTypeTab("TASK", uiState.forgeType == ForgeType.TASK, Modifier.weight(1f)) {
+                ForgeTypeTab("PULSE", uiState.forgeType == ForgeType.TASK, Modifier.weight(1f)) {
                     viewModel.updateType(ForgeType.TASK)
                 }
             }
@@ -317,8 +317,20 @@ fun DirectiveSpecificFields(uiState: AscensionForgeUiState, viewModel: Ascension
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun TaskSpecificFields(uiState: AscensionForgeUiState, viewModel: AscensionForgeViewModel) {
-    CyberFrame(label = "TASK_EXECUTION_LOGIC", accentColor = NeonCyan) {
+    CyberFrame(label = "PULSE_EXECUTION_LOGIC", accentColor = NeonCyan) {
         Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text("LINKED_S.P.E.C.I.A.L_CALIBRATION", color = NeonCyan, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SpecialType.entries.forEach { type ->
+                    val isSelected = uiState.linkedAttributes.contains(type)
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { viewModel.toggleAttribute(type) },
+                        label = { Text(type.name, fontSize = 10.sp) }
+                    )
+                }
+            }
+            
             // Recurring toggle
             Row(verticalAlignment = Alignment.CenterVertically) {
                 RadioButton(
@@ -576,7 +588,7 @@ fun ProposalTreeView(
                                     val recurrence = task.recurrence
                                     if (recurrence != null) {
                                         Text(
-                                            "Protocol: ${recurrence.type}",
+                                            "Pulse Pattern: ${recurrence.type}",
                                             color = NeonCyan.copy(alpha = 0.7f),
                                             fontSize = 8.sp,
                                             fontFamily = FontFamily.Monospace

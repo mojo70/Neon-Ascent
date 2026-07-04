@@ -194,9 +194,9 @@ class DashboardViewModel @Inject constructor(
                 DashboardUiState(
                     userStory = story,
                     cyberLoreSnippet = lore.take(180) + if (lore.length > 180) "..." else "",
-                    activeDirectives = directives,
+                    operationalDirectives = directives,
                     activeMissions = missions,
-                    todayTasks = dailyTasks,
+                    todayPulses = dailyTasks,
                     terminalFeed = emptyList(), // Now handled by BiohackingViewModel
                     bioAgeResult = bioAge,
                     totalHabitDays = totalCompletedDays,
@@ -231,38 +231,47 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    fun markTaskCompleted(taskId: String) {
+    fun completePulse(taskId: String) {
         viewModelScope.launch {
-            val task = uiState.value.todayTasks.find { it.id == taskId }
-            if (task != null) {
-                ascensionRepository.completeTask(task, null, null, null)
+            val pulse = uiState.value.todayPulses.find { it.id == taskId }
+            if (pulse != null) {
+                ascensionRepository.completeTask(pulse, null, null, null)
                 
-                logSystemEvent("SYNC_SUCCESS // ${task.title}")
+                logSystemEvent("SYNC_SUCCESS // ${pulse.title}")
+
+                // Increment SPECIAL stats if linked
+                pulse.linkedAttributes.forEach { attrType ->
+                    val currentAttr = specialRepository.getSpecialAttribute(attrType).first()
+                    currentAttr?.let {
+                        val updated = it.copy(totalXp = it.totalXp + pulse.xpValue)
+                        specialRepository.updateSpecialAttribute(updated)
+                    }
+                }
 
                 // Store in Memory Palace
                 memoryPalaceManager.storeMemory(
-                    wing = "MISSIONS",
+                    wing = "PULSES",
                     room = "COMPLETIONS",
-                    content = "Completed protocol: ${task.title}. Objective: ${task.description}",
-                    importance = 0.6f
+                    content = "Synchronized pulse: ${pulse.title}. Objective: ${pulse.description}",
+                    importance = 0.4f
                 )
 
                 // Ingest as Action Event for Insight Projection
                 insightDao.insertActionEvent(
                     ActionEventEntity(
                         timestamp = java.time.Instant.now(),
-                        actionType = "HABIT_COMPLETION",
-                        content = task.title,
-                        metadata = mapOf("taskId" to task.id)
+                        actionType = "PULSE_COMPLETION",
+                        content = pulse.title,
+                        metadata = mapOf("pulseId" to pulse.id)
                     )
                 )
                 insightProcessor.processProjections()
 
                 // Trigger Dopamine Menu
-                if (task.type == AscensionTaskType.RECURRING) {
-                    dopamineCoordinator.triggerSync(xp = task.xpValue)
+                if (pulse.type == AscensionTaskType.RECURRING) {
+                    dopamineCoordinator.triggerSync(xp = pulse.xpValue)
                 } else {
-                    dopamineCoordinator.triggerSubtle(xp = task.xpValue)
+                    dopamineCoordinator.triggerSubtle(xp = pulse.xpValue)
                 }
             }
         }

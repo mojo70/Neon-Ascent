@@ -26,6 +26,7 @@ data class AscensionDirectiveEntity(
     val xpTarget: Long?,
     val archetypeTag: String?,
     val tags: List<String>,
+    val linkedAttributes: List<String>,
     val aiMentorMode: String,
     val aiGenerated: Boolean,
     val notes: String?,
@@ -66,6 +67,7 @@ data class AscensionMissionEntity(
     val successCriteria: String?,
     val completionHistorySummary: String?,
     val tags: List<String>,
+    val linkedAttributes: List<String>,
     val linkedArchetype: String?
 )
 
@@ -91,6 +93,7 @@ data class AscensionTaskEntity(
     val longestStreak: Int,
     val graceBufferDays: Int,
     val lastCompleted: Instant?,
+    val linkedAttributes: List<String> = emptyList(),
     val userNotesTemplate: String?
 )
 

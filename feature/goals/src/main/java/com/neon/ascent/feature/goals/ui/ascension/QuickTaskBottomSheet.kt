@@ -117,7 +117,7 @@ fun QuickTaskBottomSheet(
             ) {
                 Column {
                     Text(
-                        text = "NEW PROTOCOL",
+                        text = "NEW PULSE",
                         style = MaterialTheme.typography.titleMedium.copy(
                             color = NeonPink,
                             fontWeight = FontWeight.ExtraBold,
@@ -126,7 +126,7 @@ fun QuickTaskBottomSheet(
                         )
                     )
                     Text(
-                        text = "INITIALIZING_NEURAL_UPLINK_V3",
+                        text = "INITIALIZING_PULSE_SYNC_V3",
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = NeonCyan.copy(alpha = 0.7f),
                             fontFamily = FontFamily.Monospace
@@ -231,17 +231,17 @@ fun QuickTaskBottomSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             // PARENT HIERARCHY SELECTOR
-            CyberFrame(label = "PARENT_HIERARCHY", accentColor = NeonCyan) {
+            CyberFrame(label = "DIRECTIVE_AFFINITY", accentColor = NeonCyan) {
                 Box(modifier = Modifier.fillMaxWidth()) {
                     val parentName = when {
-                        selectedParentId == null -> "Standalone (No Parent Link)"
+                        selectedParentId == null -> "Standalone (Neural Node)"
                         directives.any { it.id == selectedParentId } -> {
                             "Directive: " + directives.first { it.id == selectedParentId }.title
                         }
                         missions.any { it.id == selectedParentId } -> {
                             "Mission: " + missions.first { it.id == selectedParentId }.title
                         }
-                        else -> "Standalone (No Parent Link)"
+                        else -> "Standalone (Neural Node)"
                     }
 
                     OutlinedButton(
@@ -280,7 +280,7 @@ fun QuickTaskBottomSheet(
                         DropdownMenuItem(
                             text = {
                                 Text(
-                                    "STANDALONE (NO PARENT)",
+                                    "NEURAL_NODE (STANDALONE)",
                                     fontFamily = FontFamily.Monospace,
                                     color = Color.White,
                                     fontSize = 11.sp
@@ -356,7 +356,7 @@ fun QuickTaskBottomSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             // RECURRENCE & TIMING PRESETS
-            CyberFrame(label = "RECURRENCE_MATRIX", accentColor = NeonPink) {
+            CyberFrame(label = "PULSE_PATTERN", accentColor = NeonPink) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     // Segmented Button Mode selector (One-Time / Recurring Daily / Weekdays)
                     Row(

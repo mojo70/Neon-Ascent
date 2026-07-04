@@ -382,9 +382,9 @@ fun DashboardScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            if (state.todayTasks.isNotEmpty()) {
+            if (state.todayPulses.isNotEmpty()) {
                 Text(
-                    "PRIORITY_GRIND",
+                    "DIURNAL_PULSES",
                     color = systemColor,
                     style = MaterialTheme.typography.labelLarge.copy(
                         fontWeight = FontWeight.ExtraBold,
@@ -395,19 +395,19 @@ fun DashboardScreen(
                         .padding(bottom = 8.dp)
                         .clickable { showAllTasksDialog = true }
                 )
-                val displayTasks = state.todayTasks.take(3)
+                val displayTasks = state.todayPulses.take(3)
                 displayTasks.forEach { task ->
                     DashboardTaskItem(
                         task = task,
-                        onComplete = { viewModel.markTaskCompleted(task.id) },
+                        onComplete = { viewModel.completePulse(task.id) },
                         onClick = { onTaskClick(task.id) }
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
                 
-                if (state.todayTasks.size > 3) {
+                if (state.todayPulses.size > 3) {
                     Text(
-                        "+ ${state.todayTasks.size - 3} MORE PROTOCOLS IN QUEUE",
+                        "+ ${state.todayPulses.size - 3} MORE PULSES IN QUEUE",
                         color = systemColor.copy(alpha = 0.6f),
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontFamily = FontFamily.Monospace,
@@ -507,7 +507,7 @@ fun DashboardScreen(
                             onStoryClick()
                         })
                     }
-                    CyberActionButton("MISSIONS", Color.White, onClick = { 
+                    CyberActionButton("OPERATIONAL_DIRECTIVES", Color.White, onClick = { 
                         triggerGlitch()
                         onGoalSetClick() 
                     })
@@ -604,8 +604,8 @@ fun DashboardScreen(
 
         if (showAllTasksDialog) {
             AllTasksDialog(
-                tasks = state.todayTasks,
-                onComplete = { viewModel.markTaskCompleted(it) },
+                tasks = state.todayPulses,
+                onComplete = { viewModel.completePulse(it) },
                 onTaskClick = { onTaskClick(it) },
                 onDismiss = { showAllTasksDialog = false },
                 systemColor = systemColor
@@ -770,7 +770,7 @@ fun AllTasksDialog(
                     .heightIn(max = 500.dp)
             ) {
                 Text(
-                    "DAILY_PROTOCOLS",
+                    "DIURNAL_PULSES",
                     color = systemColor,
                     style = MaterialTheme.typography.headlineSmall.copy(
                         fontWeight = FontWeight.Black,
