@@ -17,7 +17,8 @@ class CloudGeminiClient @Inject constructor() {
     suspend fun generateContent(prompt: String): String = withContext(Dispatchers.IO) {
         try {
             val response = model.generateContent(prompt)
-            response.text ?: "ERROR: NEURAL_LINK_DISCONNECT"
+            val result = response.text
+            if (result.isNullOrBlank()) "ERROR: NEURAL_LINK_EMPTY_SIGNAL" else result
         } catch (e: Exception) {
             // Mapping serialization fragilities and other common errors to user-friendly messages
             if (e.message?.contains("MissingFieldException") == true || e.message?.contains("details") == true) {

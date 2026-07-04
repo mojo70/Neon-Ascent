@@ -86,7 +86,7 @@ class GemmaClient(private val context: Context) {
             val response = conversation.sendMessage(prompt, emptyMap())
             val contents = response.contents.contents
 
-            if (!contents.isNullOrEmpty()) {
+            val result = if (!contents.isNullOrEmpty()) {
                 when (val firstContent = contents[0]) {
                     is Content.Text -> firstContent.text
                     else -> firstContent.toString()
@@ -94,6 +94,8 @@ class GemmaClient(private val context: Context) {
             } else {
                 ""
             }
+
+            if (result.isBlank()) "ERROR: NEURAL_LINK_EMPTY_SIGNAL" else result
         } catch (e: Exception) {
             e.printStackTrace()
             "ERROR: GEMMA_MALFUNCTION: ${e.message}"

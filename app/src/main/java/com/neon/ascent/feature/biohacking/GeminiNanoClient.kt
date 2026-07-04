@@ -49,7 +49,8 @@ class GeminiNanoClient @Inject constructor(
 
             val generativeModel = getModel()
             val response = generativeModel.generateContent(prompt)
-            response.text ?: "ERROR: NEURAL_LINK_DISCONNECT"
+            val result = response.text
+            if (result.isNullOrBlank()) "ERROR: NEURAL_LINK_EMPTY_SIGNAL (Model failed to generate text)" else result
         } catch (e: Exception) {
             "ERROR: CORE_MALFUNCTION: ${e.message}"
         }

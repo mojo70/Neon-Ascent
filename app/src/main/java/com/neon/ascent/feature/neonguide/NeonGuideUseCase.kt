@@ -69,12 +69,12 @@ class NeonGuideUseCase @Inject constructor(
 
         val userContext = """
             [USER_CONTEXT]
-            Character: ${char?.name} (Archetype: ${char?.archetype})
+            Character: ${char?.name} (${char?.archetype})
             S.P.E.C.I.A.L.: S:${char?.strength} P:${char?.perception} E:${char?.endurance} C:${char?.charisma} I:${char?.intelligence} A:${char?.agility} L:${char?.luck}
             Biometrics: Energy=${biometrics?.energyScore}, Mood=${biometrics?.moodScore}, Focus=${biometrics?.focusScore}
-            Active Directives: ${directives.joinToString { it.title }}
-            Recent Memories: ${recentMemories.take(3).joinToString { "[${it.wing}] ${it.content}" }}
-            Dopamine Menu Options: ${dopamineMenu.joinToString { "${it.title} (${it.energyLevel})" }}
+            Active Directives: ${directives.take(2).joinToString { it.title }}
+            Recent Memories: ${recentMemories.take(2).joinToString { it.content.take(50) }}
+            Dopamine Menu: ${dopamineMenu.take(3).joinToString { it.title }}
         """.trimIndent()
 
         val fullPrompt = """
@@ -109,12 +109,15 @@ class NeonGuideUseCase @Inject constructor(
         }.toList()
 
         val cleanText = response.replace(actionRegex, "").trim()
+        val finalDisplayBatch = cleanText.ifBlank { 
+            if (actions.isNotEmpty()) "Protocol action initialized." else "Neural link silent. Re-transmitting query..."
+        }
 
         return ChatMessage(
             sessionId = "", // Set by caller
             contactName = contactName,
             senderName = contactName,
-            text = cleanText,
+            text = finalDisplayBatch,
             timestamp = System.currentTimeMillis(),
             isFromUser = false,
             suggestedActions = actions
