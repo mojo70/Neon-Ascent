@@ -22,6 +22,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.feature.dashboard.DashboardViewModel
 import com.neon.ascent.data.repository.HealthRepository
 import com.neon.ascent.feature.health.data.workers.HealthSyncWorker
+import com.neon.ascent.feature.notifications.data.NeuralBriefManager
 import com.neon.ascent.feature.notifications.data.SmartPingScheduler
 import com.neon.ascent.feature.notifications.ui.NotificationPermissionViewModel
 import com.neon.ascent.ui.theme.NeonAscentTheme
@@ -91,6 +92,13 @@ class MainActivity : ComponentActivity() {
                     // Handle bluetooth permissions result
                 }
 
+                val notificationTitle = intent.getStringExtra(NeuralBriefManager.EXTRA_NOTIFICATION_TITLE)
+                val notificationMessage = intent.getStringExtra(NeuralBriefManager.EXTRA_NOTIFICATION_MESSAGE)
+                
+                LaunchedEffect(notificationTitle, notificationMessage) {
+                    notificationViewModel.setPendingNotification(notificationTitle, notificationMessage)
+                }
+
                 LaunchedEffect(Unit) {
                     // Sequentially check and request permissions to avoid collisions
                     if (!healthRepository.hasAllPermissions()) {
@@ -150,6 +158,15 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        
+        val notificationTitle = intent.getStringExtra(NeuralBriefManager.EXTRA_NOTIFICATION_TITLE)
+        val notificationMessage = intent.getStringExtra(NeuralBriefManager.EXTRA_NOTIFICATION_MESSAGE)
+        notificationViewModel.setPendingNotification(notificationTitle, notificationMessage)
     }
 
     private fun checkAndRequestBluetoothPermissions(launcher: androidx.activity.result.ActivityResultLauncher<Array<String>>) {

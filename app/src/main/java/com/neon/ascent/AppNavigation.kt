@@ -10,6 +10,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import kotlinx.coroutines.launch
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
@@ -85,6 +92,7 @@ fun AppNavigation(
     val userCharacter by dashboardViewModel.userCharacter.collectAsState()
     val tickerMessages by dashboardViewModel.tickerMessages.collectAsState()
     val showRationale by notificationViewModel.showRationale.collectAsState()
+    val pendingNotification by notificationViewModel.pendingNotification.collectAsState()
     var pendingGuideMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(showRationale) {
@@ -750,6 +758,79 @@ fun AppNavigation(
             DopamineMenuScreen(
                 onBack = { navController.popBackStack() }
             )
+        }
+    }
+
+    pendingNotification?.let { (title, message) ->
+        NotificationDetailDialog(
+            title = title,
+            message = message,
+            onDismiss = {
+                notificationViewModel.dismissNotification()
+            }
+        )
+    }
+}
+
+@Composable
+fun NotificationDetailDialog(
+    title: String,
+    message: String,
+    onDismiss: () -> Unit
+) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+            color = Color(0xFF0A0A0A),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF00FF9F))
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(24.dp)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "// NEURAL_INCOMING",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF00FF9F).copy(alpha = 0.7f),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White.copy(alpha = 0.9f),
+                    lineHeight = 24.sp
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF00FF9F),
+                        contentColor = Color.Black
+                    ),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp)
+                ) {
+                    Text("ACKNOWLEDGE", fontWeight = FontWeight.Black)
+                }
+            }
         }
     }
 }

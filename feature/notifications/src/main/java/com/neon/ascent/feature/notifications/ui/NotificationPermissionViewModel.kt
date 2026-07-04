@@ -21,6 +21,19 @@ class NotificationPermissionViewModel @Inject constructor(
     private val _showRationale = MutableStateFlow(false)
     val showRationale: StateFlow<Boolean> = _showRationale.asStateFlow()
 
+    private val _pendingNotification = MutableStateFlow<Pair<String, String>?>(null)
+    val pendingNotification: StateFlow<Pair<String, String>?> = _pendingNotification.asStateFlow()
+
+    fun setPendingNotification(title: String?, message: String?) {
+        if (title != null && message != null) {
+            _pendingNotification.value = title to message
+        }
+    }
+
+    fun dismissNotification() {
+        _pendingNotification.value = null
+    }
+
     fun showRationale() {
         _showRationale.value = true
     }

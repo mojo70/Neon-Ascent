@@ -63,7 +63,10 @@ class NeuralBriefManager @Inject constructor(
         val notificationId = BRIEF_NOTIFICATION_ID
 
         // Deep link to the Dashboard
-        val dashboardIntent = deepLinkHelper.createDashboardIntent()
+        val dashboardIntent = deepLinkHelper.createDashboardIntent().apply {
+            putExtra(EXTRA_NOTIFICATION_TITLE, title)
+            putExtra(EXTRA_NOTIFICATION_MESSAGE, content)
+        }
         val mainPendingIntent = PendingIntent.getActivity(
             context, 
             0, 
@@ -144,5 +147,7 @@ class NeuralBriefManager @Inject constructor(
         const val BRIEF_NOTIFICATION_ID = 8888
         
         const val EXTRA_ACTION_TYPE = "extra_brief_action_type"
+        const val EXTRA_NOTIFICATION_TITLE = "notification_title"
+        const val EXTRA_NOTIFICATION_MESSAGE = "notification_message"
     }
 }
