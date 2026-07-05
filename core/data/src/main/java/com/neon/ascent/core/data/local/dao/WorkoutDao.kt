@@ -39,6 +39,19 @@ interface WorkoutDao {
 
     @Query("SELECT * FROM user_workout_profiles WHERE userId = :userId")
     fun getUserProfile(userId: String): Flow<UserWorkoutProfileEntity?>
+
+    @Transaction
+    @Query("SELECT * FROM workout_routines")
+    fun getAllRoutines(): Flow<List<WorkoutRoutineWithExercises>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRoutine(routine: WorkoutRoutineEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRoutineExerciseCrossRef(crossRef: RoutineExerciseCrossRef)
+
+    @Query("DELETE FROM workout_sessions WHERE id = :sessionId")
+    suspend fun deleteSession(sessionId: String)
 }
 
 data class WorkoutLogWithSets(
@@ -48,4 +61,18 @@ data class WorkoutLogWithSets(
         entityColumn = "workoutLogId"
     )
     val sets: List<SetLogEntity>
+)
+
+data class WorkoutRoutineWithExercises(
+    @Embedded val routine: WorkoutRoutineEntity,
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "id",
+        associateBy = Junction(
+            value = RoutineExerciseCrossRef::class,
+            parentColumn = "routineId",
+            entityColumn = "exerciseId"
+        )
+    )
+    val exercises: List<ExerciseDefinitionEntity>
 )

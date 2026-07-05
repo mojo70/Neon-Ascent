@@ -185,9 +185,6 @@ fun AppNavigation(
                         },
                         onNavigateToDopamineMenu = {
                             navController.navigate(Screen.DopamineMenu)
-                        },
-                        onNavigateToProtocols = {
-                            navController.navigate(Screen.ProtocolLibrary)
                         }
                     )
                     3 -> NeonGuideScreen(
@@ -218,8 +215,7 @@ fun AppNavigation(
                     navController.navigate(Screen.AscensionForge(type.name, title, desc, biometrics = biometrics))
                 },
                 onNavigateToGuide = { navController.navigate(Screen.NeonGuide()) },
-                onNavigateToDopamineMenu = { navController.navigate(Screen.DopamineMenu) },
-                onNavigateToProtocols = { navController.navigate(Screen.ProtocolLibrary) }
+                onNavigateToDopamineMenu = { navController.navigate(Screen.DopamineMenu) }
             )
         }
 

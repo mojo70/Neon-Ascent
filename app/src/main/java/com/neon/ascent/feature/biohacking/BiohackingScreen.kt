@@ -55,7 +55,6 @@ fun BiohackingScreen(
     onNavigateToForge: (SpecialType, String?, String?, String?) -> Unit = { _, _, _, _ -> },
     onNavigateToGuide: (String?) -> Unit = {},
     onNavigateToDopamineMenu: () -> Unit = {},
-    onNavigateToProtocols: () -> Unit = {},
     viewModel: BiohackingViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -179,13 +178,6 @@ fun BiohackingScreen(
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onNavigateToProtocols) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.LibraryBooks,
-                            contentDescription = "Protocols",
-                            tint = neonCyan
-                        )
-                    }
                     IconButton(onClick = onNavigateToDopamineMenu) {
                         Icon(
                             imageVector = Icons.Default.Bolt,
@@ -242,9 +234,9 @@ fun BiohackingScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             CyberActionButton(
-                label = "QUICK_DOPAMINE_RESET // ASK_GUIDE",
+                label = "DOPAMINE_MENU // PROTOCOL_BYPASS",
                 color = neonMagenta,
-                onClick = { onNavigateToGuide(null) }
+                onClick = onNavigateToDopamineMenu
             )
 
             Spacer(modifier = Modifier.height(24.dp))

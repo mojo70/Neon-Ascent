@@ -88,3 +88,37 @@ data class UserWorkoutProfileEntity(
     val preferredDays: List<Int>,
     val timePerSessionMinutes: Int
 )
+
+@Entity(tableName = "workout_routines")
+data class WorkoutRoutineEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val description: String?,
+    val protocol: String,
+    val createdAt: Instant
+)
+
+@Entity(
+    tableName = "routine_exercise_cross_ref",
+    primaryKeys = ["routineId", "exerciseId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = WorkoutRoutineEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["routineId"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = ExerciseDefinitionEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["exerciseId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("routineId"), Index("exerciseId")]
+)
+data class RoutineExerciseCrossRef(
+    val routineId: String,
+    val exerciseId: String,
+    val order: Int
+)

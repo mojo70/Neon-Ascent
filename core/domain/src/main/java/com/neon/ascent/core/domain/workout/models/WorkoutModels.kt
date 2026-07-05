@@ -68,3 +68,12 @@ data class UserWorkoutProfile(
     val preferredDays: List<Int> = emptyList(),
     val timePerSessionMinutes: Int = 60
 )
+
+data class WorkoutRoutine(
+    val id: String,
+    val name: String,
+    val description: String? = null,
+    val exercises: List<Exercise> = emptyList(),
+    val protocol: WorkoutProtocol = WorkoutProtocol.GENERAL,
+    val createdAt: Instant = Instant.now()
+)

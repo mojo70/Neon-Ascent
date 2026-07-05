@@ -1,6 +1,7 @@
 package com.neon.ascent.core.data.repository
 
 import com.neon.ascent.core.data.local.dao.WorkoutDao
+import com.neon.ascent.core.data.local.entity.RoutineExerciseCrossRef
 import com.neon.ascent.core.data.mapper.*
 import com.neon.ascent.core.domain.repository.WorkoutRepository
 import com.neon.ascent.core.domain.workout.models.*
@@ -49,6 +50,20 @@ class WorkoutRepositoryImpl @Inject constructor(
 
     override suspend fun saveUserProfile(profile: UserWorkoutProfile) {
         workoutDao.insertUserProfile(profile.toEntity())
+    }
+
+    override fun getAllRoutines(): Flow<List<WorkoutRoutine>> =
+        workoutDao.getAllRoutines().map { list ->
+            list.map { it.routine.toDomain(it.exercises) }
+        }
+
+    override suspend fun saveRoutine(routine: WorkoutRoutine) {
+        workoutDao.insertRoutine(routine.toEntity())
+        routine.exercises.forEachIndexed { index, exercise ->
+            workoutDao.insertRoutineExerciseCrossRef(
+                RoutineExerciseCrossRef(routine.id, exercise.id, index)
+            )
+        }
     }
 
     override suspend fun seedStarterExercises() {
@@ -128,11 +143,137 @@ class WorkoutRepositoryImpl @Inject constructor(
                 cues = listOf("Elbow high", "Deep stretch at bottom", "Full lockout"),
                 muscleGroups = listOf("Triceps"),
                 equipment = listOf("Dumbbell")
+            ),
+            Exercise(
+                id = "bent_over_row",
+                name = "Bent-Over Barbell Rows",
+                description = "Classic horizontal pull for back thickness.",
+                cues = listOf("Hinged at hips", "Pull to upper stomach", "Squeeze shoulder blades"),
+                muscleGroups = listOf("Back", "Biceps", "Rear Delts"),
+                equipment = listOf("Barbell")
+            ),
+            Exercise(
+                id = "bulgarian_split_squat",
+                name = "Bulgarian Split Squat",
+                description = "Unilateral leg movement for quads and glutes.",
+                cues = listOf("Rear foot elevated", "Upright torso", "Drive through front heel"),
+                muscleGroups = listOf("Quads", "Glutes"),
+                equipment = listOf("Dumbbells", "Bench")
+            ),
+            Exercise(
+                id = "calf_raise",
+                name = "Standing Calf Raise",
+                description = "Isolation for the calves.",
+                cues = listOf("Full stretch at bottom", "Explosive up", "1s pause at top"),
+                muscleGroups = listOf("Calves"),
+                equipment = listOf("Barbell", "Machine")
+            ),
+            Exercise(
+                id = "hanging_knee_raise",
+                name = "Hanging Knee Raise",
+                description = "Core exercise for lower abs.",
+                cues = listOf("No swinging", "Crunch with hips", "Slow descent"),
+                muscleGroups = listOf("Abs"),
+                equipment = listOf("Pull-up Bar")
+            ),
+            Exercise(
+                id = "incline_bench_press",
+                name = "Incline Barbell Bench Press",
+                description = "Bench press on an incline for upper chest focus.",
+                cues = listOf("30-45 degree incline", "Bar to upper chest", "Tuck elbows slightly"),
+                muscleGroups = listOf("Chest", "Shoulders"),
+                equipment = listOf("Barbell", "Incline Bench")
+            ),
+            Exercise(
+                id = "db_bench_press",
+                name = "Dumbbell Bench Press",
+                description = "Unilateral chest press.",
+                cues = listOf("Full range of motion", "Dumbbells together at top", "Stable core"),
+                muscleGroups = listOf("Chest", "Shoulders", "Triceps"),
+                equipment = listOf("Dumbbells", "Bench")
+            ),
+            Exercise(
+                id = "lateral_raise",
+                name = "Dumbbell Lateral Raise",
+                description = "Isolation for side delts.",
+                cues = listOf("Pinkies up", "Slight elbow bend", "Control the descent"),
+                muscleGroups = listOf("Shoulders"),
+                equipment = listOf("Dumbbells")
+            ),
+            Exercise(
+                id = "hammer_curl",
+                name = "Dumbbell Hammer Curl",
+                description = "Bicep curl with neutral grip.",
+                cues = listOf("Neutral grip", "No swinging", "Squeeze at top"),
+                muscleGroups = listOf("Biceps", "Forearms"),
+                equipment = listOf("Dumbbells")
+            ),
+            Exercise(
+                id = "skull_crusher",
+                name = "EZ-Bar Skull Crusher",
+                description = "Tricep isolation.",
+                cues = listOf("Elbows tucked", "Lower to forehead", "Full lockout"),
+                muscleGroups = listOf("Triceps"),
+                equipment = listOf("EZ-Bar", "Bench")
+            ),
+            Exercise(
+                id = "leg_press",
+                name = "Leg Press",
+                description = "Machine compound for legs.",
+                cues = listOf("Feet shoulder width", "Don't lock knees", "Deep range of motion"),
+                muscleGroups = listOf("Quads", "Glutes"),
+                equipment = listOf("Leg Press Machine")
+            ),
+            Exercise(
+                id = "lat_pulldown",
+                name = "Lat Pulldown",
+                description = "Machine vertical pull.",
+                cues = listOf("Pull to upper chest", "Squeeze lats", "Don't lean back too far"),
+                muscleGroups = listOf("Lats", "Upper Back"),
+                equipment = listOf("Cable Machine")
+            ),
+            Exercise(
+                id = "seated_row",
+                name = "Seated Cable Row",
+                description = "Horizontal pull focusing on mid-back.",
+                cues = listOf("Chest up", "Pull to navel", "Squeeze shoulder blades"),
+                muscleGroups = listOf("Back", "Biceps"),
+                equipment = listOf("Cable Machine")
             )
         )
         
         exercises.forEach {
             workoutDao.insertExerciseDefinition(it.toEntity())
         }
+
+        // Seed Starter Routines
+        val strengthRoutine = WorkoutRoutine(
+            id = "routine_strength",
+            name = "Strength",
+            exercises = exercises.filter { it.id in listOf("bench_press", "bent_over_row", "back_squat", "deadlift") },
+            protocol = WorkoutProtocol.GENERAL
+        )
+        
+        val strength2Routine = WorkoutRoutine(
+            id = "routine_strength_2",
+            name = "Strength 2",
+            exercises = exercises.filter { it.id in listOf("zercher_squat", "military_press", "weighted_pullups") },
+            protocol = WorkoutProtocol.GENERAL
+        )
+        
+        val lowerSplitRoutine = WorkoutRoutine(
+            id = "routine_lower_split",
+            name = "Lower split",
+            exercises = exercises.filter { it.id in listOf("back_squat", "romanian_deadlift", "bulgarian_split_squat", "calf_raise", "hanging_knee_raise") },
+            protocol = WorkoutProtocol.GENERAL
+        )
+
+        saveRoutine(strengthRoutine)
+        saveRoutine(strength2Routine)
+        saveRoutine(lowerSplitRoutine)
+    }
+
+    override suspend fun deleteSession(sessionId: String) {
+        workoutDao.deleteSession(sessionId)
     }
 }

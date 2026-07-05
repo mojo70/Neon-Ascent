@@ -32,9 +32,11 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_11_12
         ExerciseDefinitionEntity::class,
         WorkoutLogEntity::class,
         SetLogEntity::class,
-        UserWorkoutProfileEntity::class
+        UserWorkoutProfileEntity::class,
+        WorkoutRoutineEntity::class,
+        RoutineExerciseCrossRef::class
     ],
-    version = 18,
+    version = 19,
     exportSchema = true
 )
 @TypeConverters(

@@ -108,3 +108,20 @@ fun UserWorkoutProfile.toEntity() = UserWorkoutProfileEntity(
     preferredDays = preferredDays,
     timePerSessionMinutes = timePerSessionMinutes
 )
+
+fun WorkoutRoutineEntity.toDomain(exercises: List<ExerciseDefinitionEntity>) = WorkoutRoutine(
+    id = id,
+    name = name,
+    description = description,
+    exercises = exercises.map { it.toDomain() },
+    protocol = WorkoutProtocol.valueOf(protocol),
+    createdAt = createdAt
+)
+
+fun WorkoutRoutine.toEntity() = WorkoutRoutineEntity(
+    id = id,
+    name = name,
+    description = description,
+    protocol = protocol.name,
+    createdAt = createdAt
+)

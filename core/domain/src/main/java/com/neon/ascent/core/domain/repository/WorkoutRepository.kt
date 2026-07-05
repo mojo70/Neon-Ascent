@@ -18,5 +18,10 @@ interface WorkoutRepository {
     fun getUserProfile(userId: String): Flow<UserWorkoutProfile?>
     suspend fun saveUserProfile(profile: UserWorkoutProfile)
 
+    fun getAllRoutines(): Flow<List<WorkoutRoutine>>
+    suspend fun saveRoutine(routine: WorkoutRoutine)
+
+    suspend fun deleteSession(sessionId: String)
+
     suspend fun seedStarterExercises()
 }
