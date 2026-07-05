@@ -14,6 +14,7 @@ data class WorkoutUiState(
     val session: WorkoutSession? = null,
     val currentExercise: Exercise? = null,
     val logs: List<Pair<WorkoutLog, List<SetLog>>> = emptyList(),
+    val previousLogs: Map<String, List<SetLog>> = emptyMap(), // exerciseId -> sets
     val availableExercises: List<Exercise> = emptyList(),
     val routines: List<WorkoutRoutine> = emptyList(),
     val isLoading: Boolean = false,
@@ -28,6 +29,7 @@ data class WorkoutUiState(
     
     // Routine Creation State
     val isCreatingRoutine: Boolean = false,
+    val isReorderingExercises: Boolean = false,
     val newRoutineName: String = "",
     val newRoutineExercises: List<Exercise> = emptyList(),
 
@@ -82,6 +84,31 @@ class WorkoutViewModel @Inject constructor(
 
     fun startCreateRoutine() {
         _uiState.update { it.copy(isCreatingRoutine = true, newRoutineName = "", newRoutineExercises = emptyList()) }
+    }
+
+    fun startReordering() {
+        _uiState.update { it.copy(isReorderingExercises = true) }
+    }
+
+    fun stopReordering() {
+        _uiState.update { it.copy(isReorderingExercises = false) }
+    }
+
+    fun moveWorkoutLog(fromIndex: Int, toIndex: Int) {
+        val currentLogs = _uiState.value.logs.toMutableList()
+        if (fromIndex !in currentLogs.indices || toIndex !in currentLogs.indices) return
+        
+        val item = currentLogs.removeAt(fromIndex)
+        currentLogs.add(toIndex, item)
+        
+        _uiState.update { it.copy(logs = currentLogs) }
+        
+        // Persist new order
+        viewModelScope.launch {
+            currentLogs.forEachIndexed { index, pair ->
+                repository.updateWorkoutLogOrder(pair.first.id, index)
+            }
+        }
     }
 
     fun cancelCreateRoutine() {
@@ -166,6 +193,24 @@ class WorkoutViewModel @Inject constructor(
             startWorkoutTimer()
             repository.getLogsForSession(sessionId).collect { logs ->
                 _uiState.update { it.copy(logs = logs, isLoading = false) }
+                // Load previous data for each exercise in the current logs
+                logs.forEach { (log, _) ->
+                    loadPreviousData(log.exerciseId)
+                }
+            }
+        }
+    }
+
+    private fun loadPreviousData(exerciseId: String) {
+        if (_uiState.value.previousLogs.containsKey(exerciseId)) return
+        
+        viewModelScope.launch {
+            repository.getLatestSetsForExercise(exerciseId).collect { sets ->
+                _uiState.update { 
+                    val newMap = it.previousLogs.toMutableMap()
+                    newMap[exerciseId] = sets
+                    it.copy(previousLogs = newMap)
+                }
             }
         }
     }
@@ -188,6 +233,7 @@ class WorkoutViewModel @Inject constructor(
                     exerciseName = exercise.name
                 )
                 repository.saveWorkoutLog(workoutLog)
+                loadPreviousData(exercise.id)
             }
             
             repository.getLogsForSession(sessionId).collect { logs ->
@@ -225,10 +271,11 @@ class WorkoutViewModel @Inject constructor(
         
         viewModelScope.launch {
             repository.saveWorkoutLog(workoutLog)
+            loadPreviousData(exercise.id)
         }
     }
 
-    fun logSet(workoutLog: WorkoutLog, weight: Float, reps: Int, rir: Int? = null) {
+    fun logSet(workoutLog: WorkoutLog, weight: Float, reps: Int, type: SetType = SetType.NORMAL) {
         val session = _uiState.value.session ?: return
         
         val setLog = SetLog(
@@ -236,16 +283,55 @@ class WorkoutViewModel @Inject constructor(
             workoutLogId = workoutLog.id,
             weight = weight,
             reps = reps,
-            rir = rir,
-            clusterMiniSetIndex = if (session.protocol == WorkoutProtocol.CYBER_CRAPP) _uiState.value.currentClusterIndex else null
+            type = type,
+            clusterMiniSetIndex = if (session.protocol == WorkoutProtocol.CYBER_CRAPP && type == SetType.REST_PAUSE) _uiState.value.currentClusterIndex else null
         )
 
         viewModelScope.launch {
             repository.saveSetLog(setLog)
             
-            if (session.protocol == WorkoutProtocol.CYBER_CRAPP) {
+            if (session.protocol == WorkoutProtocol.CYBER_CRAPP && type == SetType.REST_PAUSE) {
                 handleCyberCrappLogic()
             }
+        }
+    }
+
+    fun updateSet(setLog: SetLog, weight: Float? = null, reps: Int? = null, type: SetType? = null) {
+        val updatedSet = setLog.copy(
+            weight = weight ?: setLog.weight,
+            reps = reps ?: setLog.reps,
+            type = type ?: setLog.type
+        )
+        viewModelScope.launch {
+            repository.saveSetLog(updatedSet)
+        }
+    }
+
+    fun removeWorkoutLog(workoutLog: WorkoutLog) {
+        viewModelScope.launch {
+            repository.deleteWorkoutLog(workoutLog.id)
+        }
+    }
+
+    fun replaceWorkoutLog(oldLog: WorkoutLog, newExercise: Exercise) {
+        viewModelScope.launch {
+            // Simplest replacement: delete old, add new at same order
+            repository.deleteWorkoutLog(oldLog.id)
+            val newLog = WorkoutLog(
+                id = UUID.randomUUID().toString(),
+                sessionId = oldLog.sessionId,
+                exerciseId = newExercise.id,
+                order = oldLog.order,
+                exerciseName = newExercise.name
+            )
+            repository.saveWorkoutLog(newLog)
+            loadPreviousData(newExercise.id)
+        }
+    }
+
+    fun removeSet(setLog: SetLog) {
+        viewModelScope.launch {
+            repository.deleteSetLog(setLog.id)
         }
     }
 

@@ -52,6 +52,24 @@ interface WorkoutDao {
 
     @Query("DELETE FROM workout_sessions WHERE id = :sessionId")
     suspend fun deleteSession(sessionId: String)
+
+    @Transaction
+    @Query("""
+        SELECT * FROM workout_logs 
+        WHERE exerciseId = :exerciseId 
+        ORDER BY (SELECT date FROM workout_sessions WHERE id = sessionId) DESC 
+        LIMIT 1
+    """)
+    fun getLatestLogForExercise(exerciseId: String): Flow<WorkoutLogWithSets?>
+
+    @Query("DELETE FROM set_logs WHERE id = :setLogId")
+    suspend fun deleteSetLog(setLogId: String)
+
+    @Query("DELETE FROM workout_logs WHERE id = :workoutLogId")
+    suspend fun deleteWorkoutLog(workoutLogId: String)
+
+    @Query("UPDATE workout_logs SET `order` = :newOrder WHERE id = :workoutLogId")
+    suspend fun updateWorkoutLogOrder(workoutLogId: String, newOrder: Int)
 }
 
 data class WorkoutLogWithSets(

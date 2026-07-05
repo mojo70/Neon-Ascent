@@ -276,4 +276,19 @@ class WorkoutRepositoryImpl @Inject constructor(
     override suspend fun deleteSession(sessionId: String) {
         workoutDao.deleteSession(sessionId)
     }
+
+    override fun getLatestSetsForExercise(exerciseId: String): Flow<List<SetLog>> =
+        workoutDao.getLatestLogForExercise(exerciseId).map { it?.sets?.map { set -> set.toDomain() } ?: emptyList() }
+
+    override suspend fun deleteWorkoutLog(workoutLogId: String) {
+        workoutDao.deleteWorkoutLog(workoutLogId)
+    }
+
+    override suspend fun updateWorkoutLogOrder(workoutLogId: String, newOrder: Int) {
+        workoutDao.updateWorkoutLogOrder(workoutLogId, newOrder)
+    }
+
+    override suspend fun deleteSetLog(setLogId: String) {
+        workoutDao.deleteSetLog(setLogId)
+    }
 }

@@ -70,6 +70,7 @@ data class SetLogEntity(
     val workoutLogId: String,
     val weight: Float,
     val reps: Int,
+    val setType: String,
     val rir: Int?,
     val isWarmup: Boolean,
     val timestamp: Instant,

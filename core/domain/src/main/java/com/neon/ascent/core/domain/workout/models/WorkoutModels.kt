@@ -24,6 +24,10 @@ enum class Somatotype {
     ECTOMORPH, MESOMORPH, ENDOMORPH
 }
 
+enum class SetType {
+    NORMAL, WARMUP, DROP, FAILURE, REST_PAUSE
+}
+
 data class Exercise(
     val id: String,
     val name: String,
@@ -49,8 +53,9 @@ data class SetLog(
     val workoutLogId: String,
     val weight: Float,
     val reps: Int,
+    val type: SetType = SetType.NORMAL,
     val rir: Int? = null,
-    val isWarmup: Boolean = false,
+    val isWarmup: Boolean = false, // Deprecated in favor of type
     val timestamp: Instant = Instant.now(),
     
     // CyberCrapp specific fields

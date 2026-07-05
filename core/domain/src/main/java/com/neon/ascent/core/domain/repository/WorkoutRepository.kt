@@ -22,6 +22,12 @@ interface WorkoutRepository {
     suspend fun saveRoutine(routine: WorkoutRoutine)
 
     suspend fun deleteSession(sessionId: String)
+    
+    fun getLatestSetsForExercise(exerciseId: String): Flow<List<SetLog>>
+
+    suspend fun deleteWorkoutLog(workoutLogId: String)
+    suspend fun updateWorkoutLogOrder(workoutLogId: String, newOrder: Int)
+    suspend fun deleteSetLog(setLogId: String)
 
     suspend fun seedStarterExercises()
 }

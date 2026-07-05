@@ -5,9 +5,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
@@ -15,10 +18,14 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -57,6 +64,14 @@ fun WorkoutLoggingScreen(
                         onCreateRoutine = { viewModel.startCreateRoutine() }
                     )
                 }
+            } else if (uiState.isReorderingExercises) {
+                ReorderExercisesScreen(
+                    uiState = uiState,
+                    onBack = { viewModel.stopReordering() },
+                    onMove = { from, to -> viewModel.moveWorkoutLog(from, to) },
+                    onRemove = { viewModel.removeWorkoutLog(it) },
+                    onDone = { viewModel.stopReordering() }
+                )
             } else {
                 val durationFormatted = remember(uiState.workoutDurationSeconds) {
                     val minutes = uiState.workoutDurationSeconds / 60
@@ -618,6 +633,9 @@ fun CreateRoutineScreen(
                         viewModel.addExerciseToNewRoutine(it)
                         showExercisePicker = false
                     },
+                    onSaveCustomExercise = { name, muscle, equip, desc ->
+                        viewModel.saveCustomExercise(name, muscle, equip, desc)
+                    },
                     onDismiss = { showExercisePicker = false }
                 )
             }
@@ -676,20 +694,30 @@ fun RoutineSetPlaceholder(modifier: Modifier = Modifier, label: String) {
 @Composable
 fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel) {
     var showExercisePicker by remember { mutableStateOf(false) }
+    var exerciseToReplace by remember { mutableStateOf<WorkoutLog?>(null) }
+    var showActionMenuFor by remember { mutableStateOf<WorkoutLog?>(null) }
     val filteredExercises by viewModel.filteredExercises.collectAsState()
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 100.dp)
     ) {
-        items(uiState.logs) { (log, sets) ->
-            WorkoutLogCard(log, sets, viewModel)
+        items(uiState.logs, key = { it.first.id }) { (log, sets) ->
+            WorkoutLogCard(
+                log = log,
+                sets = sets,
+                viewModel = viewModel,
+                onActionMenuClick = { showActionMenuFor = log }
+            )
             Spacer(modifier = Modifier.height(24.dp))
         }
 
         item {
             Button(
-                onClick = { showExercisePicker = true },
+                onClick = { 
+                    exerciseToReplace = null
+                    showExercisePicker = true 
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
@@ -700,6 +728,26 @@ fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel) {
                 Text("Add Exercise", color = Color(0xFF007AFF), fontWeight = FontWeight.Bold)
             }
         }
+    }
+
+    if (showActionMenuFor != null) {
+        WorkoutExerciseActionMenu(
+            onReorder = { 
+                viewModel.startReordering()
+                showActionMenuFor = null
+            },
+            onReplace = {
+                exerciseToReplace = showActionMenuFor
+                showExercisePicker = true
+                showActionMenuFor = null
+            },
+            onAddSuperset = { /* TODO */ },
+            onRemove = {
+                viewModel.removeWorkoutLog(showActionMenuFor!!)
+                showActionMenuFor = null
+            },
+            onDismiss = { showActionMenuFor = null }
+        )
     }
 
     if (showExercisePicker) {
@@ -713,13 +761,235 @@ fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel) {
                     exercises = filteredExercises,
                     onSearchChange = { viewModel.updateExerciseSearch(it) },
                     onSelect = {
-                        viewModel.selectExercise(it)
+                        if (exerciseToReplace != null) {
+                            viewModel.replaceWorkoutLog(exerciseToReplace!!, it)
+                            exerciseToReplace = null
+                        } else {
+                            viewModel.selectExercise(it)
+                        }
                         showExercisePicker = false
                     },
-                    onDismiss = { showExercisePicker = false }
+                    onSaveCustomExercise = { name, muscle, equip, desc ->
+                        viewModel.saveCustomExercise(name, muscle, equip, desc)
+                    },
+                    onDismiss = { 
+                        showExercisePicker = false
+                        exerciseToReplace = null
+                    }
                 )
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WorkoutExerciseActionMenu(
+    onReorder: () -> Unit,
+    onReplace: () -> Unit,
+    onAddSuperset: () -> Unit,
+    onRemove: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1C1C1E),
+        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.Gray) }
+    ) {
+        Column(modifier = Modifier.padding(bottom = 32.dp)) {
+            ActionMenuItem(
+                icon = Icons.Default.SwapVert,
+                label = "Reorder Exercises",
+                onClick = {
+                    onReorder()
+                    onDismiss()
+                }
+            )
+            ActionMenuItem(
+                icon = Icons.Default.Refresh,
+                label = "Replace Exercise",
+                onClick = {
+                    onReplace()
+                    // onDismiss handled by parent
+                }
+            )
+            ActionMenuItem(
+                icon = Icons.Default.Add,
+                label = "Add To Superset",
+                onClick = {
+                    onAddSuperset()
+                    onDismiss()
+                }
+            )
+            
+            HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f))
+            
+            ActionMenuItem(
+                icon = Icons.Default.Close,
+                label = "Remove Exercise",
+                color = Color.Red,
+                onClick = {
+                    onRemove()
+                    // onDismiss handled by parent
+                }
+            )
+        }
+    }
+}
+
+@Composable
+fun ReorderExercisesScreen(
+    uiState: WorkoutUiState,
+    onBack: () -> Unit,
+    onMove: (Int, Int) -> Unit,
+    onRemove: (WorkoutLog) -> Unit,
+    onDone: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .background(Color.Black)
+    ) {
+        // Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+            }
+            Text(
+                "Reorder",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp
+            )
+            Box(Modifier.size(48.dp)) // Spacer for center alignment
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Exercise List
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp)
+        ) {
+            itemsIndexed(
+                items = uiState.logs, 
+                key = { _, item -> item.first.id }
+            ) { index, logPair ->
+                val log = logPair.first
+                ReorderExerciseItem(
+                    log = log,
+                    onRemove = { onRemove(log) },
+                    onMoveUp = { if (index > 0) onMove(index, index - 1) },
+                    onMoveDown = { if (index < uiState.logs.size - 1) onMove(index, index + 1) }
+                )
+            }
+        }
+
+        // Done Button
+        Button(
+            onClick = onDone,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .height(50.dp)
+                .navigationBarsPadding(),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF)),
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Text("Done", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+        }
+    }
+}
+
+@Composable
+fun ReorderExerciseItem(
+    log: WorkoutLog,
+    onRemove: () -> Unit,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp, horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Remove button
+        IconButton(onClick = onRemove, modifier = Modifier.size(28.dp)) {
+            Icon(
+                Icons.Default.RemoveCircle,
+                contentDescription = "Remove",
+                tint = Color(0xFFEB5757), // Exact red from screenshot
+                modifier = Modifier.size(24.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        // Thumbnail
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .background(Color.White, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.FitnessCenter, contentDescription = null, tint = Color.Black, modifier = Modifier.size(24.dp))
+        }
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        // Exercise Name
+        Text(
+            log.exerciseName,
+            color = Color.White,
+            fontSize = 17.sp,
+            fontWeight = FontWeight.Normal,
+            modifier = Modifier.weight(1f)
+        )
+
+        // Move controls (combined as drag handle visual)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onMoveUp, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move Up", tint = Color.Gray)
+            }
+            IconButton(onClick = onMoveDown, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move Down", tint = Color.Gray)
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Icon(
+                Icons.Default.Menu,
+                contentDescription = "Drag Handle",
+                tint = Color.Gray.copy(alpha = 0.6f),
+                modifier = Modifier.size(24.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun ActionMenuItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    color: Color = Color.White,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(horizontal = 24.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
+        Spacer(modifier = Modifier.width(16.dp))
+        Text(label, color = color, fontSize = 16.sp)
     }
 }
 
@@ -729,8 +999,21 @@ fun ExercisePicker(
     exercises: List<Exercise>,
     onSearchChange: (String) -> Unit,
     onSelect: (Exercise) -> Unit,
+    onSaveCustomExercise: (String, String, String, String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    var showCustomExerciseForm by remember { mutableStateOf(false) }
+
+    if (showCustomExerciseForm) {
+        CustomExerciseForm(
+            onSave = { name, muscle, equip, desc ->
+                onSaveCustomExercise(name, muscle, equip, desc)
+                showCustomExerciseForm = false
+            },
+            onDismiss = { showCustomExerciseForm = false }
+        )
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         // Header
         Row(
@@ -754,7 +1037,7 @@ fun ExercisePicker(
             Text(
                 "Create",
                 color = Color(0xFF007AFF),
-                modifier = Modifier.clickable { /* Create custom logic */ }
+                modifier = Modifier.clickable { showCustomExerciseForm = true }
             )
         }
 
@@ -765,7 +1048,7 @@ fun ExercisePicker(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
-                .height(44.dp),
+                .heightIn(min = 44.dp),
             placeholder = { Text("Search exercise", color = Color.Gray, fontSize = 15.sp) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.Gray) },
             colors = TextFieldDefaults.colors(
@@ -907,7 +1190,130 @@ fun ExerciseListItem(exercise: Exercise, onClick: () -> Unit) {
 }
 
 @Composable
-fun WorkoutLogCard(log: WorkoutLog, sets: List<SetLog>, viewModel: WorkoutViewModel) {
+fun CustomExerciseForm(
+    onSave: (String, String, String, String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var muscleGroup by remember { mutableStateOf("") }
+    var equipment by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            color = Color(0xFF1C1C1E),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    "Create Custom Exercise",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Exercise Name *", color = Color.Gray) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF007AFF),
+                        unfocusedBorderColor = Color.DarkGray,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = muscleGroup,
+                    onValueChange = { muscleGroup = it },
+                    label = { Text("Muscle Group", color = Color.Gray) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF007AFF),
+                        unfocusedBorderColor = Color.DarkGray,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = equipment,
+                    onValueChange = { equipment = it },
+                    label = { Text("Equipment", color = Color.Gray) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF007AFF),
+                        unfocusedBorderColor = Color.DarkGray,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Instructions", color = Color.Gray) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF007AFF),
+                        unfocusedBorderColor = Color.DarkGray,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    minLines = 3
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel", color = Color.Gray)
+                    }
+                    Button(
+                        onClick = { onSave(name, muscleGroup, equipment, description) },
+                        enabled = name.isNotBlank(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF))
+                    ) {
+                        Text("Save Exercise", color = Color.White)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun WorkoutLogCard(
+    log: WorkoutLog,
+    sets: List<SetLog>,
+    viewModel: WorkoutViewModel,
+    onActionMenuClick: () -> Unit
+) {
+    val previousSets = viewModel.uiState.collectAsState().value.previousLogs[log.exerciseId] ?: emptyList()
+    var showSetTypeSelector by remember { mutableStateOf<SetLog?>(null) }
+
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -919,7 +1325,9 @@ fun WorkoutLogCard(log: WorkoutLog, sets: List<SetLog>, viewModel: WorkoutViewMo
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(log.exerciseName, color = Color(0xFF007AFF), fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
-            Icon(Icons.Default.MoreHoriz, contentDescription = null, tint = Color.Gray)
+            IconButton(onClick = onActionMenuClick) {
+                Icon(Icons.Default.MoreHoriz, contentDescription = "Exercise Actions", tint = Color.Gray)
+            }
         }
 
         Text("Add weight", color = Color.Gray, fontSize = 14.sp, modifier = Modifier.padding(vertical = 8.dp))
@@ -944,12 +1352,26 @@ fun WorkoutLogCard(log: WorkoutLog, sets: List<SetLog>, viewModel: WorkoutViewMo
         Spacer(modifier = Modifier.height(8.dp))
 
         sets.forEachIndexed { index, set ->
-            SetLogRow(index + 1, set)
+            key(set.id) {
+                val prevSet = previousSets.getOrNull(index)
+                SetLogRow(
+                    setNumber = index + 1,
+                    set = set,
+                    previousData = prevSet?.let { "${it.weight.toInt()}lbs x ${it.reps}" } ?: "—",
+                    onUpdateWeight = { viewModel.updateSet(set, weight = it) },
+                    onUpdateReps = { viewModel.updateSet(set, reps = it) },
+                    onSetLabelClick = { showSetTypeSelector = set }
+                )
+            }
             Spacer(modifier = Modifier.height(4.dp))
         }
 
         Button(
-            onClick = { viewModel.logSet(log, 135f, 10) }, // Default values for now
+            onClick = { 
+                val lastWeight = sets.lastOrNull()?.weight ?: 0f
+                val lastReps = sets.lastOrNull()?.reps ?: 0
+                viewModel.logSet(log, lastWeight, lastReps) 
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 8.dp)
@@ -960,49 +1382,84 @@ fun WorkoutLogCard(log: WorkoutLog, sets: List<SetLog>, viewModel: WorkoutViewMo
             Text("+ Add Set", color = Color.White, fontSize = 14.sp)
         }
     }
+
+    if (showSetTypeSelector != null) {
+        SetTypeSelectorBottomSheet(
+            onTypeSelected = { type ->
+                viewModel.updateSet(showSetTypeSelector!!, type = type)
+                showSetTypeSelector = null
+            },
+            onRemoveSet = {
+                viewModel.removeSet(showSetTypeSelector!!)
+                showSetTypeSelector = null
+            },
+            onDismiss = { showSetTypeSelector = null }
+        )
+    }
 }
 
 @Composable
-fun SetLogRow(setNumber: Int, set: SetLog) {
+fun SetLogRow(
+    setNumber: Int,
+    set: SetLog,
+    previousData: String,
+    onUpdateWeight: (Float) -> Unit,
+    onUpdateReps: (Int) -> Unit,
+    onSetLabelClick: () -> Unit
+) {
     val backgroundColor = if (setNumber % 2 == 0) Color.Transparent else Color(0xFF1C1C1E).copy(alpha = 0.3f)
     
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(backgroundColor)
-            .padding(vertical = 8.dp),
+            .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            if (set.isWarmup) "W" else "$setNumber",
-            color = if (set.isWarmup) Color(0xFFFFA500) else Color.White,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.weight(1f)
+        // Set Label (Clickable to change type)
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .clickable { onSetLabelClick() },
+            contentAlignment = Alignment.CenterStart
+        ) {
+            val label = when (set.type) {
+                SetType.NORMAL -> "$setNumber"
+                SetType.WARMUP -> "W"
+                SetType.DROP -> "D"
+                SetType.FAILURE -> "F"
+                SetType.REST_PAUSE -> "RP"
+            }
+            val color = when (set.type) {
+                SetType.WARMUP -> Color(0xFFFFA500)
+                SetType.DROP -> Color(0xFF00CCFF)
+                SetType.FAILURE -> Color(0xFFFF4444)
+                SetType.REST_PAUSE -> Color(0xFF00FFAA)
+                else -> Color.White
+            }
+            Text(label, color = color, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        }
+
+        // Previous Data
+        Text(previousData, color = Color.Gray, fontSize = 14.sp, modifier = Modifier.weight(2f))
+        
+        // Weight Input
+        EditableValueBox(
+            value = if (set.weight % 1 == 0f) set.weight.toInt().toString() else set.weight.toString(),
+            onValueChange = { it.toFloatOrNull()?.let { w -> onUpdateWeight(w) } },
+            modifier = Modifier.weight(1.5f),
+            keyboardType = KeyboardType.Decimal
         )
-        Text("135lbs x 5", color = Color.Gray, fontSize = 14.sp, modifier = Modifier.weight(2f))
         
-        Box(
-            modifier = Modifier
-                .weight(1.5f)
-                .padding(horizontal = 4.dp)
-                .background(Color(0xFF1C1C1E), RoundedCornerShape(4.dp))
-                .padding(vertical = 4.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("${set.weight.toInt()}", color = Color.White, fontSize = 14.sp)
-        }
+        // Reps Input
+        EditableValueBox(
+            value = set.reps.toString(),
+            onValueChange = { it.toIntOrNull()?.let { r -> onUpdateReps(r) } },
+            modifier = Modifier.weight(1.5f),
+            keyboardType = KeyboardType.Number
+        )
         
-        Box(
-            modifier = Modifier
-                .weight(1.5f)
-                .padding(horizontal = 4.dp)
-                .background(Color(0xFF1C1C1E), RoundedCornerShape(4.dp))
-                .padding(vertical = 4.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("${set.reps}", color = Color.White, fontSize = 14.sp)
-        }
-        
+        // Completion Check
         Box(
             modifier = Modifier
                 .size(24.dp)
@@ -1012,4 +1469,135 @@ fun SetLogRow(setNumber: Int, set: SetLog) {
             Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
         }
     }
+}
+
+@Composable
+fun EditableValueBox(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    keyboardType: KeyboardType = KeyboardType.Number
+) {
+    var text by remember { mutableStateOf(value) }
+    var isFocused by remember { mutableStateOf(false) }
+
+    // Sync from external value only when not focused to prevent "jumping" or "predicting"
+    // while the user is actively typing or has cleared the box.
+    LaunchedEffect(value) {
+        if (!isFocused) {
+            text = value
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .padding(horizontal = 4.dp)
+            .background(Color(0xFF1C1C1E), RoundedCornerShape(4.dp))
+            .padding(vertical = 4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        BasicTextField(
+            value = text,
+            onValueChange = {
+                // Allow empty string or numeric values only, and limit length
+                if (it.isEmpty() || it.toDoubleOrNull() != null || it == "." || it == ",") {
+                    if (it.length <= 6) {
+                        text = it
+                        onValueChange(it)
+                    }
+                }
+            },
+            textStyle = TextStyle(
+                color = Color.White,
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center,
+                fontFamily = FontFamily.Monospace
+            ),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = keyboardType,
+                autoCorrectEnabled = false
+            ),
+            cursorBrush = SolidColor(Color(0xFF007AFF)),
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { 
+                    isFocused = it.isFocused
+                    if (!it.isFocused) {
+                        // Re-sync on focus loss to ensure valid domain state
+                        text = value
+                    }
+                }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SetTypeSelectorBottomSheet(
+    onTypeSelected: (SetType) -> Unit,
+    onRemoveSet: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1C1C1E),
+        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.Gray) }
+    ) {
+        Column(modifier = Modifier.padding(16.dp).padding(bottom = 32.dp)) {
+            Text(
+                "Select Set Type",
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            SetTypeOption("W", "Warm Up Set", Color(0xFFFFA500)) { onTypeSelected(SetType.WARMUP) }
+            SetTypeOption("1", "Normal Set", Color.White) { onTypeSelected(SetType.NORMAL) }
+            SetTypeOption("F", "Failure Set", Color(0xFFFF4444)) { onTypeSelected(SetType.FAILURE) }
+            SetTypeOption("D", "Drop Set", Color(0xFF00CCFF)) { onTypeSelected(SetType.DROP) }
+            SetTypeOption("RP", "Rest Pause", Color(0xFF00FFAA)) { onTypeSelected(SetType.REST_PAUSE) }
+            
+            HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f), modifier = Modifier.padding(vertical = 8.dp))
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onRemoveSet() }
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Close, contentDescription = null, tint = Color.Red, modifier = Modifier.size(24.dp))
+                Spacer(modifier = Modifier.width(16.dp))
+                Text("Remove Set", color = Color.Red, fontSize = 16.sp)
+            }
+        }
+    }
+}
+
+@Composable
+fun SetTypeOption(label: String, description: String, color: Color, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            label,
+            color = color,
+            fontWeight = FontWeight.Bold,
+            fontSize = 18.sp,
+            modifier = Modifier.width(40.dp),
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Text(description, color = Color.White, fontSize = 16.sp, modifier = Modifier.weight(1f))
+        Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(18.dp))
+    }
+    HorizontalDivider(color = Color.Gray.copy(alpha = 0.1f))
 }
