@@ -45,7 +45,8 @@ data class WorkoutLog(
     val exerciseId: String,
     val order: Int,
     val exerciseName: String, // Denormalized for convenience
-    val protocolOverride: WorkoutProtocol? = null
+    val protocolOverride: WorkoutProtocol? = null,
+    val supersetId: String? = null
 )
 
 data class SetLog(
@@ -54,6 +55,7 @@ data class SetLog(
     val weight: Float,
     val reps: Int,
     val type: SetType = SetType.NORMAL,
+    val isCompleted: Boolean = false,
     val rir: Int? = null,
     val isWarmup: Boolean = false, // Deprecated in favor of type
     val timestamp: Instant = Instant.now(),

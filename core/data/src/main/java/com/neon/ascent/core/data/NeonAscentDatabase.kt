@@ -36,7 +36,7 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_11_12
         WorkoutRoutineEntity::class,
         RoutineExerciseCrossRef::class
     ],
-    version = 20,
+    version = 23,
     exportSchema = true
 )
 @TypeConverters(

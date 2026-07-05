@@ -2,14 +2,19 @@ package com.neon.ascent
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -88,14 +93,35 @@ import com.neon.ascent.util.derivePersonalityArchetype
 fun AppNavigation(
     creationViewModel: CreationViewModel = hiltViewModel(),
     dashboardViewModel: DashboardViewModel = hiltViewModel(),
-    notificationViewModel: NotificationPermissionViewModel = hiltViewModel()
+    notificationViewModel: NotificationPermissionViewModel = hiltViewModel(),
+    workoutViewModel: com.neon.ascent.feature.workout.ui.WorkoutViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
     val userCharacter by dashboardViewModel.userCharacter.collectAsState()
     val tickerMessages by dashboardViewModel.tickerMessages.collectAsState()
+    val workoutState by workoutViewModel.uiState.collectAsState()
     val showRationale by notificationViewModel.showRationale.collectAsState()
     val pendingNotification by notificationViewModel.pendingNotification.collectAsState()
     var pendingGuideMessage by remember { mutableStateOf<String?>(null) }
+
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+    
+    // Hide overlay on workout log and its sub-views
+    val showWorkoutOverlay = workoutState.session != null && 
+                             currentRoute != null && 
+                             !currentRoute.contains("WorkoutLog") &&
+                             !workoutState.isReorderingExercises &&
+                             !workoutState.isCreatingRoutine
+
+    LaunchedEffect(workoutState.session) {
+        if (workoutState.session != null) {
+            // Auto-navigate to workout if one is active on startup
+            navController.navigate(Screen.WorkoutLog(null)) {
+                launchSingleTop = true
+            }
+        }
+    }
 
     LaunchedEffect(showRationale) {
         if (showRationale) {
@@ -142,36 +168,43 @@ fun AppNavigation(
                         },
                         tickerMessages = tickerMessages
                     )
-                    1 -> DashboardScreen(
-                        onAvatarClick = { navController.navigate(Screen.HolographicHub) },
-                        onAttributeSetClick = { navController.navigate(Screen.AttributeScan) },
-                        onStoryClick = {
-                            val target = if (dashboardViewModel.uiState.value.userStory.bio.isNotBlank()) {
-                                Screen.Lore
-                            } else {
-                                Screen.StoryIntake
+                    1 -> Box(Modifier.fillMaxSize()) {
+                        DashboardScreen(
+                            onAvatarClick = { navController.navigate(Screen.HolographicHub) },
+                            onAttributeSetClick = { navController.navigate(Screen.AttributeScan) },
+                            onStoryClick = {
+                                val target = if (dashboardViewModel.uiState.value.userStory.bio.isNotBlank()) {
+                                    Screen.Lore
+                                } else {
+                                    Screen.StoryIntake
+                                }
+                                navController.navigate(target)
+                            },
+                            onGoalSetClick = { navController.navigate(Screen.AscensionTerminal) },
+                            onTaskClick = { id -> navController.navigate(Screen.TaskDetail(id)) },
+                            onNavigateToWorkout = { taskId -> navController.navigate(Screen.WorkoutLog(taskId)) },
+                            onSettingsClick = { navController.navigate(Screen.Settings) },
+                            onDeusExMachinaClick = { navController.navigate(Screen.DeepNode("DEUS_EX_MACHINA")) },
+                            onNavigateToBiohacking = { focus ->
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(2)
+                                }
+                            },
+                            onNavigateToGuide = {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(3)
+                                }
                             }
-                            navController.navigate(target)
-                        },
-                        onGoalSetClick = { navController.navigate(Screen.AscensionTerminal) },
-                        onTaskClick = { id -> navController.navigate(Screen.TaskDetail(id)) },
-                        onNavigateToWorkout = { taskId -> navController.navigate(Screen.WorkoutLog(taskId)) },
-                        onSettingsClick = { navController.navigate(Screen.Settings) },
-                        onDeusExMachinaClick = { navController.navigate(Screen.DeepNode("DEUS_EX_MACHINA")) },
-                        onNavigateToBiohacking = { focus ->
-                            // Since Biohacking is in the pager, we navigate to page 2
-                            // and can pass the focus via a shared ViewModel or SavedStateHandle if needed
-                            // For now, just scroll to the page
-                            coroutineScope.launch {
-                                pagerState.animateScrollToPage(2)
-                            }
-                        },
-                        onNavigateToGuide = {
-                            coroutineScope.launch {
-                                pagerState.animateScrollToPage(3)
-                            }
+                        )
+                        
+                        // Ongoing Workout Indicator
+                        if (workoutState.session != null) {
+                            OngoingWorkoutOverlay(
+                                duration = workoutState.workoutDurationSeconds,
+                                onClick = { navController.navigate(Screen.WorkoutLog(null)) }
+                            )
                         }
-                    )
+                    }
                     2 -> BiohackingScreen(
                         onBack = { /* Handled by pager */ },
                         onNavigateToForge = { type, title, desc, biometrics ->
@@ -787,9 +820,17 @@ fun AppNavigation(
         composable<Screen.WorkoutLog> { backStackEntry ->
             val args = backStackEntry.toRoute<Screen.WorkoutLog>()
             WorkoutLoggingScreen(
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                viewModel = workoutViewModel
             )
         }
+    }
+
+    if (showWorkoutOverlay) {
+        OngoingWorkoutOverlay(
+            duration = workoutState.workoutDurationSeconds,
+            onClick = { navController.navigate(Screen.WorkoutLog(null)) }
+        )
     }
 
     pendingNotification?.let { (title, message) ->
@@ -800,6 +841,71 @@ fun AppNavigation(
                 notificationViewModel.dismissNotification()
             }
         )
+    }
+}
+
+@Composable
+fun OngoingWorkoutOverlay(
+    duration: Long,
+    onClick: () -> Unit
+) {
+    val minutes = duration / 60
+    val seconds = duration % 60
+    val time = "%d:%02d".format(minutes, seconds)
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(bottom = 32.dp, start = 16.dp, end = 16.dp),
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .clickable { onClick() },
+            color = Color(0xFF007AFF),
+            shape = RoundedCornerShape(16.dp),
+            shadowElevation = 8.dp
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.FitnessCenter, 
+                        contentDescription = null, 
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column {
+                        Text(
+                            "WORKOUT IN PROGRESS",
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontWeight = FontWeight.Black,
+                            fontSize = 10.sp,
+                            letterSpacing = 1.sp
+                        )
+                        Text(
+                            "Tap to return",
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                Text(
+                    time,
+                    color = Color.White,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 22.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+        }
     }
 }
 

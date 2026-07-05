@@ -23,7 +23,9 @@ interface WorkoutRepository {
 
     suspend fun deleteSession(sessionId: String)
     
-    fun getLatestSetsForExercise(exerciseId: String): Flow<List<SetLog>>
+    fun getLatestSetsForExercise(exerciseId: String, excludedSessionId: String): Flow<List<SetLog>>
+
+    fun getActiveSession(): Flow<WorkoutSession?>
 
     suspend fun deleteWorkoutLog(workoutLogId: String)
     suspend fun updateWorkoutLogOrder(workoutLogId: String, newOrder: Int)

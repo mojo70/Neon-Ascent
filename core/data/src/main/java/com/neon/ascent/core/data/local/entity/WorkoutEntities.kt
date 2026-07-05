@@ -50,7 +50,8 @@ data class WorkoutLogEntity(
     val exerciseId: String,
     val order: Int,
     val exerciseName: String,
-    val protocolOverride: String?
+    val protocolOverride: String?,
+    val supersetId: String? = null
 )
 
 @Entity(
@@ -71,6 +72,7 @@ data class SetLogEntity(
     val weight: Float,
     val reps: Int,
     val setType: String,
+    val isCompleted: Boolean,
     val rir: Int?,
     val isWarmup: Boolean,
     val timestamp: Instant,

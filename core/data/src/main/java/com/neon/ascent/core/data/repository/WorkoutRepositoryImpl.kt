@@ -34,7 +34,11 @@ class WorkoutRepositoryImpl @Inject constructor(
 
     override fun getLogsForSession(sessionId: String): Flow<List<Pair<WorkoutLog, List<SetLog>>>> =
         workoutDao.getLogsForSession(sessionId).map { list ->
-            list.map { it.log.toDomain() to it.sets.map { set -> set.toDomain() } }
+            list.map { logWithSets ->
+                logWithSets.log.toDomain() to logWithSets.sets
+                    .map { it.toDomain() }
+                    .sortedBy { it.timestamp }
+            }
         }
 
     override suspend fun saveWorkoutLog(log: WorkoutLog) {
@@ -277,8 +281,16 @@ class WorkoutRepositoryImpl @Inject constructor(
         workoutDao.deleteSession(sessionId)
     }
 
-    override fun getLatestSetsForExercise(exerciseId: String): Flow<List<SetLog>> =
-        workoutDao.getLatestLogForExercise(exerciseId).map { it?.sets?.map { set -> set.toDomain() } ?: emptyList() }
+    override fun getActiveSession(): Flow<WorkoutSession?> =
+        workoutDao.getActiveSession().map { it?.toDomain() }
+
+    override fun getLatestSetsForExercise(exerciseId: String, excludedSessionId: String): Flow<List<SetLog>> =
+        workoutDao.getLatestLogForExercise(exerciseId, excludedSessionId).map { logWithSets -> 
+            logWithSets?.sets
+                ?.map { it.toDomain() }
+                ?.sortedBy { it.timestamp }
+                ?: emptyList() 
+        }
 
     override suspend fun deleteWorkoutLog(workoutLogId: String) {
         workoutDao.deleteWorkoutLog(workoutLogId)

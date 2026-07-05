@@ -37,13 +37,30 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
-        val passphrase = SQLiteDatabase.getBytes("neon_protocol_secure_alpha".toCharArray())
+        val dbName = "neon_ascent_v5_secure.db"
+        val passphraseString = "neon_protocol_secure_alpha"
+        val passphrase = SQLiteDatabase.getBytes(passphraseString.toCharArray())
+        
+        // Pre-verification
+        val dbFile = context.getDatabasePath(dbName)
+        if (dbFile.exists()) {
+            try {
+                SQLiteDatabase.loadLibs(context)
+                val db = SQLiteDatabase.openDatabase(dbFile.absolutePath, passphraseString, null, SQLiteDatabase.OPEN_READWRITE)
+                db.rawQuery("SELECT count(*) FROM sqlite_master", null)?.use { it.moveToFirst() }
+                db.close()
+            } catch (e: Exception) {
+                android.util.Log.e("DatabaseModule", "AppDatabase verification failed. Wiping.", e)
+                context.deleteDatabase(dbName)
+            }
+        }
+
         val factory = SupportFactory(passphrase)
         
         return Room.databaseBuilder(
             context,
             AppDatabase::class.java,
-            "neon_ascent_v5_secure.db"
+            dbName
         )
         .openHelperFactory(factory)
         .addTypeConverter(Converters())

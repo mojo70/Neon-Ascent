@@ -33,6 +33,8 @@ data class WorkoutUiState(
     val newRoutineName: String = "",
     val newRoutineExercises: List<Exercise> = emptyList(),
 
+    val activeSessionError: String? = null,
+
     // Exercise Picker State
     val exerciseSearchQuery: String = "",
     val selectedEquipment: String? = null,
@@ -46,6 +48,8 @@ class WorkoutViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(WorkoutUiState())
     val uiState = _uiState.asStateFlow()
+
+    private val updateJobs = mutableMapOf<String, kotlinx.coroutines.Job>()
 
     val filteredExercises = _uiState.map { state ->
         state.availableExercises.filter { exercise ->
@@ -65,7 +69,29 @@ class WorkoutViewModel @Inject constructor(
             repository.seedStarterExercises()
             loadExercises()
             loadRoutines()
+            checkForActiveSession()
         }
+    }
+
+    private fun checkForActiveSession() {
+        viewModelScope.launch {
+            repository.getActiveSession().collect { session ->
+                if (session != null && _uiState.value.session == null) {
+                    resumeExistingSession(session)
+                }
+            }
+        }
+    }
+
+    private fun resumeExistingSession(session: WorkoutSession) {
+        _uiState.update { it.copy(session = session, isLoading = true) }
+        viewModelScope.launch {
+            repository.getLogsForSession(session.id).collect { logs ->
+                _uiState.update { it.copy(logs = logs, isLoading = false) }
+                logs.forEach { (log, _) -> loadPreviousData(log.exerciseId) }
+            }
+        }
+        startWorkoutTimer()
     }
 
     fun saveCustomExercise(name: String, muscleGroup: String, equipment: String, description: String) {
@@ -184,9 +210,19 @@ class WorkoutViewModel @Inject constructor(
     }
 
     fun startSession(protocol: WorkoutProtocol) {
+        if (_uiState.value.session != null) {
+            _uiState.update { it.copy(activeSessionError = "A workout session is already in progress. Please finish or discard it before starting a new one.") }
+            return
+        }
         val sessionId = UUID.randomUUID().toString()
         val session = WorkoutSession(id = sessionId, protocol = protocol)
-        _uiState.update { it.copy(session = session, isLoading = true, workoutDurationSeconds = 0, isPaused = false) }
+        _uiState.update { it.copy(
+            session = session, 
+            isLoading = true, 
+            workoutDurationSeconds = 0, 
+            isPaused = false,
+            previousLogs = emptyMap()
+        ) }
         
         viewModelScope.launch {
             repository.saveSession(session)
@@ -202,10 +238,11 @@ class WorkoutViewModel @Inject constructor(
     }
 
     private fun loadPreviousData(exerciseId: String) {
+        val currentSessionId = _uiState.value.session?.id ?: return
         if (_uiState.value.previousLogs.containsKey(exerciseId)) return
         
         viewModelScope.launch {
-            repository.getLatestSetsForExercise(exerciseId).collect { sets ->
+            repository.getLatestSetsForExercise(exerciseId, currentSessionId).collect { sets ->
                 _uiState.update { 
                     val newMap = it.previousLogs.toMutableMap()
                     newMap[exerciseId] = sets
@@ -216,9 +253,19 @@ class WorkoutViewModel @Inject constructor(
     }
 
     fun startRoutine(routine: WorkoutRoutine) {
+        if (_uiState.value.session != null) {
+            _uiState.update { it.copy(activeSessionError = "A workout session is already in progress. Please finish or discard it before starting a new one.") }
+            return
+        }
         val sessionId = UUID.randomUUID().toString()
         val session = WorkoutSession(id = sessionId, protocol = routine.protocol)
-        _uiState.update { it.copy(session = session, isLoading = true, workoutDurationSeconds = 0, isPaused = false) }
+        _uiState.update { it.copy(
+            session = session, 
+            isLoading = true, 
+            workoutDurationSeconds = 0, 
+            isPaused = false,
+            previousLogs = emptyMap()
+        ) }
 
         viewModelScope.launch {
             repository.saveSession(session)
@@ -240,6 +287,10 @@ class WorkoutViewModel @Inject constructor(
                 _uiState.update { it.copy(logs = logs, isLoading = false) }
             }
         }
+    }
+
+    fun clearActiveSessionError() {
+        _uiState.update { it.copy(activeSessionError = null) }
     }
 
     fun pauseWorkout() {
@@ -296,13 +347,18 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
-    fun updateSet(setLog: SetLog, weight: Float? = null, reps: Int? = null, type: SetType? = null) {
+    fun updateSet(setLog: SetLog, weight: Float? = null, reps: Int? = null, type: SetType? = null, isCompleted: Boolean? = null) {
         val updatedSet = setLog.copy(
             weight = weight ?: setLog.weight,
             reps = reps ?: setLog.reps,
-            type = type ?: setLog.type
+            type = type ?: setLog.type,
+            isCompleted = isCompleted ?: setLog.isCompleted
         )
-        viewModelScope.launch {
+        
+        updateJobs[setLog.id]?.cancel()
+        updateJobs[setLog.id] = viewModelScope.launch {
+            // Tiny delay to batch fast keystrokes and reduce database churn
+            kotlinx.coroutines.delay(100)
             repository.saveSetLog(updatedSet)
         }
     }
@@ -310,6 +366,14 @@ class WorkoutViewModel @Inject constructor(
     fun removeWorkoutLog(workoutLog: WorkoutLog) {
         viewModelScope.launch {
             repository.deleteWorkoutLog(workoutLog.id)
+        }
+    }
+
+    fun createSuperset(log1: WorkoutLog, log2: WorkoutLog) {
+        val supersetId = UUID.randomUUID().toString()
+        viewModelScope.launch {
+            repository.saveWorkoutLog(log1.copy(supersetId = supersetId))
+            repository.saveWorkoutLog(log2.copy(supersetId = supersetId))
         }
     }
 
@@ -332,6 +396,16 @@ class WorkoutViewModel @Inject constructor(
     fun removeSet(setLog: SetLog) {
         viewModelScope.launch {
             repository.deleteSetLog(setLog.id)
+        }
+    }
+
+    fun finishWorkout() {
+        val session = _uiState.value.session ?: return
+        val finalDuration = _uiState.value.workoutDurationSeconds
+        viewModelScope.launch {
+            repository.saveSession(session.copy(durationSeconds = finalDuration))
+            _uiState.update { it.copy(session = null, workoutDurationSeconds = 0) }
+            timerJob?.cancel()
         }
     }
 

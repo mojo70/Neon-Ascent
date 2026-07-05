@@ -37,6 +37,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.ui.*
 import com.neon.ascent.util.BiometricAuthManager
+import com.neon.ascent.util.findFragmentActivity
 import kotlinx.coroutines.delay
 import kotlin.random.Random
 
@@ -336,22 +337,25 @@ fun SettingsScreen(
                     }
 
                     ToggleSetting("Biometric Node Lock", biometricLockEnabled) { enabled ->
-                        if (enabled) {
-                            biometricAuthManager.authenticate(
-                                context as FragmentActivity,
-                                "ENABLE LOCK",
-                                "Confirm identity",
-                                onSuccess = { viewModel.setBiometricLockEnabled(true) },
-                                onError = {}
-                            )
-                        } else {
-                            biometricAuthManager.authenticate(
-                                context as FragmentActivity,
-                                "DISABLE LOCK",
-                                "Confirm identity",
-                                onSuccess = { viewModel.setBiometricLockEnabled(false) },
-                                onError = {}
-                            )
+                        val activity = context.findFragmentActivity()
+                        if (activity != null) {
+                            if (enabled) {
+                                biometricAuthManager.authenticate(
+                                    activity,
+                                    "ENABLE LOCK",
+                                    "Confirm identity",
+                                    onSuccess = { viewModel.setBiometricLockEnabled(true) },
+                                    onError = {}
+                                )
+                            } else {
+                                biometricAuthManager.authenticate(
+                                    activity,
+                                    "DISABLE LOCK",
+                                    "Confirm identity",
+                                    onSuccess = { viewModel.setBiometricLockEnabled(false) },
+                                    onError = {}
+                                )
+                            }
                         }
                     }
 

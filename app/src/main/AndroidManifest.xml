@@ -40,7 +40,8 @@
         android:label="@string/app_name"
         android:theme="@style/Theme.NeonAscent"
         android:hardwareAccelerated="true"
-        android:extractNativeLibs="false">
+        android:extractNativeLibs="false"
+        android:enableOnBackInvokedCallback="true">
 
         <activity
             android:name=".MainActivity"

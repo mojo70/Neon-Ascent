@@ -59,12 +59,8 @@ object DatabaseModule {
                 // Minimal query to verify encryption
                 db.rawQuery("SELECT count(*) FROM sqlite_master", null)?.use { it.moveToFirst() }
             } catch (e: Exception) {
-                android.util.Log.e("DatabaseModule", "Database verification failed. Key might be lost.", e)
-                if (e.message?.contains("file is not a database") == true || 
-                    e.message?.contains("encrypted") == true) {
-                    android.util.Log.w("DatabaseModule", "Wiping database due to encryption mismatch.")
-                    context.deleteDatabase(dbName)
-                }
+                android.util.Log.e("DatabaseModule", "Database verification failed. Wiping.", e)
+                context.deleteDatabase(dbName)
             } finally {
                 db?.close()
             }

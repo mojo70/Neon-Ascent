@@ -4,8 +4,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlinx.coroutines.channels.Channel
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -81,7 +88,7 @@ fun WorkoutLoggingScreen(
                 ActiveWorkoutHeader(
                     duration = durationFormatted,
                     onBack = onBack,
-                    onFinish = { /* Finish logic */ },
+                    onFinish = { viewModel.finishWorkout() },
                     isPaused = uiState.isPaused,
                     onPauseToggle = {
                         if (uiState.isPaused) viewModel.resumeWorkout() else viewModel.pauseWorkout()
@@ -120,6 +127,21 @@ fun WorkoutLoggingScreen(
                     }
                 }
             }
+        }
+
+        // Active Session Error Dialog
+        uiState.activeSessionError?.let { error ->
+            AlertDialog(
+                onDismissRequest = { viewModel.clearActiveSessionError() },
+                title = { Text("Session Active", color = Color.White) },
+                text = { Text(error, color = Color.Gray) },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.clearActiveSessionError() }) {
+                        Text("OK", color = Color(0xFF007AFF))
+                    }
+                },
+                containerColor = Color(0xFF1C1C1E)
+            )
         }
     }
 }
@@ -696,6 +718,7 @@ fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel) {
     var showExercisePicker by remember { mutableStateOf(false) }
     var exerciseToReplace by remember { mutableStateOf<WorkoutLog?>(null) }
     var showActionMenuFor by remember { mutableStateOf<WorkoutLog?>(null) }
+    var showSupersetMenuFor by remember { mutableStateOf<WorkoutLog?>(null) }
     val filteredExercises by viewModel.filteredExercises.collectAsState()
 
     LazyColumn(
@@ -741,12 +764,27 @@ fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel) {
                 showExercisePicker = true
                 showActionMenuFor = null
             },
-            onAddSuperset = { /* TODO */ },
+            onAddSuperset = { 
+                showSupersetMenuFor = showActionMenuFor
+                showActionMenuFor = null
+            },
             onRemove = {
                 viewModel.removeWorkoutLog(showActionMenuFor!!)
                 showActionMenuFor = null
             },
             onDismiss = { showActionMenuFor = null }
+        )
+    }
+
+    if (showSupersetMenuFor != null) {
+        SupersetSelectionMenu(
+            sourceLog = showSupersetMenuFor!!,
+            allLogs = uiState.logs.map { it.first },
+            onLogSelected = { targetLog: WorkoutLog ->
+                viewModel.createSuperset(showSupersetMenuFor!!, targetLog)
+                showSupersetMenuFor = null
+            },
+            onDismiss = { showSupersetMenuFor = null }
         )
     }
 
@@ -777,6 +815,72 @@ fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel) {
                         exerciseToReplace = null
                     }
                 )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SupersetSelectionMenu(
+    sourceLog: WorkoutLog,
+    allLogs: List<WorkoutLog>,
+    onLogSelected: (WorkoutLog) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1C1C1E),
+        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.Gray) }
+    ) {
+        Column(modifier = Modifier.padding(bottom = 32.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    "Superset",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "Superset ${sourceLog.exerciseName} with...",
+                    color = Color.Gray,
+                    fontSize = 14.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            allLogs.forEach { log ->
+                val isSource = log.id == sourceLog.id
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !isSource) { onLogSelected(log) }
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = log.exerciseName,
+                        color = if (isSource) Color.White.copy(alpha = 0.5f) else Color.White,
+                        fontSize = 16.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (isSource) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = null,
+                            tint = Color(0xFF007AFF),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+                HorizontalDivider(color = Color.Gray.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 24.dp))
             }
         }
     }
@@ -845,6 +949,14 @@ fun ReorderExercisesScreen(
     onRemove: (WorkoutLog) -> Unit,
     onDone: () -> Unit
 ) {
+    val logs = uiState.logs
+    val lazyListState = rememberLazyListState()
+    val density = LocalDensity.current
+    
+    // Drag and drop state
+    var draggedItemIndex by remember { mutableStateOf<Int?>(null) }
+    var draggingOffset by remember { mutableFloatStateOf(0f) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -875,35 +987,74 @@ fun ReorderExercisesScreen(
 
         // Exercise List
         LazyColumn(
+            state = lazyListState,
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp)
         ) {
             itemsIndexed(
-                items = uiState.logs, 
+                items = logs, 
                 key = { _, item -> item.first.id }
             ) { index, logPair ->
                 val log = logPair.first
+                val isDragged = index == draggedItemIndex
+                
                 ReorderExerciseItem(
                     log = log,
+                    modifier = Modifier
+                        .then(if (isDragged) Modifier.zIndex(1f) else Modifier)
+                        .graphicsLayer {
+                            translationY = if (isDragged) draggingOffset else 0f
+                            scaleX = if (isDragged) 1.02f else 1f
+                            scaleY = if (isDragged) 1.02f else 1f
+                        },
                     onRemove = { onRemove(log) },
                     onMoveUp = { if (index > 0) onMove(index, index - 1) },
-                    onMoveDown = { if (index < uiState.logs.size - 1) onMove(index, index + 1) }
+                    onMoveDown = { if (index < uiState.logs.size - 1) onMove(index, index + 1) },
+                    onDragStart = {
+                        draggedItemIndex = index
+                    },
+                    onDrag = { offset ->
+                        draggingOffset += offset
+                        
+                        // Intelligent swap logic
+                        val itemHeight = with(density) { 72.dp.toPx() }
+                        val threshold = itemHeight * 0.6f
+                        
+                        if (draggingOffset > threshold && index < uiState.logs.size - 1) {
+                            onMove(index, index + 1)
+                            draggedItemIndex = index + 1
+                            draggingOffset -= itemHeight
+                        } else if (draggingOffset < -threshold && index > 0) {
+                            onMove(index, index - 1)
+                            draggedItemIndex = index - 1
+                            draggingOffset += itemHeight
+                        }
+                    },
+                    onDragEnd = {
+                        draggedItemIndex = null
+                        draggingOffset = 0f
+                    }
                 )
             }
         }
 
-        // Done Button
-        Button(
-            onClick = onDone,
+        // Done Button - Fixed squish with padding and explicit height
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
-                .height(50.dp)
-                .navigationBarsPadding(),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF)),
-            shape = RoundedCornerShape(8.dp)
+                .navigationBarsPadding()
         ) {
-            Text("Done", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Button(
+                onClick = onDone,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF)),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Done", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            }
         }
     }
 }
@@ -911,12 +1062,16 @@ fun ReorderExercisesScreen(
 @Composable
 fun ReorderExerciseItem(
     log: WorkoutLog,
+    modifier: Modifier = Modifier,
     onRemove: () -> Unit,
     onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit
+    onMoveDown: () -> Unit,
+    onDragStart: () -> Unit,
+    onDrag: (Float) -> Unit,
+    onDragEnd: () -> Unit
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 12.dp, horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -926,7 +1081,7 @@ fun ReorderExerciseItem(
             Icon(
                 Icons.Default.RemoveCircle,
                 contentDescription = "Remove",
-                tint = Color(0xFFEB5757), // Exact red from screenshot
+                tint = Color(0xFFEB5757),
                 modifier = Modifier.size(24.dp)
             )
         }
@@ -954,7 +1109,7 @@ fun ReorderExerciseItem(
             modifier = Modifier.weight(1f)
         )
 
-        // Move controls (combined as drag handle visual)
+        // Navigation Controls (Arrows) + Drag Handle (Hamburger)
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onMoveUp, modifier = Modifier.size(32.dp)) {
                 Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move Up", tint = Color.Gray)
@@ -962,13 +1117,33 @@ fun ReorderExerciseItem(
             IconButton(onClick = onMoveDown, modifier = Modifier.size(32.dp)) {
                 Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move Down", tint = Color.Gray)
             }
+            
             Spacer(modifier = Modifier.width(8.dp))
-            Icon(
-                Icons.Default.Menu,
-                contentDescription = "Drag Handle",
-                tint = Color.Gray.copy(alpha = 0.6f),
-                modifier = Modifier.size(24.dp)
-            )
+            
+            // Hamburger Drag Handle - using a Box with pointerInput instead of IconButton to ensure gestures aren't consumed
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .pointerInput(Unit) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = { onDragStart() },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                onDrag(dragAmount.y)
+                            },
+                            onDragEnd = { onDragEnd() },
+                            onDragCancel = { onDragEnd() }
+                        )
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Menu,
+                    contentDescription = "Drag to reorder",
+                    tint = Color.Gray.copy(alpha = 0.6f),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
         }
     }
 }
@@ -1311,7 +1486,8 @@ fun WorkoutLogCard(
     viewModel: WorkoutViewModel,
     onActionMenuClick: () -> Unit
 ) {
-    val previousSets = viewModel.uiState.collectAsState().value.previousLogs[log.exerciseId] ?: emptyList()
+    val uiState by viewModel.uiState.collectAsState()
+    val previousSets = uiState.previousLogs[log.exerciseId] ?: emptyList()
     var showSetTypeSelector by remember { mutableStateOf<SetLog?>(null) }
 
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
@@ -1327,6 +1503,28 @@ fun WorkoutLogCard(
             }
             IconButton(onClick = onActionMenuClick) {
                 Icon(Icons.Default.MoreHoriz, contentDescription = "Exercise Actions", tint = Color.Gray)
+            }
+        }
+
+        if (log.supersetId != null) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(top = 2.dp)
+            ) {
+                Icon(
+                    Icons.Default.Link,
+                    contentDescription = null,
+                    tint = Color(0xFF007AFF),
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    "SUPERSET",
+                    color = Color(0xFF007AFF),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp
+                )
             }
         }
 
@@ -1357,9 +1555,10 @@ fun WorkoutLogCard(
                 SetLogRow(
                     setNumber = index + 1,
                     set = set,
-                    previousData = prevSet?.let { "${it.weight.toInt()}lbs x ${it.reps}" } ?: "—",
+                    previousData = prevSet?.let { "${if (it.weight % 1 == 0f) it.weight.toInt() else it.weight}lbs x ${it.reps}" } ?: "",
                     onUpdateWeight = { viewModel.updateSet(set, weight = it) },
                     onUpdateReps = { viewModel.updateSet(set, reps = it) },
+                    onCompleteToggle = { viewModel.updateSet(set, isCompleted = !set.isCompleted) },
                     onSetLabelClick = { showSetTypeSelector = set }
                 )
             }
@@ -1405,6 +1604,7 @@ fun SetLogRow(
     previousData: String,
     onUpdateWeight: (Float) -> Unit,
     onUpdateReps: (Int) -> Unit,
+    onCompleteToggle: () -> Unit,
     onSetLabelClick: () -> Unit
 ) {
     val backgroundColor = if (setNumber % 2 == 0) Color.Transparent else Color(0xFF1C1C1E).copy(alpha = 0.3f)
@@ -1463,10 +1663,19 @@ fun SetLogRow(
         Box(
             modifier = Modifier
                 .size(24.dp)
-                .background(Color.Gray.copy(alpha = 0.5f), RoundedCornerShape(4.dp)),
+                .background(
+                    if (set.isCompleted) Color(0xFF4CD964) else Color.Gray.copy(alpha = 0.5f), 
+                    RoundedCornerShape(4.dp)
+                )
+                .clickable { onCompleteToggle() },
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+            Icon(
+                Icons.Default.Check, 
+                contentDescription = null, 
+                tint = if (set.isCompleted) Color.White else Color.White.copy(alpha = 0.3f), 
+                modifier = Modifier.size(16.dp)
+            )
         }
     }
 }

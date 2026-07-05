@@ -51,7 +51,8 @@ fun WorkoutLogEntity.toDomain() = WorkoutLog(
     exerciseId = exerciseId,
     order = order,
     exerciseName = exerciseName,
-    protocolOverride = protocolOverride?.let { WorkoutProtocol.valueOf(it) }
+    protocolOverride = protocolOverride?.let { WorkoutProtocol.valueOf(it) },
+    supersetId = supersetId
 )
 
 fun WorkoutLog.toEntity() = WorkoutLogEntity(
@@ -60,7 +61,8 @@ fun WorkoutLog.toEntity() = WorkoutLogEntity(
     exerciseId = exerciseId,
     order = order,
     exerciseName = exerciseName,
-    protocolOverride = protocolOverride?.name
+    protocolOverride = protocolOverride?.name,
+    supersetId = supersetId
 )
 
 fun SetLogEntity.toDomain() = SetLog(
@@ -69,6 +71,7 @@ fun SetLogEntity.toDomain() = SetLog(
     weight = weight,
     reps = reps,
     type = SetType.valueOf(setType),
+    isCompleted = isCompleted,
     rir = rir,
     isWarmup = isWarmup,
     timestamp = timestamp,
@@ -84,6 +87,7 @@ fun SetLog.toEntity() = SetLogEntity(
     weight = weight,
     reps = reps,
     setType = type.name,
+    isCompleted = isCompleted,
     rir = rir,
     isWarmup = isWarmup,
     timestamp = timestamp,
