@@ -46,6 +46,7 @@ fun WorkoutLoggingScreen(
     viewModel: WorkoutViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showRoutineActionMenuFor by remember { mutableStateOf<WorkoutRoutine?>(null) }
 
     Box(
         modifier = Modifier
@@ -68,7 +69,8 @@ fun WorkoutLoggingScreen(
                         onBack = onBack,
                         onStartProtocol = { viewModel.startSession(it) },
                         onStartRoutine = { viewModel.startRoutine(it) },
-                        onCreateRoutine = { viewModel.startCreateRoutine() }
+                        onCreateRoutine = { viewModel.startCreateRoutine() },
+                        onRoutineActionClick = { showRoutineActionMenuFor = it }
                     )
                 }
             } else if (uiState.isReorderingExercises) {
@@ -264,7 +266,8 @@ fun WorkoutIntakeScreen(
     onBack: () -> Unit,
     onStartProtocol: (WorkoutProtocol) -> Unit,
     onStartRoutine: (WorkoutRoutine) -> Unit,
-    onCreateRoutine: () -> Unit
+    onCreateRoutine: () -> Unit,
+    onRoutineActionClick: (WorkoutRoutine) -> Unit
 ) {
     var isRoutinesExpanded by remember { mutableStateOf(true) }
     var showExploreProtocols by remember { mutableStateOf(false) }
@@ -428,7 +431,11 @@ fun WorkoutIntakeScreen(
         if (isRoutinesExpanded) {
             Spacer(modifier = Modifier.height(8.dp))
             uiState.routines.forEach { routine ->
-                RoutineCard(routine, onStart = { onStartRoutine(routine) })
+                RoutineCard(
+                    routine = routine, 
+                    onStart = { onStartRoutine(routine) },
+                    onActionClick = { onRoutineActionClick(routine) }
+                )
                 Spacer(modifier = Modifier.height(12.dp))
             }
         }
@@ -464,7 +471,7 @@ fun IntakeActionButton(
 }
 
 @Composable
-fun RoutineCard(routine: WorkoutRoutine, onStart: () -> Unit) {
+fun RoutineCard(routine: WorkoutRoutine, onStart: () -> Unit, onActionClick: () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = Color(0xFF1C1C1E),
@@ -482,7 +489,9 @@ fun RoutineCard(routine: WorkoutRoutine, onStart: () -> Unit) {
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold
                 )
-                Icon(Icons.Default.MoreHoriz, contentDescription = null, tint = Color.Gray)
+                IconButton(onClick = onActionClick, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.Default.MoreHoriz, contentDescription = "Routine Actions", tint = Color.Gray)
+                }
             }
             
             Spacer(modifier = Modifier.height(4.dp))
@@ -719,6 +728,7 @@ fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel) {
     var exerciseToReplace by remember { mutableStateOf<WorkoutLog?>(null) }
     var showActionMenuFor by remember { mutableStateOf<WorkoutLog?>(null) }
     var showSupersetMenuFor by remember { mutableStateOf<WorkoutLog?>(null) }
+    var showRoutineActionMenuFor by remember { mutableStateOf<WorkoutRoutine?>(null) }
     val filteredExercises by viewModel.filteredExercises.collectAsState()
 
     LazyColumn(
@@ -785,6 +795,17 @@ fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel) {
                 showSupersetMenuFor = null
             },
             onDismiss = { showSupersetMenuFor = null }
+        )
+    }
+
+    if (showRoutineActionMenuFor != null) {
+        WorkoutRoutineActionMenu(
+            routine = showRoutineActionMenuFor!!,
+            onShare = { viewModel.shareRoutine(showRoutineActionMenuFor!!) },
+            onDuplicate = { viewModel.duplicateRoutine(showRoutineActionMenuFor!!) },
+            onEdit = { /* TODO */ },
+            onDelete = { viewModel.deleteRoutine(showRoutineActionMenuFor!!) },
+            onDismiss = { showRoutineActionMenuFor = null }
         )
     }
 
@@ -882,6 +903,76 @@ fun SupersetSelectionMenu(
                 }
                 HorizontalDivider(color = Color.Gray.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 24.dp))
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WorkoutRoutineActionMenu(
+    routine: WorkoutRoutine,
+    onShare: () -> Unit,
+    onDuplicate: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1C1C1E),
+        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.Gray) }
+    ) {
+        Column(modifier = Modifier.padding(bottom = 32.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    routine.name,
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            
+            ActionMenuItem(
+                icon = Icons.Default.Share,
+                label = "Share Routine",
+                onClick = {
+                    onShare()
+                    onDismiss()
+                }
+            )
+            ActionMenuItem(
+                icon = Icons.Default.ContentCopy,
+                label = "Duplicate Routine",
+                onClick = {
+                    onDuplicate()
+                    onDismiss()
+                }
+            )
+            ActionMenuItem(
+                icon = Icons.Default.Edit,
+                label = "Edit Routine",
+                onClick = {
+                    onEdit()
+                    onDismiss()
+                }
+            )
+            
+            HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f))
+            
+            ActionMenuItem(
+                icon = Icons.Default.Close,
+                label = "Delete Routine",
+                color = Color.Red,
+                onClick = {
+                    onDelete()
+                    onDismiss()
+                }
+            )
         }
     }
 }

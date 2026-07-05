@@ -63,11 +63,21 @@ class WorkoutRepositoryImpl @Inject constructor(
 
     override suspend fun saveRoutine(routine: WorkoutRoutine) {
         workoutDao.insertRoutine(routine.toEntity())
+        // Clear old mapping if updating
+        // (Room doesn't have an update cross ref, and routineId might be the same)
+        // Actually, insertRoutine with REPLACE will handle the routine entity, 
+        // but not the cross refs.
+        // Let's just delete the routine first if we wanted true update, 
+        // but for now we assume new IDs or manual management.
         routine.exercises.forEachIndexed { index, exercise ->
             workoutDao.insertRoutineExerciseCrossRef(
                 RoutineExerciseCrossRef(routine.id, exercise.id, index)
             )
         }
+    }
+
+    override suspend fun deleteRoutine(routineId: String) {
+        workoutDao.deleteRoutine(routineId)
     }
 
     override suspend fun seedStarterExercises() {
@@ -243,38 +253,28 @@ class WorkoutRepositoryImpl @Inject constructor(
                 cues = listOf("Chest up", "Pull to navel", "Squeeze shoulder blades"),
                 muscleGroups = listOf("Back", "Biceps"),
                 equipment = listOf("Cable Machine")
+            ),
+            Exercise(
+                id = "cyber_cluster_squat",
+                name = "Cyber Cluster Squats",
+                description = "High-intensity squat protocol using rest-pause clusters.",
+                cues = listOf("Standard squat form", "15s rest between clusters", "Maintain brace"),
+                muscleGroups = listOf("Quads", "Glutes", "Core"),
+                equipment = listOf("Barbell", "Rack")
+            ),
+            Exercise(
+                id = "weighted_dip",
+                name = "Weighted Dips",
+                description = "Powerful tricep and chest builder.",
+                cues = listOf("Lean forward for chest", "Upright for triceps", "Full lockout"),
+                muscleGroups = listOf("Triceps", "Chest", "Shoulders"),
+                equipment = listOf("Dip Station", "Belt")
             )
         )
         
         exercises.forEach {
             workoutDao.insertExerciseDefinition(it.toEntity())
         }
-
-        // Seed Starter Routines
-        val strengthRoutine = WorkoutRoutine(
-            id = "routine_strength",
-            name = "Strength",
-            exercises = exercises.filter { it.id in listOf("bench_press", "bent_over_row", "back_squat", "deadlift") },
-            protocol = WorkoutProtocol.GENERAL
-        )
-        
-        val strength2Routine = WorkoutRoutine(
-            id = "routine_strength_2",
-            name = "Strength 2",
-            exercises = exercises.filter { it.id in listOf("zercher_squat", "military_press", "weighted_pullups") },
-            protocol = WorkoutProtocol.GENERAL
-        )
-        
-        val lowerSplitRoutine = WorkoutRoutine(
-            id = "routine_lower_split",
-            name = "Lower split",
-            exercises = exercises.filter { it.id in listOf("back_squat", "romanian_deadlift", "bulgarian_split_squat", "calf_raise", "hanging_knee_raise") },
-            protocol = WorkoutProtocol.GENERAL
-        )
-
-        saveRoutine(strengthRoutine)
-        saveRoutine(strength2Routine)
-        saveRoutine(lowerSplitRoutine)
     }
 
     override suspend fun deleteSession(sessionId: String) {
@@ -283,6 +283,15 @@ class WorkoutRepositoryImpl @Inject constructor(
 
     override fun getActiveSession(): Flow<WorkoutSession?> =
         workoutDao.getActiveSession().map { it?.toDomain() }
+
+    override fun getFullHistory(): Flow<List<Pair<WorkoutSession, List<Pair<WorkoutLog, List<SetLog>>>>>> =
+        workoutDao.getAllSessionsWithDetails().map { sessions ->
+            sessions.map { sessionWithLogs ->
+                sessionWithLogs.session.toDomain() to sessionWithLogs.logs.map { logWithSets ->
+                    logWithSets.log.toDomain() to logWithSets.sets.map { it.toDomain() }
+                }
+            }
+        }
 
     override fun getLatestSetsForExercise(exerciseId: String, excludedSessionId: String): Flow<List<SetLog>> =
         workoutDao.getLatestLogForExercise(exerciseId, excludedSessionId).map { logWithSets -> 

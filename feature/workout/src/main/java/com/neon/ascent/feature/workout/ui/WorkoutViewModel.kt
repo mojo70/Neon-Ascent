@@ -169,6 +169,26 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
+    fun deleteRoutine(routine: WorkoutRoutine) {
+        viewModelScope.launch {
+            repository.deleteRoutine(routine.id)
+        }
+    }
+
+    fun duplicateRoutine(routine: WorkoutRoutine) {
+        val newRoutine = routine.copy(
+            id = UUID.randomUUID().toString(),
+            name = "${routine.name} (Copy)"
+        )
+        viewModelScope.launch {
+            repository.saveRoutine(newRoutine)
+        }
+    }
+
+    fun shareRoutine(routine: WorkoutRoutine) {
+        // Implementation for sharing (e.g., via intent)
+    }
+
     fun updateExerciseSearch(query: String) {
         _uiState.update { it.copy(exerciseSearchQuery = query) }
     }
@@ -402,7 +422,18 @@ class WorkoutViewModel @Inject constructor(
     fun finishWorkout() {
         val session = _uiState.value.session ?: return
         val finalDuration = _uiState.value.workoutDurationSeconds
+        val currentLogs = _uiState.value.logs
+
         viewModelScope.launch {
+            // Clean up: Remove any uncompleted sets from the database
+            currentLogs.forEach { (_, sets) ->
+                sets.forEach { set ->
+                    if (!set.isCompleted) {
+                        repository.deleteSetLog(set.id)
+                    }
+                }
+            }
+
             repository.saveSession(session.copy(durationSeconds = finalDuration))
             _uiState.update { it.copy(session = null, workoutDurationSeconds = 0) }
             timerJob?.cancel()

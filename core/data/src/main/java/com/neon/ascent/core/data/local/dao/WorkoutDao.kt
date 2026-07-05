@@ -50,6 +50,9 @@ interface WorkoutDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRoutineExerciseCrossRef(crossRef: RoutineExerciseCrossRef)
 
+    @Query("DELETE FROM workout_routines WHERE id = :routineId")
+    suspend fun deleteRoutine(routineId: String)
+
     @Query("DELETE FROM workout_sessions WHERE id = :sessionId")
     suspend fun deleteSession(sessionId: String)
 
@@ -74,7 +77,21 @@ interface WorkoutDao {
 
     @Query("SELECT * FROM workout_sessions WHERE durationSeconds = 0 ORDER BY date DESC LIMIT 1")
     fun getActiveSession(): Flow<WorkoutSessionEntity?>
+
+    @Transaction
+    @Query("SELECT * FROM workout_sessions ORDER BY date DESC")
+    fun getAllSessionsWithDetails(): Flow<List<WorkoutSessionWithLogs>>
 }
+
+data class WorkoutSessionWithLogs(
+    @Embedded val session: WorkoutSessionEntity,
+    @Relation(
+        entity = WorkoutLogEntity::class,
+        parentColumn = "id",
+        entityColumn = "sessionId"
+    )
+    val logs: List<WorkoutLogWithSets>
+)
 
 data class WorkoutLogWithSets(
     @Embedded val log: WorkoutLogEntity,
