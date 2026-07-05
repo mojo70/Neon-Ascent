@@ -97,6 +97,7 @@ data class AscensionTaskEntity(
     val longestStreak: Int,
     val graceBufferDays: Int,
     val lastCompleted: Instant?,
+    val tags: List<String> = emptyList(),
     val linkedAttributes: List<String> = emptyList(),
     val userNotesTemplate: String?
 )

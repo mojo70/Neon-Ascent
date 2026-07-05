@@ -253,6 +253,20 @@ These will be seeded in the DB on first launch and discoverable via avatar or Bi
 
 **Status:** High Priority – Ties avatar, biohacking, and core Ascension system together.
 
+## Protocols Library
+Pre-loaded, canonical best practices (Atomic Habits, biohacking protocols, faith practices, strength training, etc.) that the AI references for goal setting, Forge proposals, Neon Guide advice, and Dopamine Menu suggestions.
+
+**Key Features:**
+- Immutable core Protocols (editable copies for user adaptation).
+- Categorized (Biohacking, Habit Formation, Spiritual, Strength, Recovery, etc.).
+- AI uses them as reference templates, then personalizes implementation based on user's Memory Palace, biometrics, and history.
+- Integration: Auto-suggested in Forge, referenced in chat, linked to Directives/Pulses.
+- User can "fork" a Protocol into a personal version for their Directives.
+
+**Seeding Sources:** Atomic Habits techniques, NHE/cyclical keto, Wim Hof, Scripture-based practices, S.P.E.C.I.A.L. training, Mind Hacking Happiness, etc.
+
+**Status:** Planning. Start with 10-15 high-value protocols; expand via courses or user contributions.
+
 ## Self Map (Mind Hacking Happiness Inspired)
 A visual, evolving "Self Map" for spiritual journey, enlightenment, "dying to self," identity reconstruction, and sonship in the cyberpunk narrative.
 

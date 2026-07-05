@@ -6,6 +6,7 @@ import com.neon.ascent.core.common.DopamineCoordinator
 import com.neon.ascent.core.common.DopamineEvent
 import com.neon.ascent.core.domain.goals.models.*
 import com.neon.ascent.core.domain.repository.AscensionRepository
+import com.neon.ascent.core.domain.repository.ProtocolRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -21,6 +22,7 @@ data class AscensionUiState(
 @HiltViewModel
 class AscensionTerminalViewModel @Inject constructor(
     private val repository: AscensionRepository,
+    private val protocolRepository: ProtocolRepository,
     private val dopamineCoordinator: DopamineCoordinator
 ) : ViewModel() {
 
@@ -41,6 +43,7 @@ class AscensionTerminalViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            protocolRepository.seedDefaultProtocols()
             dopamineCoordinator.events.collect { event ->
                 _dopamineEvent.value = event
             }

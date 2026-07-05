@@ -11,6 +11,7 @@ import com.neon.ascent.data.repository.SettingsRepository
 import com.neon.ascent.data.repository.UserPreferencesRepository
 import com.neon.ascent.data.repository.UserStoryRepository
 import com.neon.ascent.core.domain.SpecialRepository
+import com.neon.ascent.core.domain.repository.WorkoutRepository
 import com.neon.ascent.feature.goals.domain.usecases.ExportNeuralLogUseCase
 import com.neon.ascent.model.DailyPrayer
 import com.neon.ascent.model.JournalEntry
@@ -40,7 +41,8 @@ class SettingsViewModel @Inject constructor(
     private val exportNeuralLogUseCase: ExportNeuralLogUseCase,
     private val userStoryRepository: UserStoryRepository,
     private val specialRepository: SpecialRepository,
-    private val notificationScheduler: SmartPingScheduler
+    private val notificationScheduler: SmartPingScheduler,
+    private val workoutRepository: WorkoutRepository
 ) : ViewModel() {
 
     private val _prayerToast = MutableStateFlow<String?>(null)
@@ -340,6 +342,12 @@ class SettingsViewModel @Inject constructor(
             characterRepository.updateHolySpiritBaptism(true)
             // Holy Spirit baptism usually brings you to a higher spiritual level in this game's logic
             characterRepository.updateHolyGhost(3)
+        }
+    }
+
+    fun initializeWorkoutLibrary() {
+        viewModelScope.launch {
+            workoutRepository.seedStarterExercises()
         }
     }
 

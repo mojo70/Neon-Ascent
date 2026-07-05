@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/Neon_Ascent.app.main.iml" filepath="$PROJECT_DIR$/.idea/modules/app/Neon_Ascent.app.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/Neon-Ascent.iml" filepath="$PROJECT_DIR$/.idea/Neon-Ascent.iml" />
     </modules>
   </component>
 </project>

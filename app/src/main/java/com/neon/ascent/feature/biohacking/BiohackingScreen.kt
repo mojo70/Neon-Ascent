@@ -46,6 +46,8 @@ import java.time.Period
 import java.time.format.DateTimeFormatter
 import java.util.*
 
+import androidx.compose.material.icons.automirrored.filled.LibraryBooks
+
 @Composable
 fun BiohackingScreen(
     onBack: () -> Unit,
@@ -53,6 +55,7 @@ fun BiohackingScreen(
     onNavigateToForge: (SpecialType, String?, String?, String?) -> Unit = { _, _, _, _ -> },
     onNavigateToGuide: (String?) -> Unit = {},
     onNavigateToDopamineMenu: () -> Unit = {},
+    onNavigateToProtocols: () -> Unit = {},
     viewModel: BiohackingViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -176,6 +179,13 @@ fun BiohackingScreen(
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onNavigateToProtocols) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.LibraryBooks,
+                            contentDescription = "Protocols",
+                            tint = neonCyan
+                        )
+                    }
                     IconButton(onClick = onNavigateToDopamineMenu) {
                         Icon(
                             imageVector = Icons.Default.Bolt,

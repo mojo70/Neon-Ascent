@@ -61,6 +61,7 @@ import com.neon.ascent.feature.goals.ui.ascension.AscensionMissionDetailScreen
 import com.neon.ascent.feature.goals.ui.ascension.TerminalRitualScreen
 import com.neon.ascent.feature.goals.ui.ascension.NeuralMentorScreen
 import com.neon.ascent.feature.goals.ui.ascension.QuickTaskBottomSheet
+import com.neon.ascent.feature.goals.ui.ascension.ProtocolLibraryScreen
 import com.neon.ascent.feature.story.StoryIntakeScreen
 import com.neon.ascent.feature.loading.LoadingScreen
 import com.neon.ascent.feature.library.EReaderScreen
@@ -77,6 +78,7 @@ import com.neon.ascent.feature.notifications.ui.NeuralPingPermissionScreen
 import com.neon.ascent.feature.notifications.ui.NotificationPermissionViewModel
 import com.neon.ascent.feature.notifications.ui.NotificationPreferencesScreen
 import com.neon.ascent.feature.neonguide.NeonGuideScreen
+import com.neon.ascent.feature.workout.ui.WorkoutLoggingScreen
 import com.neon.ascent.feature.wallet.EurodollarWalletScreen
 import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.core.common.cyberGlitch
@@ -153,6 +155,7 @@ fun AppNavigation(
                         },
                         onGoalSetClick = { navController.navigate(Screen.AscensionTerminal) },
                         onTaskClick = { id -> navController.navigate(Screen.TaskDetail(id)) },
+                        onNavigateToWorkout = { taskId -> navController.navigate(Screen.WorkoutLog(taskId)) },
                         onSettingsClick = { navController.navigate(Screen.Settings) },
                         onDeusExMachinaClick = { navController.navigate(Screen.DeepNode("DEUS_EX_MACHINA")) },
                         onNavigateToBiohacking = { focus ->
@@ -182,6 +185,9 @@ fun AppNavigation(
                         },
                         onNavigateToDopamineMenu = {
                             navController.navigate(Screen.DopamineMenu)
+                        },
+                        onNavigateToProtocols = {
+                            navController.navigate(Screen.ProtocolLibrary)
                         }
                     )
                     3 -> NeonGuideScreen(
@@ -212,7 +218,8 @@ fun AppNavigation(
                     navController.navigate(Screen.AscensionForge(type.name, title, desc, biometrics = biometrics))
                 },
                 onNavigateToGuide = { navController.navigate(Screen.NeonGuide()) },
-                onNavigateToDopamineMenu = { navController.navigate(Screen.DopamineMenu) }
+                onNavigateToDopamineMenu = { navController.navigate(Screen.DopamineMenu) },
+                onNavigateToProtocols = { navController.navigate(Screen.ProtocolLibrary) }
             )
         }
 
@@ -521,7 +528,22 @@ fun AppNavigation(
                 onTaskClick = { id -> navController.navigate(Screen.TaskDetail(id)) },
                 onForgeClick = { navController.navigate(Screen.AscensionForge()) },
                 onReviewClick = { id -> navController.navigate(Screen.AscensionReview(id)) },
-                onRitualClick = { navController.navigate(Screen.TerminalRitual) }
+                onRitualClick = { navController.navigate(Screen.TerminalRitual) },
+                onBrowseProtocols = { navController.navigate(Screen.ProtocolLibrary) }
+            )
+        }
+
+        composable<Screen.ProtocolLibrary> {
+            ProtocolLibraryScreen(
+                onBack = { navController.popBackStack() },
+                onProtocolClick = { protocol ->
+                    // Navigate to Forge with protocol pre-filled
+                    navController.navigate(Screen.AscensionForge(
+                        title = protocol.title,
+                        description = protocol.description,
+                        vision = "Protocol from ${protocol.source}"
+                    ))
+                }
             )
         }
 
@@ -540,7 +562,13 @@ fun AppNavigation(
                 prefilledDescription = forge.description,
                 prefilledVision = forge.vision,
                 prefilledBiometrics = forge.biometrics,
-                onNavigateToGuide = { navController.navigate(Screen.NeonGuide()) }
+                onNavigateToGuide = { navController.navigate(Screen.NeonGuide()) },
+                onNavigateToDashboard = {
+                    navController.navigate(Screen.MainHub) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
+                onBrowseProtocols = { navController.navigate(Screen.ProtocolLibrary) }
             )
         }
 
@@ -756,6 +784,13 @@ fun AppNavigation(
 
         composable<Screen.DopamineMenu> {
             DopamineMenuScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable<Screen.WorkoutLog> { backStackEntry ->
+            val args = backStackEntry.toRoute<Screen.WorkoutLog>()
+            WorkoutLoggingScreen(
                 onBack = { navController.popBackStack() }
             )
         }

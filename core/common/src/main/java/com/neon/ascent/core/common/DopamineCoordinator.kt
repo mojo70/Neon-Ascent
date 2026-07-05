@@ -32,8 +32,13 @@ class DopamineCoordinator @Inject constructor(
         trigger(DopamineEvent(CelebrationLevel.SYNC, xpGained = xp))
     }
 
-    suspend fun triggerAscension(title: String, xp: Int = 100) {
-        trigger(DopamineEvent(CelebrationLevel.ASCENSION, message = title, xpGained = xp))
+    suspend fun triggerAscension(title: String, xp: Int = 100, message: String? = null, actionLabel: String? = null) {
+        trigger(DopamineEvent(
+            level = CelebrationLevel.ASCENSION, 
+            message = message ?: title, 
+            xpGained = xp,
+            actionLabel = actionLabel
+        ))
     }
 
     suspend fun triggerStreakRecovery(streak: Int, xp: Int = 15) {

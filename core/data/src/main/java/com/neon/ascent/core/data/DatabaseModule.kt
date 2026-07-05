@@ -9,6 +9,7 @@ import com.neon.ascent.core.data.local.dao.GoalDao
 import com.neon.ascent.core.data.local.dao.AscensionDao
 import com.neon.ascent.core.data.local.dao.DopamineMenuDao
 import com.neon.ascent.core.data.local.dao.InsightDao
+import com.neon.ascent.core.data.local.dao.ProtocolDao
 import com.neon.ascent.core.data.local.migration.MIGRATION_2_3
 import com.neon.ascent.core.data.local.migration.MIGRATION_3_4
 import com.neon.ascent.core.data.local.migration.MIGRATION_11_12
@@ -111,5 +112,15 @@ object DatabaseModule {
     @Provides
     fun provideDopamineMenuDao(database: NeonAscentDatabase): DopamineMenuDao {
         return database.dopamineMenuDao()
+    }
+
+    @Provides
+    fun provideProtocolDao(database: NeonAscentDatabase): ProtocolDao {
+        return database.protocolDao()
+    }
+
+    @Provides
+    fun provideWorkoutDao(database: NeonAscentDatabase): com.neon.ascent.core.data.local.dao.WorkoutDao {
+        return database.workoutDao()
     }
 }

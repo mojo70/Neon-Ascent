@@ -364,6 +364,16 @@ fun SettingsScreen(
                     SettingsItem("WIPE NEURAL PROFILE", color = Color(0xFFFF006E)) {
                         showResetDialog = true
                     }
+
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+
+                    Button(
+                        onClick = { viewModel.initializeWorkoutLibrary() },
+                        modifier = Modifier.fillMaxWidth().height(44.dp).border(1.dp, Color(0xFF00CCFF).copy(alpha = 0.5f), CyberButtonShape),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
+                    ) {
+                        Text("INITIALIZE WORKOUT LIBRARY", color = Color(0xFF00CCFF), fontSize = 11.sp)
+                    }
                 }
             }
 

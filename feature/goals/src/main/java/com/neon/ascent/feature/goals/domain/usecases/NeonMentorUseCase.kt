@@ -6,7 +6,12 @@ import com.neon.ascent.core.domain.goals.models.*
 import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.core.domain.repository.SkillRepository
+import com.neon.ascent.core.domain.repository.DopamineMenuRepository
+import com.neon.ascent.core.domain.repository.ProtocolRepository
+import com.neon.ascent.core.domain.SpecialRepository
 import com.neon.ascent.core.data.local.dao.NeuralMemoryDao
+import com.neon.ascent.core.data.local.dao.InsightDao
+import kotlinx.coroutines.flow.firstOrNull
 import java.util.UUID
 import javax.inject.Inject
 
@@ -18,7 +23,11 @@ class NeonMentorUseCase @Inject constructor(
     private val gemmaClient: GemmaClient,
     private val repository: AscensionRepository,
     private val skillRepository: SkillRepository,
-    private val neuralMemoryDao: NeuralMemoryDao
+    private val dopamineMenuRepository: DopamineMenuRepository,
+    private val protocolRepository: ProtocolRepository,
+    private val specialRepository: SpecialRepository,
+    private val neuralMemoryDao: NeuralMemoryDao,
+    private val insightDao: com.neon.ascent.core.data.local.dao.InsightDao
 ) {
     suspend fun generateMissionsForDirective(directive: AscensionDirective, manualSkillPrompt: String? = null) {
         val skillPrompt = manualSkillPrompt ?: autoSelectSkills(directive)
@@ -183,7 +192,21 @@ class NeonMentorUseCase @Inject constructor(
             ""
         }
 
-        // 2. Expert Persona Routing Matrix
+        // 2. Additional Context
+        val dopamineMenu = dopamineMenuRepository.getAllItems().firstOrNull()?.take(5)?.joinToString { it.title } ?: "None"
+        val specialStats = specialRepository.getAllSpecialAttributes().firstOrNull()?.joinToString { "${it.type.name}: ${it.currentValue}" } ?: "Unknown"
+        
+        val recentCompletions = repository.getCompletionsInRange(java.time.Instant.now().minus(java.time.Duration.ofDays(7))).firstOrNull() ?: emptyList()
+        val allTasks = repository.getAllRecurringTasks().firstOrNull() ?: emptyList()
+        val recentHistory = recentCompletions.take(5).mapNotNull { completion ->
+            allTasks.find { it.id == completion.taskId }?.title
+        }.joinToString().ifBlank { "None" }
+
+        val latestInsight = insightDao.getLatestInsight().firstOrNull()?.content ?: "None"
+
+        val availableProtocols = protocolRepository.getAllProtocols().firstOrNull()?.take(5)?.joinToString { "${it.title} (${it.source})" } ?: "None"
+
+        // 3. Expert Persona Routing Matrix
         val expertPrompts = when {
             directive.title.contains("Hustle", ignoreCase = true) || directive.description.contains("Business", ignoreCase = true) || directive.title.contains("Biz", ignoreCase = true) -> {
                 """
@@ -218,6 +241,15 @@ class NeonMentorUseCase @Inject constructor(
             Missions: ${missions.joinToString { it.title }}. 
             Direct Pulses: ${tasks.joinToString { it.title }}.
             
+            Operator Profile:
+            - Special Stats: $specialStats
+            - Dopamine Preferences: $dopamineMenu
+            - Recent Pulse History: $recentHistory
+            - Latest Biometric Insight: $latestInsight
+            
+            [AVAILABLE_PROTOCOLS_TEMPLATES]
+            $availableProtocols
+            
             Memory Palace Context:
             $recentMemories
             
@@ -230,11 +262,17 @@ class NeonMentorUseCase @Inject constructor(
             MentorMode.SOUNDING_BOARD -> "Act as a thoughtful, deconstructive mirror. Pose 1-2 open-ended reflective questions about their blockers."
             MentorMode.GUIDE -> """
                 Act as a SYSTEMS_ARCHITECT. 
-                1. If the Directive is vague, use Socratic questioning to define a measurable outcome.
-                2. Propose 2-3 Success Metrics (MetricType: MANUAL/BIOMETRIC/STREAK).
-                3. Propose a structured plan (Missions + Pulses). 
-                4. Ensure Missions have a 'contributionWeight' (0.0 to 1.0) toward the Directive.
-                5. Ensure Pulses (recurring tasks) have an 'impactWeight'.
+                1. Begin with 1-2 clarifying questions using the WOOP (Wish, Outcome, Obstacle, Plan) framework.
+                2. Only propose structure after understanding vision and barriers or if the operator explicitly says "generate".
+                3. Directives must be structured as OKRs (Objective + Key Results).
+                4. Missions must follow Atomic Habits principles (Cue, Craving, Response, Reward).
+                5. Pulses must be SMART tasks (Specific, Measurable, Achievable, Relevant, Time-bound).
+                6. PROPOSALS MUST BE REALISTIC: Tie them to the operator's profile (Special Stats, Dopamine Preferences, History). 
+                7. AVOID GENERIC SUGGESTIONS: If the operator is high INTELLIGENCE, use technical/analytical tasks. If low ENDURANCE, don't suggest 10km runs.
+                8. Incorporate the Faith Lens: ground the effort in Sonship (Identity) rather than achievement, frame discipline as 'Dying to Self', and invoke the 'I Am' presence.
+                9. Link to S.P.E.C.I.A.L. stats only where applicable.
+                10. Ensure Missions have a 'contributionWeight' (0.0 to 1.0) toward the Directive.
+                11. Ensure Pulses (recurring tasks) have an 'impactWeight'.
             """.trimIndent()
         }
 
@@ -253,8 +291,8 @@ class NeonMentorUseCase @Inject constructor(
             METRIC: [Description] | [TargetValue] | [Unit] | [Type: MANUAL/BIOMETRIC/STREAK] | [BiometricKey: steps/sleep_hours/hrv/NONE]
             
             [PROPOSAL]
-            MISSION: [Title] | [Description] | [Weight: 0.0-1.0]
-              PULSE: [Title] | [Description] | [Type: ONE_TIME/RECURRING] | [Frequency: DAILY/WEEKDAYS] | [TimeWindow] | [STATS] | [Impact: 0.0-1.0]
+            MISSION: [Title] | [Description] | [Weight: 0.0-1.0] | [STATS: COMMA_SEP_LIST/NONE]
+              PULSE: [Title] | [Description] | [Type: ONE_TIME/RECURRING] | [Frequency: DAILY/WEEKDAYS] | [TimeWindow] | [STATS: COMMA_SEP_LIST/NONE] | [Impact: 0.0-1.0]
             
             User/Operator Query: "$message"
             
@@ -301,10 +339,17 @@ class NeonMentorUseCase @Inject constructor(
                     }
                     val parts = trimmedLine.substringAfter("MISSION:").split("|")
                     if (parts.size >= 2) {
+                        val stats = if (parts.size >= 4) {
+                            parts[3].substringAfter("STATS:").split(",")
+                                .map { it.trim().uppercase() }
+                                .mapNotNull { try { SpecialType.valueOf(it) } catch(e: Exception) { null } }
+                        } else emptyList()
+
                         currentMission = ProposedMission(
                             title = parts[0].trim(),
                             description = parts[1].trim(),
-                            contributionWeight = parts.getOrNull(2)?.trim()?.toFloatOrNull() ?: 1.0f
+                            contributionWeight = parts.getOrNull(2)?.trim()?.toFloatOrNull() ?: 1.0f,
+                            linkedAttributes = stats
                         )
                     }
                 }

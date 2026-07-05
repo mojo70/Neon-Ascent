@@ -6,6 +6,7 @@ import com.neon.ascent.core.domain.model.DopamineCategory
 import com.neon.ascent.core.domain.model.DopamineMenuItem
 import com.neon.ascent.core.domain.model.EnergyLevel
 import com.neon.ascent.core.domain.repository.DopamineMenuRepository
+import com.neon.ascent.core.domain.repository.ProtocolRepository
 import com.neon.ascent.feature.biohacking.AiProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -28,12 +29,14 @@ data class GeneratedDopamineItem(
 @HiltViewModel
 class DopamineMenuViewModel @Inject constructor(
     private val repository: DopamineMenuRepository,
+    private val protocolRepository: ProtocolRepository,
     private val aiProvider: AiProvider
 ) : ViewModel() {
 
     init {
         viewModelScope.launch {
             repository.seedDefaultMenu()
+            protocolRepository.seedDefaultProtocols()
         }
     }
 
@@ -74,11 +77,14 @@ class DopamineMenuViewModel @Inject constructor(
     fun generateNewSuggestions() {
         viewModelScope.launch {
             _isGenerating.value = true
+            val protocols = protocolRepository.getAllProtocols().firstOrNull()?.take(5)?.joinToString { it.title } ?: "None"
+            
             val prompt = """
                 GENERATE_DOPAMINE_MENU_ITEMS
                 CONTEXT: Cyberpunk health/productivity app.
+                REFERENCE_PROTOCOLS: $protocols
                 FORMAT: Return 3 new items in JSON format: [{"title": "...", "description": "...", "duration": Int, "category": "RESET|MOVEMENT|CREATIVE|SENSORY|PRODUCTIVE|SOCIAL", "energy": "LOW|MEDIUM|HIGH"}]
-                STRICTURE: High impact, low friction, science-based for ADHD/Recovery.
+                STRICTURE: High impact, low friction, science-based for ADHD/Recovery. Base suggestions on the REFERENCE_PROTOCOLS when applicable.
             """.trimIndent()
 
             val result = aiProvider.generateContent(prompt)

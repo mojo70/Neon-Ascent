@@ -18,6 +18,8 @@ import com.neon.ascent.core.common.NeonCyan
 import com.neon.ascent.core.common.CelebrationOverlay
 import androidx.compose.material.icons.filled.Psychology
 
+import androidx.compose.material.icons.automirrored.filled.LibraryBooks
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AscensionTerminalScreen(
@@ -27,6 +29,7 @@ fun AscensionTerminalScreen(
     onForgeClick: () -> Unit,
     onReviewClick: (String) -> Unit,
     onRitualClick: () -> Unit,
+    onBrowseProtocols: () -> Unit,
     viewModel: AscensionTerminalViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -36,6 +39,9 @@ fun AscensionTerminalScreen(
             CenterAlignedTopAppBar(
                 title = { Text("NEURAL ASCENSION TERMINAL") },
                 actions = {
+                    IconButton(onClick = onBrowseProtocols) {
+                        Icon(Icons.AutoMirrored.Filled.LibraryBooks, contentDescription = "BROWSE_PROTOCOLS", tint = NeonCyan)
+                    }
                     IconButton(onClick = onRitualClick) {
                         Icon(Icons.Default.Terminal, contentDescription = "SYSTEM_RITUAL", tint = NeonCyan)
                     }

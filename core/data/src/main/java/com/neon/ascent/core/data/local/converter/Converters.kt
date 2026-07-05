@@ -107,6 +107,14 @@ class LongListConverter {
     fun toList(data: String?): List<Long>? = data?.split(",")?.filter { it.isNotBlank() }?.map { it.toLong() }
 }
 
+class IntListConverter {
+    @TypeConverter
+    fun fromList(list: List<Int>?): String? = list?.joinToString(",")
+
+    @TypeConverter
+    fun toList(data: String?): List<Int>? = data?.split(",")?.filter { it.isNotBlank() }?.map { it.toInt() }
+}
+
 class SuccessMetricListConverter {
     private val gson = Gson()
 

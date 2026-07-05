@@ -128,6 +128,7 @@ fun AscensionTaskEntity.toDomain() = AscensionTask(
     longestStreak = longestStreak,
     graceBufferDays = graceBufferDays,
     lastCompleted = lastCompleted,
+    tags = tags,
     linkedAttributes = linkedAttributes.map { try { SpecialType.valueOf(it) } catch (e: Exception) { SpecialType.LUCK } },
     userNotesTemplate = userNotesTemplate
 )
@@ -152,6 +153,7 @@ fun AscensionTask.toEntity() = AscensionTaskEntity(
     longestStreak = longestStreak,
     graceBufferDays = graceBufferDays,
     lastCompleted = lastCompleted,
+    tags = tags,
     linkedAttributes = linkedAttributes.map { it.name },
     userNotesTemplate = userNotesTemplate
 )

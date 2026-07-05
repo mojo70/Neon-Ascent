@@ -125,6 +125,9 @@ sealed interface Screen {
     data object AscensionTerminal : Screen
 
     @Serializable
+    data object ProtocolLibrary : Screen
+
+    @Serializable
     data class DirectiveDetail(val id: String) : Screen
 
     @Serializable
@@ -159,4 +162,7 @@ sealed interface Screen {
 
     @Serializable
     data object DopamineMenu : Screen
+
+    @Serializable
+    data class WorkoutLog(val taskId: String? = null) : Screen
 }

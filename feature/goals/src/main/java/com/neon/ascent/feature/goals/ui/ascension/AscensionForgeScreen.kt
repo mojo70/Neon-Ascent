@@ -41,6 +41,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.runtime.Composable
 import java.time.DayOfWeek
 
+import androidx.compose.material.icons.automirrored.filled.LibraryBooks
+
 @Composable
 fun CyberFrame(
     label: String,
@@ -87,6 +89,8 @@ fun AscensionForgeScreen(
     prefilledVision: String? = null,
     prefilledBiometrics: String? = null,
     onNavigateToGuide: () -> Unit = {},
+    onNavigateToDashboard: () -> Unit = {},
+    onBrowseProtocols: () -> Unit = {},
     viewModel: AscensionForgeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -107,12 +111,14 @@ fun AscensionForgeScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onBrowseProtocols) {
+                        Icon(Icons.AutoMirrored.Filled.LibraryBooks, contentDescription = "Protocols", tint = NeonCyan)
+                    }
                     IconButton(onClick = onNavigateToGuide) {
                         Icon(Icons.Default.Psychology, contentDescription = "Neon Guide", tint = NeonCyan)
                     }
                     IconButton(onClick = { 
                         viewModel.save()
-                        onBack()
                     }) {
                         Icon(Icons.Default.Check, contentDescription = "Save", tint = NeonCyan)
                     }
@@ -128,6 +134,7 @@ fun AscensionForgeScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
+            // ... (rest of the column content remains the same)
             // Type Selector
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ForgeTypeTab("DIRECTIVE", uiState.forgeType == ForgeType.DIRECTIVE, Modifier.weight(1f)) {
@@ -209,14 +216,17 @@ fun AscensionForgeScreen(
             }
         }
 
-        if (uiState.isSuccess) {
+        uiState.dopamineEvent?.let { event ->
             CelebrationOverlay(
-                event = com.neon.ascent.core.common.DopamineEvent(
-                    level = com.neon.ascent.core.common.CelebrationLevel.ASCENSION,
-                    message = "PROTOCOL_ACTIVE // NEURAL_PINGS_ONLINE",
-                    xpGained = 50
-                ),
-                onFinished = { onBack() }
+                event = event,
+                onFinished = { 
+                    viewModel.clearDopamineEvent()
+                    if (uiState.isSuccess) onBack()
+                },
+                onActionClick = {
+                    viewModel.clearDopamineEvent()
+                    onNavigateToDashboard()
+                }
             )
         }
     }
@@ -463,7 +473,9 @@ fun MentorConversationalBuilder(uiState: AscensionForgeUiState, viewModel: Ascen
                                         metrics = msg.proposedMetrics,
                                         expandedMissions = uiState.expandedMissions,
                                         onToggleExpansion = viewModel::toggleMissionExpansion,
-                                        onAccept = { viewModel.acceptProposals(msg.proposedMissions, msg.proposedMetrics) }
+                                        onAccept = { viewModel.acceptProposals(msg.proposedMissions, msg.proposedMetrics) },
+                                        onRegenerate = { viewModel.regenerateProposals() },
+                                        onClarify = { viewModel.askClarification() }
                                     )
                                 }
                             }
@@ -517,7 +529,9 @@ fun ProposalTreeView(
     metrics: List<SuccessMetric>,
     expandedMissions: Set<String>,
     onToggleExpansion: (String) -> Unit,
-    onAccept: () -> Unit
+    onAccept: () -> Unit,
+    onRegenerate: () -> Unit,
+    onClarify: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -616,11 +630,34 @@ fun ProposalTreeView(
             }
         }
 
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(
+                onClick = onRegenerate,
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray, contentColor = NeonCyan),
+                shape = RoundedCornerShape(2.dp),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Text("REGENERATE", fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+            }
+            Button(
+                onClick = onClarify,
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray, contentColor = NeonPink),
+                shape = RoundedCornerShape(2.dp),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Text("CLARIFY", fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+            }
+        }
+
         Button(
             onClick = onAccept,
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp),
+                .fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = Color.Black),
             shape = RoundedCornerShape(2.dp),
             contentPadding = PaddingValues(0.dp)

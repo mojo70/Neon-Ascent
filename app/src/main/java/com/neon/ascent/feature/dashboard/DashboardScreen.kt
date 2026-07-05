@@ -101,6 +101,7 @@ fun DashboardScreen(
     onTaskClick: (String) -> Unit,
     onSettingsClick: () -> Unit,
     onDeusExMachinaClick: () -> Unit,
+    onNavigateToWorkout: (String?) -> Unit = {},
     onNavigateToBiohacking: (String?) -> Unit = {},
     onNavigateToGuide: () -> Unit = {}
 ) {
@@ -397,10 +398,15 @@ fun DashboardScreen(
                 )
                 val displayTasks = state.todayPulses.take(3)
                 displayTasks.forEach { task ->
+                    val isWorkout = task.tags.any { it.contains("workout", ignoreCase = true) || it.contains("lift", ignoreCase = true) }
                     DashboardTaskItem(
                         task = task,
                         onComplete = { viewModel.completePulse(task.id) },
-                        onClick = { onTaskClick(task.id) }
+                        onClick = { 
+                            if (isWorkout) onNavigateToWorkout(task.id)
+                            else onTaskClick(task.id) 
+                        },
+                        isWorkout = isWorkout
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
@@ -511,6 +517,10 @@ fun DashboardScreen(
                         triggerGlitch()
                         onGoalSetClick() 
                     })
+                    CyberActionButton("LOG WORKOUT SESSION", Color(0xFF00CCFF), onClick = {
+                        triggerGlitch()
+                        onNavigateToWorkout(null)
+                    })
                 }
             }
 
@@ -607,6 +617,7 @@ fun DashboardScreen(
                 tasks = state.todayPulses,
                 onComplete = { viewModel.completePulse(it) },
                 onTaskClick = { onTaskClick(it) },
+                onNavigateToWorkout = onNavigateToWorkout,
                 onDismiss = { showAllTasksDialog = false },
                 systemColor = systemColor
             )
@@ -752,6 +763,7 @@ fun AllTasksDialog(
     tasks: List<AscensionTask>,
     onComplete: (String) -> Unit,
     onTaskClick: (String) -> Unit,
+    onNavigateToWorkout: (String?) -> Unit,
     onDismiss: () -> Unit,
     systemColor: Color
 ) {
@@ -788,10 +800,15 @@ fun AllTasksDialog(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     tasks.forEach { task ->
+                        val isWorkout = task.tags.any { it.contains("workout", ignoreCase = true) || it.contains("lift", ignoreCase = true) }
                         DashboardTaskItem(
                             task = task,
                             onComplete = { onComplete(task.id) },
-                            onClick = { onTaskClick(task.id) }
+                            onClick = { 
+                                if (isWorkout) onNavigateToWorkout(task.id)
+                                else onTaskClick(task.id)
+                            },
+                            isWorkout = isWorkout
                         )
                     }
                 }
@@ -811,14 +828,14 @@ fun AllTasksDialog(
 }
 
 @Composable
-fun DashboardTaskItem(task: AscensionTask, onComplete: () -> Unit, onClick: () -> Unit) {
+fun DashboardTaskItem(task: AscensionTask, onComplete: () -> Unit, onClick: () -> Unit, isWorkout: Boolean = false) {
     val isCompleted = task.lastCompleted != null && 
         task.lastCompleted!!.atZone(ZoneId.systemDefault()).toLocalDate() == LocalDate.now()
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color.Black.copy(alpha = 0.4f))
-            .border(1.dp, if (isCompleted) Color(0xFF00FF9C).copy(alpha = 0.3f) else Color.White.copy(alpha = 0.1f))
+            .border(1.dp, if (isWorkout) Color(0xFF00CCFF).copy(alpha = 0.5f) else if (isCompleted) Color(0xFF00FF9C).copy(alpha = 0.3f) else Color.White.copy(alpha = 0.1f))
             .clickable { if (!isCompleted) onClick() }
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -840,14 +857,25 @@ fun DashboardTaskItem(task: AscensionTask, onComplete: () -> Unit, onClick: () -
             }
         }
         Spacer(Modifier.width(12.dp))
-        Text(
-            task.title,
-            color = if (isCompleted) Color.Gray else Color.White,
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontFamily = FontFamily.Monospace,
-                textDecoration = if (isCompleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else null
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                task.title,
+                color = if (isCompleted) Color.Gray else Color.White,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontFamily = FontFamily.Monospace,
+                    textDecoration = if (isCompleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else null
+                )
             )
-        )
+            if (isWorkout && !isCompleted) {
+                Text(
+                    "LOG SESSION >>",
+                    color = Color(0xFF00CCFF),
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
     }
 }
 

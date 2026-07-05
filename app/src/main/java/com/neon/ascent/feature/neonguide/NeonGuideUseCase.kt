@@ -4,6 +4,7 @@ import android.content.Context
 import com.neon.ascent.core.data.local.dao.NeuralMemoryDao
 import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.core.domain.repository.DopamineMenuRepository
+import com.neon.ascent.core.domain.repository.ProtocolRepository
 import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.UserCharacterDao
 import com.neon.ascent.feature.biohacking.AiProvider
@@ -19,8 +20,9 @@ class NeonGuideUseCase @Inject constructor(
     private val biohackingDao: BiohackingDao,
     private val ascensionRepository: AscensionRepository,
     private val dopamineMenuRepository: DopamineMenuRepository,
+    private val protocolRepository: ProtocolRepository,
     private val neuralMemoryDao: NeuralMemoryDao,
-    private val aiProvider: AiProvider
+    private val aiProvider: AiProvider,
 ) {
     suspend fun generateResponse(userMessage: String, contactName: String): ChatMessage {
         val char = userCharacterDao.getUserCharacter().firstOrNull()
@@ -28,43 +30,45 @@ class NeonGuideUseCase @Inject constructor(
         val biometrics = biohackingDao.getBiohackingData(0).firstOrNull()
         val recentMemories = neuralMemoryDao.getMemoriesByWing("INSIGHTS").firstOrNull() ?: emptyList()
         val dopamineMenu = dopamineMenuRepository.getAllItems().firstOrNull() ?: emptyList()
+        val relevantProtocols = protocolRepository.getAllProtocols().firstOrNull()?.asSequence()?.take(3)?.toList() ?: emptyList()
 
         val bestPractices = """
             CORE_IDENTITY: You are the Neon Guide — a calm, competent cyber-mentor. You blend applied science, habit formation science, and performance psychology into a seamless, immersive guidance experience.
             
             OPERATIONAL_GUIDELINES:
-            - DO NOT mention your internal settings, protocol names (like "Mind Hacking Happiness" or "Atomic Habits"), or system technicalities. Simply apply the methods.
-            - DO NOT use tags like [EXPERT_ROUTING] or mention which "expert" is responding. Synthesize all knowledge into a single, cohesive voice.
+            - Begin with 1-2 clarifying questions using the WOOP (Wish, Outcome, Obstacle, Plan) or SMART frameworks.
+            - Only propose structure after understanding vision and barriers.
+            - PROTOCOL_REFERENCE: When applicable, reference the canonical Protocols (e.g., Atomic Habits, Wim Hof). Use them as templates but personalize implementation for the user.
+            - DO NOT mention your internal settings or protocol names directly unless helpful for framing.
             - Ground your advice in the user's data (biometrics, S.P.E.C.I.A.L. stats, and active Directives) naturally.
-            - Focus on: 1% gains, environment design, habit stacking, and implementation intentions.
-            - Low-Friction Design: Provide advice that minimizes decision fatigue.
-            - Guided Structure: End with 1-2 concrete next actions formatted as [ACTION: Label | Type | Data].
+            - STRUCTURED_PROPOSALS: 
+                - DIRECTIVES: Format as OKRs (Objective + 2-3 Key Results).
+                - MISSIONS: Use Atomic Habits principles (Cue, Craving, Response, Reward).
+                - PULSES: Must be SMART (Specific, Measurable, Achievable, Relevant, Time-bound).
+            - FAITH_LENS: Incorporate the theology of Sonship (Identity over performance), 'Dying to Self' (discipline as an act of surrender), and the 'I Am' presence. Performance is an overflow of identity, not a means to it.
             - Tone: Calm, neon-flavored competence. Professional but immersive.
             
             RESPONSE_LIMIT_MANAGEMENT:
             - If a topic is complex, do not try to dump everything at once. 
             - Provide a high-impact "Phase 1" and explicitly state that more depth is available if the operator wishes to proceed to "Phase 2".
-            - Be aware that your output buffer is limited. If you feel a response is getting too long, wrap up the current point and offer to expand in the next transmission.
         """.trimIndent()
 
         val expertiseGuidance = when {
-            userMessage.contains("recovery", ignoreCase = true) || 
+            (userMessage.contains("recovery", ignoreCase = true) || 
             userMessage.contains("sleep", ignoreCase = true) || 
-            (biometrics?.energyScore ?: 10) < 4 -> 
-                "Focus on recovery protocols, biometric synchronization, and sleep hygiene."
+            (biometrics?.energyScore ?: 10) < 4) -> 
+                "Use WOOP + Atomic Habits. Focus on recovery protocols, biometric synchronization, and sleep hygiene."
             userMessage.contains("directive", ignoreCase = true) || 
-            userMessage.contains("goal", ignoreCase = true) ||
+            userMessage.contains("goal", ignoreCase = true) -> 
+                "Use OKR + SMART. Focus on long-term progress architecture and mission deconstruction."
             userMessage.contains("habit", ignoreCase = true) -> 
-                "Focus on progress architecture, mission deconstruction, and habit stacking."
-            userMessage.contains("mind", ignoreCase = true) || 
-            userMessage.contains("morning", ignoreCase = true) ||
-            userMessage.contains("focus", ignoreCase = true) -> 
-                "Focus on focus optimization, morning rituals, and cognitive load management."
-            userMessage.contains("motivation", ignoreCase = true) || 
-            userMessage.contains("dopamine", ignoreCase = true) ||
+                "Use Atomic Habits + SMART. Focus on implementation intentions and habit stacking."
+            userMessage.contains("identity", ignoreCase = true) || 
+            userMessage.contains("faith", ignoreCase = true) ||
+            userMessage.contains("struggle", ignoreCase = true) ||
             (biometrics?.moodScore ?: 10) < 4 ->
-                "Focus on dopamine regulation, motivation mechanics, and state-shifting."
-            else -> "Provide general cyber-mentorship."
+                "Apply the Faith Lens (Sonship/Identity). Focus on state-shifting from fear to sonship and dopamine regulation."
+            else -> "Provide general cyber-mentorship using the most applicable framework (WOOP, OKR, Atomic Habits, or SMART)."
         }
 
         val userContext = """
@@ -72,13 +76,16 @@ class NeonGuideUseCase @Inject constructor(
             Character: ${char?.name} (${char?.archetype})
             S.P.E.C.I.A.L.: S:${char?.strength} P:${char?.perception} E:${char?.endurance} C:${char?.charisma} I:${char?.intelligence} A:${char?.agility} L:${char?.luck}
             Biometrics: Energy=${biometrics?.energyScore}, Mood=${biometrics?.moodScore}, Focus=${biometrics?.focusScore}
-            Active Directives: ${directives.take(2).joinToString { it.title }}
-            Recent Memories: ${recentMemories.take(2).joinToString { it.content.take(50) }}
-            Dopamine Menu: ${dopamineMenu.take(3).joinToString { it.title }}
+            Active Directives: ${directives.asSequence().take(2).joinToString { it.title }}
+            Recent Memories: ${recentMemories.asSequence().take(2).joinToString { it.content.take(50) }}
+            Dopamine Menu: ${dopamineMenu.asSequence().take(3).joinToString { it.title }}
+            
+            [AVAILABLE_PROTOCOLS]
+            ${relevantProtocols.joinToString("\n") { "- ${it.title}: ${it.description} (Source: ${it.source})" }}
         """.trimIndent()
 
         val fullPrompt = """
-            $bestPractices
+            ${bestPractices.trim()}
             
             [OBJECTIVE]
             $expertiseGuidance
@@ -87,10 +94,13 @@ class NeonGuideUseCase @Inject constructor(
             
             USER_QUERY: "$userMessage"
             
-            Action: Provide a guided, high-impact response. End with 1-2 concrete next actions.
-            IMPORTANT: Format any suggested actions as: [ACTION: Label | Type | Data]
+            Action: Provide a guided, high-impact response. 
+            - Phase 1: Clarify using WOOP/SMART questions if vision/barriers are fuzzy.
+            - Phase 2: If the path is clear, propose a structure (OKR for Directive, Atomic Habits for Mission, SMART for Pulse).
+            - Always weave in the Faith Lens when dealing with resistance or identity.
+
+            IMPORTANT: If suggesting actions, format them as: [ACTION: Label | Type | Data]
             Types allowed: MISSION, DOPAMINE, LOG.
-            Example: [ACTION: Add to Dopamine Menu | DOPAMINE | Coffee Reset]
         """.trimIndent()
 
         val aiResponse = aiProvider.generateContent(fullPrompt, forceLocal = false)
@@ -99,7 +109,7 @@ class NeonGuideUseCase @Inject constructor(
     }
 
     private fun parseAiResponse(response: String, contactName: String): ChatMessage {
-        val actionRegex = Regex("\\[ACTION: (.*?) \\| (.*?) \\| (.*?)\\]")
+        val actionRegex = Regex("\\[ACTION: (.*?) \\| (.*?) \\| (.*?)]")
         val actions = actionRegex.findAll(response).map { match ->
             ChatAction(
                 label = match.groupValues[1].trim(),

@@ -25,9 +25,16 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_11_12
         BiometricEventEntity::class,
         ActionEventEntity::class,
         SocraticInsightEntity::class,
-        DopamineMenuItemEntity::class
+        DopamineMenuItemEntity::class,
+        ProtocolEntity::class,
+        AdaptedProtocolEntity::class,
+        WorkoutSessionEntity::class,
+        ExerciseDefinitionEntity::class,
+        WorkoutLogEntity::class,
+        SetLogEntity::class,
+        UserWorkoutProfileEntity::class
     ],
-    version = 16,
+    version = 18,
     exportSchema = true
 )
 @TypeConverters(
@@ -42,13 +49,16 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_11_12
     LongListConverter::class,
     DopamineCategoryConverter::class,
     EnergyLevelConverter::class,
-    SuccessMetricListConverter::class
+    SuccessMetricListConverter::class,
+    IntListConverter::class
 )
 abstract class NeonAscentDatabase : RoomDatabase() {
     abstract fun goalDao(): GoalDao
     abstract fun specialDao(): SpecialDao
     abstract fun ascensionDao(): AscensionDao
+    abstract fun workoutDao(): com.neon.ascent.core.data.local.dao.WorkoutDao
     abstract fun neuralMemoryDao(): com.neon.ascent.core.data.local.dao.NeuralMemoryDao
     abstract fun insightDao(): com.neon.ascent.core.data.local.dao.InsightDao
     abstract fun dopamineMenuDao(): com.neon.ascent.core.data.local.dao.DopamineMenuDao
+    abstract fun protocolDao(): com.neon.ascent.core.data.local.dao.ProtocolDao
 }

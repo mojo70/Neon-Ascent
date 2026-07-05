@@ -18,6 +18,7 @@ import java.util.UUID
 import javax.inject.Inject
 import com.neon.ascent.feature.goals.domain.usecases.NeonMentorUseCase
 import com.neon.ascent.core.common.DopamineCoordinator
+import com.neon.ascent.core.common.DopamineEvent
 
 enum class ForgeType { DIRECTIVE, MISSION, TASK }
 
@@ -39,6 +40,7 @@ data class AscensionForgeUiState(
     val isGenerating: Boolean = false,
     val mentorInput: String = "",
     val expandedMissions: Set<String> = emptySet(),
+    val dopamineEvent: DopamineEvent? = null,
     // Task specific
     val taskType: AscensionTaskType = AscensionTaskType.ONE_TIME,
     val recurrenceType: RecurrenceTypeV3 = RecurrenceTypeV3.DAILY,
@@ -60,6 +62,16 @@ class AscensionForgeViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(AscensionForgeUiState())
     val uiState = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            dopamineCoordinator.events.collect { event ->
+                _uiState.update { it.copy(dopamineEvent = event) }
+            }
+        }
+    }
+
+    fun clearDopamineEvent() = _uiState.update { it.copy(dopamineEvent = null) }
 
     fun updateType(type: ForgeType) = _uiState.update { it.copy(forgeType = type) }
     fun updateTitle(title: String) = _uiState.update { it.copy(title = title) }
@@ -127,7 +139,7 @@ class AscensionForgeViewModel @Inject constructor(
     private fun startInitialConversation() {
         val state = _uiState.value
         val context = "Insight Title: ${state.title}\nDescription: ${state.description}\nBiometrics: ${state.biometricContext ?: "None"}"
-        val initialPrompt = "OPERATOR_INIT: User is forging a directive from an external insight. Context: $context. Analyze and suggest refinements or mission structures."
+        val initialPrompt = "OPERATOR_INIT: User is forging a directive from an external insight. Context: $context. Begin with 1-2 clarifying questions about vision and potential barriers before proposing any structure."
         
         viewModelScope.launch {
             _uiState.update { it.copy(isGenerating = true) }
@@ -152,7 +164,18 @@ class AscensionForgeViewModel @Inject constructor(
     fun sendMentorMessage() {
         val input = _uiState.value.mentorInput
         if (input.isBlank()) return
+        sendMessage(input)
+    }
 
+    fun regenerateProposals() {
+        sendMessage("REGENERATE_PROTOCOL: Provide more granular detail and alternative missions based on my profile.")
+    }
+
+    fun askClarification() {
+        sendMessage("CLARIFY_PROTOCOL: Ask me 2-3 specific questions to better understand my constraints and vision before proceeding.")
+    }
+
+    private fun sendMessage(input: String) {
         val state = _uiState.value
         _uiState.update { it.copy(
             chatHistory = it.chatHistory + MentorUiMessage(input, isFromUser = true),
@@ -193,7 +216,9 @@ class AscensionForgeViewModel @Inject constructor(
                             isQuarterly = state.isQuarterly,
                             linkedAttributes = state.linkedAttributes,
                             createdAt = Instant.now(),
-                            successMetrics = emptyList() // User can add via chat
+                            successMetrics = emptyList(),
+                            aiMentorMode = state.aiMentorMode,
+                            archetypeTag = state.selectedArchetype
                         )
                         repository.insertDirective(directive)
                     }
@@ -216,6 +241,7 @@ class AscensionForgeViewModel @Inject constructor(
                             title = state.title,
                             description = state.description,
                             type = state.taskType,
+                            isPulse = true,
                             recurrence = if (state.taskType == AscensionTaskType.RECURRING) {
                                 RecurrenceV3(
                                     type = state.recurrenceType,
@@ -224,13 +250,19 @@ class AscensionForgeViewModel @Inject constructor(
                             } else null,
                             timeWindows = state.timeWindows,
                             linkedAttributes = state.linkedAttributes,
-                            impactWeight = 1.0f
+                            impactWeight = 1.0f,
+                            xpValue = 20
                         )
                         repository.insertTask(task)
                     }
                 }
                 _uiState.update { it.copy(isSuccess = true) }
-                dopamineCoordinator.triggerSync(xp = 50)
+                dopamineCoordinator.triggerAscension(
+                    title = "PROTOCOL_DEPLOYED",
+                    message = "${state.title.uppercase()} INTEGRATED",
+                    xp = 50,
+                    actionLabel = "View in Dashboard"
+                )
                 neuralPingScheduler.scheduleSmartPings()
             } catch (e: Exception) {
                 // Handle error
@@ -249,8 +281,12 @@ class AscensionForgeViewModel @Inject constructor(
                     description = state.description,
                     visionStatement = state.visionStatement.takeIf { it.isNotBlank() },
                     isQuarterly = state.isQuarterly,
+                    linkedAttributes = state.linkedAttributes,
                     createdAt = Instant.now(),
-                    successMetrics = proposedMetrics
+                    successMetrics = proposedMetrics,
+                    aiGenerated = true,
+                    archetypeTag = state.selectedArchetype,
+                    aiMentorMode = state.aiMentorMode
                 )
                 repository.insertDirective(directive)
 
@@ -262,7 +298,8 @@ class AscensionForgeViewModel @Inject constructor(
                         title = pMission.title,
                         description = pMission.description,
                         aiGenerated = true,
-                        contributionWeight = pMission.contributionWeight
+                        contributionWeight = pMission.contributionWeight,
+                        linkedAttributes = pMission.linkedAttributes
                     )
                     repository.insertMission(mission)
                     
@@ -277,14 +314,20 @@ class AscensionForgeViewModel @Inject constructor(
                             recurrence = pTask.recurrence,
                             timeWindows = pTask.timeWindows,
                             linkedAttributes = pTask.linkedAttributes,
-                            impactWeight = pTask.impactWeight
+                            impactWeight = pTask.impactWeight,
+                            xpValue = if (pTask.isPulse) 15 else 10
                         )
                         repository.insertTask(task)
                     }
                 }
 
                 _uiState.update { it.copy(isSuccess = true) }
-                dopamineCoordinator.triggerAscension(title = "PROTOCOL_DEPLOYED", xp = 100)
+                dopamineCoordinator.triggerAscension(
+                    title = "PROTOCOL_DEPLOYED",
+                    message = "${state.title.uppercase()} INTEGRATED",
+                    xp = 100,
+                    actionLabel = "View in Dashboard"
+                )
                 neuralPingScheduler.scheduleSmartPings()
             } catch (e: Exception) {
                 // Handle error

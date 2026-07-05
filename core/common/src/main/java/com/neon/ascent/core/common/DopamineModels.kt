@@ -15,5 +15,6 @@ data class DopamineEvent(
     val xpGained: Int = 0,
     val streakCount: Int = 0,
     val isGraceRecovery: Boolean = false,
-    val directiveProgress: Float = 0f
+    val directiveProgress: Float = 0f,
+    val actionLabel: String? = null
 )

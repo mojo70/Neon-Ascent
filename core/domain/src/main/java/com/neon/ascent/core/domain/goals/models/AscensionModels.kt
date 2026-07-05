@@ -90,6 +90,7 @@ data class AscensionTask(
     val longestStreak: Int = 0,
     val graceBufferDays: Int = 1,
     val lastCompleted: Instant? = null,
+    val tags: List<String> = emptyList(),
     val linkedAttributes: List<SpecialType> = emptyList(),
     val userNotesTemplate: String? = null
 )
@@ -134,7 +135,8 @@ data class ProposedMission(
     val title: String,
     val description: String,
     val contributionWeight: Float = 1.0f,
-    val tasks: List<ProposedTask> = emptyList()
+    val tasks: List<ProposedTask> = emptyList(),
+    val linkedAttributes: List<SpecialType> = emptyList()
 )
 
 data class ProposedTask(
@@ -146,4 +148,26 @@ data class ProposedTask(
     val timeWindows: List<String> = emptyList(),
     val linkedAttributes: List<SpecialType> = emptyList(),
     val impactWeight: Float = 1.0f
+)
+
+data class Protocol(
+    val id: String,
+    val title: String,
+    val description: String,
+    val category: String,
+    val canonicalSteps: List<String>,
+    val source: String,
+    val specialTags: List<String>,
+    val defaultDurationDays: Int? = null,
+    val isCanonical: Boolean = true
+)
+
+data class AdaptedProtocol(
+    val id: String,
+    val protocolId: String,
+    val directiveId: String,
+    val adaptedTitle: String,
+    val adaptedSteps: List<String>,
+    val userNotes: String? = null,
+    val lastSyncTimestamp: Instant = Instant.now()
 )

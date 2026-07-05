@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.expandVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
@@ -111,11 +112,15 @@ data class CyberParticle(
 fun CelebrationOverlay(
     event: DopamineEvent?,
     onFinished: () -> Unit,
+    onActionClick: (() -> Unit)? = null
 ) {
     if (event == null) return
 
     // Auto-dismiss duration scales based on tier/importance
+    // Only auto-dismiss if there's no action button, or give more time
     LaunchedEffect(event) {
+        if (event.actionLabel != null) return@LaunchedEffect
+
         val duration = when(event.level) {
             CelebrationLevel.SUBTLE -> 1600L
             CelebrationLevel.SYNC -> 2500L
@@ -146,7 +151,7 @@ fun CelebrationOverlay(
             CelebrationLevel.STREAK_RECOVERY -> StreakRecoveryCelebration(event)
             CelebrationLevel.MISSION_COMPLETE -> MissionCompleteCelebration(event, onFinished)
             CelebrationLevel.DIRECTIVE_MILESTONE -> DirectiveMilestoneCelebration(event)
-            CelebrationLevel.ASCENSION -> AscensionCelebration(event)
+            CelebrationLevel.ASCENSION -> AscensionCelebration(event, onFinished, onActionClick)
         }
     }
 }
@@ -632,7 +637,11 @@ private fun DirectiveMilestoneCelebration(event: DopamineEvent) {
 }
 
 @Composable
-private fun AscensionCelebration(event: DopamineEvent) {
+private fun AscensionCelebration(
+    event: DopamineEvent,
+    onDismiss: () -> Unit,
+    onActionClick: (() -> Unit)? = null
+) {
     var glitchIntensity by remember { mutableFloatStateOf(0.1f) }
     val ringScale = remember { Animatable(0f) }
     val ringAlpha = remember { Animatable(1f) }
@@ -679,6 +688,30 @@ private fun AscensionCelebration(event: DopamineEvent) {
                 fontSize = 24.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold
+            )
+
+            if (event.actionLabel != null && onActionClick != null) {
+                Spacer(Modifier.height(32.dp))
+                Button(
+                    onClick = onActionClick,
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonPink, contentColor = Color.Black),
+                    shape = RoundedCornerShape(2.dp)
+                ) {
+                    Text(
+                        event.actionLabel.uppercase(),
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = "DISMISS",
+                color = Color.Gray,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.clickable { onDismiss() }
             )
         }
     }
