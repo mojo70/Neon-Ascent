@@ -145,6 +145,17 @@ fun WorkoutLoggingScreen(
                 containerColor = Color(0xFF1C1C1E)
             )
         }
+
+        if (showRoutineActionMenuFor != null) {
+            WorkoutRoutineActionMenu(
+                routine = showRoutineActionMenuFor!!,
+                onShare = { viewModel.shareRoutine(showRoutineActionMenuFor!!) },
+                onDuplicate = { viewModel.duplicateRoutine(showRoutineActionMenuFor!!) },
+                onEdit = { /* TODO */ },
+                onDelete = { viewModel.deleteRoutine(showRoutineActionMenuFor!!) },
+                onDismiss = { showRoutineActionMenuFor = null }
+            )
+        }
     }
 }
 
@@ -728,7 +739,6 @@ fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel) {
     var exerciseToReplace by remember { mutableStateOf<WorkoutLog?>(null) }
     var showActionMenuFor by remember { mutableStateOf<WorkoutLog?>(null) }
     var showSupersetMenuFor by remember { mutableStateOf<WorkoutLog?>(null) }
-    var showRoutineActionMenuFor by remember { mutableStateOf<WorkoutRoutine?>(null) }
     val filteredExercises by viewModel.filteredExercises.collectAsState()
 
     LazyColumn(
@@ -795,17 +805,6 @@ fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel) {
                 showSupersetMenuFor = null
             },
             onDismiss = { showSupersetMenuFor = null }
-        )
-    }
-
-    if (showRoutineActionMenuFor != null) {
-        WorkoutRoutineActionMenu(
-            routine = showRoutineActionMenuFor!!,
-            onShare = { viewModel.shareRoutine(showRoutineActionMenuFor!!) },
-            onDuplicate = { viewModel.duplicateRoutine(showRoutineActionMenuFor!!) },
-            onEdit = { /* TODO */ },
-            onDelete = { viewModel.deleteRoutine(showRoutineActionMenuFor!!) },
-            onDismiss = { showRoutineActionMenuFor = null }
         )
     }
 

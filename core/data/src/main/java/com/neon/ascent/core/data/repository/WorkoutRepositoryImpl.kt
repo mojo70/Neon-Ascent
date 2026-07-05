@@ -275,6 +275,11 @@ class WorkoutRepositoryImpl @Inject constructor(
         exercises.forEach {
             workoutDao.insertExerciseDefinition(it.toEntity())
         }
+
+        // Ensure old default routines are removed as requested
+        workoutDao.deleteRoutine("routine_strength")
+        workoutDao.deleteRoutine("routine_strength_2")
+        workoutDao.deleteRoutine("routine_lower_split")
     }
 
     override suspend fun deleteSession(sessionId: String) {
