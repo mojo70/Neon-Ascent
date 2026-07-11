@@ -154,7 +154,8 @@ fun UserWorkoutProfileEntity.toDomain() = UserWorkoutProfile(
     heightCm = heightCm,
     weightKg = weightKg,
     gender = Gender.valueOf(gender),
-    activityFactor = activityFactor
+    activityFactor = activityFactor,
+    unitSystem = UnitSystem.valueOf(unitSystem)
 )
 
 fun UserWorkoutProfile.toEntity() = UserWorkoutProfileEntity(
@@ -168,7 +169,8 @@ fun UserWorkoutProfile.toEntity() = UserWorkoutProfileEntity(
     heightCm = heightCm,
     weightKg = weightKg,
     gender = gender.name,
-    activityFactor = activityFactor
+    activityFactor = activityFactor,
+    unitSystem = unitSystem.name
 )
 
 fun RoutineSetEntity.toDomain() = RoutineSet(

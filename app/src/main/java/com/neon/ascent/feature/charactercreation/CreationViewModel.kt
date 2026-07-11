@@ -10,7 +10,7 @@ import com.neon.ascent.BuildConfig
 import com.neon.ascent.data.repository.CharacterRepository
 import com.neon.ascent.data.repository.UserPreferencesRepository
 import com.neon.ascent.domain.onboarding.OnboardingCompletionUseCase
-import com.neon.ascent.model.UserCharacter
+import com.neon.ascent.core.domain.character.models.UserCharacter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted

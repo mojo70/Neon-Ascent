@@ -1,0 +1,47 @@
+package com.neon.ascent.core.domain.character.models
+
+data class UserCharacter(
+    val id: Int = 0,
+    val name: String,
+    val netrunnerName: String? = null,
+    val sex: String,
+    val dob: String,
+    val units: String,
+    val heightFeet: String? = null,
+    val heightInches: String? = null,
+    val heightCm: String? = null,
+    val weight: String,
+    val somatotype: Float,
+    val mbti: String? = null,
+    val alignment: String? = null,
+    val archetype: String? = null,
+    val strength: Int? = null,
+    val endurance: Int? = null,
+    val agility: Int? = null,
+    val perception: Int? = null,
+    val intelligence: Int? = null,
+    val charisma: Int? = null,
+    val luck: Int? = null,
+    val level: Int = 1,
+    val neuralLoad: Float = 0.2f,
+    val experience: Long = 0,
+    val isCreationComplete: Boolean = false,
+    val avatarPath: String? = null,
+    val eddies: Int = 0,
+    val secureEddies: Int = 0,
+    val walletConnected: Boolean = false,
+    val isSystemDatabaseUnlocked: Boolean = false,
+    val holyGhost: Int? = 0,
+    val prayerStreak: Int = 0,
+    val lastPrayerDate: Long = 0L,
+    val waterBaptized: Boolean = false,
+    val holySpiritBaptized: Boolean = false,
+    val ramSlots: Int = 8,
+    val usedRam: Int = 0,
+    val quickhackSlots: Int = 4,
+    val loadedQuickhacks: String? = null,
+    val equippedCyberware: String? = null
+) {
+    fun getEquippedList(): List<String> = equippedCyberware?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+    fun getQuickhackList(): List<String> = loadedQuickhacks?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+}

@@ -44,7 +44,7 @@ import com.neon.ascent.R
 import com.neon.ascent.core.common.neonBorder
 import com.neon.ascent.model.TerminalEvent
 import com.neon.ascent.model.TrainingTemplate
-import com.neon.ascent.model.UserCharacter
+import com.neon.ascent.core.domain.character.models.UserCharacter
 import kotlin.random.Random
 
 val CyberButtonShape = GenericShape { size, _ ->

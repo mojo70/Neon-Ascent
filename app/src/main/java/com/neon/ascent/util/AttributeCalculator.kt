@@ -1,6 +1,6 @@
 package com.neon.ascent.util
 
-import com.neon.ascent.model.UserCharacter
+import com.neon.ascent.core.domain.character.models.UserCharacter
 import kotlin.math.*
 
 data class RawAttributeInputs(

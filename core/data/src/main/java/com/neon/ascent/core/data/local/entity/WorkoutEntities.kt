@@ -190,7 +190,8 @@ data class UserWorkoutProfileEntity(
     val heightCm: Float,
     val weightKg: Float,
     val gender: String,
-    val activityFactor: Float
+    val activityFactor: Float,
+    val unitSystem: String
 )
 
 @Entity(tableName = "workout_routines")

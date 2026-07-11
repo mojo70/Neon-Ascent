@@ -31,5 +31,12 @@ object RepositoryModule {
 
     @Provides
     @Singleton
+    fun provideCharacterRepository(
+        userCharacterDao: com.neon.ascent.data.local.UserCharacterDao
+    ): com.neon.ascent.core.domain.character.repository.CharacterRepository =
+        com.neon.ascent.data.repository.CharacterRepository(userCharacterDao)
+
+    @Provides
+    @Singleton
     fun provideSkillRepository(palace: com.neon.ascent.feature.dashboard.MemoryPalaceManager): com.neon.ascent.core.domain.repository.SkillRepository = palace
 }

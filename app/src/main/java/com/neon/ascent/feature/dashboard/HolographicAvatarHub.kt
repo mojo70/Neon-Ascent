@@ -38,7 +38,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.core.common.*
 import com.neon.ascent.feature.health.ui.HealthViewModel
 import com.neon.ascent.feature.terminal.ui.TerminalViewModel
-import com.neon.ascent.model.UserCharacter
+import com.neon.ascent.core.domain.character.models.UserCharacter
 import com.neon.ascent.domain.model.UserStory
 import com.neon.ascent.ui.*
 import kotlinx.coroutines.delay

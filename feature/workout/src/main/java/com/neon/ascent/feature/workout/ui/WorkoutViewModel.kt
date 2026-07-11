@@ -411,6 +411,10 @@ class WorkoutViewModel @Inject constructor(
         _uiState.update { it.copy(isShowingProgress = false) }
     }
 
+    fun resumeUserProfile() {
+        loadUserProfile()
+    }
+
     private fun loadExercises() {
         viewModelScope.launch {
             repository.getExerciseDefinitions().collect { exercises ->

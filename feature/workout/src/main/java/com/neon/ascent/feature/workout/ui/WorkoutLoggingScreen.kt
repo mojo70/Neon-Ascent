@@ -13,7 +13,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.input.pointer.pointerInput
-import kotlinx.coroutines.channels.Channel
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -62,97 +61,101 @@ fun WorkoutLoggingScreen(
             .fillMaxSize()
             .background(Color(0xFF000000))
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            if (uiState.session == null) {
-                if (uiState.isShowingProgress) {
-                    WorkoutProgressScreen(
-                        onBack = { viewModel.hideProgress() }
-                    )
-                } else if (uiState.isCreatingRoutine) {
-                    CreateRoutineScreen(
+        if (uiState.userProfile == null && !uiState.isLoading) {
+            OnboardingScreen(onComplete = { viewModel.resumeUserProfile() })
+        } else {
+            Column(modifier = Modifier.fillMaxSize()) {
+                if (uiState.session == null) {
+                    if (uiState.isShowingProgress) {
+                        WorkoutProgressScreen(
+                            onBack = { viewModel.hideProgress() }
+                        )
+                    } else if (uiState.isCreatingRoutine) {
+                        CreateRoutineScreen(
+                            uiState = uiState,
+                            onBack = { viewModel.cancelCreateRoutine() },
+                            onSave = { viewModel.saveRoutine() },
+                            onUpdateName = { viewModel.updateNewRoutineName(it) },
+                            viewModel = viewModel
+                        )
+                    } else if (uiState.isCreatingAugment) {
+                        CreateAugmentScreen(
+                            uiState = uiState,
+                            onBack = { viewModel.cancelCreateAugment() },
+                            onSave = { viewModel.saveAugment() },
+                            onUpdateName = { viewModel.updateNewAugmentName(it) },
+                            onUpdateBodyPart = { viewModel.updateNewAugmentBodyPart(it) },
+                            viewModel = viewModel
+                        )
+                    } else {
+                        WorkoutIntakeScreen(
+                            uiState = uiState,
+                            onBack = onBack,
+                            onShowProgress = { viewModel.showProgress() },
+                            onStartProtocol = { viewModel.startSession(it) },
+                            onStartRoutine = { viewModel.startRoutine(it) },
+                            onCreateRoutine = { viewModel.startCreateRoutine() },
+                            onCreateAugment = { viewModel.startCreateAugment() },
+                            onRoutineActionClick = { showRoutineActionMenuFor = it },
+                            onAddAugment = { viewModel.toggleAugmentLibrary(it) },
+                            onAddRoutine = { viewModel.toggleRoutineLibrary(it) }
+                        )
+                    }
+                } else if (uiState.isReorderingExercises) {
+                    ReorderExercisesScreen(
                         uiState = uiState,
-                        onBack = { viewModel.cancelCreateRoutine() },
-                        onSave = { viewModel.saveRoutine() },
-                        onUpdateName = { viewModel.updateNewRoutineName(it) },
-                        viewModel = viewModel
-                    )
-                } else if (uiState.isCreatingAugment) {
-                    CreateAugmentScreen(
-                        uiState = uiState,
-                        onBack = { viewModel.cancelCreateAugment() },
-                        onSave = { viewModel.saveAugment() },
-                        onUpdateName = { viewModel.updateNewAugmentName(it) },
-                        onUpdateBodyPart = { viewModel.updateNewAugmentBodyPart(it) },
-                        viewModel = viewModel
+                        onBack = { viewModel.stopReordering() },
+                        onMove = { from, to -> viewModel.moveWorkoutLog(from, to) },
+                        onRemove = { viewModel.removeWorkoutLog(it) },
+                        onDone = { viewModel.stopReordering() }
                     )
                 } else {
-                    WorkoutIntakeScreen(
-                        uiState = uiState,
+                    val durationFormatted = remember(uiState.workoutDurationSeconds) {
+                        val minutes = uiState.workoutDurationSeconds / 60
+                        val seconds = uiState.workoutDurationSeconds % 60
+                        "%d:%02d".format(minutes, seconds)
+                    }
+                    ActiveWorkoutHeader(
+                        duration = durationFormatted,
                         onBack = onBack,
-                        onShowProgress = { viewModel.showProgress() },
-                        onStartProtocol = { viewModel.startSession(it) },
-                        onStartRoutine = { viewModel.startRoutine(it) },
-                        onCreateRoutine = { viewModel.startCreateRoutine() },
-                        onCreateAugment = { viewModel.startCreateAugment() },
-                        onRoutineActionClick = { showRoutineActionMenuFor = it },
-                        onAddAugment = { viewModel.toggleAugmentLibrary(it) },
-                        onAddRoutine = { viewModel.toggleRoutineLibrary(it) }
+                        onFinish = { viewModel.finishWorkout() },
+                        isPaused = uiState.isPaused,
+                        onPauseToggle = {
+                            if (uiState.isPaused) viewModel.resumeWorkout() else viewModel.pauseWorkout()
+                        },
+                        onDiscard = { viewModel.discardWorkout() }
                     )
-                }
-            } else if (uiState.isReorderingExercises) {
-                ReorderExercisesScreen(
-                    uiState = uiState,
-                    onBack = { viewModel.stopReordering() },
-                    onMove = { from, to -> viewModel.moveWorkoutLog(from, to) },
-                    onRemove = { viewModel.removeWorkoutLog(it) },
-                    onDone = { viewModel.stopReordering() }
-                )
-            } else {
-                val durationFormatted = remember(uiState.workoutDurationSeconds) {
-                    val minutes = uiState.workoutDurationSeconds / 60
-                    val seconds = uiState.workoutDurationSeconds % 60
-                    "%d:%02d".format(minutes, seconds)
-                }
-                ActiveWorkoutHeader(
-                    duration = durationFormatted,
-                    onBack = onBack,
-                    onFinish = { viewModel.finishWorkout() },
-                    isPaused = uiState.isPaused,
-                    onPauseToggle = {
-                        if (uiState.isPaused) viewModel.resumeWorkout() else viewModel.pauseWorkout()
-                    },
-                    onDiscard = { viewModel.discardWorkout() }
-                )
-                WorkoutSummaryBar(uiState, onToggleSomatotype = { viewModel.toggleSomatotypeInfluence() })
-                
-                if (uiState.somatotypeNudgeText != null) {
-                    SomatotypeBadge(uiState.somatotypeNudgeText!!, uiState.userProfile?.somatotype)
-                }
-
-                Box(modifier = Modifier.weight(1f)) {
-                    ActiveWorkoutContent(uiState, viewModel)
+                    WorkoutSummaryBar(uiState, onToggleSomatotype = { viewModel.toggleSomatotypeInfluence() })
                     
-                    if (uiState.isPaused) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.7f))
-                                .clickable(enabled = false) {},
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    "WORKOUT PAUSED",
-                                    color = Color.White,
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Button(
-                                    onClick = { viewModel.resumeWorkout() },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF))
-                                ) {
-                                    Text("Resume", color = Color.White)
+                    if (uiState.somatotypeNudgeText != null) {
+                        SomatotypeBadge(uiState.somatotypeNudgeText!!, uiState.userProfile?.somatotype)
+                    }
+
+                    Box(modifier = Modifier.weight(1f)) {
+                        ActiveWorkoutContent(uiState, viewModel)
+                        
+                        if (uiState.isPaused) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.7f))
+                                    .clickable(enabled = false) {},
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        "WORKOUT PAUSED",
+                                        color = Color.White,
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Button(
+                                        onClick = { viewModel.resumeWorkout() },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF))
+                                    ) {
+                                        Text("Resume", color = Color.White)
+                                    }
                                 }
                             }
                         }
@@ -448,21 +451,23 @@ fun WorkoutIntakeScreen(
                     modifier = Modifier.size(28.dp)
                 )
             }
-            IconButton(onClick = onShowProgress) {
-                Icon(
-                    Icons.AutoMirrored.Filled.TrendingUp,
-                    contentDescription = "Progress",
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            IconButton(onClick = { /* Refresh logic */ }) {
-                Icon(
-                    Icons.Default.Refresh,
-                    contentDescription = "Sync",
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
-                )
+            Row {
+                IconButton(onClick = onShowProgress) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.TrendingUp,
+                        contentDescription = "Progress",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                IconButton(onClick = { /* Refresh logic */ }) {
+                    Icon(
+                        Icons.Default.Refresh,
+                        contentDescription = "Sync",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
         }
 
@@ -917,7 +922,7 @@ fun CreateRoutineScreen(
                         viewModel.addExerciseToNewRoutine(it)
                         showExercisePicker = false
                     },
-                    onSaveCustomExercise = { name, muscle, equip, desc ->
+                    onSaveCustomExercise = { name: String, muscle: String, equip: String, desc: String ->
                         viewModel.saveCustomExercise(name, muscle, equip, desc)
                     },
                     onDismiss = { showExercisePicker = false }
@@ -1105,7 +1110,7 @@ fun CreateAugmentScreen(
                         viewModel.addExerciseToNewRoutine(it)
                         showExercisePicker = false
                     },
-                    onSaveCustomExercise = { name, muscle, equip, desc ->
+                    onSaveCustomExercise = { name: String, muscle: String, equip: String, desc: String ->
                         viewModel.saveCustomExercise(name, muscle, equip, desc)
                     },
                     onDismiss = { showExercisePicker = false }
@@ -1189,7 +1194,7 @@ fun RoutineExerciseItem(
                         SetType.FAILURE -> Color(0xFFFF4444)
                         SetType.REST_PAUSE -> Color(0xFF00FFAA)
                         SetType.WIDOWMAKER -> Color(0xFFFF00FF)
-                        SetType.POWER -> Color(0xFFFFD700) // Gold/Power color
+                        SetType.POWER -> Color(0xFFFFD700)
                         else -> Color.White
                     }
                     Text(label, color = color, fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -1251,18 +1256,6 @@ fun RoutineExerciseItem(
             },
             onDismiss = { showSetTypeSelectorForIndex = null }
         )
-    }
-}
-
-@Composable
-fun RoutineSetPlaceholder(modifier: Modifier = Modifier, label: String) {
-    Box(
-        modifier = modifier
-            .height(40.dp)
-            .background(Color(0xFF2C2C2E), RoundedCornerShape(8.dp)),
-        contentAlignment = Alignment.Center
-    ) {
-        Text("SET $label", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -1329,7 +1322,7 @@ fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel) {
 
     if (showActionMenuFor != null) {
         val isPrescriptiveAugment = remember(showActionMenuFor, uiState.augments, uiState.exploreAugments) {
-            showActionMenuFor?.augmentId != null && (uiState.augments + uiState.exploreAugments).any { it.id == showActionMenuFor?.augmentId && it.isSystem }
+            showActionMenuFor?.augmentId != null && (uiState.augments + uiState.exploreAugments).any { it.id == showActionMenuFor?.augmentId && (it.isSystem) }
         }
         val isMandatoryGoal = uiState.session?.protocol == WorkoutProtocol.CYBER_CRAPP || isPrescriptiveAugment
 
@@ -1392,7 +1385,7 @@ fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel) {
                         }
                         showExercisePicker = false
                     },
-                    onSaveCustomExercise = { name, muscle, equip, desc ->
+                    onSaveCustomExercise = { name: String, muscle: String, equip: String, desc: String ->
                         viewModel.saveCustomExercise(name, muscle, equip, desc)
                     },
                     onDismiss = { 
@@ -1949,7 +1942,7 @@ fun ExercisePicker(
 
     if (showCustomExerciseForm) {
         CustomExerciseForm(
-            onSave = { name, muscle, equip, desc ->
+            onSave = { name: String, muscle: String, equip: String, desc: String ->
                 onSaveCustomExercise(name, muscle, equip, desc)
                 showCustomExerciseForm = false
             },
@@ -2271,7 +2264,7 @@ fun WorkoutLogCard(
     var showClusterDialogFor by remember { mutableStateOf<List<SetLog>?>(null) }
     
     val isPrescriptiveAugment = remember(log.augmentId, uiState.augments, uiState.exploreAugments) {
-        log.augmentId != null && (uiState.augments + uiState.exploreAugments).any { it.id == log.augmentId && it.isSystem }
+        log.augmentId != null && (uiState.augments + uiState.exploreAugments).any { it.id == log.augmentId && (it.isSystem) }
     }
     
     val showGoalColumn = uiState.session?.protocol == WorkoutProtocol.CYBER_CRAPP || 
@@ -2420,8 +2413,6 @@ fun WorkoutLogCard(
         // Grouping sets for display
         val displayItems = remember(sets) {
             val items = mutableListOf<Any>()
-            val clusters = sets.filter { it.clusterMiniSetIndex != null }.groupBy { it.workoutLogId }
-            
             var handledCluster = false
             sets.forEach { set ->
                 if (set.clusterMiniSetIndex != null) {
@@ -2453,7 +2444,7 @@ fun WorkoutLogCard(
             } else if (item is SetLog) {
                 val set = item
                 key(set.id) {
-                    val prevSet = previousSets.find { it.type == set.type && it.clusterMiniSetIndex == null } // Simple matching for now
+                    val prevSet = previousSets.find { it.type == set.type && it.clusterMiniSetIndex == null }
                     SetLogRow(
                         setNumber = index + 1,
                         set = set,
@@ -2679,7 +2670,6 @@ fun ExerciseDetailModal(
                         letterSpacing = 2.sp
                     )
                     exercise.injurySubstitutions.forEach { subId ->
-                        // Resolve name if possible
                         val subName = availableExercises.find { it.id == subId }?.name ?: subId
                         Surface(
                             modifier = Modifier
@@ -2721,6 +2711,7 @@ fun ExerciseDetailModal(
         }
     }
 }
+
 @Composable
 fun CyberFinisherDialog(onDone: () -> Unit) {
     Dialog(onDismissRequest = { /* Force completion */ }) {
@@ -3243,8 +3234,6 @@ fun EditableValueBox(
     var text by remember { mutableStateOf(value) }
     var isFocused by remember { mutableStateOf(false) }
 
-    // Sync from external value only when not focused to prevent "jumping" or "predicting"
-    // while the user is actively typing or has cleared the box.
     LaunchedEffect(value) {
         if (!isFocused) {
             text = value

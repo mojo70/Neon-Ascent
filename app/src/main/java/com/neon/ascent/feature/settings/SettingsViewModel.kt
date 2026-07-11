@@ -2,6 +2,7 @@ package com.neon.ascent.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.neon.ascent.core.domain.character.models.UserCharacter
 import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.DailyPrayerDao
 import com.neon.ascent.data.repository.CharacterRepository
@@ -15,7 +16,6 @@ import com.neon.ascent.core.domain.repository.WorkoutRepository
 import com.neon.ascent.feature.goals.domain.usecases.ExportNeuralLogUseCase
 import com.neon.ascent.model.DailyPrayer
 import com.neon.ascent.model.JournalEntry
-import com.neon.ascent.model.UserCharacter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted

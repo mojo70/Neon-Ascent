@@ -4,10 +4,14 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.neon.ascent.core.domain.character.models.UserCharacter
 import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.UserCharacterDao
 import com.neon.ascent.data.repository.*
-import com.neon.ascent.model.*
+import com.neon.ascent.model.BioProtocolLog
+import com.neon.ascent.model.BiohackingData
+import com.neon.ascent.model.HealthTrend
+import com.neon.ascent.model.TerminalEvent
 import com.neon.ascent.core.data.local.dao.NeuralMemoryDao
 import com.neon.ascent.core.data.local.entity.NeuralMemory
 import com.neon.ascent.core.data.datastore.HealthPreferencesDataStore
@@ -123,7 +127,38 @@ class BiohackingViewModel @Inject constructor(
         }
         viewModelScope.launch {
             userCharacterDao.getUserCharacter().collectLatest { char ->
-                _character.value = char
+                _character.value = char?.let {
+                    UserCharacter(
+                        id = it.id,
+                        name = it.name,
+                        netrunnerName = it.netrunnerName,
+                        sex = it.sex,
+                        dob = it.dob,
+                        units = it.units,
+                        heightFeet = it.heightFeet,
+                        heightInches = it.heightInches,
+                        heightCm = it.heightCm,
+                        weight = it.weight,
+                        somatotype = it.somatotype,
+                        mbti = it.mbti,
+                        alignment = it.alignment,
+                        archetype = it.archetype,
+                        strength = it.strength,
+                        endurance = it.endurance,
+                        agility = it.agility,
+                        perception = it.perception,
+                        intelligence = it.intelligence,
+                        charisma = it.charisma,
+                        luck = it.luck,
+                        level = it.level,
+                        neuralLoad = it.neuralLoad,
+                        experience = it.experience,
+                        isCreationComplete = it.isCreationComplete,
+                        avatarPath = it.avatarPath,
+                        eddies = it.eddies,
+                        isSystemDatabaseUnlocked = it.isSystemDatabaseUnlocked
+                    )
+                }
             }
         }
         viewModelScope.launch {

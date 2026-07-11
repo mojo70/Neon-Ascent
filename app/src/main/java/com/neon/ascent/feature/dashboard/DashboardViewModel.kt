@@ -22,9 +22,9 @@ import com.neon.ascent.core.ai.AiPersona
 import com.neon.ascent.feature.health.data.HealthConnectManager
 import com.neon.ascent.feature.health.data.uplink.*
 import com.neon.ascent.feature.health.domain.uplink.*
+import com.neon.ascent.core.domain.character.models.UserCharacter
 import com.neon.ascent.model.BiohackingData
 import com.neon.ascent.model.Saying
-import com.neon.ascent.model.UserCharacter
 import com.neon.ascent.core.domain.goals.models.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -320,8 +320,10 @@ class DashboardViewModel @Inject constructor(
         character?.let {
             messages.add("SUBJECT: ${it.name.uppercase()} // ARCHETYPE: ${it.archetype ?: "UNKNOWN"}")
             messages.add("LEVEL ${it.level} OPERATIVE DETECTED IN SECTOR 7")
-            if (it.mbti != null) messages.add("NEURAL_PATTERN: ${it.mbti} // SYNC_RATIO: 98.4%")
-            if (it.alignment != null) messages.add("MORAL_ALIGNMENT: ${it.alignment.uppercase()}")
+            val mbti = it.mbti
+            if (mbti != null) messages.add("NEURAL_PATTERN: $mbti // SYNC_RATIO: 98.4%")
+            val alignment = it.alignment
+            if (alignment != null) messages.add("MORAL_ALIGNMENT: ${alignment.uppercase()}")
         }
         val weatherStatus = if (weather.isRaining) "ACID_RAIN_WARNING" else "ATMOSPHERE_STABLE"
         messages.add("LOCAL_CONDITIONS: ${weather.temperature}°${weather.unitSymbol} // $weatherStatus")

@@ -11,7 +11,7 @@ import java.util.UUID
 import java.time.Instant
 import com.neon.ascent.data.repository.CharacterRepository
 import com.neon.ascent.data.repository.TemplateRepository
-import com.neon.ascent.model.UserCharacter
+import com.neon.ascent.core.domain.character.models.UserCharacter
 import com.neon.ascent.util.AttributeCalculator
 import com.neon.ascent.util.CalculatedScores
 import com.neon.ascent.util.RawAttributeInputs

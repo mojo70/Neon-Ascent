@@ -1301,7 +1301,7 @@ fun GamesArea(onChessClick: () -> Unit) {
 
 @Composable
 fun UserDossierCard(
-    character: com.neon.ascent.model.UserCharacter?,
+    character: com.neon.ascent.core.domain.character.models.UserCharacter?,
     onDossierClick: () -> Unit
 ) {
     CyberFrame(

@@ -33,7 +33,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
 import com.neon.ascent.BuildConfig
-import com.neon.ascent.model.UserCharacter
+import com.neon.ascent.core.domain.character.models.UserCharacter
 import com.neon.ascent.ui.CyberButtonShape
 import kotlinx.coroutines.launch
 import java.util.concurrent.Executors

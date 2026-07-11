@@ -92,6 +92,10 @@ enum class Gender {
     MALE, FEMALE, OTHER
 }
 
+enum class UnitSystem {
+    IMPERIAL, METRIC
+}
+
 data class UserWorkoutProfile(
     val userId: String,
     val experienceLevel: ExperienceLevel = ExperienceLevel.INTERMEDIATE,
@@ -105,7 +109,8 @@ data class UserWorkoutProfile(
     val heightCm: Float = 175f,
     val weightKg: Float = 75f,
     val gender: Gender = Gender.MALE,
-    val activityFactor: Float = 1.375f // Default: Lightly Active
+    val activityFactor: Float = 1.375f, // Default: Lightly Active
+    val unitSystem: UnitSystem = UnitSystem.IMPERIAL
 )
 
 data class WorkoutRoutine(

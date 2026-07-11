@@ -37,9 +37,9 @@ import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.feature.health.domain.uplink.*
 import com.neon.ascent.feature.health.data.workers.HealthSyncWorker
 import com.neon.ascent.feature.health.data.services.LiveBiometricService
+import com.neon.ascent.core.domain.character.models.UserCharacter
 import com.neon.ascent.model.BioProtocolLog
 import com.neon.ascent.model.BiohackingData
-import com.neon.ascent.model.UserCharacter
 import com.neon.ascent.ui.*
 import java.time.LocalDate
 import java.time.Period

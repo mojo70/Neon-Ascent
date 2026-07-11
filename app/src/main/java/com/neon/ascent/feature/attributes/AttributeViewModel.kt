@@ -6,7 +6,7 @@ import com.neon.ascent.data.repository.CharacterRepository
 import com.neon.ascent.data.repository.TemplateRepository
 import com.neon.ascent.feature.biohacking.AiProvider
 import com.neon.ascent.model.TrainingTemplate
-import com.neon.ascent.model.UserCharacter
+import com.neon.ascent.core.domain.character.models.UserCharacter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
