@@ -41,7 +41,7 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_11_12
         RoutineSetEntity::class,
         AugmentSetEntity::class
     ],
-    version = 36,
+    version = 37,
     exportSchema = true
 )
 @TypeConverters(

@@ -27,6 +27,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -41,6 +43,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import coil.compose.AsyncImage
 import coil.decode.GifDecoder
 import coil.decode.ImageDecoderDecoder
@@ -2429,6 +2433,21 @@ fun WorkoutLogCard(
     
     val augmentColor = log.augmentColor?.let { Color(android.graphics.Color.parseColor(it)) } ?: Color(0xFF007AFF)
 
+    val exercise = remember(uiState.availableExercises, log.exerciseId) {
+        uiState.availableExercises.find { it.id == log.exerciseId }
+    }
+    var notesText by remember(exercise?.notes) { mutableStateOf(exercise?.notes ?: "") }
+    var isEditing by remember { mutableStateOf(false) }
+    var hasBeenFocused by remember { mutableStateOf(false) }
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(isEditing) {
+        if (isEditing) {
+            hasBeenFocused = false
+            focusRequester.requestFocus()
+        }
+    }
+
     Column(
         modifier = Modifier
             .padding(horizontal = 16.dp)
@@ -2533,7 +2552,71 @@ fun WorkoutLogCard(
             }
         }
 
-        Text("Add weight", color = Color.Gray, fontSize = 14.sp, modifier = Modifier.padding(vertical = 8.dp))
+        if (isEditing) {
+            OutlinedTextField(
+                value = notesText,
+                onValueChange = { newValue ->
+                    notesText = newValue
+                    if (exercise != null) {
+                        viewModel.updateExerciseNotes(exercise.id, newValue)
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester)
+                    .onFocusChanged { focusState ->
+                        if (focusState.isFocused) {
+                            hasBeenFocused = true
+                        }
+                        if (hasBeenFocused && !focusState.isFocused) {
+                            isEditing = false
+                        }
+                    }
+                    .padding(vertical = 4.dp),
+                placeholder = { Text("Add notes...", color = Color.Gray, fontSize = 14.sp) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = augmentColor,
+                    unfocusedBorderColor = Color.DarkGray,
+                    cursorColor = augmentColor,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedContainerColor = Color(0xFF1C1C1E),
+                    unfocusedContainerColor = Color(0xFF1C1C1E)
+                ),
+                textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
+                maxLines = 3
+            )
+        } else if (notesText.isNotEmpty()) {
+            Text(
+                text = notesText,
+                color = Color.Gray,
+                fontSize = 14.sp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { isEditing = true }
+                    .padding(vertical = 8.dp)
+            )
+        } else {
+            Row(
+                modifier = Modifier
+                    .clickable { isEditing = true }
+                    .padding(vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.Edit,
+                    contentDescription = null,
+                    tint = Color.Gray.copy(alpha = 0.7f),
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    "Add notes...",
+                    color = Color.Gray.copy(alpha = 0.7f),
+                    fontSize = 13.sp
+                )
+            }
+        }
         
         val timerText = if (uiState.isResting) {
             "RESTING: ${uiState.restTimeRemaining}s"
@@ -3289,6 +3372,7 @@ fun SetLogRow(
     onCompleteToggle: () -> Unit,
     onSetLabelClick: () -> Unit
 ) {
+    val haptic = LocalHapticFeedback.current
     val backgroundColor = if (setNumber % 2 == 0) Color.Transparent else Color(0xFF1C1C1E).copy(alpha = 0.3f)
     
     Row(
@@ -3365,7 +3449,10 @@ fun SetLogRow(
                     if (set.isCompleted) Color(0xFF4CD964) else Color.Gray.copy(alpha = 0.5f), 
                     RoundedCornerShape(4.dp)
                 )
-                .clickable { onCompleteToggle() },
+                .clickable {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onCompleteToggle()
+                },
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -3386,12 +3473,12 @@ fun EditableValueBox(
     keyboardType: KeyboardType = KeyboardType.Number,
     enabled: Boolean = true
 ) {
-    var text by remember { mutableStateOf(value) }
+    var text by remember { mutableStateOf(if (value == "0" || value == "0.0") "" else value) }
     var isFocused by remember { mutableStateOf(false) }
 
     LaunchedEffect(value) {
         if (!isFocused) {
-            text = value
+            text = if (value == "0" || value == "0.0") "" else value
         }
     }
 
@@ -3402,6 +3489,16 @@ fun EditableValueBox(
             .padding(vertical = 4.dp),
         contentAlignment = Alignment.Center
     ) {
+        if (isFocused && text.isEmpty()) {
+            Text(
+                text = "0",
+                color = Color.Gray,
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+
         BasicTextField(
             value = text,
             onValueChange = {
@@ -3432,7 +3529,19 @@ fun EditableValueBox(
             modifier = Modifier
                 .fillMaxWidth()
                 .onFocusChanged { 
+                    val wasFocused = isFocused
                     isFocused = it.isFocused
+                    if (wasFocused && !it.isFocused) {
+                        if (text.isEmpty()) {
+                            onValueChange("0")
+                        } else {
+                            onValueChange(text)
+                        }
+                    } else if (!wasFocused && it.isFocused) {
+                        if (text == "0" || text == "0.0") {
+                            text = ""
+                        }
+                    }
                 }
         )
     }

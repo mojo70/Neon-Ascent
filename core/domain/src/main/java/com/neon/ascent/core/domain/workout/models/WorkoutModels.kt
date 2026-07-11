@@ -96,7 +96,8 @@ data class Exercise(
     val equipment: List<String>,
     val gifAssetPath: String? = null,
     val isLockedClassic: Boolean = false,
-    val injurySubstitutions: List<String> = emptyList()
+    val injurySubstitutions: List<String> = emptyList(),
+    val notes: String? = null
 )
 
 data class WorkoutLog(

@@ -30,7 +30,8 @@ data class ExerciseDefinitionEntity(
     val equipment: List<String>,
     val gifAssetPath: String?,
     val isLockedClassic: Boolean,
-    val injurySubstitutions: List<String>
+    val injurySubstitutions: List<String>,
+    val notes: String? = null
 )
 
 @Entity(

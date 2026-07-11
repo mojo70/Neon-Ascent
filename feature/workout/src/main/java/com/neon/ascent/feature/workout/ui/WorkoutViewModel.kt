@@ -819,6 +819,13 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
+    fun updateExerciseNotes(exerciseId: String, notes: String) {
+        viewModelScope.launch {
+            val exercise = _uiState.value.availableExercises.find { it.id == exerciseId } ?: return@launch
+            repository.saveExerciseDefinition(exercise.copy(notes = notes))
+        }
+    }
+
     fun logSet(workoutLog: WorkoutLog, weight: Float, reps: Int, type: SetType = SetType.NORMAL) {
         val session = _uiState.value.session ?: return
         
