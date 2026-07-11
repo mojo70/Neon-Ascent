@@ -56,7 +56,8 @@ fun WorkoutLogEntity.toDomain() = WorkoutLog(
     supersetId = supersetId,
     augmentId = augmentId,
     augmentName = augmentName,
-    augmentColor = augmentColor
+    augmentColor = augmentColor,
+    showGoalReps = showGoalReps
 )
 
 fun WorkoutLog.toEntity() = WorkoutLogEntity(
@@ -69,11 +70,13 @@ fun WorkoutLog.toEntity() = WorkoutLogEntity(
     supersetId = supersetId,
     augmentId = augmentId,
     augmentName = augmentName,
-    augmentColor = augmentColor
+    augmentColor = augmentColor,
+    showGoalReps = showGoalReps
 )
 
 fun WorkoutAugmentEntity.toDomain(
     exercises: List<ExerciseDefinitionEntity>,
+    exerciseRefs: List<AugmentExerciseCrossRef> = emptyList(),
     sets: List<AugmentSetEntity> = emptyList()
 ) = WorkoutAugment(
     id = id,
@@ -81,13 +84,14 @@ fun WorkoutAugmentEntity.toDomain(
     description = description,
     focusBodyPart = focusBodyPart,
     exercises = exercises.map { exerciseEntity ->
-        RoutineExercise(
+        val order = exerciseRefs.find { it.exerciseId == exerciseEntity.id }?.order ?: 0
+        order to RoutineExercise(
             exercise = exerciseEntity.toDomain(),
             sets = sets.filter { it.exerciseId == exerciseEntity.id }
                 .sortedBy { it.order }
                 .map { it.toDomain() }
         )
-    },
+    }.sortedBy { it.first }.map { it.second },
     colorHex = colorHex,
     isSystem = isSystem,
     isAddedToLibrary = isAddedToLibrary
@@ -109,6 +113,7 @@ fun SetLogEntity.toDomain() = SetLog(
     weight = weight,
     reps = reps,
     type = SetType.valueOf(setType),
+    goalReps = goalReps,
     isCompleted = isCompleted,
     rir = rir,
     isWarmup = isWarmup,
@@ -125,6 +130,7 @@ fun SetLog.toEntity() = SetLogEntity(
     weight = weight,
     reps = reps,
     setType = type.name,
+    goalReps = goalReps,
     isCompleted = isCompleted,
     rir = rir,
     isWarmup = isWarmup,
@@ -156,34 +162,44 @@ fun UserWorkoutProfile.toEntity() = UserWorkoutProfileEntity(
 fun RoutineSetEntity.toDomain() = RoutineSet(
     type = SetType.valueOf(type),
     weight = weight,
-    reps = reps
+    reps = reps,
+    goalReps = goalReps
 )
 
 fun AugmentSetEntity.toDomain() = RoutineSet(
     type = SetType.valueOf(type),
     weight = weight,
-    reps = reps
+    reps = reps,
+    goalReps = goalReps
 )
 
 fun WorkoutRoutineEntity.toDomain(
-    exercises: List<ExerciseDefinitionEntity>,
+    exercisesWithOrder: List<RoutineExerciseWithOrder> = emptyList(),
     sets: List<RoutineSetEntity> = emptyList(),
-    augments: List<WorkoutAugmentWithExercises> = emptyList()
+    augmentsWithOrder: List<RoutineAugmentWithOrder> = emptyList()
 ) = WorkoutRoutine(
     id = id,
     name = name,
     description = description,
-    exercises = exercises.map { exerciseEntity ->
+    exercises = exercisesWithOrder.sortedBy { it.ref.order }.map { item ->
         RoutineExercise(
-            exercise = exerciseEntity.toDomain(),
-            sets = sets.filter { it.exerciseId == exerciseEntity.id }
+            exercise = item.exercise.toDomain(),
+            sets = sets.filter { it.exerciseId == item.ref.exerciseId }
                 .sortedBy { it.order }
                 .map { it.toDomain() }
         )
     },
-    augments = augments.map { it.augment.toDomain(it.exercises, it.augmentSets) },
+    augments = augmentsWithOrder.sortedBy { it.ref.order }.map { item ->
+        item.augmentDetails.augment.toDomain(
+            item.augmentDetails.exercises,
+            item.augmentDetails.exerciseRefs,
+            item.augmentDetails.augmentSets
+        )
+    },
     protocol = WorkoutProtocol.valueOf(protocol),
-    createdAt = createdAt
+    createdAt = createdAt,
+    isSystem = isSystem,
+    isAddedToLibrary = isAddedToLibrary
 )
 
 fun WorkoutRoutine.toEntity() = WorkoutRoutineEntity(
@@ -191,5 +207,7 @@ fun WorkoutRoutine.toEntity() = WorkoutRoutineEntity(
     name = name,
     description = description,
     protocol = protocol.name,
-    createdAt = createdAt
+    createdAt = createdAt,
+    isSystem = isSystem,
+    isAddedToLibrary = isAddedToLibrary
 )

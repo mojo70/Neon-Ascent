@@ -25,7 +25,7 @@ enum class Somatotype {
 }
 
 enum class SetType {
-    NORMAL, WARMUP, DROP, FAILURE, REST_PAUSE
+    NORMAL, WARMUP, DROP, FAILURE, REST_PAUSE, WIDOWMAKER
 }
 
 data class Exercise(
@@ -49,7 +49,8 @@ data class WorkoutLog(
     val supersetId: String? = null,
     val augmentId: String? = null,
     val augmentName: String? = null,
-    val augmentColor: String? = null
+    val augmentColor: String? = null,
+    val showGoalReps: Boolean = false
 )
 
 data class WorkoutAugment(
@@ -69,6 +70,7 @@ data class SetLog(
     val weight: Float,
     val reps: Int,
     val type: SetType = SetType.NORMAL,
+    val goalReps: String? = null,
     val isCompleted: Boolean = false,
     val rir: Int? = null,
     val isWarmup: Boolean = false, // Deprecated in favor of type
@@ -97,7 +99,9 @@ data class WorkoutRoutine(
     val exercises: List<RoutineExercise> = emptyList(),
     val augments: List<WorkoutAugment> = emptyList(),
     val protocol: WorkoutProtocol = WorkoutProtocol.GENERAL,
-    val createdAt: Instant = Instant.now()
+    val createdAt: Instant = Instant.now(),
+    val isSystem: Boolean = false,
+    val isAddedToLibrary: Boolean = true
 )
 
 data class RoutineExercise(
@@ -108,5 +112,6 @@ data class RoutineExercise(
 data class RoutineSet(
     val type: SetType = SetType.NORMAL,
     val weight: Float = 0f,
-    val reps: Int = 0
+    val reps: Int = 0,
+    val goalReps: String? = null
 )

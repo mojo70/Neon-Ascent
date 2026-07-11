@@ -17,6 +17,7 @@ data class WorkoutUiState(
     val previousLogs: Map<String, List<SetLog>> = emptyMap(), // exerciseId -> sets
     val availableExercises: List<Exercise> = emptyList(),
     val routines: List<WorkoutRoutine> = emptyList(),
+    val exploreRoutines: List<WorkoutRoutine> = emptyList(),
     val augments: List<WorkoutAugment> = emptyList(),
     val exploreAugments: List<WorkoutAugment> = emptyList(),
     val isLoading: Boolean = false,
@@ -193,16 +194,25 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
-    fun updateRoutineExerciseSet(routineExercise: RoutineExercise, setIndex: Int, type: SetType? = null, weight: Float? = null, reps: Int? = null) {
+    fun updateRoutineExerciseSet(routineExercise: RoutineExercise, setIndex: Int, type: SetType? = null, weight: Float? = null, reps: Int? = null, goalReps: String? = null) {
         val updateFunc = { exercises: List<RoutineExercise> ->
             exercises.map { re ->
                 if (re === routineExercise) {
                     val updatedSets = re.sets.toMutableList()
                     if (setIndex in updatedSets.indices) {
-                        updatedSets[setIndex] = updatedSets[setIndex].copy(
-                            type = type ?: updatedSets[setIndex].type,
-                            weight = weight ?: updatedSets[setIndex].weight,
-                            reps = reps ?: updatedSets[setIndex].reps
+                        val currentSet = updatedSets[setIndex]
+                        val newType = type ?: currentSet.type
+                        val newGoalReps = if (type == SetType.WIDOWMAKER && currentSet.type != SetType.WIDOWMAKER) {
+                            "20"
+                        } else {
+                            goalReps ?: currentSet.goalReps
+                        }
+
+                        updatedSets[setIndex] = currentSet.copy(
+                            type = newType,
+                            weight = weight ?: currentSet.weight,
+                            reps = reps ?: currentSet.reps,
+                            goalReps = newGoalReps
                         )
                     }
                     re.copy(sets = updatedSets)
@@ -358,7 +368,10 @@ class WorkoutViewModel @Inject constructor(
     private fun loadRoutines() {
         viewModelScope.launch {
             repository.getAllRoutines().collect { routines ->
-                _uiState.update { it.copy(routines = routines) }
+                _uiState.update { it.copy(
+                    routines = routines.filter { r -> r.isAddedToLibrary },
+                    exploreRoutines = routines.filter { r -> r.isSystem && !r.isAddedToLibrary }
+                ) }
             }
         }
     }
@@ -377,6 +390,12 @@ class WorkoutViewModel @Inject constructor(
     fun toggleAugmentLibrary(augment: WorkoutAugment) {
         viewModelScope.launch {
             repository.saveAugment(augment.copy(isAddedToLibrary = !augment.isAddedToLibrary))
+        }
+    }
+
+    fun toggleRoutineLibrary(routine: WorkoutRoutine) {
+        viewModelScope.launch {
+            repository.saveRoutine(routine.copy(isAddedToLibrary = !routine.isAddedToLibrary))
         }
     }
 
@@ -477,7 +496,8 @@ class WorkoutViewModel @Inject constructor(
                         workoutLogId = workoutLog.id,
                         weight = routineSet.weight,
                         reps = routineSet.reps,
-                        type = routineSet.type
+                        type = routineSet.type,
+                        goalReps = routineSet.goalReps
                     )
                     repository.saveSetLog(setLog)
                 }
@@ -507,7 +527,8 @@ class WorkoutViewModel @Inject constructor(
                             workoutLogId = workoutLog.id,
                             weight = routineSet.weight,
                             reps = routineSet.reps,
-                            type = routineSet.type
+                            type = routineSet.type,
+                            goalReps = routineSet.goalReps
                         )
                         repository.saveSetLog(setLog)
                     }
@@ -572,11 +593,18 @@ class WorkoutViewModel @Inject constructor(
                     exerciseName = routineExercise.exercise.name,
                     augmentId = augment.id,
                     augmentName = augment.name,
-                    augmentColor = augment.colorHex
+                    augmentColor = augment.colorHex,
+                    showGoalReps = augment.isSystem // Mandatory for system augments
                 )
                 repository.saveWorkoutLog(workoutLog)
                 loadPreviousData(routineExercise.exercise.id)
             }
+        }
+    }
+
+    fun toggleGoalReps(workoutLog: WorkoutLog) {
+        viewModelScope.launch {
+            repository.updateShowGoalReps(workoutLog.id, !workoutLog.showGoalReps)
         }
     }
 
@@ -589,6 +617,7 @@ class WorkoutViewModel @Inject constructor(
             weight = weight,
             reps = reps,
             type = type,
+            goalReps = if (type == SetType.WIDOWMAKER) "20" else null,
             clusterMiniSetIndex = if (session.protocol == WorkoutProtocol.CYBER_CRAPP && type == SetType.REST_PAUSE) _uiState.value.currentClusterIndex else null
         )
 
@@ -601,11 +630,19 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
-    fun updateSet(setLog: SetLog, weight: Float? = null, reps: Int? = null, type: SetType? = null, isCompleted: Boolean? = null) {
+    fun updateSet(setLog: SetLog, weight: Float? = null, reps: Int? = null, type: SetType? = null, goalReps: String? = null, isCompleted: Boolean? = null) {
+        val newType = type ?: setLog.type
+        val newGoalReps = if (type == SetType.WIDOWMAKER && setLog.type != SetType.WIDOWMAKER) {
+            "20"
+        } else {
+            goalReps ?: setLog.goalReps
+        }
+
         val updatedSet = setLog.copy(
             weight = weight ?: setLog.weight,
             reps = reps ?: setLog.reps,
-            type = type ?: setLog.type,
+            type = newType,
+            goalReps = newGoalReps,
             isCompleted = isCompleted ?: setLog.isCompleted
         )
         
@@ -626,8 +663,8 @@ class WorkoutViewModel @Inject constructor(
     fun createSuperset(log1: WorkoutLog, log2: WorkoutLog) {
         val supersetId = UUID.randomUUID().toString()
         viewModelScope.launch {
-            repository.saveWorkoutLog(log1.copy(supersetId = supersetId))
-            repository.saveWorkoutLog(log2.copy(supersetId = supersetId))
+            repository.updateSupersetId(log1.id, supersetId)
+            repository.updateSupersetId(log2.id, supersetId)
         }
     }
 
@@ -744,7 +781,8 @@ class WorkoutViewModel @Inject constructor(
                             RoutineSet(
                                 type = setLog.type,
                                 weight = setLog.weight,
-                                reps = setLog.reps
+                                reps = setLog.reps,
+                                goalReps = setLog.goalReps
                             )
                         }
                     )

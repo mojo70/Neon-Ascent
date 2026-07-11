@@ -103,6 +103,12 @@ interface WorkoutDao {
     @Query("UPDATE workout_logs SET `order` = :newOrder WHERE id = :workoutLogId")
     suspend fun updateWorkoutLogOrder(workoutLogId: String, newOrder: Int)
 
+    @Query("UPDATE workout_logs SET showGoalReps = :show WHERE id = :workoutLogId")
+    suspend fun updateShowGoalReps(workoutLogId: String, show: Boolean)
+
+    @Query("UPDATE workout_logs SET supersetId = :supersetId WHERE id = :workoutLogId")
+    suspend fun updateSupersetId(workoutLogId: String, supersetId: String?)
+
     @Query("SELECT * FROM workout_sessions WHERE durationSeconds = 0 ORDER BY date DESC LIMIT 1")
     fun getActiveSession(): Flow<WorkoutSessionEntity?>
 
@@ -133,38 +139,51 @@ data class WorkoutLogWithSets(
 data class WorkoutRoutineWithDetails(
     @Embedded val routine: WorkoutRoutineEntity,
     @Relation(
-        entity = ExerciseDefinitionEntity::class,
+        entity = RoutineExerciseCrossRef::class,
         parentColumn = "id",
-        entityColumn = "id",
-        associateBy = Junction(
-            value = RoutineExerciseCrossRef::class,
-            parentColumn = "routineId",
-            entityColumn = "exerciseId"
-        )
+        entityColumn = "routineId"
     )
-    val exercises: List<ExerciseDefinitionEntity>,
+    val exercisesWithOrder: List<RoutineExerciseWithOrder>,
     @Relation(
         parentColumn = "id",
         entityColumn = "routineId"
     )
     val routineSets: List<RoutineSetEntity>,
     @Relation(
-        entity = WorkoutAugmentEntity::class,
+        entity = RoutineAugmentCrossRef::class,
         parentColumn = "id",
-        entityColumn = "id",
-        associateBy = Junction(
-            value = RoutineAugmentCrossRef::class,
-            parentColumn = "routineId",
-            entityColumn = "augmentId"
-        )
+        entityColumn = "routineId"
     )
-    val augments: List<WorkoutAugmentWithExercises>
+    val augmentsWithOrder: List<RoutineAugmentWithOrder>
+)
+
+data class RoutineExerciseWithOrder(
+    @Embedded val ref: RoutineExerciseCrossRef,
+    @Relation(
+        parentColumn = "exerciseId",
+        entityColumn = "id"
+    )
+    val exercise: ExerciseDefinitionEntity
+)
+
+data class RoutineAugmentWithOrder(
+    @Embedded val ref: RoutineAugmentCrossRef,
+    @Relation(
+        entity = WorkoutAugmentEntity::class,
+        parentColumn = "augmentId",
+        entityColumn = "id"
+    )
+    val augmentDetails: WorkoutAugmentWithExercises
 )
 
 data class WorkoutAugmentWithExercises(
     @Embedded val augment: WorkoutAugmentEntity,
     @Relation(
-        entity = ExerciseDefinitionEntity::class,
+        parentColumn = "id",
+        entityColumn = "augmentId"
+    )
+    val exerciseRefs: List<AugmentExerciseCrossRef>,
+    @Relation(
         parentColumn = "id",
         entityColumn = "id",
         associateBy = Junction(

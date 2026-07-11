@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -83,7 +84,8 @@ fun WorkoutLoggingScreen(
                         onCreateRoutine = { viewModel.startCreateRoutine() },
                         onCreateAugment = { viewModel.startCreateAugment() },
                         onRoutineActionClick = { showRoutineActionMenuFor = it },
-                        onAddAugment = { viewModel.toggleAugmentLibrary(it) }
+                        onAddAugment = { viewModel.toggleAugmentLibrary(it) },
+                        onAddRoutine = { viewModel.toggleRoutineLibrary(it) }
                     )
                 }
             } else if (uiState.isReorderingExercises) {
@@ -336,7 +338,8 @@ fun WorkoutIntakeScreen(
     onCreateRoutine: () -> Unit,
     onCreateAugment: () -> Unit,
     onRoutineActionClick: (WorkoutRoutine) -> Unit,
-    onAddAugment: (WorkoutAugment) -> Unit
+    onAddAugment: (WorkoutAugment) -> Unit,
+    onAddRoutine: (WorkoutRoutine) -> Unit
 ) {
     var isRoutinesExpanded by remember { mutableStateOf(true) }
     var isAugmentsExpanded by remember { mutableStateOf(true) }
@@ -459,6 +462,9 @@ fun WorkoutIntakeScreen(
                 },
                 onAddAugment = {
                     onAddAugment(it)
+                },
+                onAddRoutine = {
+                    onAddRoutine(it)
                 },
                 onDismiss = { showExploreProtocols = false }
             )
@@ -1032,10 +1038,11 @@ fun CreateAugmentScreen(
 fun RoutineExerciseItem(
     routineExercise: RoutineExercise,
     viewModel: WorkoutViewModel,
+    isPrescriptive: Boolean = false,
     onRemove: () -> Unit
 ) {
     var showSetTypeSelectorForIndex by remember { mutableStateOf<Int?>(null) }
-
+    
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1064,7 +1071,7 @@ fun RoutineExerciseItem(
         // Set Table Header
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("SET", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1f))
-            Text("TYPE", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(2f))
+            Text("GOAL", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center)
             Text("LBS", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center)
             Text("REPS", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center)
             Box(modifier = Modifier.size(24.dp)) // Spacer for remove button
@@ -1079,31 +1086,41 @@ fun RoutineExerciseItem(
                     .padding(vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("${index + 1}", color = Color.White, fontSize = 14.sp, modifier = Modifier.weight(1f))
-                
-                // Set Type Button
+                // Set Label (Clickable to change type)
                 Box(
                     modifier = Modifier
-                        .weight(2f)
+                        .weight(1f)
                         .clickable { showSetTypeSelectorForIndex = index },
                     contentAlignment = Alignment.CenterStart
                 ) {
                     val label = when (set.type) {
-                        SetType.NORMAL -> "Normal"
-                        SetType.WARMUP -> "Warmup"
-                        SetType.DROP -> "Drop"
-                        SetType.FAILURE -> "Failure"
-                        SetType.REST_PAUSE -> "Rest-Pause"
+                        SetType.NORMAL -> "${index + 1}"
+                        SetType.WARMUP -> "W"
+                        SetType.DROP -> "D"
+                        SetType.FAILURE -> "F"
+                        SetType.REST_PAUSE -> "RP"
+                        SetType.WIDOWMAKER -> "WM"
                     }
                     val color = when (set.type) {
                         SetType.WARMUP -> Color(0xFFFFA500)
                         SetType.DROP -> Color(0xFF00CCFF)
                         SetType.FAILURE -> Color(0xFFFF4444)
                         SetType.REST_PAUSE -> Color(0xFF00FFAA)
+                        SetType.WIDOWMAKER -> Color(0xFFFF00FF) // Purple for WM
                         else -> Color.White
                     }
-                    Text(label, color = color, fontSize = 14.sp)
+                    Text(label, color = color, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
+
+                // Goal Input
+                val isGoalMandatory = set.type == SetType.WIDOWMAKER || isPrescriptive
+                EditableValueBox(
+                    value = set.goalReps ?: "",
+                    onValueChange = { viewModel.updateRoutineExerciseSet(routineExercise, index, goalReps = it) },
+                    modifier = Modifier.weight(1.5f),
+                    keyboardType = KeyboardType.Text,
+                    enabled = !isGoalMandatory
+                )
 
                 // Weight Input
                 EditableValueBox(
@@ -1228,7 +1245,14 @@ fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel) {
     }
 
     if (showActionMenuFor != null) {
+        val isPrescriptiveAugment = remember(showActionMenuFor, uiState.augments, uiState.exploreAugments) {
+            showActionMenuFor?.augmentId != null && (uiState.augments + uiState.exploreAugments).any { it.id == showActionMenuFor?.augmentId && it.isSystem }
+        }
+        val isMandatoryGoal = uiState.session?.protocol == WorkoutProtocol.CYBER_CRAPP || isPrescriptiveAugment
+
         WorkoutExerciseActionMenu(
+            workoutLog = showActionMenuFor!!,
+            isMandatoryGoal = isMandatoryGoal,
             onReorder = { 
                 viewModel.startReordering()
                 showActionMenuFor = null
@@ -1241,6 +1265,9 @@ fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel) {
             onAddSuperset = { 
                 showSupersetMenuFor = showActionMenuFor
                 showActionMenuFor = null
+            },
+            onToggleGoalReps = {
+                viewModel.toggleGoalReps(showActionMenuFor!!)
             },
             onRemove = {
                 viewModel.removeWorkoutLog(showActionMenuFor!!)
@@ -1533,9 +1560,12 @@ fun WorkoutRoutineActionMenu(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkoutExerciseActionMenu(
+    workoutLog: WorkoutLog,
+    isMandatoryGoal: Boolean,
     onReorder: () -> Unit,
     onReplace: () -> Unit,
     onAddSuperset: () -> Unit,
+    onToggleGoalReps: () -> Unit,
     onRemove: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -1558,7 +1588,6 @@ fun WorkoutExerciseActionMenu(
                 label = "Replace Exercise",
                 onClick = {
                     onReplace()
-                    // onDismiss handled by parent
                 }
             )
             ActionMenuItem(
@@ -1569,6 +1598,17 @@ fun WorkoutExerciseActionMenu(
                     onDismiss()
                 }
             )
+
+            if (!isMandatoryGoal) {
+                ActionMenuItem(
+                    icon = if (workoutLog.showGoalReps) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    label = if (workoutLog.showGoalReps) "Hide Goal Reps" else "Show Goal Reps",
+                    onClick = {
+                        onToggleGoalReps()
+                        onDismiss()
+                    }
+                )
+            }
             
             HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f))
             
@@ -1578,7 +1618,6 @@ fun WorkoutExerciseActionMenu(
                 color = Color.Red,
                 onClick = {
                     onRemove()
-                    // onDismiss handled by parent
                 }
             )
         }
@@ -2134,6 +2173,15 @@ fun WorkoutLogCard(
     val previousSets = uiState.previousLogs[log.exerciseId] ?: emptyList()
     var showSetTypeSelector by remember { mutableStateOf<SetLog?>(null) }
     
+    val isPrescriptiveAugment = remember(log.augmentId, uiState.augments, uiState.exploreAugments) {
+        log.augmentId != null && (uiState.augments + uiState.exploreAugments).any { it.id == log.augmentId && it.isSystem }
+    }
+    
+    val showGoalColumn = uiState.session?.protocol == WorkoutProtocol.CYBER_CRAPP || 
+                        isPrescriptiveAugment ||
+                        log.showGoalReps ||
+                        sets.any { it.goalReps != null }
+    
     val augmentColor = log.augmentColor?.let { Color(android.graphics.Color.parseColor(it)) } ?: Color(0xFF007AFF)
 
     Column(
@@ -2218,6 +2266,9 @@ fun WorkoutLogCard(
         // Set Table Header
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("SET", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1f))
+            if (showGoalColumn) {
+                Text("GOAL", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center)
+            }
             Text("PREVIOUS", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(2f))
             Text("LBS", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center)
             Text("REPS", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center)
@@ -2232,9 +2283,11 @@ fun WorkoutLogCard(
                 SetLogRow(
                     setNumber = index + 1,
                     set = set,
+                    showGoal = showGoalColumn,
                     previousData = prevSet?.let { "${if (it.weight % 1 == 0f) it.weight.toInt() else it.weight}lbs x ${it.reps}" } ?: "",
                     onUpdateWeight = { viewModel.updateSet(set, weight = it) },
                     onUpdateReps = { viewModel.updateSet(set, reps = it) },
+                    onUpdateGoal = { viewModel.updateSet(set, goalReps = it) },
                     onCompleteToggle = { viewModel.updateSet(set, isCompleted = !set.isCompleted) },
                     onSetLabelClick = { showSetTypeSelector = set }
                 )
@@ -2278,9 +2331,11 @@ fun WorkoutLogCard(
 fun SetLogRow(
     setNumber: Int,
     set: SetLog,
+    showGoal: Boolean,
     previousData: String,
     onUpdateWeight: (Float) -> Unit,
     onUpdateReps: (Int) -> Unit,
+    onUpdateGoal: (String) -> Unit,
     onCompleteToggle: () -> Unit,
     onSetLabelClick: () -> Unit
 ) {
@@ -2306,15 +2361,29 @@ fun SetLogRow(
                 SetType.DROP -> "D"
                 SetType.FAILURE -> "F"
                 SetType.REST_PAUSE -> "RP"
+                SetType.WIDOWMAKER -> "WM"
             }
             val color = when (set.type) {
                 SetType.WARMUP -> Color(0xFFFFA500)
                 SetType.DROP -> Color(0xFF00CCFF)
                 SetType.FAILURE -> Color(0xFFFF4444)
                 SetType.REST_PAUSE -> Color(0xFF00FFAA)
+                SetType.WIDOWMAKER -> Color(0xFFFF00FF)
                 else -> Color.White
             }
             Text(label, color = color, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        }
+
+        // Goal Input
+        if (showGoal) {
+            val isGoalMandatory = set.type == SetType.WIDOWMAKER
+            EditableValueBox(
+                value = set.goalReps ?: "",
+                onValueChange = { onUpdateGoal(it) },
+                modifier = Modifier.weight(1.5f),
+                keyboardType = KeyboardType.Text,
+                enabled = !isGoalMandatory
+            )
         }
 
         // Previous Data
@@ -2362,7 +2431,8 @@ fun EditableValueBox(
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
-    keyboardType: KeyboardType = KeyboardType.Number
+    keyboardType: KeyboardType = KeyboardType.Number,
+    enabled: Boolean = true
 ) {
     var text by remember { mutableStateOf(value) }
     var isFocused by remember { mutableStateOf(false) }
@@ -2378,23 +2448,27 @@ fun EditableValueBox(
     Box(
         modifier = modifier
             .padding(horizontal = 4.dp)
-            .background(Color(0xFF1C1C1E), RoundedCornerShape(4.dp))
+            .background(if (enabled) Color(0xFF1C1C1E) else Color.Transparent, RoundedCornerShape(4.dp))
             .padding(vertical = 4.dp),
         contentAlignment = Alignment.Center
     ) {
         BasicTextField(
             value = text,
             onValueChange = {
-                // Allow empty string or numeric values only, and limit length
-                if (it.isEmpty() || it.toDoubleOrNull() != null || it == "." || it == ",") {
-                    if (it.length <= 6) {
-                        text = it
-                        onValueChange(it)
-                    }
+                val isValid = if (keyboardType == KeyboardType.Text) {
+                    it.length <= 10
+                } else {
+                    it.isEmpty() || it.toDoubleOrNull() != null || it == "." || it == "," || it == "-"
+                }
+                
+                if (isValid) {
+                    text = it
+                    onValueChange(it)
                 }
             },
+            enabled = enabled,
             textStyle = TextStyle(
-                color = Color.White,
+                color = if (enabled) Color.White else Color.Gray,
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center,
                 fontFamily = FontFamily.Monospace
@@ -2446,6 +2520,7 @@ fun SetTypeSelectorBottomSheet(
             SetTypeOption("F", "Failure Set", Color(0xFFFF4444)) { onTypeSelected(SetType.FAILURE) }
             SetTypeOption("D", "Drop Set", Color(0xFF00CCFF)) { onTypeSelected(SetType.DROP) }
             SetTypeOption("RP", "Rest Pause", Color(0xFF00FFAA)) { onTypeSelected(SetType.REST_PAUSE) }
+            SetTypeOption("WM", "Widowmaker (20 Reps)", Color(0xFFFF00FF)) { onTypeSelected(SetType.WIDOWMAKER) }
             
             HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f), modifier = Modifier.padding(vertical = 8.dp))
             
@@ -2493,6 +2568,7 @@ fun ExploreProtocolsDialog(
     uiState: WorkoutUiState,
     onStartProtocol: (WorkoutProtocol) -> Unit,
     onAddAugment: (WorkoutAugment) -> Unit,
+    onAddRoutine: (WorkoutRoutine) -> Unit,
     onDismiss: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss) {
@@ -2524,20 +2600,61 @@ fun ExploreProtocolsDialog(
                     }
                     
                     items(WorkoutProtocol.entries) { protocol ->
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onStartProtocol(protocol) },
-                            color = Color(0xFF2C2C2E),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                        val protocolRoutines = uiState.exploreRoutines.filter { it.protocol == protocol }
+                        
+                        Column {
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onStartProtocol(protocol) },
+                                color = Color(0xFF2C2C2E),
+                                shape = RoundedCornerShape(12.dp)
                             ) {
-                                Text(protocol.name, color = Color.White, fontWeight = FontWeight.Bold)
-                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color(0xFF00CCFF))
+                                Row(
+                                    modifier = Modifier.padding(16.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(protocol.name, color = Color.White, fontWeight = FontWeight.Bold)
+                                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color(0xFF00CCFF))
+                                }
+                            }
+                            
+                            if (protocolRoutines.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                protocolRoutines.forEach { routine ->
+                                    Surface(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 16.dp, bottom = 8.dp),
+                                        color = Color(0xFF2C2C2E),
+                                        shape = RoundedCornerShape(12.dp),
+                                        border = BorderStroke(1.dp, Color(0xFF007AFF).copy(alpha = 0.3f))
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(12.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(routine.name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                                Text(
+                                                    routine.exercises.joinToString(", ") { it.exercise.name },
+                                                    color = Color.Gray,
+                                                    fontSize = 11.sp,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                            IconButton(
+                                                onClick = { onAddRoutine(routine) },
+                                                modifier = Modifier.size(32.dp)
+                                            ) {
+                                                Icon(Icons.Default.Add, contentDescription = "Add Routine", tint = Color(0xFF007AFF))
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

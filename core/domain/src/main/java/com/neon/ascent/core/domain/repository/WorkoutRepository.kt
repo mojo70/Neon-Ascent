@@ -36,6 +36,8 @@ interface WorkoutRepository {
 
     suspend fun deleteWorkoutLog(workoutLogId: String)
     suspend fun updateWorkoutLogOrder(workoutLogId: String, newOrder: Int)
+    suspend fun updateShowGoalReps(workoutLogId: String, show: Boolean)
+    suspend fun updateSupersetId(workoutLogId: String, supersetId: String?)
     suspend fun deleteSetLog(setLogId: String)
 
     suspend fun seedStarterExercises()

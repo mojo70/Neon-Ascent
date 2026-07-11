@@ -54,7 +54,8 @@ data class WorkoutLogEntity(
     val supersetId: String? = null,
     val augmentId: String? = null,
     val augmentName: String? = null,
-    val augmentColor: String? = null
+    val augmentColor: String? = null,
+    val showGoalReps: Boolean = false
 )
 
 @Entity(tableName = "workout_augments")
@@ -118,7 +119,8 @@ data class AugmentSetEntity(
     val order: Int,
     val type: String,
     val weight: Float,
-    val reps: Int
+    val reps: Int,
+    val goalReps: String? = null
 )
 
 @Entity(
@@ -164,6 +166,7 @@ data class SetLogEntity(
     val weight: Float,
     val reps: Int,
     val setType: String,
+    val goalReps: String? = null,
     val isCompleted: Boolean,
     val rir: Int?,
     val isWarmup: Boolean,
@@ -190,7 +193,9 @@ data class WorkoutRoutineEntity(
     val name: String,
     val description: String?,
     val protocol: String,
-    val createdAt: Instant
+    val createdAt: Instant,
+    val isSystem: Boolean = false,
+    val isAddedToLibrary: Boolean = true
 )
 
 @Entity(
@@ -243,5 +248,6 @@ data class RoutineSetEntity(
     val order: Int,
     val type: String,
     val weight: Float,
-    val reps: Int
+    val reps: Int,
+    val goalReps: String? = null
 )

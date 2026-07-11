@@ -62,7 +62,7 @@ class WorkoutRepositoryImpl @Inject constructor(
 
     override fun getAllRoutines(): Flow<List<WorkoutRoutine>> =
         workoutDao.getAllRoutines().map { list ->
-            list.map { it.routine.toDomain(it.exercises, it.routineSets, it.augments) }
+            list.map { it.routine.toDomain(it.exercisesWithOrder, it.routineSets, it.augmentsWithOrder) }
         }
 
     override suspend fun saveRoutine(routine: WorkoutRoutine) {
@@ -85,7 +85,8 @@ class WorkoutRepositoryImpl @Inject constructor(
                         order = setIndex,
                         type = set.type.name,
                         weight = set.weight,
-                        reps = set.reps
+                        reps = set.reps,
+                        goalReps = set.goalReps
                     )
                 )
             }
@@ -103,7 +104,7 @@ class WorkoutRepositoryImpl @Inject constructor(
 
     override fun getAllAugments(): Flow<List<WorkoutAugment>> =
         workoutDao.getAllAugments().map { list ->
-            list.map { it.augment.toDomain(it.exercises, it.augmentSets) }
+            list.map { it.augment.toDomain(it.exercises, it.exerciseRefs, it.augmentSets) }
         }
 
     override suspend fun saveAugment(augment: WorkoutAugment) {
@@ -126,7 +127,8 @@ class WorkoutRepositoryImpl @Inject constructor(
                         order = setIndex,
                         type = set.type.name,
                         weight = set.weight,
-                        reps = set.reps
+                        reps = set.reps,
+                        goalReps = set.goalReps
                     )
                 )
             }
@@ -351,6 +353,52 @@ class WorkoutRepositoryImpl @Inject constructor(
         )
         saveAugment(gorillaArms)
 
+        // Seed CyberCrapp A Routine
+        val cyberCrappA = WorkoutRoutine(
+            id = "routine_cybercrapp_a",
+            name = "CyberCrapp A",
+            description = "Prescriptive CyberCrapp protocol focusing on heavy compounds and high intensity finishers.",
+            protocol = WorkoutProtocol.CYBER_CRAPP,
+            isSystem = true,
+            isAddedToLibrary = false, // Show in library, not directly in "My Routines"
+            exercises = listOf(
+                RoutineExercise(
+                    exercise = exercises.find { it.id == "bench_press" }!!,
+                    sets = listOf(
+                        RoutineSet(type = SetType.WARMUP),
+                        RoutineSet(type = SetType.WARMUP),
+                        RoutineSet(type = SetType.REST_PAUSE)
+                    )
+                ),
+                RoutineExercise(
+                    exercise = exercises.find { it.id == "bent_over_row" }!!,
+                    sets = listOf(
+                        RoutineSet(type = SetType.WARMUP),
+                        RoutineSet(type = SetType.WARMUP),
+                        RoutineSet(type = SetType.REST_PAUSE)
+                    )
+                ),
+                RoutineExercise(
+                    exercise = exercises.find { it.id == "back_squat" }!!,
+                    sets = listOf(
+                        RoutineSet(type = SetType.WARMUP),
+                        RoutineSet(type = SetType.WARMUP),
+                        RoutineSet(type = SetType.NORMAL),
+                        RoutineSet(type = SetType.WIDOWMAKER, goalReps = "20")
+                    )
+                ),
+                RoutineExercise(
+                    exercise = exercises.find { it.id == "deadlift" }!!,
+                    sets = listOf(
+                        RoutineSet(type = SetType.WARMUP),
+                        RoutineSet(type = SetType.WARMUP),
+                        RoutineSet(type = SetType.NORMAL)
+                    )
+                )
+            )
+        )
+        saveRoutine(cyberCrappA)
+
         // Ensure old default routines are removed as requested
         workoutDao.deleteRoutine("routine_strength")
         workoutDao.deleteRoutine("routine_strength_2")
@@ -387,6 +435,14 @@ class WorkoutRepositoryImpl @Inject constructor(
 
     override suspend fun updateWorkoutLogOrder(workoutLogId: String, newOrder: Int) {
         workoutDao.updateWorkoutLogOrder(workoutLogId, newOrder)
+    }
+
+    override suspend fun updateShowGoalReps(workoutLogId: String, show: Boolean) {
+        workoutDao.updateShowGoalReps(workoutLogId, show)
+    }
+
+    override suspend fun updateSupersetId(workoutLogId: String, supersetId: String?) {
+        workoutDao.updateSupersetId(workoutLogId, supersetId)
     }
 
     override suspend fun deleteSetLog(setLogId: String) {
