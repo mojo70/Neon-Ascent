@@ -13,7 +13,62 @@ data class WorkoutSession(
 )
 
 enum class WorkoutProtocol {
-    GENERAL, CYBER_CRAPP, STRAIGHT_SETS, DUP, SUPERSETS
+    GENERAL, CYBER_CRAPP, STRAIGHT_SETS, DUP, SUPERSETS;
+
+    val displayName: String
+        get() = when (this) {
+            GENERAL -> "GENERAL"
+            CYBER_CRAPP -> "CYBERCRAPP"
+            STRAIGHT_SETS -> "STRAIGHT SETS"
+            DUP -> "D.U.P."
+            SUPERSETS -> "SUPERSETS"
+        }
+
+    val description: String
+        get() = when (this) {
+            GENERAL -> "Versatile foundational programming for overall athletic performance and hypertrophy."
+            CYBER_CRAPP -> "High-intensity rest-pause protocol designed for maximum effective reps and time efficiency."
+            STRAIGHT_SETS -> "Classical volume-based training focusing on steady progression and form mastery."
+            DUP -> "Daily Undulating Periodization: varying intensity and volume daily to optimize strength and muscle gain."
+            SUPERSETS -> "Paired exercises to maximize training density and metabolic stress."
+        }
+
+    val tenants: List<String>
+        get() = when (this) {
+            GENERAL -> listOf(
+                "Progressive overload across multiple rep ranges",
+                "Balanced focus on strength and hypertrophy",
+                "Adaptive recovery based on biometrics"
+            )
+            CYBER_CRAPP -> listOf(
+                "1 Main Set to failure + 2 rest-pause 'mini-sets'",
+                "Mandatory 10-second loaded stretch for hypertrophy",
+                "Maximum 'Effective Rep' density in under 45 mins"
+            )
+            STRAIGHT_SETS -> listOf(
+                "Standardized set/rep schemes (e.g., 3x10)",
+                "Focus on 'perfect' neural execution",
+                "Linear weight progression session-to-session"
+            )
+            DUP -> listOf(
+                "Alternating 'Hypertrophy', 'Power', and 'Strength' days",
+                "Prevents neural adaptation through variety",
+                "Optimized for advanced operatives"
+            )
+            SUPERSETS -> listOf(
+                "Antagonist muscle pairing for efficiency",
+                "Elevated heart rate for cardiovascular benefit",
+                "Minimal rest between paired movements"
+            )
+        }
+
+    val methodology: String
+        get() = when (this) {
+            CYBER_CRAPP -> "REST-PAUSE CLUSTERS: After warmups, perform one set to failure. Rest 15 seconds. Perform a second mini-set to failure. Rest 15 seconds. Perform a third mini-set. Follow with a 10s finisher and a loaded stretch."
+            STRAIGHT_SETS -> "LINEAR PROGRESSION: Perform all sets for the prescribed reps. If successful, increase weight next session. Rest 2-3 minutes between sets."
+            DUP -> "DAILY UNDULATION: Volume and intensity fluctuate every session. Focus on explosive power on Power days, and mind-muscle connection on Hypertrophy days."
+            else -> "STANDARD OVERLOAD: Focus on consistent form and incremental increases in resistance or volume."
+        }
 }
 
 enum class CyberCrappPhase {
@@ -101,7 +156,6 @@ data class UserWorkoutProfile(
     val experienceLevel: ExperienceLevel = ExperienceLevel.INTERMEDIATE,
     val somatotype: Somatotype = Somatotype.MESOMORPH,
     val injuries: List<String> = emptyList(),
-    val preferredDays: List<Int> = emptyList(),
     val timePerSessionMinutes: Int = 60,
     
     // Bio-data for Macros/TDEE
@@ -110,7 +164,18 @@ data class UserWorkoutProfile(
     val weightKg: Float = 75f,
     val gender: Gender = Gender.MALE,
     val activityFactor: Float = 1.375f, // Default: Lightly Active
-    val unitSystem: UnitSystem = UnitSystem.IMPERIAL
+    val unitSystem: UnitSystem = UnitSystem.IMPERIAL,
+
+    // Active Protocol & Scheduling
+    val activeProtocol: WorkoutProtocol? = null,
+    val rotationIndex: Int = 0,
+    val scheduledDays: List<ScheduledDay> = emptyList(),
+    val deepLinkToRoutine: Boolean = true
+)
+
+data class ScheduledDay(
+    val dayOfWeek: Int, // 1 (Mon) to 7 (Sun)
+    val time: String // HH:mm
 )
 
 data class WorkoutRoutine(

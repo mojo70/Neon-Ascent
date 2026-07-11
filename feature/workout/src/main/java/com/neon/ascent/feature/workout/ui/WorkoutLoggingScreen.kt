@@ -64,7 +64,11 @@ fun WorkoutLoggingScreen(
         if (uiState.userProfile == null && !uiState.isLoading) {
             OnboardingScreen(onComplete = { viewModel.resumeUserProfile() })
         } else {
-            Column(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+            ) {
                 if (uiState.session == null) {
                     if (uiState.isShowingProgress) {
                         WorkoutProgressScreen(
@@ -87,6 +91,51 @@ fun WorkoutLoggingScreen(
                             onUpdateBodyPart = { viewModel.updateNewAugmentBodyPart(it) },
                             viewModel = viewModel
                         )
+                    } else if (uiState.configuringProtocol != null) {
+                        ProtocolConfigScreen(
+                            protocol = uiState.configuringProtocol!!,
+                            tempProfile = uiState.tempConfigProfile!!,
+                            onUpdateSchedule = { viewModel.updateConfigSchedule(it) },
+                            onSave = { viewModel.saveProtocolConfiguration() },
+                            onCancel = { viewModel.cancelProtocolConfiguration() }
+                        )
+                    } else if (uiState.selectedRoutineForPreview != null) {
+                        RoutinePreviewScreen(
+                            routine = uiState.selectedRoutineForPreview!!,
+                            onBack = { viewModel.hideRoutinePreview() },
+                            onAdd = { 
+                                viewModel.toggleRoutineLibrary(it)
+                                viewModel.hideRoutinePreview()
+                            },
+                            onStart = { 
+                                viewModel.startRoutine(it)
+                                viewModel.hideRoutinePreview()
+                                viewModel.hideProtocolDetail()
+                                viewModel.hideExploreProtocols()
+                            }
+                        )
+                    } else if (uiState.selectedProtocolForDetail != null) {
+                        ProtocolDetailScreen(
+                            protocol = uiState.selectedProtocolForDetail!!,
+                            uiState = uiState,
+                            onBack = { viewModel.hideProtocolDetail() },
+                            onStartProtocol = { 
+                                viewModel.startSession(it)
+                                viewModel.hideExploreProtocols()
+                            },
+                            onAddProtocol = { viewModel.addProtocolToLibrary(it) },
+                            onAddRoutine = { viewModel.toggleRoutineLibrary(it) },
+                            onRoutineClick = { viewModel.showRoutinePreview(it) }
+                        )
+                    } else if (uiState.isExploringProtocols) {
+                        WorkoutExploreScreen(
+                            uiState = uiState,
+                            onBack = { viewModel.hideExploreProtocols() },
+                            onProtocolClick = { viewModel.showProtocolDetail(it) },
+                            onAddProtocol = { viewModel.addProtocolToLibrary(it) },
+                            onAddAugment = { viewModel.toggleAugmentLibrary(it) },
+                            onAddRoutine = { viewModel.toggleRoutineLibrary(it) }
+                        )
                     } else {
                         WorkoutIntakeScreen(
                             uiState = uiState,
@@ -97,8 +146,10 @@ fun WorkoutLoggingScreen(
                             onCreateRoutine = { viewModel.startCreateRoutine() },
                             onCreateAugment = { viewModel.startCreateAugment() },
                             onRoutineActionClick = { showRoutineActionMenuFor = it },
+                            onExplore = { viewModel.startExploreProtocols() },
                             onAddAugment = { viewModel.toggleAugmentLibrary(it) },
-                            onAddRoutine = { viewModel.toggleRoutineLibrary(it) }
+                            onAddRoutine = { viewModel.toggleRoutineLibrary(it) },
+                            onDeactivateProtocol = { viewModel.initiateDeactivateProtocol() }
                         )
                     }
                 } else if (uiState.isReorderingExercises) {
@@ -162,6 +213,45 @@ fun WorkoutLoggingScreen(
                     }
                 }
             }
+        }
+
+        // Deactivate Protocol Dialog
+        if (uiState.showDeactivateProtocolDialog) {
+            AlertDialog(
+                onDismissRequest = { viewModel.cancelDeactivateProtocol() },
+                title = { Text("DEACTIVATE PROTOCOL", color = Color.White, fontWeight = FontWeight.Black) },
+                text = { 
+                    Column {
+                        Text("Are you sure you want to deactivate your active protocol?", color = Color.Gray)
+                        Spacer(Modifier.height(16.dp))
+                        Text("Would you also like to remove the associated routines from your library?", color = Color.White, fontSize = 14.sp)
+                    }
+                },
+                confirmButton = {
+                    Column {
+                        Button(
+                            onClick = { viewModel.confirmDeactivateProtocol(removeRoutines = true) },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                        ) {
+                            Text("DEACTIVATE & REMOVE ROUTINES", fontSize = 12.sp, fontWeight = FontWeight.Black)
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        TextButton(
+                            onClick = { viewModel.confirmDeactivateProtocol(removeRoutines = false) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("DEACTIVATE ONLY (KEEP ROUTINES)", color = Color(0xFF00FF9C), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.cancelDeactivateProtocol() }) {
+                        Text("CANCEL", color = Color.Gray)
+                    }
+                },
+                containerColor = Color(0xFF1C1C1E)
+            )
         }
 
         // Active Session Error Dialog
@@ -412,12 +502,13 @@ fun WorkoutIntakeScreen(
     onCreateRoutine: () -> Unit,
     onCreateAugment: () -> Unit,
     onRoutineActionClick: (WorkoutRoutine) -> Unit,
+    onExplore: () -> Unit,
     onAddAugment: (WorkoutAugment) -> Unit,
-    onAddRoutine: (WorkoutRoutine) -> Unit
+    onAddRoutine: (WorkoutRoutine) -> Unit,
+    onDeactivateProtocol: () -> Unit
 ) {
     var isRoutinesExpanded by remember { mutableStateOf(true) }
     var isAugmentsExpanded by remember { mutableStateOf(true) }
-    var showExploreProtocols by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -426,29 +517,24 @@ fun WorkoutIntakeScreen(
             .padding(horizontal = 16.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
-        
         // Header
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.clickable { onBack() }
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                }
                 Text(
-                    "Workout",
+                    "WORKOUT",
                     color = Color.White,
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Icon(
-                    Icons.Default.KeyboardArrowDown,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(28.dp)
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 2.sp
                 )
             }
             Row {
@@ -472,6 +558,14 @@ fun WorkoutIntakeScreen(
         }
 
         Spacer(modifier = Modifier.height(20.dp))
+
+        uiState.userProfile?.activeProtocol?.let { protocol ->
+            ActiveProtocolCard(
+                protocol = protocol,
+                onDeactivate = onDeactivateProtocol
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+        }
 
         // Start Empty Workout Button
         Button(
@@ -533,24 +627,7 @@ fun WorkoutIntakeScreen(
                 icon = Icons.Default.Search,
                 label = "Explore",
                 modifier = Modifier.weight(1f),
-                onClick = { showExploreProtocols = true }
-            )
-        }
-
-        if (showExploreProtocols) {
-            ExploreProtocolsDialog(
-                uiState = uiState,
-                onStartProtocol = {
-                    onStartProtocol(it)
-                    showExploreProtocols = false
-                },
-                onAddAugment = {
-                    onAddAugment(it)
-                },
-                onAddRoutine = {
-                    onAddRoutine(it)
-                },
-                onDismiss = { showExploreProtocols = false }
+                onClick = onExplore
             )
         }
 
@@ -580,6 +657,7 @@ fun WorkoutIntakeScreen(
 
         if (isRoutinesExpanded) {
             Spacer(modifier = Modifier.height(8.dp))
+            
             uiState.routines.forEach { routine ->
                 RoutineCard(
                     routine = routine, 
@@ -626,6 +704,83 @@ fun WorkoutIntakeScreen(
         }
         
         Spacer(modifier = Modifier.height(100.dp))
+    }
+}
+
+@Composable
+fun ActiveProtocolCard(protocol: WorkoutProtocol, onDeactivate: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { expanded = !expanded },
+        color = Color(0xFF00FF9C).copy(alpha = 0.1f),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.5f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Adjust, contentDescription = null, tint = Color(0xFF00FF9C), modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("ACTIVE PROTOCOL", color = Color(0xFF00FF9C), fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
+                }
+                Icon(
+                    if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = Color(0xFF00FF9C).copy(alpha = 0.7f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Text(
+                protocol.displayName,
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Black,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            
+            if (expanded) {
+                Text(
+                    protocol.description,
+                    color = Color.White.copy(alpha = 0.8f),
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("PROTOCOL TENANTS", color = Color(0xFF00FF9C), fontSize = 10.sp, fontWeight = FontWeight.Black)
+                protocol.tenants.forEach { tenant ->
+                    Row(modifier = Modifier.padding(top = 8.dp)) {
+                        Text("•", color = Color(0xFF00FF9C), modifier = Modifier.padding(end = 8.dp))
+                        Text(tenant, color = Color.Gray, fontSize = 11.sp)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedButton(
+                    onClick = onDeactivate,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
+                    border = BorderStroke(1.dp, Color.Red.copy(alpha = 0.5f))
+                ) {
+                    Text("DEACTIVATE PROTOCOL", fontSize = 12.sp, fontWeight = FontWeight.Black)
+                }
+            } else {
+                Text(
+                    "Strict rotation enabled. Next routine auto-sequenced.",
+                    color = Color.Gray,
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+        }
     }
 }
 
@@ -3356,171 +3511,752 @@ fun SetTypeOption(label: String, description: String, color: Color, onClick: () 
 }
 
 @Composable
-fun ExploreProtocolsDialog(
+fun WorkoutExploreScreen(
     uiState: WorkoutUiState,
-    onStartProtocol: (WorkoutProtocol) -> Unit,
+    onBack: () -> Unit,
+    onProtocolClick: (WorkoutProtocol) -> Unit,
+    onAddProtocol: (WorkoutProtocol) -> Unit,
     onAddAugment: (WorkoutAugment) -> Unit,
-    onAddRoutine: (WorkoutRoutine) -> Unit,
-    onDismiss: () -> Unit
+    onAddRoutine: (WorkoutRoutine) -> Unit
 ) {
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF000000))
+            .statusBarsPadding()
+    ) {
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.85f),
-            color = Color(0xFF1C1C1E),
-            shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, Color(0xFF00CCFF).copy(alpha = 0.5f))
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text(
-                    "PROTOCOL LIBRARY",
-                    color = Color.White,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 2.sp
-                )
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    item {
-                        Text("SYSTEM PROTOCOLS", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    }
-                    
-                    items(WorkoutProtocol.entries) { protocol ->
-                        val protocolRoutines = uiState.exploreRoutines.filter { it.protocol == protocol }
-                        
-                        Column {
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onStartProtocol(protocol) },
-                                color = Color(0xFF2C2C2E),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(16.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(protocol.name, color = Color.White, fontWeight = FontWeight.Bold)
-                                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color(0xFF00CCFF))
-                                }
-                            }
-                            
-                            if (protocolRoutines.isNotEmpty()) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                protocolRoutines.forEach { routine ->
-                                    Surface(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(start = 16.dp, bottom = 8.dp),
-                                        color = Color(0xFF2C2C2E),
-                                        shape = RoundedCornerShape(12.dp),
-                                        border = BorderStroke(1.dp, Color(0xFF007AFF).copy(alpha = 0.3f))
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(12.dp),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(routine.name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                                                
-                                                routine.description?.let {
-                                                    Text(
-                                                        it,
-                                                        color = Color.Gray.copy(alpha = 0.8f),
-                                                        fontSize = 11.sp,
-                                                        lineHeight = 14.sp,
-                                                        maxLines = 4,
-                                                        overflow = TextOverflow.Ellipsis,
-                                                        modifier = Modifier.padding(top = 4.dp)
-                                                    )
-                                                }
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+            }
+            Text(
+                "PROTOCOL ARCHIVE",
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 2.sp
+            )
+        }
 
-                                                Text(
-                                                    routine.exercises.joinToString(", ") { it.exercise.name },
-                                                    color = Color.Gray,
-                                                    fontSize = 10.sp,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis,
-                                                    modifier = Modifier.padding(top = 4.dp)
-                                                )
-                                            }
-                                            IconButton(
-                                                onClick = { onAddRoutine(routine) },
-                                                modifier = Modifier.size(32.dp)
-                                            ) {
-                                                Icon(Icons.Default.Add, contentDescription = "Add Routine", tint = Color(0xFF007AFF))
-                                            }
-                                        }
-                                    }
-                                }
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            item {
+                Text(
+                    "CORE METHODOLOGIES",
+                    color = Color(0xFF00FF9C),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+
+            items(WorkoutProtocol.entries) { protocol ->
+                val protocolRoutines = uiState.exploreRoutines.filter { it.protocol == protocol }
+                val allRoutinesAdded = protocolRoutines.isNotEmpty() && protocolRoutines.all { it.isAddedToLibrary }
+
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onProtocolClick(protocol) },
+                    color = Color(0xFF1C1C1E),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(20.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                protocol.displayName,
+                                color = Color.White,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Black
+                            )
+                            Text(
+                                protocol.description,
+                                color = Color.Gray,
+                                fontSize = 12.sp,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                        
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(
+                                onClick = { onAddProtocol(protocol) },
+                                modifier = Modifier.size(32.dp).background(if (allRoutinesAdded) Color(0xFF00FF9C).copy(alpha = 0.1f) else Color(0xFF00FF9C).copy(alpha = 0.2f), CircleShape)
+                            ) {
+                                Icon(
+                                    if (allRoutinesAdded) Icons.Default.CheckCircle else Icons.Default.Add,
+                                    contentDescription = "Add Protocol", 
+                                    tint = Color(0xFF00FF9C), 
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
+                            Spacer(Modifier.width(12.dp))
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = Color.Gray)
                         }
                     }
-                    
-                    item {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("SUB-PROTOCOLS / AUGMENTS", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    }
-                    
-                    items(uiState.exploreAugments) { augment ->
-                        val color = Color(android.graphics.Color.parseColor(augment.colorHex))
-                        Surface(
+                }
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    "AUGMENTATION MODULES",
+                    color = Color(0xFFFF006E),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+
+            items(uiState.exploreAugments) { augment ->
+                val color = Color(android.graphics.Color.parseColor(augment.colorHex))
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Color(0xFF1C1C1E),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, color.copy(alpha = 0.3f))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            color = Color(0xFF2C2C2E),
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, color.copy(alpha = 0.3f))
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column {
-                                        Text(augment.name, color = Color.White, fontWeight = FontWeight.Bold)
-                                        Text(augment.focusBodyPart.uppercase(), color = color, fontSize = 10.sp, fontWeight = FontWeight.Black)
-                                    }
-                                    
-                                    IconButton(
-                                        onClick = { onAddAugment(augment) },
-                                        modifier = Modifier
-                                            .size(32.dp)
-                                            .background(color.copy(alpha = 0.2f), CircleShape)
-                                    ) {
-                                        Icon(Icons.Default.Add, contentDescription = "Add to Library", tint = color, modifier = Modifier.size(20.dp))
-                                    }
+                            Column {
+                                Text(augment.name, color = Color.White, fontWeight = FontWeight.Bold)
+                                Text(augment.focusBodyPart.uppercase(), color = color, fontSize = 10.sp, fontWeight = FontWeight.Black)
+                            }
+                            
+                            IconButton(
+                                onClick = { onAddAugment(augment) },
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .background(color.copy(alpha = 0.2f), CircleShape)
+                            ) {
+                                Icon(
+                                    if (augment.isAddedToLibrary) Icons.Default.CheckCircle else Icons.Default.Add,
+                                    contentDescription = "Add to Library", 
+                                    tint = color, 
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        Text(
+                            augment.exercises.joinToString(", ") { it.exercise.name },
+                            color = Color.Gray,
+                            fontSize = 12.sp,
+                            maxLines = 2
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ProtocolConfigScreen(
+    protocol: WorkoutProtocol,
+    tempProfile: UserWorkoutProfile,
+    onUpdateSchedule: (List<ScheduledDay>) -> Unit,
+    onSave: () -> Unit,
+    onCancel: () -> Unit
+) {
+    val days = listOf("M", "T", "W", "T", "F", "S", "S")
+    var showTimePickerForDay by remember { mutableStateOf<Int?>(null) }
+    var applyTimeToAll by remember { mutableStateOf(true) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .statusBarsPadding()
+    ) {
+        // Header
+        Box(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            IconButton(onClick = onCancel, modifier = Modifier.align(Alignment.CenterStart)) {
+                Icon(Icons.Default.Close, contentDescription = "Cancel", tint = Color.White)
+            }
+            Text(
+                "PROTOCOL INITIALIZATION",
+                color = Color.White,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 2.sp,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+
+        LazyColumn(
+            modifier = Modifier.weight(1f).padding(horizontal = 24.dp)
+        ) {
+            item {
+                Text(
+                    "CALIBRATE UPLINK",
+                    color = Color.White,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Black
+                )
+                
+                Text(
+                    "Configure your training window and neural reminders for ${protocol.displayName}.",
+                    color = Color.Gray,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                Text(
+                    "TRAINING SCHEDULE",
+                    color = Color(0xFF00FF9C),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 24.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("APPLY SAME TIME TO ALL", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Switch(
+                        checked = applyTimeToAll, 
+                        onCheckedChange = { applyTimeToAll = it }, 
+                        colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF00FF9C))
+                    )
+                }
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    days.forEachIndexed { index, label ->
+                        val dayId = index + 1
+                        val scheduled = tempProfile.scheduledDays.find { it.dayOfWeek == dayId }
+                        val isSelected = scheduled != null
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Surface(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clickable { 
+                                        if (isSelected) {
+                                            onUpdateSchedule(tempProfile.scheduledDays.filter { it.dayOfWeek != dayId })
+                                        } else {
+                                            val baseTime = tempProfile.scheduledDays.firstOrNull()?.time ?: "09:00"
+                                            onUpdateSchedule(tempProfile.scheduledDays + ScheduledDay(dayId, baseTime))
+                                        }
+                                    }, 
+                                color = if (isSelected) Color(0xFF00FF9C).copy(alpha = 0.1f) else Color(0xFF1C1C1E), 
+                                shape = CircleShape, 
+                                border = BorderStroke(1.dp, if (isSelected) Color(0xFF00FF9C) else Color.DarkGray)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) { 
+                                    Text(label, color = if (isSelected) Color(0xFF00FF9C) else Color.Gray, fontWeight = FontWeight.Bold) 
                                 }
-                                
-                                Spacer(modifier = Modifier.height(8.dp))
-                                
+                            }
+                            if (scheduled != null) {
                                 Text(
-                                    augment.exercises.joinToString(", ") { it.exercise.name },
-                                    color = Color.Gray,
-                                    fontSize = 12.sp,
-                                    maxLines = 2
+                                    scheduled.time, 
+                                    color = Color.Gray, 
+                                    fontSize = 9.sp, 
+                                    modifier = Modifier.padding(top = 4.dp).clickable { showTimePickerForDay = dayId }
                                 )
                             }
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(48.dp))
+
+                Text(
+                    "NEURAL REMINDERS",
+                    color = Color(0xFF00FF9C),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp
+                )
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                Button(
-                    onClick = onDismiss,
+                Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
+                    color = Color(0xFF1C1C1E),
+                    shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("CLOSE", color = Color.White, fontWeight = FontWeight.Bold)
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = Color(0xFF00FF9C))
+                        Spacer(Modifier.width(16.dp))
+                        Column {
+                            Text("PUSH NOTIFICATIONS", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Text("Receive pings at the start of your neural windows.", color = Color.Gray, fontSize = 11.sp)
+                        }
+                        Spacer(Modifier.weight(1f))
+                        Switch(checked = true, onCheckedChange = {}, enabled = false, colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF00FF9C)))
+                    }
                 }
+            }
+        }
+
+        // Action Button
+        Box(modifier = Modifier.padding(24.dp).navigationBarsPadding()) {
+            Button(
+                onClick = onSave,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("ESTABLISH NEURAL LINK", color = Color.Black, fontWeight = FontWeight.Black)
+            }
+        }
+
+        if (showTimePickerForDay != null) {
+            val initialTime = tempProfile.scheduledDays.find { it.dayOfWeek == showTimePickerForDay }?.time ?: "09:00"
+            val initialHour = initialTime.split(":")[0].toInt()
+            val initialMinute = initialTime.split(":")[1].toInt()
+            
+            val timePickerState = rememberTimePickerState(
+                initialHour = initialHour,
+                initialMinute = initialMinute
+            )
+
+            AlertDialog(
+                onDismissRequest = { showTimePickerForDay = null }, 
+                confirmButton = { 
+                    TextButton(onClick = { 
+                        val newTime = "%02d:%02d".format(timePickerState.hour, timePickerState.minute)
+                        if (applyTimeToAll) {
+                            onUpdateSchedule(tempProfile.scheduledDays.map { it.copy(time = newTime) })
+                        } else {
+                            onUpdateSchedule(tempProfile.scheduledDays.map { if (it.dayOfWeek == showTimePickerForDay) it.copy(time = newTime) else it })
+                        }
+                        showTimePickerForDay = null 
+                    }) { 
+                        Text("CONFIRM", color = Color(0xFF00FF9C)) 
+                    } 
+                }, 
+                title = { Text("SELECT TIME", color = Color.White) }, 
+                text = { TimePicker(state = timePickerState) }, 
+                containerColor = Color(0xFF1C1C1E)
+            )
+        }
+    }
+}
+
+@Composable
+fun ProtocolDetailScreen(
+    protocol: WorkoutProtocol,
+    uiState: WorkoutUiState,
+    onBack: () -> Unit,
+    onStartProtocol: (WorkoutProtocol) -> Unit,
+    onAddProtocol: (WorkoutProtocol) -> Unit,
+    onAddRoutine: (WorkoutRoutine) -> Unit,
+    onRoutineClick: (WorkoutRoutine) -> Unit
+) {
+    val protocolRoutines = uiState.exploreRoutines.filter { it.protocol == protocol }
+    val allRoutinesAdded = protocolRoutines.isNotEmpty() && protocolRoutines.all { it.isAddedToLibrary }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF000000))
+            .statusBarsPadding()
+    ) {
+        // Header
+        Box(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+            }
+            Text(
+                "PROTOCOL DETAIL",
+                color = Color.White,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 2.sp,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+
+        LazyColumn(
+            modifier = Modifier.weight(1f).padding(horizontal = 24.dp)
+        ) {
+            item {
+                Text(
+                    protocol.displayName,
+                    color = Color.White,
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Black
+                )
+                
+                Text(
+                    protocol.description,
+                    color = Color.Gray,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(top = 16.dp)
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Color(0xFF1C1C1E),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.3f))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("METHODOLOGY", color = Color(0xFF00FF9C), fontSize = 10.sp, fontWeight = FontWeight.Black)
+                        Text(
+                            protocol.methodology,
+                            color = Color.White.copy(alpha = 0.9f),
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+                
+                Text(
+                    "PROTOCOL TENANTS",
+                    color = Color(0xFF00FF9C),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                protocol.tenants.forEach { tenant ->
+                    Row(modifier = Modifier.padding(vertical = 8.dp)) {
+                        Text("•", color = Color(0xFF00FF9C), modifier = Modifier.padding(end = 12.dp))
+                        Text(
+                            tenant,
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                Text(
+                    "INTEGRATED ROUTINES",
+                    color = Color(0xFF00FF9C),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            items(protocolRoutines) { routine ->
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
+                        .clickable { onRoutineClick(routine) },
+                    color = Color(0xFF1C1C1E),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(routine.name, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    routine.exercises.joinToString(", ") { it.exercise.name },
+                                    color = Color.Gray,
+                                    fontSize = 11.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
+                            IconButton(
+                                onClick = { onAddRoutine(routine) },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    if (routine.isAddedToLibrary) Icons.Default.CheckCircle else Icons.Default.Add,
+                                    contentDescription = "Add Routine", 
+                                    tint = if (routine.isAddedToLibrary) Color(0xFF00FF9C) else Color(0xFF00CCFF)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Bottom Actions
+        Column(modifier = Modifier.padding(24.dp).navigationBarsPadding()) {
+            Button(
+                onClick = { onAddProtocol(protocol) },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = if (allRoutinesAdded) Color.DarkGray else Color(0xFF1C1C1E)),
+                shape = RoundedCornerShape(12.dp),
+                border = if (!allRoutinesAdded) BorderStroke(1.dp, Color(0xFF00FF9C)) else null
+            ) {
+                Icon(
+                    if (allRoutinesAdded) Icons.Default.CheckCircle else Icons.Default.Download,
+                    contentDescription = null,
+                    tint = if (allRoutinesAdded) Color(0xFF00FF9C) else Color.White
+                )
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    if (allRoutinesAdded) "PROTOCOL ARCHIVED" else "ADD PROTOCOL TO UPLINK",
+                    color = if (allRoutinesAdded) Color(0xFF00FF9C) else Color.White,
+                    fontWeight = FontWeight.Black
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = { onStartProtocol(protocol) },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("INITIALIZE PROTOCOL SESSION", color = Color.Black, fontWeight = FontWeight.Black)
+            }
+        }
+    }
+}
+
+@Composable
+fun RoutinePreviewScreen(
+    routine: WorkoutRoutine,
+    onBack: () -> Unit,
+    onAdd: (WorkoutRoutine) -> Unit,
+    onStart: (WorkoutRoutine) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF000000))
+            .statusBarsPadding()
+    ) {
+        // Header
+        Box(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+            }
+            Text(
+                "ROUTINE PREVIEW",
+                color = Color.White,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 2.sp,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+
+        LazyColumn(
+            modifier = Modifier.weight(1f).padding(horizontal = 24.dp)
+        ) {
+            item {
+                Text(
+                    routine.name,
+                    color = Color.White,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Black
+                )
+                
+                Text(
+                    routine.protocol.displayName,
+                    color = Color(0xFF00FF9C),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+
+                routine.description?.let {
+                    Text(
+                        it,
+                        color = Color.Gray,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(top = 16.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+                
+                Text(
+                    "PRESCRIBED EXERCISES",
+                    color = Color(0xFF00FF9C),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            items(routine.exercises) { routineExercise ->
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 24.dp),
+                    color = Color.Transparent
+                ) {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                routineExercise.exercise.name.uppercase(),
+                                color = Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Black
+                            )
+                            Spacer(Modifier.weight(1f))
+                            Text(
+                                "${routineExercise.sets.size} SETS",
+                                color = Color(0xFF00FF9C),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        if (routineExercise.exercise.muscleGroups.isNotEmpty()) {
+                            Text(
+                                routineExercise.exercise.muscleGroups.joinToString(" • ").uppercase(),
+                                color = Color.Gray,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Sets Preview
+                        routineExercise.sets.forEachIndexed { index, set ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                val typeLabel = when (set.type) {
+                                    SetType.WARMUP -> "WARMUP"
+                                    SetType.REST_PAUSE -> "REST-PAUSE"
+                                    SetType.POWER -> "POWER"
+                                    SetType.WIDOWMAKER -> "WIDOWMAKER"
+                                    else -> "SET ${index + 1}"
+                                }
+                                val typeColor = when (set.type) {
+                                    SetType.WARMUP -> Color(0xFFFFA500)
+                                    SetType.REST_PAUSE -> Color(0xFF00FFAA)
+                                    SetType.POWER -> Color(0xFFFFD700)
+                                    SetType.WIDOWMAKER -> Color(0xFFFF00FF)
+                                    else -> Color.White.copy(alpha = 0.7f)
+                                }
+                                
+                                Text(
+                                    typeLabel,
+                                    color = typeColor,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Black,
+                                    modifier = Modifier.width(100.dp)
+                                )
+                                
+                                if (set.goalReps != null) {
+                                    Text(
+                                        "GOAL: ${set.goalReps}",
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+
+                        if (routineExercise.exercise.cues.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                color = Color(0xFF1C1C1E).copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
+                                Text(
+                                    "NEURAL CUE: ${routineExercise.exercise.cues.first()}",
+                                    color = Color.Gray,
+                                    fontSize = 10.sp,
+                                    lineHeight = 14.sp,
+                                    modifier = Modifier.padding(8.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Bottom Actions
+        Column(modifier = Modifier.padding(24.dp).navigationBarsPadding()) {
+            Button(
+                onClick = { onAdd(routine) },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = if (routine.isAddedToLibrary) Color.DarkGray else Color(0xFF1C1C1E)),
+                shape = RoundedCornerShape(12.dp),
+                border = if (!routine.isAddedToLibrary) BorderStroke(1.dp, Color(0xFF00FF9C)) else null
+            ) {
+                Icon(
+                    if (routine.isAddedToLibrary) Icons.Default.CheckCircle else Icons.Default.Download,
+                    contentDescription = null,
+                    tint = if (routine.isAddedToLibrary) Color(0xFF00FF9C) else Color.White
+                )
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    if (routine.isAddedToLibrary) "ROUTINE ARCHIVED" else "ADD TO MY ROUTINES",
+                    color = if (routine.isAddedToLibrary) Color(0xFF00FF9C) else Color.White,
+                    fontWeight = FontWeight.Black
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = { onStart(routine) },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("INITIALIZE SESSION", color = Color.Black, fontWeight = FontWeight.Black)
             }
         }
     }

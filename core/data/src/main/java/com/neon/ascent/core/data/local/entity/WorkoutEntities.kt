@@ -184,14 +184,17 @@ data class UserWorkoutProfileEntity(
     val experienceLevel: String,
     val somatotype: String,
     val injuries: List<String>,
-    val preferredDays: List<Int>,
     val timePerSessionMinutes: Int,
     val age: Int,
     val heightCm: Float,
     val weightKg: Float,
     val gender: String,
     val activityFactor: Float,
-    val unitSystem: String
+    val unitSystem: String,
+    val activeProtocol: String?,
+    val rotationIndex: Int,
+    val scheduledDays: String, // JSON serialized List<ScheduledDay>
+    val deepLinkToRoutine: Boolean
 )
 
 @Entity(tableName = "workout_routines")

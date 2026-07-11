@@ -1,8 +1,12 @@
 package com.neon.ascent.core.data.mapper
 
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.neon.ascent.core.data.local.dao.*
 import com.neon.ascent.core.data.local.entity.*
 import com.neon.ascent.core.domain.workout.models.*
+
+private val gson = Gson()
 
 fun WorkoutSessionEntity.toDomain() = WorkoutSession(
     id = id,
@@ -148,14 +152,17 @@ fun UserWorkoutProfileEntity.toDomain() = UserWorkoutProfile(
     experienceLevel = ExperienceLevel.valueOf(experienceLevel),
     somatotype = Somatotype.valueOf(somatotype),
     injuries = injuries,
-    preferredDays = preferredDays,
     timePerSessionMinutes = timePerSessionMinutes,
     age = age,
     heightCm = heightCm,
     weightKg = weightKg,
     gender = Gender.valueOf(gender),
     activityFactor = activityFactor,
-    unitSystem = UnitSystem.valueOf(unitSystem)
+    unitSystem = UnitSystem.valueOf(unitSystem),
+    activeProtocol = activeProtocol?.let { WorkoutProtocol.valueOf(it) },
+    rotationIndex = rotationIndex,
+    scheduledDays = gson.fromJson(scheduledDays, object : TypeToken<List<ScheduledDay>>() {}.type),
+    deepLinkToRoutine = deepLinkToRoutine
 )
 
 fun UserWorkoutProfile.toEntity() = UserWorkoutProfileEntity(
@@ -163,14 +170,17 @@ fun UserWorkoutProfile.toEntity() = UserWorkoutProfileEntity(
     experienceLevel = experienceLevel.name,
     somatotype = somatotype.name,
     injuries = injuries,
-    preferredDays = preferredDays,
     timePerSessionMinutes = timePerSessionMinutes,
     age = age,
     heightCm = heightCm,
     weightKg = weightKg,
     gender = gender.name,
     activityFactor = activityFactor,
-    unitSystem = unitSystem.name
+    unitSystem = unitSystem.name,
+    activeProtocol = activeProtocol?.name,
+    rotationIndex = rotationIndex,
+    scheduledDays = gson.toJson(scheduledDays),
+    deepLinkToRoutine = deepLinkToRoutine
 )
 
 fun RoutineSetEntity.toDomain() = RoutineSet(
@@ -191,30 +201,38 @@ fun WorkoutRoutineEntity.toDomain(
     exercisesWithOrder: List<RoutineExerciseWithOrder> = emptyList(),
     sets: List<RoutineSetEntity> = emptyList(),
     augmentsWithOrder: List<RoutineAugmentWithOrder> = emptyList()
-) = WorkoutRoutine(
-    id = id,
-    name = name,
-    description = description,
-    exercises = exercisesWithOrder.sortedBy { it.ref.order }.map { item ->
+): WorkoutRoutine {
+    val routineExercises = exercisesWithOrder.sortedBy { it.ref.order }.map { item ->
         RoutineExercise(
             exercise = item.exercise.toDomain(),
             sets = sets.filter { it.exerciseId == item.ref.exerciseId }
                 .sortedBy { it.order }
                 .map { it.toDomain() }
         )
-    },
-    augments = augmentsWithOrder.sortedBy { it.ref.order }.map { item ->
-        item.augmentDetails.augment.toDomain(
-            item.augmentDetails.exercises,
-            item.augmentDetails.exerciseRefs,
-            item.augmentDetails.augmentSets
-        )
-    },
-    protocol = WorkoutProtocol.valueOf(protocol),
-    createdAt = createdAt,
-    isSystem = isSystem,
-    isAddedToLibrary = isAddedToLibrary
-)
+    }
+    
+    if (routineExercises.isEmpty() && exercisesWithOrder.isNotEmpty()) {
+        android.util.Log.e("WorkoutMapper", "ERROR: exercisesWithOrder was not empty (${exercisesWithOrder.size}) but routineExercises IS EMPTY for routine $name")
+    }
+
+    return WorkoutRoutine(
+        id = id,
+        name = name,
+        description = description,
+        exercises = routineExercises,
+        augments = augmentsWithOrder.sortedBy { it.ref.order }.map { item ->
+            item.augmentDetails.augment.toDomain(
+                item.augmentDetails.exercises,
+                item.augmentDetails.exerciseRefs,
+                item.augmentDetails.augmentSets
+            )
+        },
+        protocol = WorkoutProtocol.valueOf(protocol),
+        createdAt = createdAt,
+        isSystem = isSystem,
+        isAddedToLibrary = isAddedToLibrary
+    )
+}
 
 fun WorkoutRoutine.toEntity() = WorkoutRoutineEntity(
     id = id,

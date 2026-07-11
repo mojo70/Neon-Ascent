@@ -77,11 +77,51 @@ interface WorkoutDao {
     @Query("DELETE FROM routine_sets WHERE routineId = :routineId")
     suspend fun deleteRoutineSets(routineId: String)
 
+    @Query("DELETE FROM routine_exercise_cross_ref WHERE routineId = :routineId")
+    suspend fun deleteRoutineExerciseCrossRefs(routineId: String)
+
+    @Query("DELETE FROM routine_augment_cross_ref WHERE routineId = :routineId")
+    suspend fun deleteRoutineAugmentCrossRefs(routineId: String)
+
+    @Transaction
+    suspend fun insertFullRoutine(
+        routine: WorkoutRoutineEntity,
+        exerciseRefs: List<RoutineExerciseCrossRef>,
+        routineSets: List<RoutineSetEntity>,
+        augmentRefs: List<RoutineAugmentCrossRef>
+    ) {
+        deleteRoutineSets(routine.id)
+        deleteRoutineExerciseCrossRefs(routine.id)
+        deleteRoutineAugmentCrossRefs(routine.id)
+        
+        insertRoutine(routine)
+        exerciseRefs.forEach { insertRoutineExerciseCrossRef(it) }
+        routineSets.forEach { insertRoutineSet(it) }
+        augmentRefs.forEach { insertRoutineAugmentCrossRef(it) }
+    }
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAugment(augment: WorkoutAugmentEntity)
 
+    @Transaction
+    suspend fun insertFullAugment(
+        augment: WorkoutAugmentEntity,
+        exerciseRefs: List<AugmentExerciseCrossRef>,
+        augmentSets: List<AugmentSetEntity>
+    ) {
+        deleteAugmentSets(augment.id)
+        deleteAugmentExerciseCrossRefs(augment.id)
+        
+        insertAugment(augment)
+        exerciseRefs.forEach { insertAugmentExerciseCrossRef(it) }
+        augmentSets.forEach { insertAugmentSet(it) }
+    }
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAugmentExerciseCrossRef(crossRef: AugmentExerciseCrossRef)
+
+    @Query("DELETE FROM augment_exercise_cross_ref WHERE augmentId = :augmentId")
+    suspend fun deleteAugmentExerciseCrossRefs(augmentId: String)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAugmentSet(set: AugmentSetEntity)

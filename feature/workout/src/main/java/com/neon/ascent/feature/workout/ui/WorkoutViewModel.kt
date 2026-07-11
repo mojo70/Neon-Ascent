@@ -5,6 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.neon.ascent.core.common.HapticService
 import com.neon.ascent.core.domain.repository.WorkoutRepository
 import com.neon.ascent.core.domain.workout.models.*
+import com.neon.ascent.core.domain.repository.AscensionRepository
+import com.neon.ascent.core.domain.goals.models.AscensionTask
+import com.neon.ascent.core.domain.goals.models.AscensionTaskType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -64,13 +67,20 @@ data class WorkoutUiState(
     val selectedEquipment: String? = null,
     val selectedMuscleGroup: String? = null,
     val selectedExerciseForDetail: Exercise? = null,
-    val isShowingProgress: Boolean = false
+    val isShowingProgress: Boolean = false,
+    val isExploringProtocols: Boolean = false,
+    val selectedProtocolForDetail: WorkoutProtocol? = null,
+    val selectedRoutineForPreview: WorkoutRoutine? = null,
+    val showDeactivateProtocolDialog: Boolean = false,
+    val configuringProtocol: WorkoutProtocol? = null,
+    val tempConfigProfile: UserWorkoutProfile? = null
 )
 
 @HiltViewModel
 class WorkoutViewModel @Inject constructor(
     private val repository: WorkoutRepository,
-    private val hapticService: HapticService
+    private val hapticService: HapticService,
+    private val ascensionRepository: AscensionRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WorkoutUiState())
@@ -411,6 +421,30 @@ class WorkoutViewModel @Inject constructor(
         _uiState.update { it.copy(isShowingProgress = false) }
     }
 
+    fun startExploreProtocols() {
+        _uiState.update { it.copy(isExploringProtocols = true, selectedProtocolForDetail = null) }
+    }
+
+    fun hideExploreProtocols() {
+        _uiState.update { it.copy(isExploringProtocols = false, selectedProtocolForDetail = null) }
+    }
+
+    fun showProtocolDetail(protocol: WorkoutProtocol) {
+        _uiState.update { it.copy(selectedProtocolForDetail = protocol) }
+    }
+
+    fun hideProtocolDetail() {
+        _uiState.update { it.copy(selectedProtocolForDetail = null) }
+    }
+
+    fun showRoutinePreview(routine: WorkoutRoutine) {
+        _uiState.update { it.copy(selectedRoutineForPreview = routine) }
+    }
+
+    fun hideRoutinePreview() {
+        _uiState.update { it.copy(selectedRoutineForPreview = null) }
+    }
+
     fun resumeUserProfile() {
         loadUserProfile()
     }
@@ -428,7 +462,7 @@ class WorkoutViewModel @Inject constructor(
             repository.getAllRoutines().collect { routines ->
                 _uiState.update { it.copy(
                     routines = routines.filter { r -> r.isAddedToLibrary },
-                    exploreRoutines = routines.filter { r -> r.isSystem && !r.isAddedToLibrary }
+                    exploreRoutines = routines.filter { r -> r.isSystem }
                 ) }
             }
         }
@@ -453,8 +487,112 @@ class WorkoutViewModel @Inject constructor(
 
     fun toggleRoutineLibrary(routine: WorkoutRoutine) {
         viewModelScope.launch {
-            repository.saveRoutine(routine.copy(isAddedToLibrary = !routine.isAddedToLibrary))
+            val routines = repository.getAllRoutines().first()
+            val fullRoutine = routines.find { it.id == routine.id } ?: routine
+            repository.saveRoutine(fullRoutine.copy(isAddedToLibrary = !fullRoutine.isAddedToLibrary))
         }
+    }
+
+    fun addProtocolToLibrary(protocol: WorkoutProtocol) {
+        val currentProfile = _uiState.value.userProfile ?: return
+        _uiState.update { it.copy(
+            configuringProtocol = protocol,
+            tempConfigProfile = currentProfile.copy(activeProtocol = protocol),
+            selectedProtocolForDetail = null,
+            isExploringProtocols = false
+        ) }
+    }
+
+    fun updateConfigSchedule(scheduledDays: List<ScheduledDay>) {
+        _uiState.update { it.copy(
+            tempConfigProfile = it.tempConfigProfile?.copy(scheduledDays = scheduledDays)
+        ) }
+    }
+
+    fun saveProtocolConfiguration() {
+        val protocol = _uiState.value.configuringProtocol ?: return
+        val profile = _uiState.value.tempConfigProfile ?: return
+
+        viewModelScope.launch {
+            // 1. Add all routines of this protocol to library
+            repository.getAllRoutines().first()
+                .filter { it.protocol == protocol }
+                .forEach { routine ->
+                    repository.saveRoutine(routine.copy(isAddedToLibrary = true))
+                }
+
+            // 2. Update user profile with new active protocol and schedule
+            repository.saveUserProfile(profile)
+
+            // 3. Clear existing workout schedule/reminders to avoid duplicates
+            val existingTasks = ascensionRepository.getAllRecurringTasks().first()
+            existingTasks.filter { task ->
+                task.tags.contains("workout_session") || task.tags.any { it.startsWith("protocol_") }
+            }.forEach { task ->
+                ascensionRepository.deleteTask(task.id)
+            }
+
+            // 4. Schedule Recurring Tasks for training days
+            profile.scheduledDays.forEach { scheduled ->
+                val task = AscensionTask(
+                    id = UUID.randomUUID().toString(),
+                    parentId = null,
+                    title = "TRAINING SESSION: ${protocol.displayName}",
+                    description = "Sync with the next routine in your protocol rotation.",
+                    type = AscensionTaskType.RECURRING,
+                    recurrence = com.neon.ascent.core.domain.goals.models.RecurrenceV3(
+                        type = com.neon.ascent.core.domain.goals.models.RecurrenceTypeV3.DAYS_OF_WEEK,
+                        daysOfWeek = setOf(java.time.DayOfWeek.of(scheduled.dayOfWeek))
+                    ),
+                    timeWindows = listOf(scheduled.time),
+                    reminderEnabled = true,
+                    xpValue = 25,
+                    tags = listOf("workout_session", "protocol_${protocol.name}")
+                )
+                ascensionRepository.insertTask(task)
+            }
+
+            _uiState.update { it.copy(configuringProtocol = null, tempConfigProfile = null, userProfile = profile) }
+        }
+    }
+
+    fun cancelProtocolConfiguration() {
+        _uiState.update { it.copy(configuringProtocol = null, tempConfigProfile = null) }
+    }
+
+    fun initiateDeactivateProtocol() {
+        _uiState.update { it.copy(showDeactivateProtocolDialog = true) }
+    }
+
+    fun confirmDeactivateProtocol(removeRoutines: Boolean) {
+        val profile = _uiState.value.userProfile ?: return
+        val protocol = profile.activeProtocol ?: return
+
+        viewModelScope.launch {
+            if (removeRoutines) {
+                repository.getAllRoutines().first()
+                    .filter { it.protocol == protocol }
+                    .forEach { routine ->
+                        repository.saveRoutine(routine.copy(isAddedToLibrary = false))
+                    }
+            }
+
+            // Clear scheduling / tasks associated with this protocol or workout sessions
+            val existingTasks = ascensionRepository.getAllRecurringTasks().first()
+            existingTasks.filter { task ->
+                task.tags.contains("workout_session") || task.tags.any { it.startsWith("protocol_") }
+            }.forEach { task ->
+                ascensionRepository.deleteTask(task.id)
+            }
+
+            val updatedProfile = profile.copy(activeProtocol = null)
+            repository.saveUserProfile(updatedProfile)
+            _uiState.update { it.copy(showDeactivateProtocolDialog = false, userProfile = updatedProfile) }
+        }
+    }
+
+    fun cancelDeactivateProtocol() {
+        _uiState.update { it.copy(showDeactivateProtocolDialog = false) }
     }
 
     private fun startWorkoutTimer() {
@@ -519,29 +657,32 @@ class WorkoutViewModel @Inject constructor(
             _uiState.update { it.copy(activeSessionError = "A workout session is already in progress. Please finish or discard it before starting a new one.") }
             return
         }
-        val sessionId = UUID.randomUUID().toString()
-        val session = WorkoutSession(id = sessionId, protocol = routine.protocol)
-        _uiState.update { it.copy(
-            session = session, 
-            activeRoutine = routine,
-            isLoading = true, 
-            workoutDurationSeconds = 0, 
-            isPaused = false,
-            previousLogs = emptyMap(),
-            cyberCrappPhase = if (routine.protocol == WorkoutProtocol.CYBER_CRAPP) CyberCrappPhase.MINI_SET_1 else CyberCrappPhase.NOT_ACTIVE
-        ) }
 
-        sessionJob?.cancel()
-        sessionJob = viewModelScope.launch {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+
+            // Ensure we have the full routine data with exercises and sets
+            val latestRoutines = repository.getAllRoutines().first()
+            var fullRoutine = latestRoutines.find { it.id == routine.id } ?: routine
+
+            if (fullRoutine.exercises.isEmpty()) {
+                android.util.Log.e("WorkoutVM", "CRITICAL: Starting routine ${fullRoutine.name} with NO EXERCISES. Seeding fallback.")
+                repository.seedStarterExercises()
+                val refreshedRoutines = repository.getAllRoutines().first()
+                fullRoutine = refreshedRoutines.find { it.id == routine.id } ?: routine
+            }
+
+            val sessionId = UUID.randomUUID().toString()
+            val session = WorkoutSession(id = sessionId, protocol = fullRoutine.protocol)
+
+            // 1. Create the session first in DB
             repository.saveSession(session)
-            startWorkoutTimer()
-            
+
             var currentOrder = 0
-            
-            // Pre-populate logs with exercises from routine
             var globalSetTimestamp = java.time.Instant.now()
-            
-            routine.exercises.forEach { routineExercise ->
+
+            // 2. Batch insert the logs and sets
+            fullRoutine.exercises.forEach { routineExercise ->
                 val workoutLog = WorkoutLog(
                     id = UUID.randomUUID().toString(),
                     sessionId = sessionId,
@@ -550,11 +691,9 @@ class WorkoutViewModel @Inject constructor(
                     exerciseName = routineExercise.exercise.name
                 )
                 repository.saveWorkoutLog(workoutLog)
-                
-                // Use defined sets from routine
+
                 routineExercise.sets.forEach { routineSet ->
                     if (session.protocol == WorkoutProtocol.CYBER_CRAPP && routineSet.type == SetType.REST_PAUSE) {
-                        // Expand into 3 mini-sets for CC
                         for (i in 1..3) {
                             globalSetTimestamp = globalSetTimestamp.plusMillis(1)
                             val setLog = SetLog(
@@ -583,64 +722,27 @@ class WorkoutViewModel @Inject constructor(
                         repository.saveSetLog(setLog)
                     }
                 }
-                
                 loadPreviousData(routineExercise.exercise.id)
             }
 
-            // Add augments from routine
-            routine.augments.forEach { augment ->
-                augment.exercises.forEach { routineExercise ->
-                    val workoutLog = WorkoutLog(
-                        id = UUID.randomUUID().toString(),
-                        sessionId = sessionId,
-                        exerciseId = routineExercise.exercise.id,
-                        order = currentOrder++,
-                        exerciseName = routineExercise.exercise.name,
-                        augmentId = augment.id,
-                        augmentName = augment.name,
-                        augmentColor = augment.colorHex
-                    )
-                    repository.saveWorkoutLog(workoutLog)
-                    
-                    // Use defined sets from augment
-                    routineExercise.sets.forEach { routineSet ->
-                        if (session.protocol == WorkoutProtocol.CYBER_CRAPP && routineSet.type == SetType.REST_PAUSE) {
-                            for (i in 1..3) {
-                                globalSetTimestamp = globalSetTimestamp.plusMillis(1)
-                                val setLog = SetLog(
-                                    id = UUID.randomUUID().toString(),
-                                    workoutLogId = workoutLog.id,
-                                    weight = routineSet.weight,
-                                    reps = routineSet.reps,
-                                    type = routineSet.type,
-                                    goalReps = routineSet.goalReps,
-                                    clusterMiniSetIndex = i,
-                                    timestamp = globalSetTimestamp
-                                )
-                                repository.saveSetLog(setLog)
-                            }
-                        } else {
-                            globalSetTimestamp = globalSetTimestamp.plusMillis(1)
-                            val setLog = SetLog(
-                                id = UUID.randomUUID().toString(),
-                                workoutLogId = workoutLog.id,
-                                weight = routineSet.weight,
-                                reps = routineSet.reps,
-                                type = routineSet.type,
-                                goalReps = routineSet.goalReps,
-                                timestamp = globalSetTimestamp
-                            )
-                            repository.saveSetLog(setLog)
-                        }
-                    }
-                    
-                    loadPreviousData(routineExercise.exercise.id)
+            // 3. Start collecting logs
+            sessionJob?.cancel()
+            sessionJob = launch {
+                repository.getLogsForSession(sessionId).collect { logs ->
+                    _uiState.update { it.copy(logs = logs, isLoading = false) }
                 }
             }
-            
-            repository.getLogsForSession(sessionId).collect { logs ->
-                _uiState.update { it.copy(logs = logs, isLoading = false) }
-            }
+
+            _uiState.update { it.copy(
+                session = session,
+                activeRoutine = fullRoutine,
+                workoutDurationSeconds = 0,
+                isPaused = false,
+                previousLogs = emptyMap(),
+                cyberCrappPhase = if (fullRoutine.protocol == WorkoutProtocol.CYBER_CRAPP) CyberCrappPhase.MINI_SET_1 else CyberCrappPhase.NOT_ACTIVE
+            ) }
+
+            startWorkoutTimer()
         }
     }
 
@@ -660,7 +762,15 @@ class WorkoutViewModel @Inject constructor(
         val sessionId = _uiState.value.session?.id ?: return
         viewModelScope.launch {
             repository.deleteSession(sessionId)
-            _uiState.update { WorkoutUiState(availableExercises = it.availableExercises, routines = it.routines) }
+            _uiState.update { it.copy(
+                session = null,
+                logs = emptyList(),
+                activeRoutine = null,
+                isLoading = false,
+                isPaused = false,
+                workoutDurationSeconds = 0,
+                cyberCrappPhase = CyberCrappPhase.NOT_ACTIVE
+            ) }
             timerJob?.cancel()
         }
     }
@@ -966,11 +1076,11 @@ class WorkoutViewModel @Inject constructor(
                 if (exercise != null) {
                     RoutineExercise(
                         exercise = exercise,
-                        sets = sets.filter { it.isCompleted }.map { setLog ->
+                        sets = sets.map { setLog ->
                             RoutineSet(
                                 type = setLog.type,
                                 weight = setLog.weight,
-                                reps = setLog.reps,
+                                reps = if (setLog.isCompleted) setLog.reps else (setLog.goalReps?.toIntOrNull() ?: 0),
                                 goalReps = setLog.goalReps
                             )
                         }

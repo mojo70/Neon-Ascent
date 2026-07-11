@@ -191,12 +191,23 @@ class DashboardViewModel @Inject constructor(
                     "Your cyber lore is still being written..."
                 }
 
+                val today = LocalDate.now()
+                val pulsesToday = dailyTasks.filter { task ->
+                    val recurrence = task.recurrence ?: return@filter true
+                    when (recurrence.type) {
+                        RecurrenceTypeV3.DAILY -> true
+                        RecurrenceTypeV3.WEEKDAYS -> today.dayOfWeek.value in 1..5
+                        RecurrenceTypeV3.DAYS_OF_WEEK -> recurrence.daysOfWeek.contains(today.dayOfWeek)
+                        else -> true
+                    }
+                }
+
                 DashboardUiState(
                     userStory = story,
                     cyberLoreSnippet = lore.take(180) + if (lore.length > 180) "..." else "",
                     operationalDirectives = directives,
                     activeMissions = missions,
-                    todayPulses = dailyTasks,
+                    todayPulses = pulsesToday,
                     terminalFeed = emptyList(), // Now handled by BiohackingViewModel
                     bioAgeResult = bioAge,
                     totalHabitDays = totalCompletedDays,

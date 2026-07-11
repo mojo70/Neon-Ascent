@@ -858,8 +858,14 @@ fun DashboardTaskItem(task: AscensionTask, onComplete: () -> Unit, onClick: () -
         }
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
+            val displayTitle = if (task.timeWindows.isNotEmpty()) {
+                "${task.title} (${task.timeWindows.first()})"
+            } else {
+                task.title
+            }
+            
             Text(
-                task.title,
+                displayTitle,
                 color = if (isCompleted) Color.Gray else Color.White,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontFamily = FontFamily.Monospace,

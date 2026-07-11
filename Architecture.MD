@@ -69,3 +69,24 @@ To prevent data loss during sequential input flows (like the "Identity Forge"), 
 ### 4. Infrastructure
 *   **Persistence**: Secure Room database utilizing SQLCipher for encrypted storage.
 *   **AI**: Hybrid approach using Gemini Nano (Local) and Gemini Flash (Cloud), orchestrated by `AiProvider`.
+
+---
+
+## Workout Intelligence & Scheduling (Chronos Calibration)
+
+### 1. Attribute Scan Integration
+Personalization is refined by syncing with the **Attribute Scan** results:
+*   **Logic**: If an Attribute Scan has been performed, the workout system pulls Strength, Endurance, and Agility estimates to tailor initial weights and volumes.
+*   **Fallback**: If no scan is found, the user is prompted to perform one. Choosing "Remind Me Later" triggers a one-time `AscensionTask` with a specific time window.
+
+### 2. Chronos Calibration (Scheduling)
+Workout sessions are integrated into the main `AscensionTask` system:
+*   **Binding**: Recurring tasks are created for each scheduled training day.
+*   **Deep-Linking**: Notifications from these tasks can take the user directly into the next routine in their rotation (e.g., CyberCrapp A -> B -> C).
+*   **Rotation Logic**: The system follows a strict sequence (A -> B -> C) to ensure balanced muscle volume, but allows manual user override in the Workout Hub.
+
+### 3. Protocol Recommendation Engine
+A science-backed decision tree that recommends a starting protocol based on:
+*   **Experience Level**: Novice (Linear), Intermediate (Split), Advanced (CyberCrapp).
+*   **Somatotype**: Adjusts volume and stretch durations (e.g., Ectomorph +10% volume).
+*   **Injuries**: Automatically suggests substitutions for flagged areas.

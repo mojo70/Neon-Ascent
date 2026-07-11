@@ -115,6 +115,22 @@ class IntListConverter {
     fun toList(data: String?): List<Int>? = data?.split(",")?.filter { it.isNotBlank() }?.map { it.toInt() }
 }
 
+class ScheduledDayListConverter {
+    private val gson = Gson()
+
+    @TypeConverter
+    fun fromList(list: List<com.neon.ascent.core.domain.workout.models.ScheduledDay>?): String? {
+        return list?.let { gson.toJson(it) }
+    }
+
+    @TypeConverter
+    fun toList(json: String?): List<com.neon.ascent.core.domain.workout.models.ScheduledDay> {
+        return json?.let {
+            gson.fromJson(it, object : TypeToken<List<com.neon.ascent.core.domain.workout.models.ScheduledDay>>() {}.type)
+        } ?: emptyList()
+    }
+}
+
 class SuccessMetricListConverter {
     private val gson = Gson()
 

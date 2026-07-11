@@ -10,6 +10,7 @@ import com.neon.ascent.core.data.mapper.*
 import com.neon.ascent.core.domain.repository.WorkoutRepository
 import com.neon.ascent.core.domain.workout.models.*
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -65,22 +66,166 @@ class WorkoutRepositoryImpl @Inject constructor(
             list.map { it.routine.toDomain(it.exercisesWithOrder, it.routineSets, it.augmentsWithOrder) }
         }
 
+    private suspend fun getSystemRoutineDefinition(id: String, exercisesList: List<Exercise> = emptyList()): WorkoutRoutine? {
+        val targetExercises = if (exercisesList.isEmpty()) {
+            workoutDao.getExerciseDefinitions().first().map { it.toDomain() }
+        } else {
+            exercisesList
+        }
+
+        return when (id) {
+            "routine_cybercrapp_a" -> {
+                val bench = targetExercises.find { it.id == "bench_press" } ?: return null
+                val milPress = targetExercises.find { it.id == "military_press" } ?: return null
+                val tricep = targetExercises.find { it.id == "db_tricep_extension" } ?: return null
+                WorkoutRoutine(
+                    id = "routine_cybercrapp_a",
+                    name = "CyberCrapp A (Push)",
+                    description = "PROTOCOL: CYBERCRAPP\nGOAL: Hypertrophy + Powerbuilding\n\nMETHOD: \n- 1 Main Set to failure + 2 rest-pause 'mini-sets'.\n- 1 Cyber Finisher (Lengthened Partials).\n- 1 Loaded Stretch (Somatotype-optimized).\n\nFOCUS: Chest, Shoulders, Triceps.",
+                    protocol = WorkoutProtocol.CYBER_CRAPP,
+                    isSystem = true,
+                    isAddedToLibrary = false,
+                    exercises = listOf(
+                        RoutineExercise(
+                            exercise = bench,
+                            sets = listOf(
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.REST_PAUSE)
+                            )
+                        ),
+                        RoutineExercise(
+                            exercise = milPress,
+                            sets = listOf(
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.REST_PAUSE)
+                            )
+                        ),
+                        RoutineExercise(
+                            exercise = tricep,
+                            sets = listOf(
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.REST_PAUSE)
+                            )
+                        )
+                    )
+                )
+            }
+            "routine_cybercrapp_b" -> {
+                val pullups = targetExercises.find { it.id == "weighted_pullups" } ?: return null
+                val row = targetExercises.find { it.id == "bent_over_row" } ?: return null
+                val jerry = targetExercises.find { it.id == "jerry_curl" } ?: return null
+                WorkoutRoutine(
+                    id = "routine_cybercrapp_b",
+                    name = "CyberCrapp B (Pull)",
+                    description = "PROTOCOL: CYBERCRAPP\nGOAL: Peak Supination + Posterior Thickness\n\nMETHOD: \n- Standard CC Cluster protocol.\n- Includes Jerry Curls for maximum bicep stretch.\n\nFOCUS: Back, Biceps, Rear Delts.",
+                    protocol = WorkoutProtocol.CYBER_CRAPP,
+                    isSystem = true,
+                    isAddedToLibrary = false,
+                    exercises = listOf(
+                        RoutineExercise(
+                            exercise = pullups,
+                            sets = listOf(
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.REST_PAUSE)
+                            )
+                        ),
+                        RoutineExercise(
+                            exercise = row,
+                            sets = listOf(
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.REST_PAUSE)
+                            )
+                        ),
+                        RoutineExercise(
+                            exercise = jerry,
+                            sets = listOf(
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.REST_PAUSE)
+                            )
+                        )
+                    )
+                )
+            }
+            "routine_cybercrapp_c" -> {
+                val squat = targetExercises.find { it.id == "back_squat" } ?: return null
+                val rdl = targetExercises.find { it.id == "romanian_deadlift" } ?: return null
+                val calf = targetExercises.find { it.id == "calf_raise" } ?: return null
+                WorkoutRoutine(
+                    id = "routine_cybercrapp_c",
+                    name = "CyberCrapp C (Legs)",
+                    description = "PROTOCOL: CYBERCRAPP\nGOAL: Neural Drive + Metabolic Stress\n\nMETHOD: \n- POWER sets (explosive 30-60% load).\n- Widowmaker sets (20 rep brutal finishers).\n\nFOCUS: Quads, Hamstrings, Glutes, Calves.",
+                    protocol = WorkoutProtocol.CYBER_CRAPP,
+                    isSystem = true,
+                    isAddedToLibrary = false,
+                    exercises = listOf(
+                        RoutineExercise(
+                            exercise = squat,
+                            sets = listOf(
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.POWER),
+                                RoutineSet(type = SetType.WIDOWMAKER, goalReps = "20")
+                            )
+                        ),
+                        RoutineExercise(
+                            exercise = rdl,
+                            sets = listOf(
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.REST_PAUSE)
+                            )
+                        ),
+                        RoutineExercise(
+                            exercise = calf,
+                            sets = listOf(
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.REST_PAUSE)
+                            )
+                        )
+                    )
+                )
+            }
+            else -> null
+        }
+    }
+
     override suspend fun saveRoutine(routine: WorkoutRoutine) {
-        workoutDao.insertRoutine(routine.toEntity())
-        
-        // Clean up old sets first to avoid duplicates or orphaned sets
-        workoutDao.deleteRoutineSets(routine.id)
-        
-        routine.exercises.forEachIndexed { index, routineExercise ->
-            workoutDao.insertRoutineExerciseCrossRef(
-                RoutineExerciseCrossRef(routine.id, routineExercise.exercise.id, index)
-            )
+        var finalRoutine = routine
+        if (finalRoutine.exercises.isEmpty()) {
+            val existing = workoutDao.getAllRoutines().first().find { it.routine.id == routine.id }
+            if (existing != null && existing.exercisesWithOrder.isNotEmpty()) {
+                finalRoutine = existing.routine.toDomain(
+                    existing.exercisesWithOrder,
+                    existing.routineSets,
+                    existing.augmentsWithOrder
+                ).copy(isAddedToLibrary = routine.isAddedToLibrary)
+            } else if (routine.isSystem) {
+                val systemRoutine = getSystemRoutineDefinition(routine.id)
+                if (systemRoutine != null) {
+                    finalRoutine = systemRoutine.copy(isAddedToLibrary = routine.isAddedToLibrary)
+                }
+            }
+        }
+
+        val routineEntity = finalRoutine.toEntity()
+        val exerciseRefs = mutableListOf<RoutineExerciseCrossRef>()
+        val routineSets = mutableListOf<RoutineSetEntity>()
+        val augmentRefs = mutableListOf<RoutineAugmentCrossRef>()
+
+        finalRoutine.exercises.forEachIndexed { index, routineExercise ->
+            exerciseRefs.add(RoutineExerciseCrossRef(finalRoutine.id, routineExercise.exercise.id, index))
             
             routineExercise.sets.forEachIndexed { setIndex, set ->
-                workoutDao.insertRoutineSet(
+                routineSets.add(
                     RoutineSetEntity(
                         id = java.util.UUID.randomUUID().toString(),
-                        routineId = routine.id,
+                        routineId = finalRoutine.id,
                         exerciseId = routineExercise.exercise.id,
                         order = setIndex,
                         type = set.type.name,
@@ -91,17 +236,24 @@ class WorkoutRepositoryImpl @Inject constructor(
                 )
             }
         }
-        routine.augments.forEachIndexed { index, augment ->
-            workoutDao.insertRoutineAugmentCrossRef(
-                RoutineAugmentCrossRef(routine.id, augment.id, index)
-            )
+
+        finalRoutine.augments.forEachIndexed { index, augment ->
+            augmentRefs.add(RoutineAugmentCrossRef(finalRoutine.id, augment.id, index))
         }
+
+        workoutDao.insertFullRoutine(routineEntity, exerciseRefs, routineSets, augmentRefs)
     }
 
     private suspend fun seedRoutine(routine: WorkoutRoutine) {
-        val currentStatus = workoutDao.getRoutineLibraryStatus(routine.id)
-        if (currentStatus == true) return // Don't overwrite if in user library
-        saveRoutine(routine)
+        val routines = workoutDao.getAllRoutines().first()
+        val existing = routines.find { it.routine.id == routine.id }
+        
+        // System routines are always updated to the latest code-defined version
+        // unless they have been added to the library AND already have exercises
+        if (existing == null || (!existing.routine.isAddedToLibrary) || (existing.exercisesWithOrder.isEmpty())) {
+            val userAddedStatus = existing?.routine?.isAddedToLibrary ?: routine.isAddedToLibrary
+            saveRoutine(routine.copy(isAddedToLibrary = userAddedStatus))
+        }
     }
 
     private suspend fun seedAugment(augment: WorkoutAugment) {
@@ -125,18 +277,15 @@ class WorkoutRepositoryImpl @Inject constructor(
         }
 
     override suspend fun saveAugment(augment: WorkoutAugment) {
-        workoutDao.insertAugment(augment.toEntity())
-        
-        // Clean up old sets first
-        workoutDao.deleteAugmentSets(augment.id)
-        
+        val augmentEntity = augment.toEntity()
+        val exerciseRefs = mutableListOf<AugmentExerciseCrossRef>()
+        val augmentSets = mutableListOf<AugmentSetEntity>()
+
         augment.exercises.forEachIndexed { index, routineExercise ->
-            workoutDao.insertAugmentExerciseCrossRef(
-                AugmentExerciseCrossRef(augment.id, routineExercise.exercise.id, index)
-            )
+            exerciseRefs.add(AugmentExerciseCrossRef(augment.id, routineExercise.exercise.id, index))
             
             routineExercise.sets.forEachIndexed { setIndex, set ->
-                workoutDao.insertAugmentSet(
+                augmentSets.add(
                     AugmentSetEntity(
                         id = java.util.UUID.randomUUID().toString(),
                         augmentId = augment.id,
@@ -150,6 +299,8 @@ class WorkoutRepositoryImpl @Inject constructor(
                 )
             }
         }
+
+        workoutDao.insertFullAugment(augmentEntity, exerciseRefs, augmentSets)
     }
 
     override suspend fun deleteAugment(augmentId: String) {
@@ -379,18 +530,7 @@ class WorkoutRepositoryImpl @Inject constructor(
         val cyberCrappA = WorkoutRoutine(
             id = "routine_cybercrapp_a",
             name = "CyberCrapp A (Push)",
-            description = """
-                PROTOCOL: CYBERCRAPP
-                GOAL: Hypertrophy + Powerbuilding
-                
-                METHOD: 
-                - 2 Warmup sets per exercise.
-                - 1 Rest-Pause Cluster (3 mini-sets to failure).
-                - 1 Cyber Finisher (Lengthened Partials).
-                - 1 Loaded Stretch (Somatotype-optimized).
-                
-                FOCUS: Chest, Shoulders, Triceps.
-            """.trimIndent(),
+            description = "PROTOCOL: CYBERCRAPP\nGOAL: Hypertrophy + Powerbuilding\n\nMETHOD: \n- 1 Main Set to failure + 2 rest-pause 'mini-sets'.\n- 1 Cyber Finisher (Lengthened Partials).\n- 1 Loaded Stretch (Somatotype-optimized).\n\nFOCUS: Chest, Shoulders, Triceps.",
             protocol = WorkoutProtocol.CYBER_CRAPP,
             isSystem = true,
             isAddedToLibrary = false,
@@ -399,6 +539,7 @@ class WorkoutRepositoryImpl @Inject constructor(
                     exercise = exercises.find { it.id == "bench_press" }!!,
                     sets = listOf(
                         RoutineSet(type = SetType.WARMUP),
+                        RoutineSet(type = SetType.WARMUP),
                         RoutineSet(type = SetType.REST_PAUSE)
                     )
                 ),
@@ -406,12 +547,14 @@ class WorkoutRepositoryImpl @Inject constructor(
                     exercise = exercises.find { it.id == "military_press" }!!,
                     sets = listOf(
                         RoutineSet(type = SetType.WARMUP),
+                        RoutineSet(type = SetType.WARMUP),
                         RoutineSet(type = SetType.REST_PAUSE)
                     )
                 ),
                 RoutineExercise(
                     exercise = exercises.find { it.id == "db_tricep_extension" }!!,
                     sets = listOf(
+                        RoutineSet(type = SetType.WARMUP),
                         RoutineSet(type = SetType.WARMUP),
                         RoutineSet(type = SetType.REST_PAUSE)
                     )
@@ -424,16 +567,7 @@ class WorkoutRepositoryImpl @Inject constructor(
         val cyberCrappB = WorkoutRoutine(
             id = "routine_cybercrapp_b",
             name = "CyberCrapp B (Pull)",
-            description = """
-                PROTOCOL: CYBERCRAPP
-                GOAL: Peak Supination + Posterior Thickness
-                
-                METHOD: 
-                - Standard CC Cluster protocol.
-                - Includes Jerry Curls for maximum bicep stretch.
-                
-                FOCUS: Back, Biceps, Rear Delts.
-            """.trimIndent(),
+            description = "PROTOCOL: CYBERCRAPP\nGOAL: Peak Supination + Posterior Thickness\n\nMETHOD: \n- Standard CC Cluster protocol.\n- Includes Jerry Curls for maximum bicep stretch.\n\nFOCUS: Back, Biceps, Rear Delts.",
             protocol = WorkoutProtocol.CYBER_CRAPP,
             isSystem = true,
             isAddedToLibrary = false,
@@ -442,6 +576,7 @@ class WorkoutRepositoryImpl @Inject constructor(
                     exercise = exercises.find { it.id == "weighted_pullups" }!!,
                     sets = listOf(
                         RoutineSet(type = SetType.WARMUP),
+                        RoutineSet(type = SetType.WARMUP),
                         RoutineSet(type = SetType.REST_PAUSE)
                     )
                 ),
@@ -449,12 +584,14 @@ class WorkoutRepositoryImpl @Inject constructor(
                     exercise = exercises.find { it.id == "bent_over_row" }!!,
                     sets = listOf(
                         RoutineSet(type = SetType.WARMUP),
+                        RoutineSet(type = SetType.WARMUP),
                         RoutineSet(type = SetType.REST_PAUSE)
                     )
                 ),
                 RoutineExercise(
                     exercise = exercises.find { it.id == "jerry_curl" }!!,
                     sets = listOf(
+                        RoutineSet(type = SetType.WARMUP),
                         RoutineSet(type = SetType.WARMUP),
                         RoutineSet(type = SetType.REST_PAUSE)
                     )
@@ -467,16 +604,7 @@ class WorkoutRepositoryImpl @Inject constructor(
         val cyberCrappC = WorkoutRoutine(
             id = "routine_cybercrapp_c",
             name = "CyberCrapp C (Legs)",
-            description = """
-                PROTOCOL: CYBERCRAPP
-                GOAL: Neural Drive + Metabolic Stress
-                
-                METHOD: 
-                - POWER sets (explosive 30-60% load).
-                - Widowmaker sets (20 rep brutal finishers).
-                
-                FOCUS: Quads, Hamstrings, Glutes, Calves.
-            """.trimIndent(),
+            description = "PROTOCOL: CYBERCRAPP\nGOAL: Neural Drive + Metabolic Stress\n\nMETHOD: \n- POWER sets (explosive 30-60% load).\n- Widowmaker sets (20 rep brutal finishers).\n\nFOCUS: Quads, Hamstrings, Glutes, Calves.",
             protocol = WorkoutProtocol.CYBER_CRAPP,
             isSystem = true,
             isAddedToLibrary = false,
@@ -484,6 +612,7 @@ class WorkoutRepositoryImpl @Inject constructor(
                 RoutineExercise(
                     exercise = exercises.find { it.id == "back_squat" }!!,
                     sets = listOf(
+                        RoutineSet(type = SetType.WARMUP),
                         RoutineSet(type = SetType.WARMUP),
                         RoutineSet(type = SetType.POWER),
                         RoutineSet(type = SetType.WIDOWMAKER, goalReps = "20")
@@ -493,12 +622,14 @@ class WorkoutRepositoryImpl @Inject constructor(
                     exercise = exercises.find { it.id == "romanian_deadlift" }!!,
                     sets = listOf(
                         RoutineSet(type = SetType.WARMUP),
+                        RoutineSet(type = SetType.WARMUP),
                         RoutineSet(type = SetType.REST_PAUSE)
                     )
                 ),
                 RoutineExercise(
                     exercise = exercises.find { it.id == "calf_raise" }!!,
                     sets = listOf(
+                        RoutineSet(type = SetType.WARMUP),
                         RoutineSet(type = SetType.REST_PAUSE)
                     )
                 )
