@@ -51,7 +51,99 @@ data class WorkoutLogEntity(
     val order: Int,
     val exerciseName: String,
     val protocolOverride: String?,
-    val supersetId: String? = null
+    val supersetId: String? = null,
+    val augmentId: String? = null,
+    val augmentName: String? = null,
+    val augmentColor: String? = null
+)
+
+@Entity(tableName = "workout_augments")
+data class WorkoutAugmentEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val description: String?,
+    val focusBodyPart: String,
+    val colorHex: String,
+    val isSystem: Boolean = false,
+    val isAddedToLibrary: Boolean = true
+)
+
+@Entity(
+    tableName = "augment_exercise_cross_ref",
+    primaryKeys = ["augmentId", "exerciseId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = WorkoutAugmentEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["augmentId"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = ExerciseDefinitionEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["exerciseId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("augmentId"), Index("exerciseId")]
+)
+data class AugmentExerciseCrossRef(
+    val augmentId: String,
+    val exerciseId: String,
+    val order: Int
+)
+
+@Entity(
+    tableName = "augment_sets",
+    foreignKeys = [
+        ForeignKey(
+            entity = WorkoutAugmentEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["augmentId"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = ExerciseDefinitionEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["exerciseId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("augmentId"), Index("exerciseId")]
+)
+data class AugmentSetEntity(
+    @PrimaryKey val id: String,
+    val augmentId: String,
+    val exerciseId: String,
+    val order: Int,
+    val type: String,
+    val weight: Float,
+    val reps: Int
+)
+
+@Entity(
+    tableName = "routine_augment_cross_ref",
+    primaryKeys = ["routineId", "augmentId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = WorkoutRoutineEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["routineId"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = WorkoutAugmentEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["augmentId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("routineId"), Index("augmentId")]
+)
+data class RoutineAugmentCrossRef(
+    val routineId: String,
+    val augmentId: String,
+    val order: Int
 )
 
 @Entity(
@@ -124,4 +216,32 @@ data class RoutineExerciseCrossRef(
     val routineId: String,
     val exerciseId: String,
     val order: Int
+)
+
+@Entity(
+    tableName = "routine_sets",
+    foreignKeys = [
+        ForeignKey(
+            entity = WorkoutRoutineEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["routineId"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = ExerciseDefinitionEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["exerciseId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("routineId"), Index("exerciseId")]
+)
+data class RoutineSetEntity(
+    @PrimaryKey val id: String,
+    val routineId: String,
+    val exerciseId: String,
+    val order: Int,
+    val type: String,
+    val weight: Float,
+    val reps: Int
 )

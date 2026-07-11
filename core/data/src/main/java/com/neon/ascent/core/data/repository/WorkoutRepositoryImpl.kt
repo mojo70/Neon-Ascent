@@ -1,7 +1,11 @@
 package com.neon.ascent.core.data.repository
 
 import com.neon.ascent.core.data.local.dao.WorkoutDao
+import com.neon.ascent.core.data.local.entity.AugmentExerciseCrossRef
+import com.neon.ascent.core.data.local.entity.RoutineAugmentCrossRef
 import com.neon.ascent.core.data.local.entity.RoutineExerciseCrossRef
+import com.neon.ascent.core.data.local.entity.RoutineSetEntity
+import com.neon.ascent.core.data.local.entity.AugmentSetEntity
 import com.neon.ascent.core.data.mapper.*
 import com.neon.ascent.core.domain.repository.WorkoutRepository
 import com.neon.ascent.core.domain.workout.models.*
@@ -58,26 +62,79 @@ class WorkoutRepositoryImpl @Inject constructor(
 
     override fun getAllRoutines(): Flow<List<WorkoutRoutine>> =
         workoutDao.getAllRoutines().map { list ->
-            list.map { it.routine.toDomain(it.exercises) }
+            list.map { it.routine.toDomain(it.exercises, it.routineSets, it.augments) }
         }
 
     override suspend fun saveRoutine(routine: WorkoutRoutine) {
         workoutDao.insertRoutine(routine.toEntity())
-        // Clear old mapping if updating
-        // (Room doesn't have an update cross ref, and routineId might be the same)
-        // Actually, insertRoutine with REPLACE will handle the routine entity, 
-        // but not the cross refs.
-        // Let's just delete the routine first if we wanted true update, 
-        // but for now we assume new IDs or manual management.
-        routine.exercises.forEachIndexed { index, exercise ->
+        
+        // Clean up old sets first to avoid duplicates or orphaned sets
+        workoutDao.deleteRoutineSets(routine.id)
+        
+        routine.exercises.forEachIndexed { index, routineExercise ->
             workoutDao.insertRoutineExerciseCrossRef(
-                RoutineExerciseCrossRef(routine.id, exercise.id, index)
+                RoutineExerciseCrossRef(routine.id, routineExercise.exercise.id, index)
+            )
+            
+            routineExercise.sets.forEachIndexed { setIndex, set ->
+                workoutDao.insertRoutineSet(
+                    RoutineSetEntity(
+                        id = java.util.UUID.randomUUID().toString(),
+                        routineId = routine.id,
+                        exerciseId = routineExercise.exercise.id,
+                        order = setIndex,
+                        type = set.type.name,
+                        weight = set.weight,
+                        reps = set.reps
+                    )
+                )
+            }
+        }
+        routine.augments.forEachIndexed { index, augment ->
+            workoutDao.insertRoutineAugmentCrossRef(
+                RoutineAugmentCrossRef(routine.id, augment.id, index)
             )
         }
     }
 
     override suspend fun deleteRoutine(routineId: String) {
         workoutDao.deleteRoutine(routineId)
+    }
+
+    override fun getAllAugments(): Flow<List<WorkoutAugment>> =
+        workoutDao.getAllAugments().map { list ->
+            list.map { it.augment.toDomain(it.exercises, it.augmentSets) }
+        }
+
+    override suspend fun saveAugment(augment: WorkoutAugment) {
+        workoutDao.insertAugment(augment.toEntity())
+        
+        // Clean up old sets first
+        workoutDao.deleteAugmentSets(augment.id)
+        
+        augment.exercises.forEachIndexed { index, routineExercise ->
+            workoutDao.insertAugmentExerciseCrossRef(
+                AugmentExerciseCrossRef(augment.id, routineExercise.exercise.id, index)
+            )
+            
+            routineExercise.sets.forEachIndexed { setIndex, set ->
+                workoutDao.insertAugmentSet(
+                    AugmentSetEntity(
+                        id = java.util.UUID.randomUUID().toString(),
+                        augmentId = augment.id,
+                        exerciseId = routineExercise.exercise.id,
+                        order = setIndex,
+                        type = set.type.name,
+                        weight = set.weight,
+                        reps = set.reps
+                    )
+                )
+            }
+        }
+    }
+
+    override suspend fun deleteAugment(augmentId: String) {
+        workoutDao.deleteAugment(augmentId)
     }
 
     override suspend fun seedStarterExercises() {
@@ -275,6 +332,24 @@ class WorkoutRepositoryImpl @Inject constructor(
         exercises.forEach {
             workoutDao.insertExerciseDefinition(it.toEntity())
         }
+
+        // Seed Gorilla Arms Augment
+        val gorillaArms = WorkoutAugment(
+            id = "augment_gorilla_arms",
+            name = "Gorilla Arms",
+            description = "High-intensity upper arm protocol emphasizing peak bicep supination and long-head tricep extension.",
+            focusBodyPart = "Upper Arms",
+            exercises = listOfNotNull(
+                exercises.find { it.id == "db_tricep_extension" },
+                exercises.find { it.id == "hammer_curl" },
+                exercises.find { it.id == "jerry_curl" },
+                exercises.find { it.id == "lateral_raise" }
+            ).map { RoutineExercise(it) },
+            colorHex = "#00CCFF",
+            isSystem = true,
+            isAddedToLibrary = false // Don't show on main screen by default
+        )
+        saveAugment(gorillaArms)
 
         // Ensure old default routines are removed as requested
         workoutDao.deleteRoutine("routine_strength")

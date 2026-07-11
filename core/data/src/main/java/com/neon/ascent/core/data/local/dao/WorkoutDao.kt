@@ -42,13 +42,41 @@ interface WorkoutDao {
 
     @Transaction
     @Query("SELECT * FROM workout_routines")
-    fun getAllRoutines(): Flow<List<WorkoutRoutineWithExercises>>
+    fun getAllRoutines(): Flow<List<WorkoutRoutineWithDetails>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRoutine(routine: WorkoutRoutineEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRoutineExerciseCrossRef(crossRef: RoutineExerciseCrossRef)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRoutineAugmentCrossRef(crossRef: RoutineAugmentCrossRef)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRoutineSet(set: RoutineSetEntity)
+
+    @Query("DELETE FROM routine_sets WHERE routineId = :routineId")
+    suspend fun deleteRoutineSets(routineId: String)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAugment(augment: WorkoutAugmentEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAugmentExerciseCrossRef(crossRef: AugmentExerciseCrossRef)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAugmentSet(set: AugmentSetEntity)
+
+    @Query("DELETE FROM augment_sets WHERE augmentId = :augmentId")
+    suspend fun deleteAugmentSets(augmentId: String)
+
+    @Transaction
+    @Query("SELECT * FROM workout_augments")
+    fun getAllAugments(): Flow<List<WorkoutAugmentWithExercises>>
+
+    @Query("DELETE FROM workout_augments WHERE id = :augmentId")
+    suspend fun deleteAugment(augmentId: String)
 
     @Query("DELETE FROM workout_routines WHERE id = :routineId")
     suspend fun deleteRoutine(routineId: String)
@@ -102,9 +130,10 @@ data class WorkoutLogWithSets(
     val sets: List<SetLogEntity>
 )
 
-data class WorkoutRoutineWithExercises(
+data class WorkoutRoutineWithDetails(
     @Embedded val routine: WorkoutRoutineEntity,
     @Relation(
+        entity = ExerciseDefinitionEntity::class,
         parentColumn = "id",
         entityColumn = "id",
         associateBy = Junction(
@@ -113,5 +142,41 @@ data class WorkoutRoutineWithExercises(
             entityColumn = "exerciseId"
         )
     )
-    val exercises: List<ExerciseDefinitionEntity>
+    val exercises: List<ExerciseDefinitionEntity>,
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "routineId"
+    )
+    val routineSets: List<RoutineSetEntity>,
+    @Relation(
+        entity = WorkoutAugmentEntity::class,
+        parentColumn = "id",
+        entityColumn = "id",
+        associateBy = Junction(
+            value = RoutineAugmentCrossRef::class,
+            parentColumn = "routineId",
+            entityColumn = "augmentId"
+        )
+    )
+    val augments: List<WorkoutAugmentWithExercises>
+)
+
+data class WorkoutAugmentWithExercises(
+    @Embedded val augment: WorkoutAugmentEntity,
+    @Relation(
+        entity = ExerciseDefinitionEntity::class,
+        parentColumn = "id",
+        entityColumn = "id",
+        associateBy = Junction(
+            value = AugmentExerciseCrossRef::class,
+            parentColumn = "augmentId",
+            entityColumn = "exerciseId"
+        )
+    )
+    val exercises: List<ExerciseDefinitionEntity>,
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "augmentId"
+    )
+    val augmentSets: List<AugmentSetEntity>
 )

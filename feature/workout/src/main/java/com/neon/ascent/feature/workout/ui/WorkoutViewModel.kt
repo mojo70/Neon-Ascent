@@ -17,6 +17,8 @@ data class WorkoutUiState(
     val previousLogs: Map<String, List<SetLog>> = emptyMap(), // exerciseId -> sets
     val availableExercises: List<Exercise> = emptyList(),
     val routines: List<WorkoutRoutine> = emptyList(),
+    val augments: List<WorkoutAugment> = emptyList(),
+    val exploreAugments: List<WorkoutAugment> = emptyList(),
     val isLoading: Boolean = false,
     val isResting: Boolean = false,
     val restTimeRemaining: Int = 15,
@@ -29,11 +31,24 @@ data class WorkoutUiState(
     
     // Routine Creation State
     val isCreatingRoutine: Boolean = false,
+    val editingRoutineId: String? = null,
     val isReorderingExercises: Boolean = false,
     val newRoutineName: String = "",
-    val newRoutineExercises: List<Exercise> = emptyList(),
+    val newRoutineExercises: List<RoutineExercise> = emptyList(),
+    val newRoutineAugments: List<WorkoutAugment> = emptyList(),
+
+    // Augment Creation State
+    val isCreatingAugment: Boolean = false,
+    val newAugmentName: String = "",
+    val newAugmentBodyPart: String = "",
+    val newAugmentExercises: List<RoutineExercise> = emptyList(),
 
     val activeSessionError: String? = null,
+
+    // Finish Workout Dialogs
+    val activeRoutine: WorkoutRoutine? = null,
+    val showUncompletedSetsDialog: Boolean = false,
+    val showSaveRoutineChangesDialog: Boolean = false,
 
     // Exercise Picker State
     val exerciseSearchQuery: String = "",
@@ -63,12 +78,14 @@ class WorkoutViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private var timerJob: kotlinx.coroutines.Job? = null
+    private var sessionJob: kotlinx.coroutines.Job? = null
 
     init {
         viewModelScope.launch {
             repository.seedStarterExercises()
             loadExercises()
             loadRoutines()
+            loadAugments()
             checkForActiveSession()
         }
     }
@@ -85,7 +102,8 @@ class WorkoutViewModel @Inject constructor(
 
     private fun resumeExistingSession(session: WorkoutSession) {
         _uiState.update { it.copy(session = session, isLoading = true) }
-        viewModelScope.launch {
+        sessionJob?.cancel()
+        sessionJob = viewModelScope.launch {
             repository.getLogsForSession(session.id).collect { logs ->
                 _uiState.update { it.copy(logs = logs, isLoading = false) }
                 logs.forEach { (log, _) -> loadPreviousData(log.exerciseId) }
@@ -109,7 +127,17 @@ class WorkoutViewModel @Inject constructor(
     }
 
     fun startCreateRoutine() {
-        _uiState.update { it.copy(isCreatingRoutine = true, newRoutineName = "", newRoutineExercises = emptyList()) }
+        _uiState.update { it.copy(isCreatingRoutine = true, editingRoutineId = null, newRoutineName = "", newRoutineExercises = emptyList()) }
+    }
+
+    fun editRoutine(routine: WorkoutRoutine) {
+        _uiState.update { it.copy(
+            isCreatingRoutine = true,
+            editingRoutineId = routine.id,
+            newRoutineName = routine.name,
+            newRoutineExercises = routine.exercises,
+            newRoutineAugments = routine.augments
+        ) }
     }
 
     fun startReordering() {
@@ -138,7 +166,7 @@ class WorkoutViewModel @Inject constructor(
     }
 
     fun cancelCreateRoutine() {
-        _uiState.update { it.copy(isCreatingRoutine = false) }
+        _uiState.update { it.copy(isCreatingRoutine = false, editingRoutineId = null) }
     }
 
     fun updateNewRoutineName(name: String) {
@@ -146,11 +174,87 @@ class WorkoutViewModel @Inject constructor(
     }
 
     fun addExerciseToNewRoutine(exercise: Exercise) {
-        _uiState.update { it.copy(newRoutineExercises = it.newRoutineExercises + exercise) }
+        val routineExercise = RoutineExercise(
+            exercise = exercise,
+            sets = listOf(RoutineSet(type = SetType.NORMAL)) // Default with one set
+        )
+        if (_uiState.value.isCreatingAugment) {
+            _uiState.update { it.copy(newAugmentExercises = it.newAugmentExercises + routineExercise) }
+        } else {
+            _uiState.update { it.copy(newRoutineExercises = it.newRoutineExercises + routineExercise) }
+        }
     }
 
-    fun removeExerciseFromNewRoutine(exercise: Exercise) {
-        _uiState.update { it.copy(newRoutineExercises = it.newRoutineExercises - exercise) }
+    fun removeExerciseFromNewRoutine(routineExercise: RoutineExercise) {
+        if (_uiState.value.isCreatingAugment) {
+            _uiState.update { it.copy(newAugmentExercises = it.newAugmentExercises - routineExercise) }
+        } else {
+            _uiState.update { it.copy(newRoutineExercises = it.newRoutineExercises - routineExercise) }
+        }
+    }
+
+    fun updateRoutineExerciseSet(routineExercise: RoutineExercise, setIndex: Int, type: SetType? = null, weight: Float? = null, reps: Int? = null) {
+        val updateFunc = { exercises: List<RoutineExercise> ->
+            exercises.map { re ->
+                if (re === routineExercise) {
+                    val updatedSets = re.sets.toMutableList()
+                    if (setIndex in updatedSets.indices) {
+                        updatedSets[setIndex] = updatedSets[setIndex].copy(
+                            type = type ?: updatedSets[setIndex].type,
+                            weight = weight ?: updatedSets[setIndex].weight,
+                            reps = reps ?: updatedSets[setIndex].reps
+                        )
+                    }
+                    re.copy(sets = updatedSets)
+                } else re
+            }
+        }
+        
+        if (_uiState.value.isCreatingAugment) {
+            _uiState.update { it.copy(newAugmentExercises = updateFunc(it.newAugmentExercises)) }
+        } else {
+            _uiState.update { it.copy(newRoutineExercises = updateFunc(it.newRoutineExercises)) }
+        }
+    }
+
+    fun addSetToRoutineExercise(routineExercise: RoutineExercise) {
+        val updateFunc = { exercises: List<RoutineExercise> ->
+            exercises.map { re ->
+                if (re === routineExercise) {
+                    re.copy(sets = re.sets + RoutineSet(type = SetType.NORMAL))
+                } else re
+            }
+        }
+        
+        if (_uiState.value.isCreatingAugment) {
+            _uiState.update { it.copy(newAugmentExercises = updateFunc(it.newAugmentExercises)) }
+        } else {
+            _uiState.update { it.copy(newRoutineExercises = updateFunc(it.newRoutineExercises)) }
+        }
+    }
+
+    fun removeSetFromRoutineExercise(routineExercise: RoutineExercise, setIndex: Int) {
+        val updateFunc = { exercises: List<RoutineExercise> ->
+            exercises.map { re ->
+                if (re === routineExercise) {
+                    re.copy(sets = re.sets.filterIndexed { index, _ -> index != setIndex })
+                } else re
+            }
+        }
+        
+        if (_uiState.value.isCreatingAugment) {
+            _uiState.update { it.copy(newAugmentExercises = updateFunc(it.newAugmentExercises)) }
+        } else {
+            _uiState.update { it.copy(newRoutineExercises = updateFunc(it.newRoutineExercises)) }
+        }
+    }
+
+    fun removeAugmentFromNewRoutine(augment: WorkoutAugment) {
+        _uiState.update { it.copy(newRoutineAugments = it.newRoutineAugments - augment) }
+    }
+
+    fun addAugmentToNewRoutine(augment: WorkoutAugment) {
+        _uiState.update { it.copy(newRoutineAugments = it.newRoutineAugments + augment) }
     }
 
     fun saveRoutine() {
@@ -158,14 +262,56 @@ class WorkoutViewModel @Inject constructor(
         if (state.newRoutineName.isBlank()) return
         
         val routine = WorkoutRoutine(
-            id = UUID.randomUUID().toString(),
+            id = state.editingRoutineId ?: UUID.randomUUID().toString(),
             name = state.newRoutineName,
-            exercises = state.newRoutineExercises
+            exercises = state.newRoutineExercises,
+            augments = state.newRoutineAugments
         )
         
         viewModelScope.launch {
             repository.saveRoutine(routine)
-            _uiState.update { it.copy(isCreatingRoutine = false) }
+            _uiState.update { it.copy(isCreatingRoutine = false, editingRoutineId = null) }
+        }
+    }
+
+    fun startCreateAugment() {
+        _uiState.update { it.copy(isCreatingAugment = true, newAugmentName = "", newAugmentExercises = emptyList(), newAugmentBodyPart = "") }
+    }
+
+    fun cancelCreateAugment() {
+        _uiState.update { it.copy(isCreatingAugment = false) }
+    }
+
+    fun updateNewAugmentName(name: String) {
+        _uiState.update { it.copy(newAugmentName = name) }
+    }
+
+    fun updateNewAugmentBodyPart(bodyPart: String) {
+        _uiState.update { it.copy(newAugmentBodyPart = bodyPart) }
+    }
+
+    fun saveAugment() {
+        val state = _uiState.value
+        if (state.newAugmentName.isBlank()) return
+        
+        val augment = WorkoutAugment(
+            id = UUID.randomUUID().toString(),
+            name = state.newAugmentName,
+            description = null,
+            focusBodyPart = state.newAugmentBodyPart,
+            exercises = state.newAugmentExercises,
+            colorHex = "#00CCFF" // Neon blue default
+        )
+        
+        viewModelScope.launch {
+            repository.saveAugment(augment)
+            _uiState.update { it.copy(isCreatingAugment = false) }
+        }
+    }
+
+    fun deleteAugment(augment: WorkoutAugment) {
+        viewModelScope.launch {
+            repository.deleteAugment(augment.id)
         }
     }
 
@@ -217,6 +363,23 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
+    private fun loadAugments() {
+        viewModelScope.launch {
+            repository.getAllAugments().collect { augments ->
+                _uiState.update { it.copy(
+                    augments = augments.filter { a -> a.isAddedToLibrary },
+                    exploreAugments = augments.filter { a -> a.isSystem && !a.isAddedToLibrary }
+                ) }
+            }
+        }
+    }
+
+    fun toggleAugmentLibrary(augment: WorkoutAugment) {
+        viewModelScope.launch {
+            repository.saveAugment(augment.copy(isAddedToLibrary = !augment.isAddedToLibrary))
+        }
+    }
+
     private fun startWorkoutTimer() {
         timerJob?.cancel()
         timerJob = viewModelScope.launch {
@@ -244,7 +407,8 @@ class WorkoutViewModel @Inject constructor(
             previousLogs = emptyMap()
         ) }
         
-        viewModelScope.launch {
+        sessionJob?.cancel()
+        sessionJob = viewModelScope.launch {
             repository.saveSession(session)
             startWorkoutTimer()
             repository.getLogsForSession(sessionId).collect { logs ->
@@ -281,26 +445,75 @@ class WorkoutViewModel @Inject constructor(
         val session = WorkoutSession(id = sessionId, protocol = routine.protocol)
         _uiState.update { it.copy(
             session = session, 
+            activeRoutine = routine,
             isLoading = true, 
             workoutDurationSeconds = 0, 
             isPaused = false,
             previousLogs = emptyMap()
         ) }
 
-        viewModelScope.launch {
+        sessionJob?.cancel()
+        sessionJob = viewModelScope.launch {
             repository.saveSession(session)
             startWorkoutTimer()
+            
+            var currentOrder = 0
+            
             // Pre-populate logs with exercises from routine
-            routine.exercises.forEachIndexed { index, exercise ->
+            routine.exercises.forEach { routineExercise ->
                 val workoutLog = WorkoutLog(
                     id = UUID.randomUUID().toString(),
                     sessionId = sessionId,
-                    exerciseId = exercise.id,
-                    order = index,
-                    exerciseName = exercise.name
+                    exerciseId = routineExercise.exercise.id,
+                    order = currentOrder++,
+                    exerciseName = routineExercise.exercise.name
                 )
                 repository.saveWorkoutLog(workoutLog)
-                loadPreviousData(exercise.id)
+                
+                // Use defined sets from routine
+                routineExercise.sets.forEach { routineSet ->
+                    val setLog = SetLog(
+                        id = UUID.randomUUID().toString(),
+                        workoutLogId = workoutLog.id,
+                        weight = routineSet.weight,
+                        reps = routineSet.reps,
+                        type = routineSet.type
+                    )
+                    repository.saveSetLog(setLog)
+                }
+                
+                loadPreviousData(routineExercise.exercise.id)
+            }
+
+            // Add augments from routine
+            routine.augments.forEach { augment ->
+                augment.exercises.forEach { routineExercise ->
+                    val workoutLog = WorkoutLog(
+                        id = UUID.randomUUID().toString(),
+                        sessionId = sessionId,
+                        exerciseId = routineExercise.exercise.id,
+                        order = currentOrder++,
+                        exerciseName = routineExercise.exercise.name,
+                        augmentId = augment.id,
+                        augmentName = augment.name,
+                        augmentColor = augment.colorHex
+                    )
+                    repository.saveWorkoutLog(workoutLog)
+                    
+                    // Use defined sets from augment
+                    routineExercise.sets.forEach { routineSet ->
+                        val setLog = SetLog(
+                            id = UUID.randomUUID().toString(),
+                            workoutLogId = workoutLog.id,
+                            weight = routineSet.weight,
+                            reps = routineSet.reps,
+                            type = routineSet.type
+                        )
+                        repository.saveSetLog(setLog)
+                    }
+                    
+                    loadPreviousData(routineExercise.exercise.id)
+                }
             }
             
             repository.getLogsForSession(sessionId).collect { logs ->
@@ -343,6 +556,27 @@ class WorkoutViewModel @Inject constructor(
         viewModelScope.launch {
             repository.saveWorkoutLog(workoutLog)
             loadPreviousData(exercise.id)
+        }
+    }
+
+    fun injectAugment(augment: WorkoutAugment) {
+        val session = _uiState.value.session ?: return
+        val baseOrder = _uiState.value.logs.size
+        viewModelScope.launch {
+            augment.exercises.forEachIndexed { index, routineExercise ->
+                val workoutLog = WorkoutLog(
+                    id = UUID.randomUUID().toString(),
+                    sessionId = session.id,
+                    exerciseId = routineExercise.exercise.id,
+                    order = baseOrder + index,
+                    exerciseName = routineExercise.exercise.name,
+                    augmentId = augment.id,
+                    augmentName = augment.name,
+                    augmentColor = augment.colorHex
+                )
+                repository.saveWorkoutLog(workoutLog)
+                loadPreviousData(routineExercise.exercise.id)
+            }
         }
     }
 
@@ -420,6 +654,116 @@ class WorkoutViewModel @Inject constructor(
     }
 
     fun finishWorkout() {
+        val currentLogs = _uiState.value.logs
+        val hasUncompletedSets = currentLogs.any { (_, sets) -> sets.any { !it.isCompleted } }
+
+        if (hasUncompletedSets) {
+            _uiState.update { it.copy(showUncompletedSetsDialog = true) }
+        } else {
+            checkRoutineModificationsAndFinish()
+        }
+    }
+
+    fun dismissUncompletedSetsDialog(discard: Boolean) {
+        _uiState.update { it.copy(showUncompletedSetsDialog = false) }
+        if (discard) {
+            checkRoutineModificationsAndFinish(isDiscardingUncompleted = true)
+        }
+    }
+
+    private fun checkRoutineModificationsAndFinish(isDiscardingUncompleted: Boolean = false) {
+        val activeRoutine = _uiState.value.activeRoutine
+        val currentLogs = _uiState.value.logs
+        
+        if (activeRoutine != null && checkIfRoutineModified(activeRoutine, currentLogs, isDiscardingUncompleted)) {
+            _uiState.update { it.copy(showSaveRoutineChangesDialog = true) }
+        } else {
+            performFinalFinish()
+        }
+    }
+
+    private fun checkIfRoutineModified(
+        routine: WorkoutRoutine, 
+        currentLogs: List<Pair<WorkoutLog, List<SetLog>>>,
+        isDiscardingUncompleted: Boolean
+    ): Boolean {
+        // 1. Check if exercises changed (added, removed, or reordered)
+        val routineExerciseIds = routine.exercises.map { it.exercise.id } + routine.augments.flatMap { it.exercises }.map { it.exercise.id }
+        val currentExerciseIds = currentLogs.map { it.first.exerciseId }
+        
+        if (routineExerciseIds != currentExerciseIds) return true
+        
+        // 2. Check if set counts changed compared to routine definition
+        val routineSetsPerExercise = routine.exercises.associateBy({ it.exercise.id }, { it.sets })
+        val augmentSetsPerExercise = routine.augments.flatMap { it.exercises }.associateBy({ it.exercise.id }, { it.sets })
+        
+        val allSetsPerExercise = routineSetsPerExercise + augmentSetsPerExercise
+
+        val anySetCountChanged = currentLogs.any { (log, sets) ->
+            val effectiveSetCount = if (isDiscardingUncompleted) {
+                sets.count { it.isCompleted }
+            } else {
+                sets.size
+            }
+            val definedSetCount = allSetsPerExercise[log.exerciseId]?.size ?: 0
+            effectiveSetCount != definedSetCount
+        }
+        
+        if (anySetCountChanged) return true
+
+        return false
+    }
+
+    fun confirmSaveRoutineChanges(save: Boolean) {
+        if (save) {
+            saveCurrentWorkoutAsRoutineUpdate()
+        }
+        _uiState.update { it.copy(showSaveRoutineChangesDialog = false) }
+        performFinalFinish()
+    }
+
+    private fun saveCurrentWorkoutAsRoutineUpdate() {
+        val state = _uiState.value
+        val activeRoutine = state.activeRoutine ?: return
+        val currentLogs = state.logs
+        
+        // Safety check: Don't wipe the routine if for some reason we have no logs 
+        if (currentLogs.isEmpty()) return
+
+        // Extract exercises and their ACTUAL completed sets
+        val updatedExercises = currentLogs
+            .filter { it.first.augmentId == null }
+            .mapNotNull { (log, sets) ->
+                val exercise = activeRoutine.exercises.find { it.exercise.id == log.exerciseId }?.exercise
+                    ?: state.availableExercises.find { it.id == log.exerciseId }
+                
+                if (exercise != null) {
+                    RoutineExercise(
+                        exercise = exercise,
+                        sets = sets.filter { it.isCompleted }.map { setLog ->
+                            RoutineSet(
+                                type = setLog.type,
+                                weight = setLog.weight,
+                                reps = setLog.reps
+                            )
+                        }
+                    )
+                } else null
+            }
+        
+        val hadNonAugmentExercises = currentLogs.any { it.first.augmentId == null }
+        if (hadNonAugmentExercises && updatedExercises.isEmpty()) return
+
+        val updatedRoutine = activeRoutine.copy(
+            exercises = updatedExercises
+        )
+        
+        viewModelScope.launch {
+            repository.saveRoutine(updatedRoutine)
+        }
+    }
+
+    private fun performFinalFinish() {
         val session = _uiState.value.session ?: return
         val finalDuration = _uiState.value.workoutDurationSeconds
         val currentLogs = _uiState.value.logs
@@ -435,8 +779,15 @@ class WorkoutViewModel @Inject constructor(
             }
 
             repository.saveSession(session.copy(durationSeconds = finalDuration))
-            _uiState.update { it.copy(session = null, workoutDurationSeconds = 0) }
+            _uiState.update { it.copy(
+                session = null, 
+                workoutDurationSeconds = 0, 
+                activeRoutine = null,
+                logs = emptyList(), // Clear logs for next session
+                previousLogs = emptyMap()
+            ) }
             timerJob?.cancel()
+            sessionJob?.cancel()
         }
     }
 

@@ -46,7 +46,21 @@ data class WorkoutLog(
     val order: Int,
     val exerciseName: String, // Denormalized for convenience
     val protocolOverride: WorkoutProtocol? = null,
-    val supersetId: String? = null
+    val supersetId: String? = null,
+    val augmentId: String? = null,
+    val augmentName: String? = null,
+    val augmentColor: String? = null
+)
+
+data class WorkoutAugment(
+    val id: String,
+    val name: String,
+    val description: String?,
+    val focusBodyPart: String,
+    val exercises: List<RoutineExercise> = emptyList(),
+    val colorHex: String = "#007AFF",
+    val isSystem: Boolean = false,
+    val isAddedToLibrary: Boolean = true
 )
 
 data class SetLog(
@@ -80,7 +94,19 @@ data class WorkoutRoutine(
     val id: String,
     val name: String,
     val description: String? = null,
-    val exercises: List<Exercise> = emptyList(),
+    val exercises: List<RoutineExercise> = emptyList(),
+    val augments: List<WorkoutAugment> = emptyList(),
     val protocol: WorkoutProtocol = WorkoutProtocol.GENERAL,
     val createdAt: Instant = Instant.now()
+)
+
+data class RoutineExercise(
+    val exercise: Exercise,
+    val sets: List<RoutineSet> = emptyList()
+)
+
+data class RoutineSet(
+    val type: SetType = SetType.NORMAL,
+    val weight: Float = 0f,
+    val reps: Int = 0
 )

@@ -1,6 +1,8 @@
 package com.neon.ascent.feature.workout.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -63,6 +65,15 @@ fun WorkoutLoggingScreen(
                         onUpdateName = { viewModel.updateNewRoutineName(it) },
                         viewModel = viewModel
                     )
+                } else if (uiState.isCreatingAugment) {
+                    CreateAugmentScreen(
+                        uiState = uiState,
+                        onBack = { viewModel.cancelCreateAugment() },
+                        onSave = { viewModel.saveAugment() },
+                        onUpdateName = { viewModel.updateNewAugmentName(it) },
+                        onUpdateBodyPart = { viewModel.updateNewAugmentBodyPart(it) },
+                        viewModel = viewModel
+                    )
                 } else {
                     WorkoutIntakeScreen(
                         uiState = uiState,
@@ -70,7 +81,9 @@ fun WorkoutLoggingScreen(
                         onStartProtocol = { viewModel.startSession(it) },
                         onStartRoutine = { viewModel.startRoutine(it) },
                         onCreateRoutine = { viewModel.startCreateRoutine() },
-                        onRoutineActionClick = { showRoutineActionMenuFor = it }
+                        onCreateAugment = { viewModel.startCreateAugment() },
+                        onRoutineActionClick = { showRoutineActionMenuFor = it },
+                        onAddAugment = { viewModel.toggleAugmentLibrary(it) }
                     )
                 }
             } else if (uiState.isReorderingExercises) {
@@ -151,9 +164,52 @@ fun WorkoutLoggingScreen(
                 routine = showRoutineActionMenuFor!!,
                 onShare = { viewModel.shareRoutine(showRoutineActionMenuFor!!) },
                 onDuplicate = { viewModel.duplicateRoutine(showRoutineActionMenuFor!!) },
-                onEdit = { /* TODO */ },
+                onEdit = { 
+                    viewModel.editRoutine(showRoutineActionMenuFor!!)
+                    showRoutineActionMenuFor = null
+                },
                 onDelete = { viewModel.deleteRoutine(showRoutineActionMenuFor!!) },
                 onDismiss = { showRoutineActionMenuFor = null }
+            )
+        }
+
+        // Uncompleted Sets Dialog
+        if (uiState.showUncompletedSetsDialog) {
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissUncompletedSetsDialog(discard = false) },
+                title = { Text("Uncompleted Sets", color = Color.White) },
+                text = { Text("You have sets that haven't been completed. Do you want to discard them and finish?", color = Color.Gray) },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.dismissUncompletedSetsDialog(discard = true) }) {
+                        Text("Discard & Finish", color = Color.Red)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.dismissUncompletedSetsDialog(discard = false) }) {
+                        Text("Keep Editing", color = Color.Gray)
+                    }
+                },
+                containerColor = Color(0xFF1C1C1E)
+            )
+        }
+
+        // Save Routine Changes Dialog
+        if (uiState.showSaveRoutineChangesDialog) {
+            AlertDialog(
+                onDismissRequest = { viewModel.confirmSaveRoutineChanges(save = false) },
+                title = { Text("Save Changes?", color = Color.White) },
+                text = { Text("You've modified the exercises or set counts in this routine. Would you like to update the routine with these changes for next time?", color = Color.Gray) },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.confirmSaveRoutineChanges(save = true) }) {
+                        Text("Save Changes", color = Color(0xFF007AFF))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.confirmSaveRoutineChanges(save = false) }) {
+                        Text("No, Finish Only", color = Color.Gray)
+                    }
+                },
+                containerColor = Color(0xFF1C1C1E)
             )
         }
     }
@@ -278,9 +334,12 @@ fun WorkoutIntakeScreen(
     onStartProtocol: (WorkoutProtocol) -> Unit,
     onStartRoutine: (WorkoutRoutine) -> Unit,
     onCreateRoutine: () -> Unit,
-    onRoutineActionClick: (WorkoutRoutine) -> Unit
+    onCreateAugment: () -> Unit,
+    onRoutineActionClick: (WorkoutRoutine) -> Unit,
+    onAddAugment: (WorkoutAugment) -> Unit
 ) {
     var isRoutinesExpanded by remember { mutableStateOf(true) }
+    var isAugmentsExpanded by remember { mutableStateOf(true) }
     var showExploreProtocols by remember { mutableStateOf(false) }
 
     Column(
@@ -369,13 +428,19 @@ fun WorkoutIntakeScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // New Routine & Explore Buttons
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        // New Routine, New Augment & Explore Buttons
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             IntakeActionButton(
                 icon = Icons.AutoMirrored.Filled.Assignment,
                 label = "New Routine",
                 modifier = Modifier.weight(1f),
                 onClick = onCreateRoutine
+            )
+            IntakeActionButton(
+                icon = Icons.Default.Bolt,
+                label = "New Augment",
+                modifier = Modifier.weight(1f),
+                onClick = onCreateAugment
             )
             IntakeActionButton(
                 icon = Icons.Default.Search,
@@ -386,32 +451,16 @@ fun WorkoutIntakeScreen(
         }
 
         if (showExploreProtocols) {
-            AlertDialog(
-                onDismissRequest = { showExploreProtocols = false },
-                title = { Text("Explore Protocols", color = Color.White) },
-                text = {
-                    Column {
-                        WorkoutProtocol.entries.forEach { protocol ->
-                            Text(
-                                protocol.name,
-                                color = Color(0xFF00CCFF),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        onStartProtocol(protocol)
-                                        showExploreProtocols = false
-                                    }
-                                    .padding(16.dp)
-                            )
-                        }
-                    }
+            ExploreProtocolsDialog(
+                uiState = uiState,
+                onStartProtocol = {
+                    onStartProtocol(it)
+                    showExploreProtocols = false
                 },
-                confirmButton = {
-                    TextButton(onClick = { showExploreProtocols = false }) {
-                        Text("Close")
-                    }
+                onAddAugment = {
+                    onAddAugment(it)
                 },
-                containerColor = Color(0xFF1C1C1E)
+                onDismiss = { showExploreProtocols = false }
             )
         }
 
@@ -446,6 +495,41 @@ fun WorkoutIntakeScreen(
                     routine = routine, 
                     onStart = { onStartRoutine(routine) },
                     onActionClick = { onRoutineActionClick(routine) }
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Augments List Toggle
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { isAugmentsExpanded = !isAugmentsExpanded }
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                if (isAugmentsExpanded) Icons.Default.ArrowDropDown else Icons.AutoMirrored.Filled.ArrowRight,
+                contentDescription = null,
+                tint = Color.Gray,
+                modifier = Modifier.size(20.dp)
+            )
+            Text(
+                "Sub Protocols / Augments (${uiState.augments.size})",
+                color = Color.Gray,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+
+        if (isAugmentsExpanded) {
+            Spacer(modifier = Modifier.height(8.dp))
+            uiState.augments.forEach { augment ->
+                AugmentCard(
+                    augment = augment,
+                    onActionClick = { /* TODO: Augment actions */ }
                 )
                 Spacer(modifier = Modifier.height(12.dp))
             }
@@ -508,7 +592,7 @@ fun RoutineCard(routine: WorkoutRoutine, onStart: () -> Unit, onActionClick: () 
             Spacer(modifier = Modifier.height(4.dp))
             
             Text(
-                routine.exercises.joinToString(", ") { it.name },
+                routine.exercises.joinToString(", ") { it.exercise.name } + (if (routine.augments.isNotEmpty()) ", " + routine.augments.joinToString(", ") { it.name } else ""),
                 color = Color.Gray,
                 fontSize = 13.sp,
                 maxLines = 2,
@@ -532,6 +616,53 @@ fun RoutineCard(routine: WorkoutRoutine, onStart: () -> Unit, onActionClick: () 
 }
 
 @Composable
+fun AugmentCard(augment: WorkoutAugment, onActionClick: () -> Unit) {
+    val color = Color(android.graphics.Color.parseColor(augment.colorHex))
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = Color(0xFF1C1C1E),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.3f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        augment.name,
+                        color = Color.White,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        augment.focusBodyPart.uppercase(),
+                        color = color,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+                IconButton(onClick = onActionClick, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.Default.MoreHoriz, contentDescription = "Augment Actions", tint = Color.Gray)
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Text(
+                augment.exercises.joinToString(", ") { it.exercise.name },
+                color = Color.Gray,
+                fontSize = 13.sp,
+                maxLines = 2,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
 fun CreateRoutineScreen(
     uiState: WorkoutUiState,
     onBack: () -> Unit,
@@ -540,6 +671,7 @@ fun CreateRoutineScreen(
     viewModel: WorkoutViewModel
 ) {
     var showExercisePicker by remember { mutableStateOf(false) }
+    var showAugmentPicker by remember { mutableStateOf(false) }
     val filteredExercises by viewModel.filteredExercises.collectAsState()
 
     Column(
@@ -569,8 +701,8 @@ fun CreateRoutineScreen(
             )
             Text(
                 "Save",
-                color = if (uiState.newRoutineName.isNotBlank() && uiState.newRoutineExercises.isNotEmpty()) Color(0xFF007AFF) else Color.Gray,
-                modifier = Modifier.clickable(enabled = uiState.newRoutineName.isNotBlank() && uiState.newRoutineExercises.isNotEmpty()) { onSave() },
+                color = if (uiState.newRoutineName.isNotBlank() && (uiState.newRoutineExercises.isNotEmpty() || uiState.newRoutineAugments.isNotEmpty())) Color(0xFF007AFF) else Color.Gray,
+                modifier = Modifier.clickable(enabled = uiState.newRoutineName.isNotBlank() && (uiState.newRoutineExercises.isNotEmpty() || uiState.newRoutineAugments.isNotEmpty())) { onSave() },
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -598,7 +730,7 @@ fun CreateRoutineScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        if (uiState.newRoutineExercises.isEmpty()) {
+        if (uiState.newRoutineExercises.isEmpty() && uiState.newRoutineAugments.isEmpty()) {
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -614,7 +746,217 @@ fun CreateRoutineScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    "Get started by adding an exercise to your routine.",
+                    "Get started by adding exercises or augments to your routine.",
+                    color = Color.Gray,
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 48.dp)
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Row(modifier = Modifier.padding(horizontal = 32.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(
+                        onClick = { showExercisePicker = true },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Add Exercise", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                    Button(
+                        onClick = { showAugmentPicker = true },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C1C1E)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Add Augment", color = Color(0xFF00CCFF), fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        } else {
+            LazyColumn(modifier = Modifier.weight(1f)) {
+                items(uiState.newRoutineExercises) { routineExercise ->
+                    RoutineExerciseItem(
+                        routineExercise = routineExercise,
+                        viewModel = viewModel,
+                        onRemove = { viewModel.removeExerciseFromNewRoutine(routineExercise) }
+                    )
+                }
+                items(uiState.newRoutineAugments) { augment ->
+                    val color = Color(android.graphics.Color.parseColor(augment.colorHex))
+                    Surface(
+                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                        color = Color(0xFF1C1C1E),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, color.copy(alpha = 0.5f))
+                    ) {
+                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Bolt, contentDescription = null, tint = color)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(augment.name, color = Color.White, fontWeight = FontWeight.Bold)
+                                Text(augment.focusBodyPart, color = color, fontSize = 12.sp)
+                            }
+                            IconButton(onClick = { viewModel.removeAugmentFromNewRoutine(augment) }) {
+                                Icon(Icons.Default.Close, contentDescription = null, tint = Color.Gray)
+                            }
+                        }
+                    }
+                }
+                item {
+                    Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        TextButton(onClick = { showExercisePicker = true }) {
+                            Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF007AFF))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Exercise", color = Color(0xFF007AFF), fontWeight = FontWeight.Bold)
+                        }
+                        TextButton(onClick = { showAugmentPicker = true }) {
+                            Icon(Icons.Default.Bolt, contentDescription = null, tint = Color(0xFF00CCFF))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Augment", color = Color(0xFF00CCFF), fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showExercisePicker) {
+        Dialog(onDismissRequest = { showExercisePicker = false }) {
+            Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
+                ExercisePicker(
+                    uiState = uiState,
+                    exercises = filteredExercises,
+                    onSearchChange = { viewModel.updateExerciseSearch(it) },
+                    onSelect = {
+                        viewModel.addExerciseToNewRoutine(it)
+                        showExercisePicker = false
+                    },
+                    onSaveCustomExercise = { name, muscle, equip, desc ->
+                        viewModel.saveCustomExercise(name, muscle, equip, desc)
+                    },
+                    onDismiss = { showExercisePicker = false }
+                )
+            }
+        }
+    }
+    
+    if (showAugmentPicker) {
+        Dialog(onDismissRequest = { showAugmentPicker = false }) {
+            Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
+                AugmentPicker(
+                    augments = uiState.augments,
+                    onSelect = {
+                        viewModel.addAugmentToNewRoutine(it)
+                        showAugmentPicker = false
+                    },
+                    onDismiss = { showAugmentPicker = false }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun CreateAugmentScreen(
+    uiState: WorkoutUiState,
+    onBack: () -> Unit,
+    onSave: () -> Unit,
+    onUpdateName: (String) -> Unit,
+    onUpdateBodyPart: (String) -> Unit,
+    viewModel: WorkoutViewModel
+) {
+    var showExercisePicker by remember { mutableStateOf(false) }
+    val filteredExercises by viewModel.filteredExercises.collectAsState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+    ) {
+        // Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Cancel",
+                color = Color(0xFF007AFF),
+                modifier = Modifier.clickable { onBack() },
+                fontSize = 17.sp
+            )
+            Text(
+                "Create Augment",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp
+            )
+            Text(
+                "Save",
+                color = if (uiState.newAugmentName.isNotBlank() && uiState.newAugmentExercises.isNotEmpty()) Color(0xFF00CCFF) else Color.Gray,
+                modifier = Modifier.clickable(enabled = uiState.newAugmentName.isNotBlank() && uiState.newAugmentExercises.isNotEmpty()) { onSave() },
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        // Title Input
+        OutlinedTextField(
+            value = uiState.newAugmentName,
+            onValueChange = onUpdateName,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            placeholder = { Text("Augment title (e.g. Gorilla Arms)", color = Color.Gray, fontSize = 20.sp, fontWeight = FontWeight.Bold) },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color(0xFF00CCFF),
+                unfocusedBorderColor = Color.DarkGray,
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White
+            ),
+            textStyle = LocalTextStyle.current.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold),
+            singleLine = true
+        )
+
+        // Body Part Input
+        OutlinedTextField(
+            value = uiState.newAugmentBodyPart,
+            onValueChange = onUpdateBodyPart,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            placeholder = { Text("Focus Body Part (e.g. Biceps)", color = Color.Gray, fontSize = 14.sp) },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color(0xFF00CCFF),
+                unfocusedBorderColor = Color.DarkGray,
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White
+            ),
+            textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
+            singleLine = true
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (uiState.newAugmentExercises.isEmpty()) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    Icons.Default.Bolt,
+                    contentDescription = null,
+                    tint = Color.DarkGray,
+                    modifier = Modifier.size(64.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    "Select exercises to bundle into this sub-protocol.",
                     color = Color.Gray,
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center,
@@ -627,20 +969,21 @@ fun CreateRoutineScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 32.dp)
                         .height(48.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF)),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00CCFF)),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
+                    Icon(Icons.Default.Add, contentDescription = null, tint = Color.Black)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Add exercise", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("Add exercise", color = Color.Black, fontWeight = FontWeight.Bold)
                 }
             }
         } else {
             LazyColumn(modifier = Modifier.weight(1f)) {
-                items(uiState.newRoutineExercises) { exercise ->
+                items(uiState.newAugmentExercises) { routineExercise ->
                     RoutineExerciseItem(
-                        exercise = exercise,
-                        onRemove = { viewModel.removeExerciseFromNewRoutine(exercise) }
+                        routineExercise = routineExercise,
+                        viewModel = viewModel,
+                        onRemove = { viewModel.removeExerciseFromNewRoutine(routineExercise) }
                     )
                 }
                 item {
@@ -651,9 +994,9 @@ fun CreateRoutineScreen(
                             .padding(16.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF007AFF))
+                            Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF00CCFF))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Add exercise", color = Color(0xFF007AFF), fontWeight = FontWeight.Bold)
+                            Text("Add exercise", color = Color(0xFF00CCFF), fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -686,7 +1029,13 @@ fun CreateRoutineScreen(
 }
 
 @Composable
-fun RoutineExerciseItem(exercise: Exercise, onRemove: () -> Unit) {
+fun RoutineExerciseItem(
+    routineExercise: RoutineExercise,
+    viewModel: WorkoutViewModel,
+    onRemove: () -> Unit
+) {
+    var showSetTypeSelectorForIndex by remember { mutableStateOf<Int?>(null) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -700,7 +1049,7 @@ fun RoutineExerciseItem(exercise: Exercise, onRemove: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                exercise.name,
+                routineExercise.exercise.name,
                 color = Color(0xFF007AFF),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
@@ -712,12 +1061,96 @@ fun RoutineExerciseItem(exercise: Exercise, onRemove: () -> Unit) {
         
         Spacer(modifier = Modifier.height(12.dp))
         
-        // Mocking set entry for now as domain doesn't support routine sets yet
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            RoutineSetPlaceholder(Modifier.weight(1f), "1")
-            RoutineSetPlaceholder(Modifier.weight(1f), "2")
-            RoutineSetPlaceholder(Modifier.weight(1f), "3")
+        // Set Table Header
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("SET", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1f))
+            Text("TYPE", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(2f))
+            Text("LBS", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center)
+            Text("REPS", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center)
+            Box(modifier = Modifier.size(24.dp)) // Spacer for remove button
         }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        routineExercise.sets.forEachIndexed { index, set ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("${index + 1}", color = Color.White, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                
+                // Set Type Button
+                Box(
+                    modifier = Modifier
+                        .weight(2f)
+                        .clickable { showSetTypeSelectorForIndex = index },
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    val label = when (set.type) {
+                        SetType.NORMAL -> "Normal"
+                        SetType.WARMUP -> "Warmup"
+                        SetType.DROP -> "Drop"
+                        SetType.FAILURE -> "Failure"
+                        SetType.REST_PAUSE -> "Rest-Pause"
+                    }
+                    val color = when (set.type) {
+                        SetType.WARMUP -> Color(0xFFFFA500)
+                        SetType.DROP -> Color(0xFF00CCFF)
+                        SetType.FAILURE -> Color(0xFFFF4444)
+                        SetType.REST_PAUSE -> Color(0xFF00FFAA)
+                        else -> Color.White
+                    }
+                    Text(label, color = color, fontSize = 14.sp)
+                }
+
+                // Weight Input
+                EditableValueBox(
+                    value = if (set.weight % 1 == 0f) set.weight.toInt().toString() else set.weight.toString(),
+                    onValueChange = { it.toFloatOrNull()?.let { w -> viewModel.updateRoutineExerciseSet(routineExercise, index, weight = w) } },
+                    modifier = Modifier.weight(1.5f),
+                    keyboardType = KeyboardType.Decimal
+                )
+                
+                // Reps Input
+                EditableValueBox(
+                    value = set.reps.toString(),
+                    onValueChange = { it.toIntOrNull()?.let { r -> viewModel.updateRoutineExerciseSet(routineExercise, index, reps = r) } },
+                    modifier = Modifier.weight(1.5f),
+                    keyboardType = KeyboardType.Number
+                )
+
+                // Remove Set button
+                IconButton(
+                    onClick = { viewModel.removeSetFromRoutineExercise(routineExercise, index) },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(Icons.Default.RemoveCircleOutline, contentDescription = "Remove Set", tint = Color.Gray, modifier = Modifier.size(16.dp))
+                }
+            }
+        }
+
+        TextButton(
+            onClick = { viewModel.addSetToRoutineExercise(routineExercise) },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("+ Add Set", color = Color(0xFF007AFF), fontSize = 14.sp)
+        }
+    }
+
+    if (showSetTypeSelectorForIndex != null) {
+        SetTypeSelectorBottomSheet(
+            onTypeSelected = { type ->
+                viewModel.updateRoutineExerciseSet(routineExercise, showSetTypeSelectorForIndex!!, type = type)
+                showSetTypeSelectorForIndex = null
+            },
+            onRemoveSet = {
+                viewModel.removeSetFromRoutineExercise(routineExercise, showSetTypeSelectorForIndex!!)
+                showSetTypeSelectorForIndex = null
+            },
+            onDismiss = { showSetTypeSelectorForIndex = null }
+        )
     }
 }
 
@@ -736,6 +1169,7 @@ fun RoutineSetPlaceholder(modifier: Modifier = Modifier, label: String) {
 @Composable
 fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel) {
     var showExercisePicker by remember { mutableStateOf(false) }
+    var showAugmentPicker by remember { mutableStateOf(false) }
     var exerciseToReplace by remember { mutableStateOf<WorkoutLog?>(null) }
     var showActionMenuFor by remember { mutableStateOf<WorkoutLog?>(null) }
     var showSupersetMenuFor by remember { mutableStateOf<WorkoutLog?>(null) }
@@ -756,19 +1190,39 @@ fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel) {
         }
 
         item {
-            Button(
-                onClick = { 
-                    exerciseToReplace = null
-                    showExercisePicker = true 
-                },
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
-                    .height(48.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C1C1E)),
-                shape = RoundedCornerShape(8.dp)
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("Add Exercise", color = Color(0xFF007AFF), fontWeight = FontWeight.Bold)
+                Button(
+                    onClick = { 
+                        exerciseToReplace = null
+                        showExercisePicker = true 
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C1C1E)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Add Exercise", color = Color(0xFF007AFF), fontWeight = FontWeight.Bold)
+                }
+
+                Button(
+                    onClick = { showAugmentPicker = true },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .border(1.dp, Color(0xFF00CCFF), RoundedCornerShape(8.dp)),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(Icons.Default.Bolt, contentDescription = null, tint = Color(0xFF00CCFF), modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Augment", color = Color(0xFF00CCFF), fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
@@ -835,6 +1289,106 @@ fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel) {
                         exerciseToReplace = null
                     }
                 )
+            }
+        }
+    }
+
+    if (showAugmentPicker) {
+        Dialog(onDismissRequest = { showAugmentPicker = false }) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = Color.Black
+            ) {
+                AugmentPicker(
+                    augments = uiState.augments,
+                    onSelect = {
+                        viewModel.injectAugment(it)
+                        showAugmentPicker = false
+                    },
+                    onDismiss = { showAugmentPicker = false }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AugmentPicker(
+    augments: List<WorkoutAugment>,
+    onSelect: (WorkoutAugment) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Cancel",
+                color = Color(0xFF007AFF),
+                modifier = Modifier.clickable { onDismiss() }
+            )
+            Text(
+                "Select Augment",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp
+            )
+            Box(Modifier.size(48.dp))
+        }
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            items(augments) { augment ->
+                val color = Color(android.graphics.Color.parseColor(augment.colorHex))
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelect(augment) },
+                    color = Color(0xFF1C1C1E),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, color.copy(alpha = 0.5f))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                augment.name,
+                                color = Color.White,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .background(color.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    augment.focusBodyPart.uppercase(),
+                                    color = color,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Black
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            augment.exercises.joinToString(" • ") { it.exercise.name },
+                            color = Color.Gray,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
             }
         }
     }
@@ -1579,8 +2133,41 @@ fun WorkoutLogCard(
     val uiState by viewModel.uiState.collectAsState()
     val previousSets = uiState.previousLogs[log.exerciseId] ?: emptyList()
     var showSetTypeSelector by remember { mutableStateOf<SetLog?>(null) }
+    
+    val augmentColor = log.augmentColor?.let { Color(android.graphics.Color.parseColor(it)) } ?: Color(0xFF007AFF)
 
-    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+    Column(
+        modifier = Modifier
+            .padding(horizontal = 16.dp)
+            .then(
+                if (log.augmentId != null) {
+                    Modifier
+                        .background(Color.Black)
+                        .padding(2.dp)
+                        .border(
+                            width = 1.dp,
+                            brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                                colors = listOf(augmentColor, augmentColor.copy(alpha = 0.3f))
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .padding(12.dp)
+                } else {
+                    Modifier
+                }
+            )
+    ) {
+        if (log.augmentId != null) {
+            Text(
+                text = log.augmentName?.uppercase() ?: "AUGMENT",
+                color = augmentColor,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 2.sp,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1589,7 +2176,7 @@ fun WorkoutLogCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(modifier = Modifier.size(40.dp).background(Color(0xFF1C1C1E), CircleShape))
                 Spacer(modifier = Modifier.width(12.dp))
-                Text(log.exerciseName, color = Color(0xFF007AFF), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(log.exerciseName, color = augmentColor, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
             IconButton(onClick = onActionMenuClick) {
                 Icon(Icons.Default.MoreHoriz, contentDescription = "Exercise Actions", tint = Color.Gray)
@@ -1899,4 +2486,119 @@ fun SetTypeOption(label: String, description: String, color: Color, onClick: () 
         Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(18.dp))
     }
     HorizontalDivider(color = Color.Gray.copy(alpha = 0.1f))
+}
+
+@Composable
+fun ExploreProtocolsDialog(
+    uiState: WorkoutUiState,
+    onStartProtocol: (WorkoutProtocol) -> Unit,
+    onAddAugment: (WorkoutAugment) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.85f),
+            color = Color(0xFF1C1C1E),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, Color(0xFF00CCFF).copy(alpha = 0.5f))
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(
+                    "PROTOCOL LIBRARY",
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 2.sp
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    item {
+                        Text("SYSTEM PROTOCOLS", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                    
+                    items(WorkoutProtocol.entries) { protocol ->
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onStartProtocol(protocol) },
+                            color = Color(0xFF2C2C2E),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(protocol.name, color = Color.White, fontWeight = FontWeight.Bold)
+                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color(0xFF00CCFF))
+                            }
+                        }
+                    }
+                    
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("SUB-PROTOCOLS / AUGMENTS", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                    
+                    items(uiState.exploreAugments) { augment ->
+                        val color = Color(android.graphics.Color.parseColor(augment.colorHex))
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = Color(0xFF2C2C2E),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, color.copy(alpha = 0.3f))
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(augment.name, color = Color.White, fontWeight = FontWeight.Bold)
+                                        Text(augment.focusBodyPart.uppercase(), color = color, fontSize = 10.sp, fontWeight = FontWeight.Black)
+                                    }
+                                    
+                                    IconButton(
+                                        onClick = { onAddAugment(augment) },
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .background(color.copy(alpha = 0.2f), CircleShape)
+                                    ) {
+                                        Icon(Icons.Default.Add, contentDescription = "Add to Library", tint = color, modifier = Modifier.size(20.dp))
+                                    }
+                                }
+                                
+                                Spacer(modifier = Modifier.height(8.dp))
+                                
+                                Text(
+                                    augment.exercises.joinToString(", ") { it.exercise.name },
+                                    color = Color.Gray,
+                                    fontSize = 12.sp,
+                                    maxLines = 2
+                                )
+                            }
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
+                ) {
+                    Text("CLOSE", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
 }

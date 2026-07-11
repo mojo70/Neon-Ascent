@@ -1,5 +1,6 @@
 package com.neon.ascent.core.data.mapper
 
+import com.neon.ascent.core.data.local.dao.*
 import com.neon.ascent.core.data.local.entity.*
 import com.neon.ascent.core.domain.workout.models.*
 
@@ -52,7 +53,10 @@ fun WorkoutLogEntity.toDomain() = WorkoutLog(
     order = order,
     exerciseName = exerciseName,
     protocolOverride = protocolOverride?.let { WorkoutProtocol.valueOf(it) },
-    supersetId = supersetId
+    supersetId = supersetId,
+    augmentId = augmentId,
+    augmentName = augmentName,
+    augmentColor = augmentColor
 )
 
 fun WorkoutLog.toEntity() = WorkoutLogEntity(
@@ -62,7 +66,41 @@ fun WorkoutLog.toEntity() = WorkoutLogEntity(
     order = order,
     exerciseName = exerciseName,
     protocolOverride = protocolOverride?.name,
-    supersetId = supersetId
+    supersetId = supersetId,
+    augmentId = augmentId,
+    augmentName = augmentName,
+    augmentColor = augmentColor
+)
+
+fun WorkoutAugmentEntity.toDomain(
+    exercises: List<ExerciseDefinitionEntity>,
+    sets: List<AugmentSetEntity> = emptyList()
+) = WorkoutAugment(
+    id = id,
+    name = name,
+    description = description,
+    focusBodyPart = focusBodyPart,
+    exercises = exercises.map { exerciseEntity ->
+        RoutineExercise(
+            exercise = exerciseEntity.toDomain(),
+            sets = sets.filter { it.exerciseId == exerciseEntity.id }
+                .sortedBy { it.order }
+                .map { it.toDomain() }
+        )
+    },
+    colorHex = colorHex,
+    isSystem = isSystem,
+    isAddedToLibrary = isAddedToLibrary
+)
+
+fun WorkoutAugment.toEntity() = WorkoutAugmentEntity(
+    id = id,
+    name = name,
+    description = description,
+    focusBodyPart = focusBodyPart,
+    colorHex = colorHex,
+    isSystem = isSystem,
+    isAddedToLibrary = isAddedToLibrary
 )
 
 fun SetLogEntity.toDomain() = SetLog(
@@ -115,11 +153,35 @@ fun UserWorkoutProfile.toEntity() = UserWorkoutProfileEntity(
     timePerSessionMinutes = timePerSessionMinutes
 )
 
-fun WorkoutRoutineEntity.toDomain(exercises: List<ExerciseDefinitionEntity>) = WorkoutRoutine(
+fun RoutineSetEntity.toDomain() = RoutineSet(
+    type = SetType.valueOf(type),
+    weight = weight,
+    reps = reps
+)
+
+fun AugmentSetEntity.toDomain() = RoutineSet(
+    type = SetType.valueOf(type),
+    weight = weight,
+    reps = reps
+)
+
+fun WorkoutRoutineEntity.toDomain(
+    exercises: List<ExerciseDefinitionEntity>,
+    sets: List<RoutineSetEntity> = emptyList(),
+    augments: List<WorkoutAugmentWithExercises> = emptyList()
+) = WorkoutRoutine(
     id = id,
     name = name,
     description = description,
-    exercises = exercises.map { it.toDomain() },
+    exercises = exercises.map { exerciseEntity ->
+        RoutineExercise(
+            exercise = exerciseEntity.toDomain(),
+            sets = sets.filter { it.exerciseId == exerciseEntity.id }
+                .sortedBy { it.order }
+                .map { it.toDomain() }
+        )
+    },
+    augments = augments.map { it.augment.toDomain(it.exercises, it.augmentSets) },
     protocol = WorkoutProtocol.valueOf(protocol),
     createdAt = createdAt
 )
