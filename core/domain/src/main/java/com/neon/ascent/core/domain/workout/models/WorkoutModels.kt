@@ -88,13 +88,24 @@ data class SetLog(
     val stretchDurationSeconds: Int? = null
 )
 
+enum class Gender {
+    MALE, FEMALE, OTHER
+}
+
 data class UserWorkoutProfile(
     val userId: String,
-    val experienceLevel: ExperienceLevel,
-    val somatotype: Somatotype,
+    val experienceLevel: ExperienceLevel = ExperienceLevel.INTERMEDIATE,
+    val somatotype: Somatotype = Somatotype.MESOMORPH,
     val injuries: List<String> = emptyList(),
     val preferredDays: List<Int> = emptyList(),
-    val timePerSessionMinutes: Int = 60
+    val timePerSessionMinutes: Int = 60,
+    
+    // Bio-data for Macros/TDEE
+    val age: Int = 25,
+    val heightCm: Float = 175f,
+    val weightKg: Float = 75f,
+    val gender: Gender = Gender.MALE,
+    val activityFactor: Float = 1.375f // Default: Lightly Active
 )
 
 data class WorkoutRoutine(

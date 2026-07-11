@@ -64,7 +64,11 @@ fun WorkoutLoggingScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             if (uiState.session == null) {
-                if (uiState.isCreatingRoutine) {
+                if (uiState.isShowingProgress) {
+                    WorkoutProgressScreen(
+                        onBack = { viewModel.hideProgress() }
+                    )
+                } else if (uiState.isCreatingRoutine) {
                     CreateRoutineScreen(
                         uiState = uiState,
                         onBack = { viewModel.cancelCreateRoutine() },
@@ -85,6 +89,7 @@ fun WorkoutLoggingScreen(
                     WorkoutIntakeScreen(
                         uiState = uiState,
                         onBack = onBack,
+                        onShowProgress = { viewModel.showProgress() },
                         onStartProtocol = { viewModel.startSession(it) },
                         onStartRoutine = { viewModel.startRoutine(it) },
                         onCreateRoutine = { viewModel.startCreateRoutine() },
@@ -398,6 +403,7 @@ fun SummaryStat(label: String, value: String, valueColor: Color) {
 fun WorkoutIntakeScreen(
     uiState: WorkoutUiState,
     onBack: () -> Unit,
+    onShowProgress: () -> Unit,
     onStartProtocol: (WorkoutProtocol) -> Unit,
     onStartRoutine: (WorkoutRoutine) -> Unit,
     onCreateRoutine: () -> Unit,
@@ -440,6 +446,14 @@ fun WorkoutIntakeScreen(
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(28.dp)
+                )
+            }
+            IconButton(onClick = onShowProgress) {
+                Icon(
+                    Icons.AutoMirrored.Filled.TrendingUp,
+                    contentDescription = "Progress",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
                 )
             }
             IconButton(onClick = { /* Refresh logic */ }) {

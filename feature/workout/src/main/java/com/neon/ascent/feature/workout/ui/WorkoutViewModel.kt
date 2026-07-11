@@ -63,7 +63,8 @@ data class WorkoutUiState(
     val exerciseSearchQuery: String = "",
     val selectedEquipment: String? = null,
     val selectedMuscleGroup: String? = null,
-    val selectedExerciseForDetail: Exercise? = null
+    val selectedExerciseForDetail: Exercise? = null,
+    val isShowingProgress: Boolean = false
 )
 
 @HiltViewModel
@@ -400,6 +401,14 @@ class WorkoutViewModel @Inject constructor(
 
     fun hideExerciseDetail() {
         _uiState.update { it.copy(selectedExerciseForDetail = null) }
+    }
+
+    fun showProgress() {
+        _uiState.update { it.copy(isShowingProgress = true) }
+    }
+
+    fun hideProgress() {
+        _uiState.update { it.copy(isShowingProgress = false) }
     }
 
     private fun loadExercises() {

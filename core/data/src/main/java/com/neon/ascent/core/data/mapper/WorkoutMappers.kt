@@ -149,7 +149,12 @@ fun UserWorkoutProfileEntity.toDomain() = UserWorkoutProfile(
     somatotype = Somatotype.valueOf(somatotype),
     injuries = injuries,
     preferredDays = preferredDays,
-    timePerSessionMinutes = timePerSessionMinutes
+    timePerSessionMinutes = timePerSessionMinutes,
+    age = age,
+    heightCm = heightCm,
+    weightKg = weightKg,
+    gender = Gender.valueOf(gender),
+    activityFactor = activityFactor
 )
 
 fun UserWorkoutProfile.toEntity() = UserWorkoutProfileEntity(
@@ -158,7 +163,12 @@ fun UserWorkoutProfile.toEntity() = UserWorkoutProfileEntity(
     somatotype = somatotype.name,
     injuries = injuries,
     preferredDays = preferredDays,
-    timePerSessionMinutes = timePerSessionMinutes
+    timePerSessionMinutes = timePerSessionMinutes,
+    age = age,
+    heightCm = heightCm,
+    weightKg = weightKg,
+    gender = gender.name,
+    activityFactor = activityFactor
 )
 
 fun RoutineSetEntity.toDomain() = RoutineSet(

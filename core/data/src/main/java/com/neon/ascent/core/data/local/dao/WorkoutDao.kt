@@ -44,6 +44,24 @@ interface WorkoutDao {
     @Query("SELECT * FROM workout_routines")
     fun getAllRoutines(): Flow<List<WorkoutRoutineWithDetails>>
 
+    @Query("SELECT isAddedToLibrary FROM workout_routines WHERE id = :id")
+    suspend fun getRoutineLibraryStatus(id: String): Boolean?
+
+    @Query("SELECT isAddedToLibrary FROM workout_augments WHERE id = :id")
+    suspend fun getAugmentLibraryStatus(id: String): Boolean?
+
+    @Query("SELECT * FROM workout_routines WHERE id = :id")
+    suspend fun getRoutineById(id: String): WorkoutRoutineEntity?
+
+    @Query("SELECT * FROM workout_augments WHERE id = :id")
+    suspend fun getAugmentById(id: String): WorkoutAugmentEntity?
+
+    @Query("UPDATE workout_routines SET isAddedToLibrary = :status WHERE id = :id")
+    suspend fun updateRoutineLibraryStatus(id: String, status: Boolean)
+
+    @Query("UPDATE workout_augments SET isAddedToLibrary = :status WHERE id = :id")
+    suspend fun updateAugmentLibraryStatus(id: String, status: Boolean)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRoutine(routine: WorkoutRoutineEntity)
 

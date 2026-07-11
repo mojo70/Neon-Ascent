@@ -98,8 +98,25 @@ class WorkoutRepositoryImpl @Inject constructor(
         }
     }
 
+    private suspend fun seedRoutine(routine: WorkoutRoutine) {
+        val currentStatus = workoutDao.getRoutineLibraryStatus(routine.id)
+        if (currentStatus == true) return // Don't overwrite if in user library
+        saveRoutine(routine)
+    }
+
+    private suspend fun seedAugment(augment: WorkoutAugment) {
+        val currentStatus = workoutDao.getAugmentLibraryStatus(augment.id)
+        if (currentStatus == true) return
+        saveAugment(augment)
+    }
+
     override suspend fun deleteRoutine(routineId: String) {
-        workoutDao.deleteRoutine(routineId)
+        val routine = workoutDao.getRoutineById(routineId)
+        if (routine?.isSystem == true) {
+            workoutDao.updateRoutineLibraryStatus(routineId, false)
+        } else {
+            workoutDao.deleteRoutine(routineId)
+        }
     }
 
     override fun getAllAugments(): Flow<List<WorkoutAugment>> =
@@ -136,7 +153,12 @@ class WorkoutRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteAugment(augmentId: String) {
-        workoutDao.deleteAugment(augmentId)
+        val augment = workoutDao.getAugmentById(augmentId)
+        if (augment?.isSystem == true) {
+            workoutDao.updateAugmentLibraryStatus(augmentId, false)
+        } else {
+            workoutDao.deleteAugment(augmentId)
+        }
     }
 
     override suspend fun seedStarterExercises() {
@@ -351,7 +373,7 @@ class WorkoutRepositoryImpl @Inject constructor(
             isSystem = true,
             isAddedToLibrary = false // Don't show on main screen by default
         )
-        saveAugment(gorillaArms)
+        seedAugment(gorillaArms)
 
         // Seed CyberCrapp A Routine
         val cyberCrappA = WorkoutRoutine(
@@ -396,7 +418,7 @@ class WorkoutRepositoryImpl @Inject constructor(
                 )
             )
         )
-        saveRoutine(cyberCrappA)
+        seedRoutine(cyberCrappA)
 
         // Seed CyberCrapp B Routine
         val cyberCrappB = WorkoutRoutine(
@@ -439,7 +461,7 @@ class WorkoutRepositoryImpl @Inject constructor(
                 )
             )
         )
-        saveRoutine(cyberCrappB)
+        seedRoutine(cyberCrappB)
 
         // Seed CyberCrapp C Routine
         val cyberCrappC = WorkoutRoutine(
@@ -482,7 +504,7 @@ class WorkoutRepositoryImpl @Inject constructor(
                 )
             )
         )
-        saveRoutine(cyberCrappC)
+        seedRoutine(cyberCrappC)
 
         // Ensure old default routines are removed as requested
         workoutDao.deleteRoutine("routine_strength")

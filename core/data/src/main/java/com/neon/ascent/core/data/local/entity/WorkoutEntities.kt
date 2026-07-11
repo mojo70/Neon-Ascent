@@ -185,7 +185,12 @@ data class UserWorkoutProfileEntity(
     val somatotype: String,
     val injuries: List<String>,
     val preferredDays: List<Int>,
-    val timePerSessionMinutes: Int
+    val timePerSessionMinutes: Int,
+    val age: Int,
+    val heightCm: Float,
+    val weightKg: Float,
+    val gender: String,
+    val activityFactor: Float
 )
 
 @Entity(tableName = "workout_routines")
