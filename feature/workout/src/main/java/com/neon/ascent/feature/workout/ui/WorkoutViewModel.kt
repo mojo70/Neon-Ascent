@@ -62,7 +62,8 @@ data class WorkoutUiState(
     // Exercise Picker State
     val exerciseSearchQuery: String = "",
     val selectedEquipment: String? = null,
-    val selectedMuscleGroup: String? = null
+    val selectedMuscleGroup: String? = null,
+    val selectedExerciseForDetail: Exercise? = null
 )
 
 @HiltViewModel
@@ -391,6 +392,14 @@ class WorkoutViewModel @Inject constructor(
 
     fun setMuscleGroupFilter(muscle: String?) {
         _uiState.update { it.copy(selectedMuscleGroup = muscle) }
+    }
+
+    fun showExerciseDetail(exercise: Exercise) {
+        _uiState.update { it.copy(selectedExerciseForDetail = exercise) }
+    }
+
+    fun hideExerciseDetail() {
+        _uiState.update { it.copy(selectedExerciseForDetail = null) }
     }
 
     private fun loadExercises() {

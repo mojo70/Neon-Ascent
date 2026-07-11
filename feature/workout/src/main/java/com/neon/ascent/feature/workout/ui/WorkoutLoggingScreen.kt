@@ -41,6 +41,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.platform.LocalContext
+import coil.compose.AsyncImage
+import coil.decode.GifDecoder
+import coil.decode.ImageDecoderDecoder
+import coil.request.ImageRequest
+import android.os.Build
 import com.neon.ascent.core.domain.workout.models.*
 
 @Composable
@@ -216,6 +222,15 @@ fun WorkoutLoggingScreen(
                     }
                 },
                 containerColor = Color(0xFF1C1C1E)
+            )
+        }
+
+        if (uiState.selectedExerciseForDetail != null) {
+            ExerciseDetailModal(
+                exercise = uiState.selectedExerciseForDetail!!,
+                availableExercises = uiState.availableExercises,
+                onExerciseClick = { viewModel.showExerciseDetail(it) },
+                onDismiss = { viewModel.hideExerciseDetail() }
             )
         }
 
@@ -883,6 +898,7 @@ fun CreateRoutineScreen(
                     uiState = uiState,
                     exercises = filteredExercises,
                     onSearchChange = { viewModel.updateExerciseSearch(it) },
+                    onDetailClick = { viewModel.showExerciseDetail(it) },
                     onSelect = {
                         viewModel.addExerciseToNewRoutine(it)
                         showExercisePicker = false
@@ -1070,6 +1086,7 @@ fun CreateAugmentScreen(
                     uiState = uiState,
                     exercises = filteredExercises,
                     onSearchChange = { viewModel.updateExerciseSearch(it) },
+                    onDetailClick = { viewModel.showExerciseDetail(it) },
                     onSelect = {
                         viewModel.addExerciseToNewRoutine(it)
                         showExercisePicker = false
@@ -1351,6 +1368,7 @@ fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel) {
                     uiState = uiState,
                     exercises = filteredExercises,
                     onSearchChange = { viewModel.updateExerciseSearch(it) },
+                    onDetailClick = { viewModel.showExerciseDetail(it) },
                     onSelect = {
                         if (exerciseToReplace != null) {
                             viewModel.replaceWorkoutLog(exerciseToReplace!!, it)
@@ -1908,6 +1926,7 @@ fun ExercisePicker(
     uiState: WorkoutUiState,
     exercises: List<Exercise>,
     onSearchChange: (String) -> Unit,
+    onDetailClick: (Exercise) -> Unit,
     onSelect: (Exercise) -> Unit,
     onSaveCustomExercise: (String, String, String, String) -> Unit,
     onDismiss: () -> Unit
@@ -2004,7 +2023,11 @@ fun ExercisePicker(
                 )
             }
             items(exercises) { exercise ->
-                ExerciseListItem(exercise) { onSelect(exercise) }
+                ExerciseListItem(
+                    exercise = exercise,
+                    onDetailClick = { onDetailClick(it) },
+                    onSelect = { onSelect(exercise) }
+                )
             }
             
             item {
@@ -2041,23 +2064,24 @@ fun FilterButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifi
 }
 
 @Composable
-fun ExerciseListItem(exercise: Exercise, onClick: () -> Unit) {
+fun ExerciseListItem(exercise: Exercise, onDetailClick: (Exercise) -> Unit, onSelect: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
     ) {
         Row(
             modifier = Modifier
                 .padding(16.dp)
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .clickable { onSelect() },
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Exercise Icon/Image
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .background(Color.White, CircleShape),
+                    .background(Color.White, CircleShape)
+                    .clickable { onDetailClick(exercise) },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -2070,7 +2094,11 @@ fun ExerciseListItem(exercise: Exercise, onClick: () -> Unit) {
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onDetailClick(exercise) }
+            ) {
                 Text(
                     exercise.name,
                     color = Color.White,
@@ -2084,12 +2112,14 @@ fun ExerciseListItem(exercise: Exercise, onClick: () -> Unit) {
                 )
             }
 
-            Icon(
-                Icons.AutoMirrored.Filled.TrendingUp,
-                contentDescription = null,
-                tint = Color.Gray,
-                modifier = Modifier.size(20.dp)
-            )
+            IconButton(onClick = onSelect) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = "Add",
+                    tint = Color(0xFF007AFF),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
         }
         HorizontalDivider(
             modifier = Modifier.padding(start = 80.dp),
@@ -2274,7 +2304,14 @@ fun WorkoutLogCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.clickable { 
+                    uiState.availableExercises.find { it.id == log.exerciseId }?.let {
+                        viewModel.showExerciseDetail(it)
+                    }
+                }
+            ) {
                 Box(modifier = Modifier.size(40.dp).background(Color(0xFF1C1C1E), CircleShape))
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
@@ -2463,6 +2500,213 @@ fun WorkoutLogCard(
     }
 }
 
+@Composable
+fun ExerciseDetailModal(
+    exercise: Exercise,
+    availableExercises: List<Exercise>,
+    onExerciseClick: (Exercise) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.85f),
+            color = Color(0xFF050505),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, Color.Gray.copy(alpha = 0.3f))
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp)
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Text(
+                        exercise.name.uppercase(),
+                        color = Color.White,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Gray)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // GIF Section
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(240.dp)
+                        .background(Color(0xFF1C1C1E), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (exercise.gifAssetPath != null) {
+                        val imageRequest = ImageRequest.Builder(context)
+                            .data("file:///android_asset/${exercise.gifAssetPath}")
+                            .decoderFactory(if (Build.VERSION.SDK_INT >= 28) ImageDecoderDecoder.Factory() else GifDecoder.Factory())
+                            .build()
+                        
+                        AsyncImage(
+                            model = imageRequest,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.FitnessCenter,
+                            contentDescription = null,
+                            tint = Color.DarkGray,
+                            modifier = Modifier.size(64.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Tags (Muscles & Equipment)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    exercise.muscleGroups.forEach { muscle ->
+                        Surface(
+                            color = Color(0xFF00FF9C).copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(4.dp),
+                            border = BorderStroke(0.5.dp, Color(0xFF00FF9C).copy(alpha = 0.5f))
+                        ) {
+                            Text(
+                                muscle.uppercase(),
+                                color = Color(0xFF00FF9C),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Black,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                    exercise.equipment.forEach { equip ->
+                        Surface(
+                            color = Color.Gray.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(4.dp),
+                            border = BorderStroke(0.5.dp, Color.Gray.copy(alpha = 0.5f))
+                        ) {
+                            Text(
+                                equip.uppercase(),
+                                color = Color.Gray,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Description
+                Text(
+                    "PROTOCOL DIRECTIVE",
+                    color = Color.Gray,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 2.sp
+                )
+                Text(
+                    exercise.description,
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Cues
+                if (exercise.cues.isNotEmpty()) {
+                    Text(
+                        "NEURAL CUES",
+                        color = Color.Gray,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 2.sp
+                    )
+                    exercise.cues.forEach { cue ->
+                        Row(modifier = Modifier.padding(top = 12.dp)) {
+                            Text("•", color = Color(0xFF00FF9C), fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                cue,
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                lineHeight = 18.sp
+                            )
+                        }
+                    }
+                }
+
+                // Substitutions
+                if (exercise.injurySubstitutions.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        "INJURY SUBSTITUTIONS",
+                        color = Color.Gray,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 2.sp
+                    )
+                    exercise.injurySubstitutions.forEach { subId ->
+                        // Resolve name if possible
+                        val subName = availableExercises.find { it.id == subId }?.name ?: subId
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp)
+                                .clickable { 
+                                    availableExercises.find { it.id == subId }?.let {
+                                        onExerciseClick(it)
+                                    }
+                                },
+                            color = Color.White.copy(alpha = 0.05f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(0.5.dp, Color.Gray.copy(alpha = 0.3f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.SwapHoriz, contentDescription = null, tint = Color(0xFF00FF9C), modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(subName, color = Color.White, fontSize = 14.sp)
+                            }
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(40.dp))
+                
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.05f)),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, Color.Gray.copy(alpha = 0.2f))
+                ) {
+                    Text("RESUME PROTOCOL", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
 @Composable
 fun CyberFinisherDialog(onDone: () -> Unit) {
     Dialog(onDismissRequest = { /* Force completion */ }) {

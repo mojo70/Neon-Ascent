@@ -32,7 +32,8 @@ fun ExerciseDefinitionEntity.toDomain() = Exercise(
     muscleGroups = muscleGroups,
     equipment = equipment,
     gifAssetPath = gifAssetPath,
-    isLockedClassic = isLockedClassic
+    isLockedClassic = isLockedClassic,
+    injurySubstitutions = injurySubstitutions
 )
 
 fun Exercise.toEntity() = ExerciseDefinitionEntity(
@@ -43,7 +44,8 @@ fun Exercise.toEntity() = ExerciseDefinitionEntity(
     muscleGroups = muscleGroups,
     equipment = equipment,
     gifAssetPath = gifAssetPath,
-    isLockedClassic = isLockedClassic
+    isLockedClassic = isLockedClassic,
+    injurySubstitutions = injurySubstitutions
 )
 
 fun WorkoutLogEntity.toDomain() = WorkoutLog(

@@ -29,7 +29,8 @@ data class ExerciseDefinitionEntity(
     val muscleGroups: List<String>,
     val equipment: List<String>,
     val gifAssetPath: String?,
-    val isLockedClassic: Boolean
+    val isLockedClassic: Boolean,
+    val injurySubstitutions: List<String>
 )
 
 @Entity(

@@ -40,7 +40,8 @@ data class Exercise(
     val muscleGroups: List<String>,
     val equipment: List<String>,
     val gifAssetPath: String? = null,
-    val isLockedClassic: Boolean = false
+    val isLockedClassic: Boolean = false,
+    val injurySubstitutions: List<String> = emptyList()
 )
 
 data class WorkoutLog(

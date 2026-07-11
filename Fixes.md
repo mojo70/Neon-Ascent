@@ -23,8 +23,9 @@ This document serves as a reference for recurring issues and architectural patte
 *   **Fix**:
     1.  Increment the `version` number in `NeonAscentDatabase.kt`.
     2.  If the app still crashes with an identity hash mismatch, increment it **again**. Room only triggers destructive migration if the version on disk differs from the version in code. If you modified the schema but kept the same version number, Room won't wipe the old database automatically.
-    3.  Common schema changes: adding/renaming fields, changing data types (e.g., `Int?` to `String?`), adding/removing entities, or changing `@Relation` definitions.
-    4.  Ensure `fallbackToDestructiveMigration()` is enabled in `DatabaseModule.kt` (currently enabled).
+    3.  **Intermediate Builds**: If you made several changes and the app crashes, it's often easiest to just bump the version to trigger a clean state.
+    4.  Common schema changes: adding/renaming fields, changing data types (e.g., `Int?` to `String?`), adding/removing entities, or changing `@Relation` definitions.
+    5.  Ensure `fallbackToDestructiveMigration()` is enabled in `DatabaseModule.kt` (currently enabled).
 
 ### DAO Relationship Mapping
 *   **Issue**: `The class must be either @Entity or @DatabaseView` in Room DAO/Relation classes.
