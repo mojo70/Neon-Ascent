@@ -43,10 +43,19 @@ import kotlin.coroutines.suspendCoroutine
 @Composable
 fun AvatarCaptureScreen(
     onComplete: (Bitmap) -> Unit,
+    onSuccessNavigate: () -> Unit = {}, // Fallback default
     creationViewModel: CreationViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val uiState by creationViewModel.uiState.collectAsState()
+
+    // Handle successful save before navigating
+    LaunchedEffect(uiState) {
+        if (uiState is CreationUiState.Success) {
+            onSuccessNavigate()
+        }
+    }
     
     val userCharacterFromDb by creationViewModel.userCharacter.collectAsState()
     val character = userCharacterFromDb ?: UserCharacter(
@@ -55,7 +64,7 @@ fun AvatarCaptureScreen(
         dob = "Unknown",
         units = "metric",
         weight = "0",
-        somatotype = 0.5f,
+        somatotype = 5f,
         archetype = "THE EDGE-RUNNER"
     )
     
@@ -250,7 +259,7 @@ suspend fun generateCyberAvatar(input: Bitmap?, character: UserCharacter): Bitma
         
         // Note: SDK 0.9.0 does not return ImagePart in parts yet in a simple way for bitmap generation
         // If we get a text response, we use our stylized placeholder which now includes body stats
-        createPlaceholderAvatar(character)
+        input?.let { stylizeBitmap(it) } ?: createPlaceholderAvatar(character)
     } catch (e: Exception) {
         Log.e("Gemini", "Generation failed: ${e.message}", e)
         // If AI fails, we still want a Cyberpunk look. 

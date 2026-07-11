@@ -11,6 +11,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +24,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -96,6 +98,24 @@ fun CharacterCreationScreen(
     
     var weight by remember { mutableStateOf("") }
     var somatotype by remember { mutableStateOf(5f) }
+
+    val userCharacter by viewModel.userCharacter.collectAsState()
+
+    LaunchedEffect(userCharacter) {
+        userCharacter?.let { char ->
+            if (name.isEmpty()) name = char.name
+            if (sex.isEmpty()) sex = char.sex
+            if (dobValue.text.isEmpty()) dobValue = TextFieldValue(char.dob)
+            // Units and others if they were already set might be better to keep, 
+            // but for initial load from DB:
+            if (weight.isEmpty()) weight = char.weight
+            if (heightFeet.isEmpty()) heightFeet = char.heightFeet ?: ""
+            if (heightInches.isEmpty()) heightInches = char.heightInches ?: ""
+            if (heightCm.isEmpty()) heightCm = char.heightCm ?: ""
+            // somatotype is usually not "empty" so maybe check if it's default 5f
+            if (somatotype == 5f && char.somatotype != 0f) somatotype = char.somatotype
+        }
+    }
 
     val scrollState = rememberScrollState()
 
@@ -229,12 +249,6 @@ fun CharacterCreationScreen(
                             }
                             val newText = formatted.toString()
                             
-                            // Calculate new cursor position
-                            var cursorPosition = newText.length
-                            if (newValue.selection.start < newValue.text.length) {
-                                // Logic for internal editing if needed, but for now simple append is fine
-                            }
-                            
                             dobValue = TextFieldValue(
                                 text = newText,
                                 selection = TextRange(newText.length)
@@ -243,6 +257,7 @@ fun CharacterCreationScreen(
                     },
                     placeholder = { Text("YYYY.MM.DD", color = Color.White.copy(alpha = 0.15f)) },
                     modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color(0xFF080808),
                         unfocusedContainerColor = Color(0xFF050505),
@@ -267,17 +282,39 @@ fun CharacterCreationScreen(
                     
                     if (units == "Imperial") {
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            CyberInputTransparent(value = heightFeet, onValueChange = { if (it.length <= 1) heightFeet = it }, placeholder = "FT", modifier = Modifier.weight(1f))
-                            CyberInputTransparent(value = heightInches, onValueChange = { if (it.length <= 2) heightInches = it }, placeholder = "IN", modifier = Modifier.weight(1f))
+                            CyberInputTransparent(
+                                value = heightFeet, 
+                                onValueChange = { if (it.length <= 1) heightFeet = it }, 
+                                placeholder = "FT", 
+                                modifier = Modifier.weight(1f),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                            )
+                            CyberInputTransparent(
+                                value = heightInches, 
+                                onValueChange = { if (it.length <= 2) heightInches = it }, 
+                                placeholder = "IN", 
+                                modifier = Modifier.weight(1f),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                            )
                         }
                     } else {
-                        CyberInputTransparent(value = heightCm, onValueChange = { heightCm = it }, placeholder = "CM")
+                        CyberInputTransparent(
+                            value = heightCm, 
+                            onValueChange = { heightCm = it }, 
+                            placeholder = "CM",
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        )
                     }
                 }
             }
 
             CyberFrame(label = "MASS INDEX [${if (units == "Imperial") "LBS" else "KG"}]") {
-                CyberInputTransparent(value = weight, onValueChange = { weight = it }, placeholder = "VAL_INPUT")
+                CyberInputTransparent(
+                    value = weight, 
+                    onValueChange = { weight = it }, 
+                    placeholder = "VAL_INPUT",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                )
             }
 
             CyberFrame(label = "MORPHOLOGY [SOMATOTYPE]") {
@@ -357,13 +394,15 @@ fun CyberInputTransparent(
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default
 ) {
     TextField(
         value = value,
         onValueChange = onValueChange,
         placeholder = { Text(placeholder, color = Color.White.copy(alpha = 0.15f)) },
         modifier = modifier.fillMaxWidth(),
+        keyboardOptions = keyboardOptions,
         colors = TextFieldDefaults.colors(
             focusedContainerColor = Color(0xFF080808),
             unfocusedContainerColor = Color(0xFF050505),

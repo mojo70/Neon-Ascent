@@ -45,8 +45,10 @@ class OnboardingViewModel @Inject constructor(
             characterRepository.getUserCharacter().collect { character ->
                 if (character != null) {
                     val age = calculateAge(character.dob)
-                    val weightKg = if (character.units == "METRIC") character.weight.toFloat() else character.weight.toFloat() * 0.453592f
-                    val heightCm = character.heightCm?.toFloat() ?: 175f
+                    val weightKg = character.weight.toFloatOrNull()?.let {
+                        if (character.units == "METRIC") it else it * 0.453592f
+                    } ?: 75f
+                    val heightCm = character.heightCm?.toFloatOrNull() ?: 175f
                     
                     val somatotype = when {
                         character.somatotype < 0.33f -> Somatotype.ECTOMORPH

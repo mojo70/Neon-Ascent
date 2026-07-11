@@ -46,6 +46,14 @@ class CreationViewModel @Inject constructor(
         somatotype = 0.5f
     )
 
+    init {
+        viewModelScope.launch {
+            characterRepository.getUserCharacter().collect { char ->
+                char?.let { draftCharacter = it }
+            }
+        }
+    }
+
     private val generativeModel = GenerativeModel(
         modelName = "gemini-2.0-flash",
         apiKey = BuildConfig.GEMINI_API_KEY
@@ -53,7 +61,7 @@ class CreationViewModel @Inject constructor(
 
     fun abort(onComplete: () -> Unit) {
         viewModelScope.launch {
-            // Save current progress if any
+            characterRepository.saveCharacter(draftCharacter)
             onComplete()
         }
     }
@@ -70,7 +78,8 @@ class CreationViewModel @Inject constructor(
         heightCm: String?
     ) {
         viewModelScope.launch {
-            val finalCharacter = draftCharacter.copy(
+            val existing = characterRepository.getUserCharacter().first()
+            draftCharacter = (existing ?: draftCharacter).copy(
                 name = name,
                 sex = sex,
                 dob = dob,
@@ -81,23 +90,20 @@ class CreationViewModel @Inject constructor(
                 heightInches = heightInches,
                 heightCm = heightCm
             )
-            characterRepository.saveCharacter(finalCharacter)
+            characterRepository.saveCharacter(draftCharacter)
             userPreferencesRepository.updateMeasurementUnit(units)
-            _uiState.value = CreationUiState.Success
         }
     }
 
     fun updatePersonality(mbti: String, alignment: String, archetype: String) {
         viewModelScope.launch {
-            val char = characterRepository.getUserCharacter().first()
-            char?.let {
-                val updated = it.copy(
-                    mbti = mbti,
-                    alignment = alignment,
-                    archetype = archetype
-                )
-                characterRepository.saveCharacter(updated)
-            }
+            val existing = characterRepository.getUserCharacter().first()
+            draftCharacter = (existing ?: draftCharacter).copy(
+                mbti = mbti,
+                alignment = alignment,
+                archetype = archetype
+            )
+            characterRepository.saveCharacter(draftCharacter)
         }
     }
 
@@ -105,30 +111,30 @@ class CreationViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = CreationUiState.Loading
             try {
-                val char = characterRepository.getUserCharacter().first()
-                char?.let {
-                    var savedPath: String? = null
-                    if (avatarBitmap != null) {
-                        val file = File(getApplication<Application>().filesDir, "avatar_${System.currentTimeMillis()}.png")
-                        FileOutputStream(file).use { out ->
-                            avatarBitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
-                        }
-                        savedPath = file.absolutePath
+                val existing = characterRepository.getUserCharacter().first()
+                draftCharacter = existing ?: draftCharacter
+
+                var savedPath: String? = null
+                if (avatarBitmap != null) {
+                    val file = File(getApplication<Application>().filesDir, "avatar_${System.currentTimeMillis()}.png")
+                    FileOutputStream(file).use { out ->
+                        avatarBitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
                     }
-
-                    val finalCharacter = it.copy(
-                        isCreationComplete = true,
-                        avatarPath = savedPath ?: it.avatarPath
-                    )
-                    characterRepository.saveCharacter(finalCharacter)
-
-                    // Seed starter habits and schedule Neural Pings
-                    finalCharacter.archetype?.let { archetype ->
-                        onboardingCompletionUseCase(archetype)
-                    }
-
-                    _uiState.value = CreationUiState.Success
+                    savedPath = file.absolutePath
                 }
+
+                draftCharacter = draftCharacter.copy(
+                    isCreationComplete = true,
+                    avatarPath = savedPath ?: draftCharacter.avatarPath
+                )
+                characterRepository.saveCharacter(draftCharacter)
+
+                // Seed starter habits and schedule Neural Pings
+                draftCharacter.archetype?.let { archetype ->
+                    onboardingCompletionUseCase(archetype)
+                }
+
+                _uiState.value = CreationUiState.Success
             } catch (e: Exception) {
                 _uiState.value = CreationUiState.Error(e.message ?: "Failed to save character")
             }

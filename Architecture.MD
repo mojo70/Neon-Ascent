@@ -50,10 +50,22 @@ The workout system leverages the `UserCharacter` model to personalize protocols:
 
 ---
 
-## Technical Standards
+## Technical Standards & Persistence Integrity
 
-*   **UI**: Jetpack Compose with a "Neon Dark" theme (`#050505` background, neon accents).
+### 1. Data Write Safety (Atomic Updates)
+To prevent data loss during sequential input flows (like the "Identity Forge"), the following rules apply:
+*   **Read-Before-Write**: ViewModels must fetch the current character state from the repository immediately before applying a `copy()` and saving. This prevents "stale data" from overwriting fields updated in previous steps (e.g., Name overwriting Personality).
+*   **Mutex Protection**: Critical repositories (especially `CharacterRepository`) must utilize a `Mutex` lock for write operations to ensure atomicity and prevent race conditions across background threads.
+*   **Full Field Mapping**: Mappers must account for *every* field in the domain model. Partial updates at the repository layer are forbidden to ensure the database remains the true reflection of the domain state.
+
+### 2. Navigation Integrity
+*   **State-Aware Navigation**: Apps must wait for a "Success" state from the ViewModel before navigating away from data-entry screens.
+*   **Startup Verification**: The `isCreationComplete` flag must be checked robustly at startup (e.g., during the Loading Screen) to ensure the user is directed to the correct entry point based on persisted data.
+
+### 3. UI & State Management
 *   **State Management**: `StateFlow` and `collectAsStateWithLifecycle`. UI logic must handle properties from different modules using local capture to satisfy Kotlin's smart-cast requirements.
 *   **Dependency Injection**: Hilt. All repository implementations must be bound to domain interfaces in Hilt modules to allow feature modules to remain decoupled from the data implementation.
+
+### 4. Infrastructure
 *   **Persistence**: Secure Room database utilizing SQLCipher for encrypted storage.
 *   **AI**: Hybrid approach using Gemini Nano (Local) and Gemini Flash (Cloud), orchestrated by `AiProvider`.

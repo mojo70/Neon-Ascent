@@ -136,11 +136,18 @@ fun AppNavigation(
         exitTransition = { fadeOut(animationSpec = tween(300)) }
     ) {
         composable<Screen.Loading> {
+            val scope = rememberCoroutineScope()
             LoadingScreen(
                 onLoadingFinished = {
-                    val target = if (userCharacter?.isCreationComplete == true) Screen.MainHub else Screen.Creation
-                    navController.navigate(target) {
-                        popUpTo(Screen.Loading) { inclusive = true }
+                    scope.launch {
+                        // Ensure we have the latest character state before deciding destination
+                        val char = dashboardViewModel.userCharacter.value
+                        val isComplete = char?.isCreationComplete == true
+                        val target = if (isComplete) Screen.MainHub else Screen.Creation
+
+                        navController.navigate(target) {
+                            popUpTo(Screen.Loading) { inclusive = true }
+                        }
                     }
                 }
             )
@@ -361,6 +368,7 @@ fun AppNavigation(
 
         composable<Screen.Creation> {
             CharacterCreationScreen(
+                viewModel = creationViewModel,
                 onAbort = { navController.popBackStack() },
                 onCreationFinished = { name, sex, dob, units, weight, somatotype, hFeet, hInches, hCm ->
                     creationViewModel.updateBasicInfo(name, sex, dob, units, weight, somatotype, hFeet, hInches, hCm)
@@ -399,8 +407,11 @@ fun AppNavigation(
 
         composable<Screen.AvatarCapture> {
             AvatarCaptureScreen(
+                creationViewModel = creationViewModel,
                 onComplete = { bitmap ->
                     creationViewModel.completeCreation(bitmap)
+                },
+                onSuccessNavigate = {
                     navController.navigate(Screen.MainHub) {
                         popUpTo(Screen.Creation) { inclusive = true }
                     }
