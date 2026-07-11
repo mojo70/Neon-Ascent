@@ -41,7 +41,7 @@ class WorkoutRepositoryImpl @Inject constructor(
             list.map { logWithSets ->
                 logWithSets.log.toDomain() to logWithSets.sets
                     .map { it.toDomain() }
-                    .sortedBy { it.timestamp }
+                    .sortedWith(compareBy({ it.timestamp }, { it.id }))
             }
         }
 
@@ -356,16 +356,69 @@ class WorkoutRepositoryImpl @Inject constructor(
         // Seed CyberCrapp A Routine
         val cyberCrappA = WorkoutRoutine(
             id = "routine_cybercrapp_a",
-            name = "CyberCrapp A",
-            description = "Prescriptive CyberCrapp protocol focusing on heavy compounds and high intensity finishers.",
+            name = "CyberCrapp A (Push)",
+            description = """
+                PROTOCOL: CYBERCRAPP
+                GOAL: Hypertrophy + Powerbuilding
+                
+                METHOD: 
+                - 2 Warmup sets per exercise.
+                - 1 Rest-Pause Cluster (3 mini-sets to failure).
+                - 1 Cyber Finisher (Lengthened Partials).
+                - 1 Loaded Stretch (Somatotype-optimized).
+                
+                FOCUS: Chest, Shoulders, Triceps.
+            """.trimIndent(),
             protocol = WorkoutProtocol.CYBER_CRAPP,
             isSystem = true,
-            isAddedToLibrary = false, // Show in library, not directly in "My Routines"
+            isAddedToLibrary = false,
             exercises = listOf(
                 RoutineExercise(
                     exercise = exercises.find { it.id == "bench_press" }!!,
                     sets = listOf(
                         RoutineSet(type = SetType.WARMUP),
+                        RoutineSet(type = SetType.REST_PAUSE)
+                    )
+                ),
+                RoutineExercise(
+                    exercise = exercises.find { it.id == "military_press" }!!,
+                    sets = listOf(
+                        RoutineSet(type = SetType.WARMUP),
+                        RoutineSet(type = SetType.REST_PAUSE)
+                    )
+                ),
+                RoutineExercise(
+                    exercise = exercises.find { it.id == "db_tricep_extension" }!!,
+                    sets = listOf(
+                        RoutineSet(type = SetType.WARMUP),
+                        RoutineSet(type = SetType.REST_PAUSE)
+                    )
+                )
+            )
+        )
+        saveRoutine(cyberCrappA)
+
+        // Seed CyberCrapp B Routine
+        val cyberCrappB = WorkoutRoutine(
+            id = "routine_cybercrapp_b",
+            name = "CyberCrapp B (Pull)",
+            description = """
+                PROTOCOL: CYBERCRAPP
+                GOAL: Peak Supination + Posterior Thickness
+                
+                METHOD: 
+                - Standard CC Cluster protocol.
+                - Includes Jerry Curls for maximum bicep stretch.
+                
+                FOCUS: Back, Biceps, Rear Delts.
+            """.trimIndent(),
+            protocol = WorkoutProtocol.CYBER_CRAPP,
+            isSystem = true,
+            isAddedToLibrary = false,
+            exercises = listOf(
+                RoutineExercise(
+                    exercise = exercises.find { it.id == "weighted_pullups" }!!,
+                    sets = listOf(
                         RoutineSet(type = SetType.WARMUP),
                         RoutineSet(type = SetType.REST_PAUSE)
                     )
@@ -374,30 +427,62 @@ class WorkoutRepositoryImpl @Inject constructor(
                     exercise = exercises.find { it.id == "bent_over_row" }!!,
                     sets = listOf(
                         RoutineSet(type = SetType.WARMUP),
+                        RoutineSet(type = SetType.REST_PAUSE)
+                    )
+                ),
+                RoutineExercise(
+                    exercise = exercises.find { it.id == "jerry_curl" }!!,
+                    sets = listOf(
+                        RoutineSet(type = SetType.WARMUP),
+                        RoutineSet(type = SetType.REST_PAUSE)
+                    )
+                )
+            )
+        )
+        saveRoutine(cyberCrappB)
+
+        // Seed CyberCrapp C Routine
+        val cyberCrappC = WorkoutRoutine(
+            id = "routine_cybercrapp_c",
+            name = "CyberCrapp C (Legs)",
+            description = """
+                PROTOCOL: CYBERCRAPP
+                GOAL: Neural Drive + Metabolic Stress
+                
+                METHOD: 
+                - POWER sets (explosive 30-60% load).
+                - Widowmaker sets (20 rep brutal finishers).
+                
+                FOCUS: Quads, Hamstrings, Glutes, Calves.
+            """.trimIndent(),
+            protocol = WorkoutProtocol.CYBER_CRAPP,
+            isSystem = true,
+            isAddedToLibrary = false,
+            exercises = listOf(
+                RoutineExercise(
+                    exercise = exercises.find { it.id == "back_squat" }!!,
+                    sets = listOf(
+                        RoutineSet(type = SetType.WARMUP),
+                        RoutineSet(type = SetType.POWER),
+                        RoutineSet(type = SetType.WIDOWMAKER, goalReps = "20")
+                    )
+                ),
+                RoutineExercise(
+                    exercise = exercises.find { it.id == "romanian_deadlift" }!!,
+                    sets = listOf(
                         RoutineSet(type = SetType.WARMUP),
                         RoutineSet(type = SetType.REST_PAUSE)
                     )
                 ),
                 RoutineExercise(
-                    exercise = exercises.find { it.id == "back_squat" }!!,
+                    exercise = exercises.find { it.id == "calf_raise" }!!,
                     sets = listOf(
-                        RoutineSet(type = SetType.WARMUP),
-                        RoutineSet(type = SetType.WARMUP),
-                        RoutineSet(type = SetType.NORMAL),
-                        RoutineSet(type = SetType.WIDOWMAKER, goalReps = "20")
-                    )
-                ),
-                RoutineExercise(
-                    exercise = exercises.find { it.id == "deadlift" }!!,
-                    sets = listOf(
-                        RoutineSet(type = SetType.WARMUP),
-                        RoutineSet(type = SetType.WARMUP),
-                        RoutineSet(type = SetType.NORMAL)
+                        RoutineSet(type = SetType.REST_PAUSE)
                     )
                 )
             )
         )
-        saveRoutine(cyberCrappA)
+        saveRoutine(cyberCrappC)
 
         // Ensure old default routines are removed as requested
         workoutDao.deleteRoutine("routine_strength")

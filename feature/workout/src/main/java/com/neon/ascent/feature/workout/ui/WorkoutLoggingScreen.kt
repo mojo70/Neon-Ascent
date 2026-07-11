@@ -112,8 +112,12 @@ fun WorkoutLoggingScreen(
                     },
                     onDiscard = { viewModel.discardWorkout() }
                 )
-                WorkoutSummaryBar(uiState)
+                WorkoutSummaryBar(uiState, onToggleSomatotype = { viewModel.toggleSomatotypeInfluence() })
                 
+                if (uiState.somatotypeNudgeText != null) {
+                    SomatotypeBadge(uiState.somatotypeNudgeText!!, uiState.userProfile?.somatotype)
+                }
+
                 Box(modifier = Modifier.weight(1f)) {
                     ActiveWorkoutContent(uiState, viewModel)
                     
@@ -214,6 +218,16 @@ fun WorkoutLoggingScreen(
                 containerColor = Color(0xFF1C1C1E)
             )
         }
+
+        // CC Phase Dialogs
+        if (uiState.session?.protocol == WorkoutProtocol.CYBER_CRAPP) {
+            if (uiState.showCyberFinisher && uiState.cyberCrappPhase == CyberCrappPhase.CYBER_FINISHER) {
+                CyberFinisherDialog(onDone = { viewModel.startStretch() })
+            }
+            if (uiState.showLoadedStretch && uiState.cyberCrappPhase == CyberCrappPhase.LOADED_STRETCH) {
+                LoadedStretchDialog(remaining = uiState.stretchTimeRemaining)
+            }
+        }
     }
 }
 
@@ -297,7 +311,7 @@ fun ActiveWorkoutHeader(
 }
 
 @Composable
-fun WorkoutSummaryBar(uiState: WorkoutUiState) {
+fun WorkoutSummaryBar(uiState: WorkoutUiState, onToggleSomatotype: () -> Unit = {}) {
     val totalVolume = remember(uiState.logs) {
         uiState.logs.sumOf { (_, sets) -> 
             sets.sumOf { (it.weight * it.reps).toDouble() }
@@ -311,13 +325,49 @@ fun WorkoutSummaryBar(uiState: WorkoutUiState) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         SummaryStat("Duration", "${durationMinutes}m", Color(0xFF007AFF))
         SummaryStat("Volume", "%,d lbs".format(totalVolume), Color.White)
         SummaryStat("Sets", "$totalSets", Color.White)
-        Icon(Icons.Default.Person, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(24.dp))
+        
+        IconButton(onClick = onToggleSomatotype) {
+            Icon(
+                Icons.Default.SettingsInputComponent, 
+                contentDescription = "Toggle Somatotype Influence", 
+                tint = if (uiState.useSomatotypeInfluence) Color(0xFF00FF9C) else Color.Gray,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun SomatotypeBadge(text: String, somatotype: Somatotype?) {
+    val color = when (somatotype) {
+        Somatotype.ECTOMORPH -> Color(0xFF00CCFF)
+        Somatotype.ENDOMORPH -> Color(0xFFFF006E)
+        else -> Color(0xFF00FF9C)
+    }
+    
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .background(color.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+            .border(0.5.dp, color.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+            .padding(vertical = 4.dp, horizontal = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text.uppercase(),
+            color = color,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = 1.sp
+        )
     }
 }
 
@@ -1100,13 +1150,15 @@ fun RoutineExerciseItem(
                         SetType.FAILURE -> "F"
                         SetType.REST_PAUSE -> "RP"
                         SetType.WIDOWMAKER -> "WM"
+                        SetType.POWER -> "P"
                     }
                     val color = when (set.type) {
                         SetType.WARMUP -> Color(0xFFFFA500)
                         SetType.DROP -> Color(0xFF00CCFF)
                         SetType.FAILURE -> Color(0xFFFF4444)
                         SetType.REST_PAUSE -> Color(0xFF00FFAA)
-                        SetType.WIDOWMAKER -> Color(0xFFFF00FF) // Purple for WM
+                        SetType.WIDOWMAKER -> Color(0xFFFF00FF)
+                        SetType.POWER -> Color(0xFFFFD700) // Gold/Power color
                         else -> Color.White
                     }
                     Text(label, color = color, fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -2172,6 +2224,7 @@ fun WorkoutLogCard(
     val uiState by viewModel.uiState.collectAsState()
     val previousSets = uiState.previousLogs[log.exerciseId] ?: emptyList()
     var showSetTypeSelector by remember { mutableStateOf<SetLog?>(null) }
+    var showClusterDialogFor by remember { mutableStateOf<List<SetLog>?>(null) }
     
     val isPrescriptiveAugment = remember(log.augmentId, uiState.augments, uiState.exploreAugments) {
         log.augmentId != null && (uiState.augments + uiState.exploreAugments).any { it.id == log.augmentId && it.isSystem }
@@ -2224,7 +2277,35 @@ fun WorkoutLogCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(modifier = Modifier.size(40.dp).background(Color(0xFF1C1C1E), CircleShape))
                 Spacer(modifier = Modifier.width(12.dp))
-                Text(log.exerciseName, color = augmentColor, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Column {
+                    Text(log.exerciseName, color = augmentColor, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    
+                    // Comparison Logic
+                    val comparisonText = remember(sets, previousSets, uiState.session?.protocol) {
+                        val isCC = uiState.session?.protocol == WorkoutProtocol.CYBER_CRAPP
+                        if (isCC) {
+                            val prevClusterTotal = previousSets.filter { it.type == SetType.REST_PAUSE }.sumOf { it.reps }
+                            val currentClusterTotal = sets.filter { it.type == SetType.REST_PAUSE }.sumOf { it.reps }
+                            if (currentClusterTotal > 0 && prevClusterTotal > 0) {
+                                val diff = currentClusterTotal - prevClusterTotal
+                                "${if (diff >= 0) "+" else ""}$diff vs last 🔥"
+                            } else null
+                        } else {
+                            val prevMaxW = previousSets.maxOfOrNull { it.weight } ?: 0f
+                            val currentMaxW = sets.maxOfOrNull { it.weight } ?: 0f
+                            if (currentMaxW > prevMaxW && prevMaxW > 0) "New Weight PR! 🚀"
+                            else if (currentMaxW == prevMaxW && currentMaxW > 0) {
+                                val prevMaxR = previousSets.filter { it.weight == prevMaxW }.maxOfOrNull { it.reps } ?: 0
+                                val currentMaxR = sets.filter { it.weight == currentMaxW }.maxOfOrNull { it.reps } ?: 0
+                                if (currentMaxR > prevMaxR) "+${currentMaxR - prevMaxR} reps vs last 🔥" else null
+                            } else null
+                        }
+                    }
+                    
+                    comparisonText?.let {
+                        Text(it, color = Color(0xFF00FF9C), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
             IconButton(onClick = onActionMenuClick) {
                 Icon(Icons.Default.MoreHoriz, contentDescription = "Exercise Actions", tint = Color.Gray)
@@ -2255,10 +2336,18 @@ fun WorkoutLogCard(
 
         Text("Add weight", color = Color.Gray, fontSize = 14.sp, modifier = Modifier.padding(vertical = 8.dp))
         
+        val timerText = if (uiState.isResting) {
+            "RESTING: ${uiState.restTimeRemaining}s"
+        } else if (uiState.showLoadedStretch) {
+            "STRETCHING: ${uiState.stretchTimeRemaining}s"
+        } else {
+            "Rest Timer: 1min 0s"
+        }
+
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Timer, contentDescription = null, tint = Color(0xFF007AFF), modifier = Modifier.size(16.dp))
+            Icon(Icons.Default.Timer, contentDescription = null, tint = if (uiState.isResting || uiState.showLoadedStretch) Color(0xFF00FF9C) else Color(0xFF007AFF), modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(4.dp))
-            Text("Rest Timer: 1min 0s", color = Color(0xFF007AFF), fontSize = 14.sp)
+            Text(timerText, color = if (uiState.isResting || uiState.showLoadedStretch) Color(0xFF00FF9C) else Color(0xFF007AFF), fontSize = 14.sp)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -2277,20 +2366,55 @@ fun WorkoutLogCard(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        sets.forEachIndexed { index, set ->
-            key(set.id) {
-                val prevSet = previousSets.getOrNull(index)
-                SetLogRow(
-                    setNumber = index + 1,
-                    set = set,
-                    showGoal = showGoalColumn,
-                    previousData = prevSet?.let { "${if (it.weight % 1 == 0f) it.weight.toInt() else it.weight}lbs x ${it.reps}" } ?: "",
-                    onUpdateWeight = { viewModel.updateSet(set, weight = it) },
-                    onUpdateReps = { viewModel.updateSet(set, reps = it) },
-                    onUpdateGoal = { viewModel.updateSet(set, goalReps = it) },
-                    onCompleteToggle = { viewModel.updateSet(set, isCompleted = !set.isCompleted) },
-                    onSetLabelClick = { showSetTypeSelector = set }
-                )
+        // Grouping sets for display
+        val displayItems = remember(sets) {
+            val items = mutableListOf<Any>()
+            val clusters = sets.filter { it.clusterMiniSetIndex != null }.groupBy { it.workoutLogId }
+            
+            var handledCluster = false
+            sets.forEach { set ->
+                if (set.clusterMiniSetIndex != null) {
+                    if (!handledCluster) {
+                        items.add(sets.filter { it.clusterMiniSetIndex != null })
+                        handledCluster = true
+                    }
+                } else {
+                    items.add(set)
+                }
+            }
+            items
+        }
+
+        displayItems.forEachIndexed { index, item ->
+            if (item is List<*>) {
+                @Suppress("UNCHECKED_CAST")
+                val clusterSets = item as List<SetLog>
+                val clusterKey = clusterSets.firstOrNull()?.workoutLogId ?: "cluster_$index"
+                key(clusterKey) {
+                    ClusterSetRow(
+                        sets = clusterSets,
+                        previousSets = previousSets.filter { it.clusterMiniSetIndex != null },
+                        onUpdateWeight = { weight -> clusterSets.forEach { viewModel.updateSet(it, weight = weight) } },
+                        onUpdateGoal = { goal -> clusterSets.forEach { viewModel.updateSet(it, goalReps = goal) } },
+                        onClick = { showClusterDialogFor = clusterSets }
+                    )
+                }
+            } else if (item is SetLog) {
+                val set = item
+                key(set.id) {
+                    val prevSet = previousSets.find { it.type == set.type && it.clusterMiniSetIndex == null } // Simple matching for now
+                    SetLogRow(
+                        setNumber = index + 1,
+                        set = set,
+                        showGoal = showGoalColumn,
+                        previousData = prevSet?.let { "${if (it.weight % 1 == 0f) it.weight.toInt() else it.weight}lbs x ${it.reps}" } ?: "",
+                        onUpdateWeight = { viewModel.updateSet(set, weight = it) },
+                        onUpdateReps = { viewModel.updateSet(set, reps = it) },
+                        onUpdateGoal = { viewModel.updateSet(set, goalReps = it) },
+                        onCompleteToggle = { viewModel.updateSet(set, isCompleted = !set.isCompleted) },
+                        onSetLabelClick = { showSetTypeSelector = set }
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(4.dp))
         }
@@ -2312,6 +2436,18 @@ fun WorkoutLogCard(
         }
     }
 
+    if (showClusterDialogFor != null) {
+        val currentSets = uiState.logs.find { it.first.id == log.id }?.second ?: showClusterDialogFor!!
+        val clusterSetsInLog = currentSets.filter { it.clusterMiniSetIndex != null }
+        ClusterLoggingDialog(
+            sets = if (clusterSetsInLog.isNotEmpty()) clusterSetsInLog else showClusterDialogFor!!,
+            previousSets = previousSets.filter { it.clusterMiniSetIndex != null },
+            uiState = uiState,
+            viewModel = viewModel,
+            onDismiss = { showClusterDialogFor = null }
+        )
+    }
+
     if (showSetTypeSelector != null) {
         SetTypeSelectorBottomSheet(
             onTypeSelected = { type ->
@@ -2324,6 +2460,416 @@ fun WorkoutLogCard(
             },
             onDismiss = { showSetTypeSelector = null }
         )
+    }
+}
+
+@Composable
+fun CyberFinisherDialog(onDone: () -> Unit) {
+    Dialog(onDismissRequest = { /* Force completion */ }) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            color = Color(0xFF050505),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, Color(0xFF00FF9C))
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    "CYBER FINISHER",
+                    color = Color(0xFF00FF9C),
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 2.sp
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(
+                    "3-5 LENGTHENED PARTIALS",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                Text(
+                    "Perform reps in the stretched position only. Focus on the bottom half of the movement.",
+                    color = Color.Gray,
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                Button(
+                    onClick = onDone,
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("LOG & START STRETCH", color = Color.Black, fontWeight = FontWeight.Black)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun LoadedStretchDialog(remaining: Int) {
+    Dialog(onDismissRequest = { /* Force completion */ }) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            color = Color(0xFF050505),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, Color(0xFFFF006E))
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    "LOADED STRETCH",
+                    color = Color(0xFFFF006E),
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 2.sp
+                )
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Text(
+                    "${remaining}s",
+                    color = Color.White,
+                    fontSize = 64.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                Text(
+                    "Deep, weighted stretch. Breathe through the intensity.",
+                    color = Color.Gray,
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                LinearProgressIndicator(
+                    progress = { remaining / 45f }, // Approx default
+                    modifier = Modifier.fillMaxWidth().height(4.dp),
+                    color = Color(0xFFFF006E),
+                    trackColor = Color.White.copy(alpha = 0.1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ClusterSetRow(
+    sets: List<SetLog>,
+    previousSets: List<SetLog>,
+    onUpdateWeight: (Float) -> Unit,
+    onUpdateGoal: (String) -> Unit,
+    onClick: () -> Unit
+) {
+    val totalReps = sets.filter { it.isCompleted }.sumOf { it.reps }
+    val isCompleted = sets.all { it.isCompleted } && sets.isNotEmpty()
+    val weight = sets.firstOrNull()?.weight ?: 0f
+    val goalReps = sets.firstOrNull()?.goalReps ?: ""
+    val prevTotalReps = previousSets.sumOf { it.reps }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFF00FFAA).copy(alpha = 0.05f), RoundedCornerShape(4.dp))
+            .padding(vertical = 4.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Label (Clickable area)
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .clickable { onClick() }
+                .padding(vertical = 4.dp)
+        ) {
+            Text(
+                "RP",
+                color = Color(0xFF00FFAA),
+                fontWeight = FontWeight.Black,
+                fontSize = 16.sp
+            )
+        }
+
+        // Goal Input
+        EditableValueBox(
+            value = goalReps,
+            onValueChange = { onUpdateGoal(it) },
+            modifier = Modifier.weight(1.5f),
+            keyboardType = KeyboardType.Text
+        )
+
+        // Previous (Clickable area)
+        Box(
+            modifier = Modifier
+                .weight(2f)
+                .clickable { onClick() }
+                .padding(vertical = 4.dp)
+        ) {
+            Text(
+                if (prevTotalReps > 0) "${prevTotalReps} total" else "-",
+                color = Color.Gray,
+                fontSize = 12.sp
+            )
+        }
+
+        // Weight Input
+        EditableValueBox(
+            value = if (weight % 1 == 0f) weight.toInt().toString() else weight.toString(),
+            onValueChange = { it.toFloatOrNull()?.let { w -> onUpdateWeight(w) } },
+            modifier = Modifier.weight(1.5f),
+            keyboardType = KeyboardType.Decimal
+        )
+
+        // Total Reps (Clickable area)
+        Box(
+            modifier = Modifier
+                .weight(1.5f)
+                .clickable { onClick() }
+                .padding(vertical = 4.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                if (totalReps > 0) totalReps.toString() else "-",
+                color = Color(0xFF00FFAA),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+        }
+
+        // Completion Check (Clickable area)
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .background(
+                    if (isCompleted) Color(0xFF4CD964) else Color.Gray.copy(alpha = 0.5f),
+                    RoundedCornerShape(4.dp)
+                )
+                .clickable { onClick() },
+            contentAlignment = Alignment.Center
+        ) {
+            if (isCompleted) {
+                Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ClusterLoggingDialog(
+    sets: List<SetLog>,
+    previousSets: List<SetLog>,
+    uiState: WorkoutUiState,
+    viewModel: WorkoutViewModel,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            color = Color(0xFF050505),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, Color(0xFF00FFAA).copy(alpha = 0.5f))
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            "REST-PAUSE CLUSTER",
+                            color = Color(0xFF00FFAA),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 1.sp
+                        )
+                        val weight = sets.firstOrNull()?.weight ?: 0f
+                        Text(
+                            "${if (weight % 1 == 0f) weight.toInt() else weight} LBS",
+                            color = Color.Gray,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Gray)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Timer Display if resting
+                if (uiState.isResting) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFF00FFAA).copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            "NEURAL RECOVERY",
+                            color = Color(0xFF00FFAA),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 2.sp
+                        )
+                        Text(
+                            "${uiState.restTimeRemaining}s",
+                            color = Color(0xFF00FFAA),
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        LinearProgressIndicator(
+                            progress = { uiState.restTimeRemaining / 15f },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp)
+                                .height(2.dp),
+                            color = Color(0xFF00FFAA),
+                            trackColor = Color.Gray.copy(alpha = 0.2f),
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(20.dp))
+                }
+
+                sets.sortedBy { it.clusterMiniSetIndex }.forEachIndexed { index, set ->
+                    val prevSet = previousSets.find { it.clusterMiniSetIndex == set.clusterMiniSetIndex }
+                    val isActive = !set.isCompleted && (index == 0 || sets[index - 1].isCompleted) && !uiState.isResting
+                    
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        color = if (isActive) Color(0xFF00FFAA).copy(alpha = 0.05f) else Color.Transparent,
+                        shape = RoundedCornerShape(8.dp),
+                        border = if (isActive) BorderStroke(1.dp, Color(0xFF00FFAA).copy(alpha = 0.3f)) else null
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "M-${index + 1}",
+                                color = if (set.isCompleted) Color(0xFF00FFAA) else if (isActive) Color.White else Color.Gray,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.width(40.dp)
+                            )
+                            
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("LAST", color = Color.Gray, fontSize = 10.sp)
+                                Text(
+                                    prevSet?.reps?.toString() ?: "-",
+                                    color = Color.White,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+
+                            EditableValueBox(
+                                value = if (set.reps == 0 && !set.isCompleted) "" else set.reps.toString(),
+                                onValueChange = { 
+                                    val newVal = it.toIntOrNull() ?: 0
+                                    viewModel.updateSet(set, reps = newVal) 
+                                },
+                                modifier = Modifier.width(80.dp),
+                                keyboardType = KeyboardType.Number,
+                                enabled = !uiState.isResting
+                            )
+
+                            Spacer(modifier = Modifier.width(16.dp))
+
+                            IconButton(
+                                onClick = { viewModel.updateSet(set, isCompleted = !set.isCompleted) },
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(
+                                        if (set.isCompleted) Color(0xFF00FFAA) else Color.Gray.copy(alpha = 0.2f),
+                                        RoundedCornerShape(8.dp)
+                                    )
+                            ) {
+                                Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = if (set.isCompleted) Color.Black else Color.White.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                val totalReps = sets.filter { it.isCompleted }.sumOf { it.reps }
+                val prevTotal = previousSets.sumOf { it.reps }
+                
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(8.dp))
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("TOTAL CLUSTER VOLUME", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text("$totalReps REPS", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
+                    }
+                    
+                    if (prevTotal > 0) {
+                        val diff = totalReps - prevTotal
+                        val color = if (diff >= 0) Color(0xFF00FF9C) else Color(0xFFFF006E)
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text("VS LAST", color = Color.Gray, fontSize = 10.sp)
+                            Text(
+                                "${if (diff >= 0) "+" else ""}$diff",
+                                color = color,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FFAA)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("SYNC DATA", color = Color.Black, fontWeight = FontWeight.Black, fontSize = 16.sp)
+                }
+            }
+        }
     }
 }
 
@@ -2360,8 +2906,9 @@ fun SetLogRow(
                 SetType.WARMUP -> "W"
                 SetType.DROP -> "D"
                 SetType.FAILURE -> "F"
-                SetType.REST_PAUSE -> "RP"
+                SetType.REST_PAUSE -> if (set.clusterMiniSetIndex != null) "RP ${set.clusterMiniSetIndex}" else "RP"
                 SetType.WIDOWMAKER -> "WM"
+                SetType.POWER -> "P"
             }
             val color = when (set.type) {
                 SetType.WARMUP -> Color(0xFFFFA500)
@@ -2369,6 +2916,7 @@ fun SetLogRow(
                 SetType.FAILURE -> Color(0xFFFF4444)
                 SetType.REST_PAUSE -> Color(0xFF00FFAA)
                 SetType.WIDOWMAKER -> Color(0xFFFF00FF)
+                SetType.POWER -> Color(0xFFFFD700)
                 else -> Color.White
             }
             Text(label, color = color, fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -2483,10 +3031,6 @@ fun EditableValueBox(
                 .fillMaxWidth()
                 .onFocusChanged { 
                     isFocused = it.isFocused
-                    if (!it.isFocused) {
-                        // Re-sync on focus loss to ensure valid domain state
-                        text = value
-                    }
                 }
         )
     }
@@ -2517,6 +3061,7 @@ fun SetTypeSelectorBottomSheet(
             
             SetTypeOption("W", "Warm Up Set", Color(0xFFFFA500)) { onTypeSelected(SetType.WARMUP) }
             SetTypeOption("1", "Normal Set", Color.White) { onTypeSelected(SetType.NORMAL) }
+            SetTypeOption("P", "Power Set (Explosive)", Color(0xFFFFD700)) { onTypeSelected(SetType.POWER) }
             SetTypeOption("F", "Failure Set", Color(0xFFFF4444)) { onTypeSelected(SetType.FAILURE) }
             SetTypeOption("D", "Drop Set", Color(0xFF00CCFF)) { onTypeSelected(SetType.DROP) }
             SetTypeOption("RP", "Rest Pause", Color(0xFF00FFAA)) { onTypeSelected(SetType.REST_PAUSE) }
@@ -2638,12 +3183,26 @@ fun ExploreProtocolsDialog(
                                         ) {
                                             Column(modifier = Modifier.weight(1f)) {
                                                 Text(routine.name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                                
+                                                routine.description?.let {
+                                                    Text(
+                                                        it,
+                                                        color = Color.Gray.copy(alpha = 0.8f),
+                                                        fontSize = 11.sp,
+                                                        lineHeight = 14.sp,
+                                                        maxLines = 4,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                        modifier = Modifier.padding(top = 4.dp)
+                                                    )
+                                                }
+
                                                 Text(
                                                     routine.exercises.joinToString(", ") { it.exercise.name },
                                                     color = Color.Gray,
-                                                    fontSize = 11.sp,
+                                                    fontSize = 10.sp,
                                                     maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    modifier = Modifier.padding(top = 4.dp)
                                                 )
                                             }
                                             IconButton(

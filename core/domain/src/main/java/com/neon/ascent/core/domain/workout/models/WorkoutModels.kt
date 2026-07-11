@@ -16,6 +16,10 @@ enum class WorkoutProtocol {
     GENERAL, CYBER_CRAPP, STRAIGHT_SETS, DUP, SUPERSETS
 }
 
+enum class CyberCrappPhase {
+    NOT_ACTIVE, MINI_SET_1, MINI_SET_2, MINI_SET_3, CYBER_FINISHER, LOADED_STRETCH
+}
+
 enum class ExperienceLevel {
     NOVICE, INTERMEDIATE, ADVANCED
 }
@@ -25,7 +29,7 @@ enum class Somatotype {
 }
 
 enum class SetType {
-    NORMAL, WARMUP, DROP, FAILURE, REST_PAUSE, WIDOWMAKER
+    NORMAL, WARMUP, DROP, FAILURE, REST_PAUSE, WIDOWMAKER, POWER
 }
 
 data class Exercise(

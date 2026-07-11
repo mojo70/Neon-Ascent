@@ -2,6 +2,7 @@ package com.neon.ascent.feature.workout.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.neon.ascent.core.common.HapticService
 import com.neon.ascent.core.domain.repository.WorkoutRepository
 import com.neon.ascent.core.domain.workout.models.*
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -46,6 +47,13 @@ data class WorkoutUiState(
 
     val activeSessionError: String? = null,
 
+    // CyberCrapp State
+    val cyberCrappPhase: CyberCrappPhase = CyberCrappPhase.NOT_ACTIVE,
+    val useSomatotypeInfluence: Boolean = true,
+    val somatotypeNudgeText: String? = null,
+    val comparisonText: String? = null,
+    val userProfile: UserWorkoutProfile? = null,
+
     // Finish Workout Dialogs
     val activeRoutine: WorkoutRoutine? = null,
     val showUncompletedSetsDialog: Boolean = false,
@@ -59,13 +67,15 @@ data class WorkoutUiState(
 
 @HiltViewModel
 class WorkoutViewModel @Inject constructor(
-    private val repository: WorkoutRepository
+    private val repository: WorkoutRepository,
+    private val hapticService: HapticService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WorkoutUiState())
     val uiState = _uiState.asStateFlow()
 
     private val updateJobs = mutableMapOf<String, kotlinx.coroutines.Job>()
+    private val pendingUpdates = mutableMapOf<String, SetLog>()
 
     val filteredExercises = _uiState.map { state ->
         state.availableExercises.filter { exercise ->
@@ -87,8 +97,34 @@ class WorkoutViewModel @Inject constructor(
             loadExercises()
             loadRoutines()
             loadAugments()
+            loadUserProfile()
             checkForActiveSession()
         }
+    }
+
+    private fun loadUserProfile() {
+        viewModelScope.launch {
+            // Assuming a default user ID for now, or fetch from auth
+            repository.getUserProfile("default_user").collect { profile ->
+                _uiState.update { it.copy(userProfile = profile) }
+                updateSomatotypeNudge()
+            }
+        }
+    }
+
+    private fun updateSomatotypeNudge() {
+        val state = _uiState.value
+        if (!state.useSomatotypeInfluence || state.userProfile == null) {
+            _uiState.update { it.copy(somatotypeNudgeText = null) }
+            return
+        }
+
+        val nudge = when (state.userProfile.somatotype) {
+            Somatotype.ECTOMORPH -> "Ecto-Optimization: +10% Volume Nudge Active"
+            Somatotype.ENDOMORPH -> "Endo-Optimization: Shorter Stretches Active"
+            Somatotype.MESOMORPH -> "Meso-Optimization: Balanced Protocol"
+        }
+        _uiState.update { it.copy(somatotypeNudgeText = nudge) }
     }
 
     private fun checkForActiveSession() {
@@ -423,7 +459,8 @@ class WorkoutViewModel @Inject constructor(
             isLoading = true, 
             workoutDurationSeconds = 0, 
             isPaused = false,
-            previousLogs = emptyMap()
+            previousLogs = emptyMap(),
+            cyberCrappPhase = if (protocol == WorkoutProtocol.CYBER_CRAPP) CyberCrappPhase.MINI_SET_1 else CyberCrappPhase.NOT_ACTIVE
         ) }
         
         sessionJob?.cancel()
@@ -468,7 +505,8 @@ class WorkoutViewModel @Inject constructor(
             isLoading = true, 
             workoutDurationSeconds = 0, 
             isPaused = false,
-            previousLogs = emptyMap()
+            previousLogs = emptyMap(),
+            cyberCrappPhase = if (routine.protocol == WorkoutProtocol.CYBER_CRAPP) CyberCrappPhase.MINI_SET_1 else CyberCrappPhase.NOT_ACTIVE
         ) }
 
         sessionJob?.cancel()
@@ -479,6 +517,8 @@ class WorkoutViewModel @Inject constructor(
             var currentOrder = 0
             
             // Pre-populate logs with exercises from routine
+            var globalSetTimestamp = java.time.Instant.now()
+            
             routine.exercises.forEach { routineExercise ->
                 val workoutLog = WorkoutLog(
                     id = UUID.randomUUID().toString(),
@@ -491,15 +531,35 @@ class WorkoutViewModel @Inject constructor(
                 
                 // Use defined sets from routine
                 routineExercise.sets.forEach { routineSet ->
-                    val setLog = SetLog(
-                        id = UUID.randomUUID().toString(),
-                        workoutLogId = workoutLog.id,
-                        weight = routineSet.weight,
-                        reps = routineSet.reps,
-                        type = routineSet.type,
-                        goalReps = routineSet.goalReps
-                    )
-                    repository.saveSetLog(setLog)
+                    if (session.protocol == WorkoutProtocol.CYBER_CRAPP && routineSet.type == SetType.REST_PAUSE) {
+                        // Expand into 3 mini-sets for CC
+                        for (i in 1..3) {
+                            globalSetTimestamp = globalSetTimestamp.plusMillis(1)
+                            val setLog = SetLog(
+                                id = UUID.randomUUID().toString(),
+                                workoutLogId = workoutLog.id,
+                                weight = routineSet.weight,
+                                reps = routineSet.reps,
+                                type = routineSet.type,
+                                goalReps = routineSet.goalReps,
+                                clusterMiniSetIndex = i,
+                                timestamp = globalSetTimestamp
+                            )
+                            repository.saveSetLog(setLog)
+                        }
+                    } else {
+                        globalSetTimestamp = globalSetTimestamp.plusMillis(1)
+                        val setLog = SetLog(
+                            id = UUID.randomUUID().toString(),
+                            workoutLogId = workoutLog.id,
+                            weight = routineSet.weight,
+                            reps = routineSet.reps,
+                            type = routineSet.type,
+                            goalReps = routineSet.goalReps,
+                            timestamp = globalSetTimestamp
+                        )
+                        repository.saveSetLog(setLog)
+                    }
                 }
                 
                 loadPreviousData(routineExercise.exercise.id)
@@ -522,15 +582,34 @@ class WorkoutViewModel @Inject constructor(
                     
                     // Use defined sets from augment
                     routineExercise.sets.forEach { routineSet ->
-                        val setLog = SetLog(
-                            id = UUID.randomUUID().toString(),
-                            workoutLogId = workoutLog.id,
-                            weight = routineSet.weight,
-                            reps = routineSet.reps,
-                            type = routineSet.type,
-                            goalReps = routineSet.goalReps
-                        )
-                        repository.saveSetLog(setLog)
+                        if (session.protocol == WorkoutProtocol.CYBER_CRAPP && routineSet.type == SetType.REST_PAUSE) {
+                            for (i in 1..3) {
+                                globalSetTimestamp = globalSetTimestamp.plusMillis(1)
+                                val setLog = SetLog(
+                                    id = UUID.randomUUID().toString(),
+                                    workoutLogId = workoutLog.id,
+                                    weight = routineSet.weight,
+                                    reps = routineSet.reps,
+                                    type = routineSet.type,
+                                    goalReps = routineSet.goalReps,
+                                    clusterMiniSetIndex = i,
+                                    timestamp = globalSetTimestamp
+                                )
+                                repository.saveSetLog(setLog)
+                            }
+                        } else {
+                            globalSetTimestamp = globalSetTimestamp.plusMillis(1)
+                            val setLog = SetLog(
+                                id = UUID.randomUUID().toString(),
+                                workoutLogId = workoutLog.id,
+                                weight = routineSet.weight,
+                                reps = routineSet.reps,
+                                type = routineSet.type,
+                                goalReps = routineSet.goalReps,
+                                timestamp = globalSetTimestamp
+                            )
+                            repository.saveSetLog(setLog)
+                        }
                     }
                     
                     loadPreviousData(routineExercise.exercise.id)
@@ -611,6 +690,16 @@ class WorkoutViewModel @Inject constructor(
     fun logSet(workoutLog: WorkoutLog, weight: Float, reps: Int, type: SetType = SetType.NORMAL) {
         val session = _uiState.value.session ?: return
         
+        val phase = _uiState.value.cyberCrappPhase
+        val clusterIndex = if (session.protocol == WorkoutProtocol.CYBER_CRAPP && type == SetType.REST_PAUSE) {
+            when (phase) {
+                CyberCrappPhase.MINI_SET_1 -> 1
+                CyberCrappPhase.MINI_SET_2 -> 2
+                CyberCrappPhase.MINI_SET_3 -> 3
+                else -> null
+            }
+        } else null
+
         val setLog = SetLog(
             id = UUID.randomUUID().toString(),
             workoutLogId = workoutLog.id,
@@ -618,39 +707,117 @@ class WorkoutViewModel @Inject constructor(
             reps = reps,
             type = type,
             goalReps = if (type == SetType.WIDOWMAKER) "20" else null,
-            clusterMiniSetIndex = if (session.protocol == WorkoutProtocol.CYBER_CRAPP && type == SetType.REST_PAUSE) _uiState.value.currentClusterIndex else null
+            clusterMiniSetIndex = clusterIndex
         )
 
         viewModelScope.launch {
             repository.saveSetLog(setLog)
+            updateComparisonText(workoutLog.exerciseId)
             
             if (session.protocol == WorkoutProtocol.CYBER_CRAPP && type == SetType.REST_PAUSE) {
-                handleCyberCrappLogic()
+                handleCyberCrappLogic(setLog)
+            }
+        }
+    }
+
+    private fun updateComparisonText(exerciseId: String) {
+        val previousSets = _uiState.value.previousLogs[exerciseId] ?: return
+        val currentLogPair = _uiState.value.logs.find { it.first.exerciseId == exerciseId } ?: return
+        val currentSets = currentLogPair.second
+        
+        val isCyberCrapp = _uiState.value.session?.protocol == WorkoutProtocol.CYBER_CRAPP
+        
+        if (isCyberCrapp) {
+            val prevClusterTotal = previousSets.filter { it.type == SetType.REST_PAUSE }.sumOf { it.reps }
+            val currentClusterTotal = currentSets.filter { it.type == SetType.REST_PAUSE }.sumOf { it.reps }
+            
+            if (currentClusterTotal > 0 && prevClusterTotal > 0) {
+                val diff = currentClusterTotal - prevClusterTotal
+                val sign = if (diff >= 0) "+" else ""
+                val text = "$sign$diff vs last 🔥"
+                _uiState.update { it.copy(comparisonText = text) }
+            }
+        } else {
+            // For general, compare top set
+            val prevMaxWeight = previousSets.maxOfOrNull { it.weight } ?: 0f
+            val currentMaxWeight = currentSets.maxOfOrNull { it.weight } ?: 0f
+            
+            if (currentMaxWeight > prevMaxWeight) {
+                _uiState.update { it.copy(comparisonText = "New Weight PR! 🚀") }
+            } else if (currentMaxWeight == prevMaxWeight && currentMaxWeight > 0) {
+                val prevMaxReps = previousSets.filter { it.weight == prevMaxWeight }.maxOfOrNull { it.reps } ?: 0
+                val currentMaxReps = currentSets.filter { it.weight == currentMaxWeight }.maxOfOrNull { it.reps } ?: 0
+                if (currentMaxReps > prevMaxReps) {
+                    _uiState.update { it.copy(comparisonText = "+${currentMaxReps - prevMaxReps} reps vs last 🔥") }
+                }
             }
         }
     }
 
     fun updateSet(setLog: SetLog, weight: Float? = null, reps: Int? = null, type: SetType? = null, goalReps: String? = null, isCompleted: Boolean? = null) {
-        val newType = type ?: setLog.type
-        val newGoalReps = if (type == SetType.WIDOWMAKER && setLog.type != SetType.WIDOWMAKER) {
+        val currentBase = pendingUpdates[setLog.id] ?: setLog
+        val newType = type ?: currentBase.type
+        val newGoalReps = if (type == SetType.WIDOWMAKER && currentBase.type != SetType.WIDOWMAKER) {
             "20"
         } else {
-            goalReps ?: setLog.goalReps
+            goalReps ?: currentBase.goalReps
         }
 
-        val updatedSet = setLog.copy(
-            weight = weight ?: setLog.weight,
-            reps = reps ?: setLog.reps,
+        val updatedSet = currentBase.copy(
+            weight = weight ?: currentBase.weight,
+            reps = reps ?: currentBase.reps,
             type = newType,
             goalReps = newGoalReps,
-            isCompleted = isCompleted ?: setLog.isCompleted
+            isCompleted = isCompleted ?: currentBase.isCompleted
         )
+        
+        pendingUpdates[setLog.id] = updatedSet
         
         updateJobs[setLog.id]?.cancel()
         updateJobs[setLog.id] = viewModelScope.launch {
-            // Tiny delay to batch fast keystrokes and reduce database churn
-            kotlinx.coroutines.delay(100)
+            // Delay only for text input fields, not for checkboxes or type selectors
+            if (isCompleted == null && type == null) {
+                kotlinx.coroutines.delay(300)
+            }
+            
             repository.saveSetLog(updatedSet)
+            pendingUpdates.remove(setLog.id)
+            
+            val log = _uiState.value.logs.find { it.second.any { s -> s.id == setLog.id } }?.first
+            if (log != null) {
+                updateComparisonText(log.exerciseId)
+            }
+
+            if (_uiState.value.session?.protocol == WorkoutProtocol.CYBER_CRAPP && updatedSet.type == SetType.REST_PAUSE) {
+                handleCyberCrappLogic(updatedSet)
+            }
+
+            if (type == SetType.REST_PAUSE && setLog.clusterMiniSetIndex == null && _uiState.value.session?.protocol == WorkoutProtocol.CYBER_CRAPP) {
+                expandToCluster(setLog)
+            }
+        }
+    }
+
+    private fun expandToCluster(setLog: SetLog) {
+        viewModelScope.launch {
+            // Update original to be index 1
+            repository.saveSetLog(setLog.copy(clusterMiniSetIndex = 1, type = SetType.REST_PAUSE))
+            
+            // Create 2 and 3 with increasing timestamps to maintain order
+            var currentTimestamp = setLog.timestamp
+            for (i in 2..3) {
+                currentTimestamp = currentTimestamp.plusMillis(1)
+                val newSet = SetLog(
+                    id = UUID.randomUUID().toString(),
+                    workoutLogId = setLog.workoutLogId,
+                    weight = setLog.weight,
+                    reps = setLog.reps,
+                    type = SetType.REST_PAUSE,
+                    clusterMiniSetIndex = i,
+                    timestamp = currentTimestamp
+                )
+                repository.saveSetLog(newSet)
+            }
         }
     }
 
@@ -822,29 +989,88 @@ class WorkoutViewModel @Inject constructor(
                 workoutDurationSeconds = 0, 
                 activeRoutine = null,
                 logs = emptyList(), // Clear logs for next session
-                previousLogs = emptyMap()
+                previousLogs = emptyMap(),
+                cyberCrappPhase = CyberCrappPhase.NOT_ACTIVE
             ) }
             timerJob?.cancel()
             sessionJob?.cancel()
         }
     }
 
-    private fun handleCyberCrappLogic() {
-        val currentIndex = _uiState.value.currentClusterIndex ?: 1
-        if (currentIndex < 3) {
-            _uiState.update { it.copy(currentClusterIndex = currentIndex + 1, isResting = true) }
-            startRestTimer()
-        } else {
-            // Cluster finished
-            _uiState.update { it.copy(currentClusterIndex = null, showCyberFinisher = true) }
+    fun toggleSomatotypeInfluence() {
+        _uiState.update { it.copy(useSomatotypeInfluence = !it.useSomatotypeInfluence) }
+        updateSomatotypeNudge()
+    }
+
+    private fun handleCyberCrappLogic(set: SetLog) {
+        if (!set.isCompleted) return
+        
+        val index = set.clusterMiniSetIndex ?: return
+        val nextPhase = when (index) {
+            1 -> CyberCrappPhase.MINI_SET_2
+            2 -> CyberCrappPhase.MINI_SET_3
+            3 -> CyberCrappPhase.CYBER_FINISHER
+            else -> return
+        }
+
+        _uiState.update { it.copy(cyberCrappPhase = nextPhase) }
+
+        when (nextPhase) {
+            CyberCrappPhase.MINI_SET_2, CyberCrappPhase.MINI_SET_3 -> {
+                _uiState.update { it.copy(isResting = true, restTimeRemaining = 15) }
+                startRestTimer()
+            }
+            CyberCrappPhase.CYBER_FINISHER -> {
+                _uiState.update { it.copy(showCyberFinisher = true, isResting = false) }
+                timerJob?.cancel() // Stop any running rest timer
+            }
+            else -> {}
+        }
+    }
+
+    private fun calculateStretchDuration(): Int {
+        val state = _uiState.value
+        if (!state.useSomatotypeInfluence) return 45
+        
+        return when (state.userProfile?.somatotype) {
+            Somatotype.ENDOMORPH -> 30
+            Somatotype.ECTOMORPH -> 60
+            else -> 45
         }
     }
 
     private fun startRestTimer() {
-        // Implementation for countdown
+        timerJob?.cancel()
+        timerJob = viewModelScope.launch {
+            while (_uiState.value.restTimeRemaining > 0) {
+                kotlinx.coroutines.delay(1000)
+                _uiState.update { it.copy(restTimeRemaining = it.restTimeRemaining - 1) }
+            }
+            hapticService.heartbeat()
+            _uiState.update { it.copy(isResting = false) }
+        }
+    }
+
+    private fun startStretchTimer() {
+        timerJob?.cancel()
+        timerJob = viewModelScope.launch {
+            while (_uiState.value.stretchTimeRemaining > 0) {
+                kotlinx.coroutines.delay(1000)
+                _uiState.update { it.copy(stretchTimeRemaining = it.stretchTimeRemaining - 1) }
+            }
+            hapticService.syncSuccess()
+            _uiState.update { it.copy(showLoadedStretch = false, cyberCrappPhase = CyberCrappPhase.NOT_ACTIVE) }
+        }
     }
 
     fun startStretch() {
-        _uiState.update { it.copy(showLoadedStretch = true, showCyberFinisher = false) }
+        val stretchDuration = calculateStretchDuration()
+        _uiState.update { it.copy(
+            showLoadedStretch = true, 
+            showCyberFinisher = false, 
+            stretchTimeRemaining = stretchDuration,
+            cyberCrappPhase = CyberCrappPhase.LOADED_STRETCH
+        ) }
+        startStretchTimer()
     }
 }
