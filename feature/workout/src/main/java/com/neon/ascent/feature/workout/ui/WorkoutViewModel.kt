@@ -6,6 +6,7 @@ import com.neon.ascent.core.common.HapticService
 import com.neon.ascent.core.domain.repository.WorkoutRepository
 import com.neon.ascent.core.domain.workout.models.*
 import com.neon.ascent.core.domain.repository.AscensionRepository
+import com.neon.ascent.core.data.datastore.HealthPreferencesDataStore
 import com.neon.ascent.core.domain.goals.models.AscensionTask
 import com.neon.ascent.core.domain.goals.models.AscensionTaskType
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -33,6 +34,7 @@ data class WorkoutUiState(
     val stretchTimeRemaining: Int = 45,
     val workoutDurationSeconds: Long = 0,
     val isPaused: Boolean = false,
+    val zoomLevel: Float = 1.0f,
     
     // Routine Creation State
     val isCreatingRoutine: Boolean = false,
@@ -80,7 +82,8 @@ data class WorkoutUiState(
 class WorkoutViewModel @Inject constructor(
     private val repository: WorkoutRepository,
     private val hapticService: HapticService,
-    private val ascensionRepository: AscensionRepository
+    private val ascensionRepository: AscensionRepository,
+    private val healthPrefs: HealthPreferencesDataStore
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WorkoutUiState())
@@ -111,6 +114,15 @@ class WorkoutViewModel @Inject constructor(
             loadAugments()
             loadUserProfile()
             checkForActiveSession()
+            healthPrefs.workoutZoomLevel.collect { zoom ->
+                _uiState.update { it.copy(zoomLevel = zoom) }
+            }
+        }
+    }
+
+    fun updateZoomLevel(zoom: Float) {
+        viewModelScope.launch {
+            healthPrefs.setWorkoutZoomLevel(zoom)
         }
     }
 

@@ -7,6 +7,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -26,6 +28,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -170,46 +173,66 @@ fun WorkoutLoggingScreen(
                         val seconds = uiState.workoutDurationSeconds % 60
                         "%d:%02d".format(minutes, seconds)
                     }
-                    ActiveWorkoutHeader(
-                        duration = durationFormatted,
-                        onBack = onBack,
-                        onFinish = { viewModel.finishWorkout() },
-                        isPaused = uiState.isPaused,
-                        onPauseToggle = {
-                            if (uiState.isPaused) viewModel.resumeWorkout() else viewModel.pauseWorkout()
-                        },
-                        onDiscard = { viewModel.discardWorkout() }
-                    )
-                    WorkoutSummaryBar(uiState, onToggleSomatotype = { viewModel.toggleSomatotypeInfluence() })
-                    
-                    if (uiState.somatotypeNudgeText != null) {
-                        SomatotypeBadge(uiState.somatotypeNudgeText!!, uiState.userProfile?.somatotype)
+                    val originalDensity = LocalDensity.current
+                    val scaledDensity = remember(originalDensity, uiState.zoomLevel) {
+                        Density(
+                            density = originalDensity.density * uiState.zoomLevel,
+                            fontScale = originalDensity.fontScale
+                        )
+                    }
+                    val transformableState = rememberTransformableState { zoomChange, _, _ ->
+                        val newZoom = (uiState.zoomLevel * zoomChange).coerceIn(0.9f, 2.0f)
+                        viewModel.updateZoomLevel(newZoom)
                     }
 
-                    Box(modifier = Modifier.weight(1f)) {
-                        ActiveWorkoutContent(uiState, viewModel)
-                        
-                        if (uiState.isPaused) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(Color.Black.copy(alpha = 0.7f))
-                                    .clickable(enabled = false) {},
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        "WORKOUT PAUSED",
-                                        color = Color.White,
-                                        fontSize = 24.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    Button(
-                                        onClick = { viewModel.resumeWorkout() },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF))
+                    CompositionLocalProvider(LocalDensity provides scaledDensity) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .transformable(state = transformableState)
+                        ) {
+                            ActiveWorkoutHeader(
+                                duration = durationFormatted,
+                                onBack = onBack,
+                                onFinish = { viewModel.finishWorkout() },
+                                isPaused = uiState.isPaused,
+                                onPauseToggle = {
+                                    if (uiState.isPaused) viewModel.resumeWorkout() else viewModel.pauseWorkout()
+                                },
+                                onDiscard = { viewModel.discardWorkout() }
+                            )
+                            WorkoutSummaryBar(uiState, onToggleSomatotype = { viewModel.toggleSomatotypeInfluence() })
+                            
+                            if (uiState.somatotypeNudgeText != null) {
+                                SomatotypeBadge(uiState.somatotypeNudgeText!!, uiState.userProfile?.somatotype)
+                            }
+
+                            Box(modifier = Modifier.weight(1f)) {
+                                ActiveWorkoutContent(uiState, viewModel)
+                                
+                                if (uiState.isPaused) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color.Black.copy(alpha = 0.7f))
+                                            .clickable(enabled = false) {},
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        Text("Resume", color = Color.White)
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text(
+                                                "WORKOUT PAUSED",
+                                                color = Color.White,
+                                                fontSize = 24.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Button(
+                                                onClick = { viewModel.resumeWorkout() },
+                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF))
+                                            ) {
+                                                Text("Resume", color = Color.White)
+                                            }
+                                        }
                                     }
                                 }
                             }

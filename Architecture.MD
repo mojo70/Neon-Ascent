@@ -90,3 +90,27 @@ A science-backed decision tree that recommends a starting protocol based on:
 *   **Experience Level**: Novice (Linear), Intermediate (Split), Advanced (CyberCrapp).
 *   **Somatotype**: Adjusts volume and stretch durations (e.g., Ectomorph +10% volume).
 *   **Injuries**: Automatically suggests substitutions for flagged areas.
+
+### 4. Advanced Workout Usability & Accessibility Standards
+
+#### A. Interactive Exercise Notes Persistence
+To optimize flow and capture execution cues, the system supports persistent, exercise-specific notes:
+*   **Persistence Strategy**: Notes are stored directly in `ExerciseDefinitionEntity` in the database. Because exercise definitions are global across routines and sessions, notes automatically persist to the next workout session for the same exercise.
+*   **Reactive Data Flow**: Changes are updated asynchronously in the database via `WorkoutViewModel` and automatically flow back to the UI in real-time through observed `Flow<List<Exercise>>` streams, ensuring zero state synchronization lag.
+*   **Three-State UX Compactness**: 
+    *   *Unfocused & Empty*: Collapses into a minimal `✏️ Add notes...` clickable row to preserve valuable vertical screen space on the active workout card.
+    *   *Focused / Active*: Expands into a highlighted, full-featured `OutlinedTextField` with a custom border and cursor, opening the keyboard immediately.
+    *   *Unfocused & Populated*: Collapses back to simple, plain gray text (matching the styling of "Add weight" text) without any bulky borders or container boxes, maintaining a clean visual layout while keeping notes fully readable.
+
+#### B. Standard-Compliant Pinch-to-Zoom (Density Scaling)
+To provide native screen magnifying and optimize visual accessibility:
+*   **Density-Based Scaling**: Instead of standard graphical scaling (which causes pixelation, blurriness, and forces exhausting horizontal panning), the screen overrides Compose's `LocalDensity`. Spacing, boundaries, padding, and text are dynamically scaled proportionally, allowing the layout to naturally reflow and wrap within the screen width.
+*   **Pinch Gesture Interception**: A `transformable` modifier is attached to the active workout root container, capturing pinch-to-zoom multi-touch gestures and scaling the current level dynamically.
+*   **Sane Scaling Bounds**: Constrained strictly to `0.9x` (slightly compact) up to `2.0x` (fully enlarged) to preserve readability and design integrity.
+*   **Preference Persistence**: The user's active scale level is saved directly inside `HealthPreferencesDataStore` (stored under `:core:data`) and automatically reloaded when they resume or start any workout.
+
+#### C. Smart Input Defaults (`EditableValueBox`)
+To streamline numeric logging during high-intensity training, input boxes (e.g., weights and reps) utilize custom focus-aware defaults:
+*   **Default Visibility**: When unfocused, a value of `0` is completely hidden (disappears) to avoid visual clutter.
+*   **Input Interception**: When focused, a grayed-out `"0"` placeholder/hint is rendered. The very first typed character replaces the placeholder (instead of appending, preventing erroneous inputs like `"50"` or `"05"`).
+*   **Blur Verification**: Clicking off an empty field saves `0` in the database while leaving the visual input field clean and blank.

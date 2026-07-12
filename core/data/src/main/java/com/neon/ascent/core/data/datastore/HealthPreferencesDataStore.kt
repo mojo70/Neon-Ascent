@@ -27,6 +27,7 @@ class HealthPreferencesDataStore @Inject constructor(
         val NOTIFICATION_ON_SYNC = booleanPreferencesKey("notification_on_sync")
         val LAST_SUCCESSFUL_SYNC = longPreferencesKey("last_successful_sync")
         val LIVE_MONITORING_ENABLED = booleanPreferencesKey("live_monitoring_enabled")
+        val WORKOUT_ZOOM_LEVEL = floatPreferencesKey("workout_zoom_level")
     }
 
     private val dataStore = context.healthDataStore
@@ -91,6 +92,14 @@ class HealthPreferencesDataStore @Inject constructor(
 
     suspend fun setLiveMonitoringEnabled(enabled: Boolean) {
         dataStore.edit { it[Keys.LIVE_MONITORING_ENABLED] = enabled }
+    }
+
+    val workoutZoomLevel: Flow<Float> = dataStore.data.map { prefs ->
+        prefs[Keys.WORKOUT_ZOOM_LEVEL] ?: 1.0f
+    }
+
+    suspend fun setWorkoutZoomLevel(level: Float) {
+        dataStore.edit { it[Keys.WORKOUT_ZOOM_LEVEL] = level }
     }
 
     /** Reset all health preferences (useful for debugging or user "Reset Data" option) */

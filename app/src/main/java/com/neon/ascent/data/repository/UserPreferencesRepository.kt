@@ -37,6 +37,9 @@ class UserPreferencesRepository @Inject constructor(
         
         // Privacy
         val SHARD_VAULT_ENABLED = booleanPreferencesKey("shard_vault_enabled")
+        
+        // Workout Zoom
+        val WORKOUT_ZOOM_LEVEL = floatPreferencesKey("workout_zoom_level")
     }
 
     val measurementUnit: Flow<String> = context.dataStore.data
@@ -71,6 +74,9 @@ class UserPreferencesRepository @Inject constructor(
 
     val isShardVaultEnabled: Flow<Boolean> = context.dataStore.data
         .map { it[PreferencesKeys.SHARD_VAULT_ENABLED] ?: false }
+
+    val workoutZoomLevel: Flow<Float> = context.dataStore.data
+        .map { it[PreferencesKeys.WORKOUT_ZOOM_LEVEL] ?: 1.0f }
 
     val lastBioAge: Flow<Float?> = context.dataStore.data
         .map { preferences ->
@@ -126,6 +132,12 @@ class UserPreferencesRepository @Inject constructor(
     suspend fun setYearlyReviewEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.YEARLY_REVIEW_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setWorkoutZoomLevel(level: Float) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.WORKOUT_ZOOM_LEVEL] = level
         }
     }
 }
