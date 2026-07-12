@@ -46,6 +46,7 @@ data class WorkoutUiState(
 
     // Augment Creation State
     val isCreatingAugment: Boolean = false,
+    val editingAugmentId: String? = null,
     val newAugmentName: String = "",
     val newAugmentBodyPart: String = "",
     val newAugmentExercises: List<RoutineExercise> = emptyList(),
@@ -201,6 +202,32 @@ class WorkoutViewModel @Inject constructor(
         ) }
     }
 
+    fun editAugment(augment: WorkoutAugment) {
+        _uiState.update { it.copy(
+            isCreatingAugment = true,
+            editingAugmentId = augment.id,
+            newAugmentName = augment.name,
+            newAugmentExercises = augment.exercises,
+            newAugmentBodyPart = augment.focusBodyPart
+        ) }
+    }
+
+    fun duplicateAugment(augment: WorkoutAugment) {
+        val newAugment = augment.copy(
+            id = java.util.UUID.randomUUID().toString(),
+            name = "${augment.name} (Copy)",
+            isSystem = false,
+            isAddedToLibrary = true
+        )
+        viewModelScope.launch {
+            repository.saveAugment(newAugment)
+        }
+    }
+
+    fun shareAugment(augment: WorkoutAugment) {
+        // Implementation for sharing (e.g., via intent)
+    }
+
     fun startReordering() {
         _uiState.update { it.copy(isReorderingExercises = true) }
     }
@@ -349,7 +376,7 @@ class WorkoutViewModel @Inject constructor(
     }
 
     fun cancelCreateAugment() {
-        _uiState.update { it.copy(isCreatingAugment = false) }
+        _uiState.update { it.copy(isCreatingAugment = false, editingAugmentId = null) }
     }
 
     fun updateNewAugmentName(name: String) {
@@ -363,19 +390,41 @@ class WorkoutViewModel @Inject constructor(
     fun saveAugment() {
         val state = _uiState.value
         if (state.newAugmentName.isBlank()) return
+
+        // Determine ID: If editing a system augment, create a new ID to keep library version intact.
+        // If editing a custom augment, reuse ID. If creating new, new ID.
+        val existingAugment = state.augments.find { it.id == state.editingAugmentId }
+        val isSystem = existingAugment?.isSystem == true
+        
+        val augmentId = if (state.editingAugmentId == null || isSystem) {
+            UUID.randomUUID().toString()
+        } else {
+            state.editingAugmentId
+        }
         
         val augment = WorkoutAugment(
-            id = UUID.randomUUID().toString(),
+            id = augmentId,
             name = state.newAugmentName,
             description = null,
             focusBodyPart = state.newAugmentBodyPart,
             exercises = state.newAugmentExercises,
-            colorHex = "#00CCFF" // Neon blue default
+            colorHex = existingAugment?.colorHex ?: "#00CCFF",
+            isSystem = false, // Edited versions are always user versions
+            isAddedToLibrary = true
         )
         
         viewModelScope.launch {
             repository.saveAugment(augment)
-            _uiState.update { it.copy(isCreatingAugment = false) }
+            
+            // If we were editing a system augment, "replace" it in user's library by disabling original
+            if (isSystem && state.editingAugmentId != null) {
+                val systemAugment = (state.augments + state.exploreAugments).find { it.id == state.editingAugmentId }
+                if (systemAugment != null) {
+                    repository.saveAugment(systemAugment.copy(isAddedToLibrary = false))
+                }
+            }
+            
+            _uiState.update { it.copy(isCreatingAugment = false, editingAugmentId = null) }
         }
     }
 
@@ -485,7 +534,7 @@ class WorkoutViewModel @Inject constructor(
             repository.getAllAugments().collect { augments ->
                 _uiState.update { it.copy(
                     augments = augments.filter { a -> a.isAddedToLibrary },
-                    exploreAugments = augments.filter { a -> a.isSystem && !a.isAddedToLibrary }
+                    exploreAugments = augments.filter { a -> a.isSystem }
                 ) }
             }
         }
@@ -758,6 +807,71 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
+    fun startAugment(augment: WorkoutAugment) {
+        if (_uiState.value.session != null) {
+            _uiState.update { it.copy(activeSessionError = "A workout session is already in progress. Please finish or discard it before starting a new one.") }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+
+            val sessionId = UUID.randomUUID().toString()
+            val session = WorkoutSession(id = sessionId) // GENERAL protocol
+            repository.saveSession(session)
+
+            var globalSetTimestamp = java.time.Instant.now()
+
+            augment.exercises.forEachIndexed { index, routineExercise ->
+                val workoutLog = WorkoutLog(
+                    id = UUID.randomUUID().toString(),
+                    sessionId = sessionId,
+                    exerciseId = routineExercise.exercise.id,
+                    order = index,
+                    exerciseName = routineExercise.exercise.name,
+                    augmentId = augment.id,
+                    augmentName = augment.name,
+                    augmentColor = augment.colorHex,
+                    showGoalReps = augment.isSystem
+                )
+                repository.saveWorkoutLog(workoutLog)
+
+                routineExercise.sets.forEach { routineSet ->
+                    globalSetTimestamp = globalSetTimestamp.plusMillis(1)
+                    val setLog = SetLog(
+                        id = UUID.randomUUID().toString(),
+                        workoutLogId = workoutLog.id,
+                        weight = routineSet.weight,
+                        reps = routineSet.reps,
+                        type = routineSet.type,
+                        goalReps = routineSet.goalReps,
+                        timestamp = globalSetTimestamp
+                    )
+                    repository.saveSetLog(setLog)
+                }
+                loadPreviousData(routineExercise.exercise.id)
+            }
+
+            // Start collecting logs
+            sessionJob?.cancel()
+            sessionJob = launch {
+                repository.getLogsForSession(sessionId).collect { logs ->
+                    _uiState.update { it.copy(logs = logs, isLoading = false) }
+                }
+            }
+
+            _uiState.update { it.copy(
+                session = session,
+                workoutDurationSeconds = 0,
+                isPaused = false,
+                previousLogs = emptyMap(),
+                cyberCrappPhase = CyberCrappPhase.NOT_ACTIVE
+            ) }
+
+            startWorkoutTimer()
+        }
+    }
+
     fun clearActiveSessionError() {
         _uiState.update { it.copy(activeSessionError = null) }
     }
@@ -805,11 +919,21 @@ class WorkoutViewModel @Inject constructor(
 
     fun injectAugment(augment: WorkoutAugment) {
         val session = _uiState.value.session ?: return
-        val baseOrder = _uiState.value.logs.size
+        
         viewModelScope.launch {
+            // If it's a system augment not in library, add it
+            if (augment.isSystem && !augment.isAddedToLibrary) {
+                toggleAugmentLibrary(augment)
+            }
+
+            val currentLogs = repository.getLogsForSession(session.id).first()
+            val baseOrder = currentLogs.size
+            val now = java.time.Instant.now()
+            val groupSupersetId = if (augment.exercises.size > 1) java.util.UUID.randomUUID().toString() else null
+
             augment.exercises.forEachIndexed { index, routineExercise ->
                 val workoutLog = WorkoutLog(
-                    id = UUID.randomUUID().toString(),
+                    id = java.util.UUID.randomUUID().toString(),
                     sessionId = session.id,
                     exerciseId = routineExercise.exercise.id,
                     order = baseOrder + index,
@@ -817,9 +941,25 @@ class WorkoutViewModel @Inject constructor(
                     augmentId = augment.id,
                     augmentName = augment.name,
                     augmentColor = augment.colorHex,
-                    showGoalReps = augment.isSystem // Mandatory for system augments
+                    supersetId = groupSupersetId,
+                    showGoalReps = augment.isSystem
                 )
                 repository.saveWorkoutLog(workoutLog)
+
+                // Save prescribed sets for the augment
+                routineExercise.sets.forEach { routineSet ->
+                    val setLog = SetLog(
+                        id = java.util.UUID.randomUUID().toString(),
+                        workoutLogId = workoutLog.id,
+                        weight = routineSet.weight,
+                        reps = routineSet.reps,
+                        type = routineSet.type,
+                        goalReps = routineSet.goalReps,
+                        timestamp = now
+                    )
+                    repository.saveSetLog(setLog)
+                }
+
                 loadPreviousData(routineExercise.exercise.id)
             }
         }
@@ -941,6 +1081,10 @@ class WorkoutViewModel @Inject constructor(
 
             if (_uiState.value.session?.protocol == WorkoutProtocol.CYBER_CRAPP && updatedSet.type == SetType.REST_PAUSE) {
                 handleCyberCrappLogic(updatedSet)
+            }
+
+            if (updatedSet.type == SetType.GS && isCompleted == true) {
+                handleGiantSetLogic(updatedSet)
             }
 
             if (type == SetType.REST_PAUSE && setLog.clusterMiniSetIndex == null && _uiState.value.session?.protocol == WorkoutProtocol.CYBER_CRAPP) {
@@ -1176,6 +1320,22 @@ class WorkoutViewModel @Inject constructor(
                 timerJob?.cancel() // Stop any running rest timer
             }
             else -> {}
+        }
+    }
+
+    private fun handleGiantSetLogic(set: SetLog) {
+        val state = _uiState.value
+        val log = state.logs.find { it.second.any { s -> s.id == set.id } }?.first ?: return
+        
+        // Giant Sets (like Gorilla Arms) auto-start the rest timer after the LAST exercise in the circuit
+        val augmentId = log.augmentId ?: return
+        val logsInGroup = state.logs.filter { it.first.augmentId == augmentId }
+        val maxOrder = logsInGroup.maxOfOrNull { it.first.order } ?: return
+        
+        if (log.order == maxOrder) {
+            // "20 deep breaths" is calibrated to 60 seconds (1 minute)
+            _uiState.update { it.copy(isResting = true, restTimeRemaining = 60) }
+            startRestTimer()
         }
     }
 

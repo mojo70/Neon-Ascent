@@ -62,6 +62,7 @@ fun WorkoutLoggingScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showRoutineActionMenuFor by remember { mutableStateOf<WorkoutRoutine?>(null) }
+    var showAugmentActionMenuFor by remember { mutableStateOf<WorkoutAugment?>(null) }
 
     Box(
         modifier = Modifier
@@ -76,7 +77,22 @@ fun WorkoutLoggingScreen(
                     .fillMaxSize()
                     .background(Color.Black)
             ) {
-                if (uiState.session == null) {
+                if (uiState.isExploringProtocols) {
+                    WorkoutExploreScreen(
+                        uiState = uiState,
+                        onBack = { viewModel.hideExploreProtocols() },
+                        onProtocolClick = { viewModel.showProtocolDetail(it) },
+                        onAddProtocol = { viewModel.addProtocolToLibrary(it) },
+                        onAddAugment = { 
+                            viewModel.toggleAugmentLibrary(it) 
+                            if (uiState.session != null) {
+                                viewModel.injectAugment(it)
+                                viewModel.hideExploreProtocols()
+                            }
+                        },
+                        onAddRoutine = { viewModel.toggleRoutineLibrary(it) }
+                    )
+                } else if (uiState.session == null) {
                     if (uiState.isShowingProgress) {
                         WorkoutProgressScreen(
                             onBack = { viewModel.hideProgress() }
@@ -134,15 +150,6 @@ fun WorkoutLoggingScreen(
                             onAddRoutine = { viewModel.toggleRoutineLibrary(it) },
                             onRoutineClick = { viewModel.showRoutinePreview(it) }
                         )
-                    } else if (uiState.isExploringProtocols) {
-                        WorkoutExploreScreen(
-                            uiState = uiState,
-                            onBack = { viewModel.hideExploreProtocols() },
-                            onProtocolClick = { viewModel.showProtocolDetail(it) },
-                            onAddProtocol = { viewModel.addProtocolToLibrary(it) },
-                            onAddAugment = { viewModel.toggleAugmentLibrary(it) },
-                            onAddRoutine = { viewModel.toggleRoutineLibrary(it) }
-                        )
                     } else {
                         WorkoutIntakeScreen(
                             uiState = uiState,
@@ -150,9 +157,11 @@ fun WorkoutLoggingScreen(
                             onShowProgress = { viewModel.showProgress() },
                             onStartProtocol = { viewModel.startSession(it) },
                             onStartRoutine = { viewModel.startRoutine(it) },
+                            onStartAugment = { viewModel.startAugment(it) },
                             onCreateRoutine = { viewModel.startCreateRoutine() },
                             onCreateAugment = { viewModel.startCreateAugment() },
                             onRoutineActionClick = { showRoutineActionMenuFor = it },
+                            onAugmentActionClick = { showAugmentActionMenuFor = it },
                             onExplore = { viewModel.startExploreProtocols() },
                             onAddAugment = { viewModel.toggleAugmentLibrary(it) },
                             onAddRoutine = { viewModel.toggleRoutineLibrary(it) },
@@ -307,6 +316,20 @@ fun WorkoutLoggingScreen(
                 },
                 onDelete = { viewModel.deleteRoutine(showRoutineActionMenuFor!!) },
                 onDismiss = { showRoutineActionMenuFor = null }
+            )
+        }
+
+        if (showAugmentActionMenuFor != null) {
+            WorkoutAugmentActionMenu(
+                augment = showAugmentActionMenuFor!!,
+                onShare = { viewModel.shareAugment(showAugmentActionMenuFor!!) },
+                onDuplicate = { viewModel.duplicateAugment(showAugmentActionMenuFor!!) },
+                onEdit = { 
+                    viewModel.editAugment(showAugmentActionMenuFor!!)
+                    showAugmentActionMenuFor = null
+                },
+                onDelete = { viewModel.deleteAugment(showAugmentActionMenuFor!!) },
+                onDismiss = { showAugmentActionMenuFor = null }
             )
         }
 
@@ -526,9 +549,11 @@ fun WorkoutIntakeScreen(
     onShowProgress: () -> Unit,
     onStartProtocol: (WorkoutProtocol) -> Unit,
     onStartRoutine: (WorkoutRoutine) -> Unit,
+    onStartAugment: (WorkoutAugment) -> Unit,
     onCreateRoutine: () -> Unit,
     onCreateAugment: () -> Unit,
     onRoutineActionClick: (WorkoutRoutine) -> Unit,
+    onAugmentActionClick: (WorkoutAugment) -> Unit,
     onExplore: () -> Unit,
     onAddAugment: (WorkoutAugment) -> Unit,
     onAddRoutine: (WorkoutRoutine) -> Unit,
@@ -724,7 +749,8 @@ fun WorkoutIntakeScreen(
             uiState.augments.forEach { augment ->
                 AugmentCard(
                     augment = augment,
-                    onActionClick = { /* TODO: Augment actions */ }
+                    onStart = { onStartAugment(augment) },
+                    onActionClick = { onAugmentActionClick(augment) }
                 )
                 Spacer(modifier = Modifier.height(12.dp))
             }
@@ -888,7 +914,7 @@ fun RoutineCard(routine: WorkoutRoutine, onStart: () -> Unit, onActionClick: () 
 }
 
 @Composable
-fun AugmentCard(augment: WorkoutAugment, onActionClick: () -> Unit) {
+fun AugmentCard(augment: WorkoutAugment, onStart: () -> Unit, onActionClick: () -> Unit) {
     val color = Color(android.graphics.Color.parseColor(augment.colorHex))
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -930,6 +956,19 @@ fun AugmentCard(augment: WorkoutAugment, onActionClick: () -> Unit) {
                 maxLines = 2,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = onStart,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = color.copy(alpha = 0.8f)),
+                shape = RoundedCornerShape(6.dp)
+            ) {
+                Text("Start Protocol", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            }
         }
     }
 }
@@ -1117,7 +1156,8 @@ fun CreateRoutineScreen(
         Dialog(onDismissRequest = { showAugmentPicker = false }) {
             Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
                 AugmentPicker(
-                    augments = uiState.augments,
+                    myAugments = uiState.augments,
+                    libraryAugments = uiState.exploreAugments,
                     onSelect = {
                         viewModel.addAugmentToNewRoutine(it)
                         showAugmentPicker = false
@@ -1369,6 +1409,7 @@ fun RoutineExerciseItem(
                         SetType.REST_PAUSE -> "RP"
                         SetType.WIDOWMAKER -> "WM"
                         SetType.POWER -> "P"
+                        SetType.GS -> "GS"
                     }
                     val color = when (set.type) {
                         SetType.WARMUP -> Color(0xFFFFA500)
@@ -1377,6 +1418,7 @@ fun RoutineExerciseItem(
                         SetType.REST_PAUSE -> Color(0xFF00FFAA)
                         SetType.WIDOWMAKER -> Color(0xFFFF00FF)
                         SetType.POWER -> Color(0xFFFFD700)
+                        SetType.GS -> Color(0xFF00CCFF)
                         else -> Color.White
                     }
                     Text(label, color = color, fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -1586,7 +1628,8 @@ fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel) {
                 color = Color.Black
             ) {
                 AugmentPicker(
-                    augments = uiState.augments,
+                    myAugments = uiState.augments,
+                    libraryAugments = uiState.exploreAugments,
                     onSelect = {
                         viewModel.injectAugment(it)
                         showAugmentPicker = false
@@ -1600,11 +1643,14 @@ fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel) {
 
 @Composable
 fun AugmentPicker(
-    augments: List<WorkoutAugment>,
+    myAugments: List<WorkoutAugment>,
+    libraryAugments: List<WorkoutAugment>,
     onSelect: (WorkoutAugment) -> Unit,
     onDismiss: () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxSize()) {
+    var showLibrary by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         // Header
         Row(
             modifier = Modifier
@@ -1632,50 +1678,97 @@ fun AugmentPicker(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            items(augments) { augment ->
-                val color = Color(android.graphics.Color.parseColor(augment.colorHex))
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onSelect(augment) },
-                    color = Color(0xFF1C1C1E),
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, color.copy(alpha = 0.5f))
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                augment.name,
-                                color = Color.White,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .background(color.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                            ) {
-                                Text(
-                                    augment.focusBodyPart.uppercase(),
-                                    color = color,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Black
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            augment.exercises.joinToString(" • ") { it.exercise.name },
-                            color = Color.Gray,
-                            fontSize = 13.sp
-                        )
-                    }
+            if (myAugments.isNotEmpty()) {
+                item {
+                    Text(
+                        "MY SUB-PROTOCOLS",
+                        color = Color.Gray,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+
+                items(myAugments) { augment ->
+                    AugmentPickerItem(augment, onSelect)
                 }
             }
+
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showLibrary = !showLibrary }
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "LIBRARY / EXPLORE",
+                        color = Color(0xFF00CCFF),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Icon(
+                        if (showLibrary) Icons.Default.ArrowDropDown else Icons.AutoMirrored.Filled.ArrowRight,
+                        contentDescription = null,
+                        tint = Color(0xFF00CCFF)
+                    )
+                }
+            }
+
+            if (showLibrary) {
+                items(libraryAugments) { augment ->
+                    AugmentPickerItem(augment, onSelect)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AugmentPickerItem(augment: WorkoutAugment, onSelect: (WorkoutAugment) -> Unit) {
+    val color = Color(android.graphics.Color.parseColor(augment.colorHex))
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onSelect(augment) },
+        color = Color(0xFF1C1C1E),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.5f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    augment.name,
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Box(
+                    modifier = Modifier
+                        .background(color.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        augment.focusBodyPart.uppercase(),
+                        color = color,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                augment.exercises.joinToString(" • ") { it.exercise.name },
+                color = Color.Gray,
+                fontSize = 13.sp
+            )
         }
     }
 }
@@ -1806,6 +1899,76 @@ fun WorkoutRoutineActionMenu(
             ActionMenuItem(
                 icon = Icons.Default.Close,
                 label = "Delete Routine",
+                color = Color.Red,
+                onClick = {
+                    onDelete()
+                    onDismiss()
+                }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WorkoutAugmentActionMenu(
+    augment: WorkoutAugment,
+    onShare: () -> Unit,
+    onDuplicate: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1C1C1E),
+        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.Gray) }
+    ) {
+        Column(modifier = Modifier.padding(bottom = 32.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    augment.name,
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            
+            ActionMenuItem(
+                icon = Icons.Default.Share,
+                label = "Share Sub Protocol",
+                onClick = {
+                    onShare()
+                    onDismiss()
+                }
+            )
+            ActionMenuItem(
+                icon = Icons.Default.ContentCopy,
+                label = "Duplicate Sub Protocol",
+                onClick = {
+                    onDuplicate()
+                    onDismiss()
+                }
+            )
+            ActionMenuItem(
+                icon = Icons.Default.Edit,
+                label = "Edit Sub Protocol",
+                onClick = {
+                    onEdit()
+                    onDismiss()
+                }
+            )
+            
+            HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f))
+            
+            ActionMenuItem(
+                icon = Icons.Default.Close,
+                label = "Delete Sub Protocol",
                 color = Color.Red,
                 onClick = {
                     onDelete()
@@ -2554,6 +2717,7 @@ fun WorkoutLogCard(
         }
 
         if (log.supersetId != null) {
+            val label = if (sets.any { it.type == SetType.GS }) "GIANT SET" else "SUPERSET"
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(top = 2.dp)
@@ -2566,7 +2730,7 @@ fun WorkoutLogCard(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    "SUPERSET",
+                    label,
                     color = Color(0xFF007AFF),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Black,
@@ -3420,6 +3584,7 @@ fun SetLogRow(
                 SetType.REST_PAUSE -> if (set.clusterMiniSetIndex != null) "RP ${set.clusterMiniSetIndex}" else "RP"
                 SetType.WIDOWMAKER -> "WM"
                 SetType.POWER -> "P"
+                SetType.GS -> "GS"
             }
             val color = when (set.type) {
                 SetType.WARMUP -> Color(0xFFFFA500)
@@ -3428,6 +3593,7 @@ fun SetLogRow(
                 SetType.REST_PAUSE -> Color(0xFF00FFAA)
                 SetType.WIDOWMAKER -> Color(0xFFFF00FF)
                 SetType.POWER -> Color(0xFFFFD700)
+                SetType.GS -> Color(0xFF00CCFF)
                 else -> Color.White
             }
             Text(label, color = color, fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -3600,6 +3766,7 @@ fun SetTypeSelectorBottomSheet(
             SetTypeOption("D", "Drop Set", Color(0xFF00CCFF)) { onTypeSelected(SetType.DROP) }
             SetTypeOption("RP", "Rest Pause", Color(0xFF00FFAA)) { onTypeSelected(SetType.REST_PAUSE) }
             SetTypeOption("WM", "Widowmaker (20 Reps)", Color(0xFFFF00FF)) { onTypeSelected(SetType.WIDOWMAKER) }
+            SetTypeOption("GS", "Giant Set", Color(0xFF00CCFF)) { onTypeSelected(SetType.GS) }
             
             HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f), modifier = Modifier.padding(vertical = 8.dp))
             
@@ -4308,6 +4475,7 @@ fun RoutinePreviewScreen(
                                     SetType.REST_PAUSE -> "REST-PAUSE"
                                     SetType.POWER -> "POWER"
                                     SetType.WIDOWMAKER -> "WIDOWMAKER"
+                                    SetType.GS -> "GIANT SET"
                                     else -> "SET ${index + 1}"
                                 }
                                 val typeColor = when (set.type) {
@@ -4315,6 +4483,7 @@ fun RoutinePreviewScreen(
                                     SetType.REST_PAUSE -> Color(0xFF00FFAA)
                                     SetType.POWER -> Color(0xFFFFD700)
                                     SetType.WIDOWMAKER -> Color(0xFFFF00FF)
+                                    SetType.GS -> Color(0xFF00CCFF)
                                     else -> Color.White.copy(alpha = 0.7f)
                                 }
                                 

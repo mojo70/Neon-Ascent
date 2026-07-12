@@ -84,7 +84,7 @@ enum class Somatotype {
 }
 
 enum class SetType {
-    NORMAL, WARMUP, DROP, FAILURE, REST_PAUSE, WIDOWMAKER, POWER
+    NORMAL, WARMUP, DROP, FAILURE, REST_PAUSE, WIDOWMAKER, POWER, GS
 }
 
 data class Exercise(

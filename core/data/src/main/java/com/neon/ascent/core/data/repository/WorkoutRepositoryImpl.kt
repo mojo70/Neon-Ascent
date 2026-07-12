@@ -257,9 +257,14 @@ class WorkoutRepositoryImpl @Inject constructor(
     }
 
     private suspend fun seedAugment(augment: WorkoutAugment) {
-        val currentStatus = workoutDao.getAugmentLibraryStatus(augment.id)
-        if (currentStatus == true) return
-        saveAugment(augment)
+        val augments = workoutDao.getAllAugments().first()
+        val existing = augments.find { it.augment.id == augment.id }
+        
+        // Always update system augments to latest definition if they are missing exercises
+        if (existing == null || existing.exercises.isEmpty()) {
+            val userAddedStatus = existing?.augment?.isAddedToLibrary ?: augment.isAddedToLibrary
+            saveAugment(augment.copy(isAddedToLibrary = userAddedStatus))
+        }
     }
 
     override suspend fun deleteRoutine(routineId: String) {
@@ -512,14 +517,21 @@ class WorkoutRepositoryImpl @Inject constructor(
         val gorillaArms = WorkoutAugment(
             id = "augment_gorilla_arms",
             name = "Gorilla Arms",
-            description = "High-intensity upper arm protocol emphasizing peak bicep supination and long-head tricep extension.",
+            description = "High-intensity upper arm protocol emphasizing peak bicep supination and long-head tricep extension. Perform as a Giant Set: 1 set of each exercise sequentially, then rest.",
             focusBodyPart = "Upper Arms",
             exercises = listOfNotNull(
-                exercises.find { it.id == "db_tricep_extension" },
                 exercises.find { it.id == "hammer_curl" },
                 exercises.find { it.id == "jerry_curl" },
+                exercises.find { it.id == "db_tricep_extension" },
                 exercises.find { it.id == "lateral_raise" }
-            ).map { RoutineExercise(it) },
+            ).map { 
+                RoutineExercise(
+                    exercise = it,
+                    sets = List(4) { 
+                        RoutineSet(type = SetType.GS, goalReps = "25") 
+                    }
+                ) 
+            },
             colorHex = "#00CCFF",
             isSystem = true,
             isAddedToLibrary = false // Don't show on main screen by default
