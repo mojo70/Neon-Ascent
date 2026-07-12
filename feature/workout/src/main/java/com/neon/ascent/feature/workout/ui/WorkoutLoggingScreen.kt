@@ -2102,9 +2102,13 @@ fun ReorderExercisesScreen(
             ) { index, logPair ->
                 val log = logPair.first
                 val isDragged = index == draggedItemIndex
+                val exercise = remember(uiState.availableExercises, log.exerciseId) {
+                    uiState.availableExercises.find { it.id == log.exerciseId }
+                }
                 
                 ReorderExerciseItem(
                     log = log,
+                    exercise = exercise,
                     modifier = Modifier
                         .then(if (isDragged) Modifier.zIndex(1f) else Modifier)
                         .graphicsLayer {
@@ -2167,6 +2171,7 @@ fun ReorderExercisesScreen(
 @Composable
 fun ReorderExerciseItem(
     log: WorkoutLog,
+    exercise: Exercise?,
     modifier: Modifier = Modifier,
     onRemove: () -> Unit,
     onMoveUp: () -> Unit,
@@ -2194,13 +2199,18 @@ fun ReorderExerciseItem(
         Spacer(modifier = Modifier.width(12.dp))
 
         // Thumbnail
+        val exerciseIcon = when (exercise?.equipment?.firstOrNull()) {
+            "Cable", "Plate Loaded" -> Icons.Default.SettingsInputComponent
+            "Bodyweight", "Weighted" -> Icons.AutoMirrored.Filled.DirectionsRun
+            else -> Icons.Default.FitnessCenter
+        }
         Box(
             modifier = Modifier
                 .size(48.dp)
                 .background(Color.White, CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Default.FitnessCenter, contentDescription = null, tint = Color.Black, modifier = Modifier.size(24.dp))
+            Icon(exerciseIcon, contentDescription = null, tint = Color.Black, modifier = Modifier.size(24.dp))
         }
 
         Spacer(modifier = Modifier.width(16.dp))
@@ -2429,6 +2439,11 @@ fun ExerciseListItem(exercise: Exercise, onDetailClick: (Exercise) -> Unit, onSe
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Exercise Icon/Image
+            val exerciseIcon = when (exercise.equipment.firstOrNull()) {
+                "Cable", "Plate Loaded" -> Icons.Default.SettingsInputComponent
+                "Bodyweight", "Weighted" -> Icons.AutoMirrored.Filled.DirectionsRun
+                else -> Icons.Default.FitnessCenter
+            }
             Box(
                 modifier = Modifier
                     .size(48.dp)
@@ -2437,7 +2452,7 @@ fun ExerciseListItem(exercise: Exercise, onDetailClick: (Exercise) -> Unit, onSe
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    Icons.Default.FitnessCenter,
+                    exerciseIcon,
                     contentDescription = null,
                     tint = Color.Black,
                     modifier = Modifier.size(24.dp)
@@ -2679,7 +2694,24 @@ fun WorkoutLogCard(
                     }
                 }
             ) {
-                Box(modifier = Modifier.size(40.dp).background(Color(0xFF1C1C1E), CircleShape))
+                val exerciseIcon = when (exercise?.equipment?.firstOrNull()) {
+                    "Cable", "Plate Loaded" -> Icons.Default.SettingsInputComponent
+                    "Bodyweight", "Weighted" -> Icons.AutoMirrored.Filled.DirectionsRun
+                    else -> Icons.Default.FitnessCenter
+                }
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(Color(0xFF1C1C1E), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        exerciseIcon,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.6f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(log.exerciseName, color = augmentColor, fontSize = 18.sp, fontWeight = FontWeight.Bold)
