@@ -23,7 +23,7 @@
     - [x] Verify database state and seeding
     - [x] Manual test of weight increase flow
     - [x] Manual test of rotation/substitution flow
-- [x] **Stability & Bug Fixes**
+- [x] **Stability & Generalization**
     - [x] Fix database cascade crash on Finish
     - [x] Implement surgical session duration updates
-    - [x] Refine set history matching and placeholders
+    - [x] Generalize Rest-Pause timer logic to `SetType.REST_PAUSE`

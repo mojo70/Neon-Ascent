@@ -71,8 +71,8 @@ enum class WorkoutProtocol {
         }
 }
 
-enum class CyberCrappPhase {
-    NOT_ACTIVE, MINI_SET_1, MINI_SET_2, MINI_SET_3, CYBER_FINISHER, LOADED_STRETCH
+enum class RestPausePhase {
+    NOT_ACTIVE, MINI_SET_1, MINI_SET_2, MINI_SET_3, FINISHER, LOADED_STRETCH
 }
 
 enum class ExperienceLevel {

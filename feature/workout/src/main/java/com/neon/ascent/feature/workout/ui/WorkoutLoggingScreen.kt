@@ -80,25 +80,7 @@ fun WorkoutLoggingScreen(
                     .fillMaxSize()
                     .background(Color.Black)
             ) {
-                if (uiState.showSubstitutionDialog && uiState.exerciseToSubstitute != null) {
-        ExerciseSubstitutionDialog(
-            oldExerciseId = uiState.exerciseToSubstitute!!,
-            recommendations = uiState.recommendedSubstitutes,
-            onSubstitute = { newExercise ->
-                viewModel.substituteExercise(uiState.exerciseToSubstitute!!, newExercise)
-            },
-            onBrowseLibrary = {
-                // Open main library to select substitution
-                // Reuse existing replace logic
-                // For now, just dismiss and open picker?
-                viewModel.dismissSubstitution()
-                // Need a way to trigger picker for substitution specifically
-            },
-            onDismiss = { viewModel.dismissSubstitution() }
-        )
-    }
-
-    if (uiState.isExploringProtocols) {
+                if (uiState.isExploringProtocols) {
                     WorkoutExploreScreen(
                         uiState = uiState,
                         onBack = { viewModel.hideExploreProtocols() },
@@ -403,14 +385,26 @@ fun WorkoutLoggingScreen(
             )
         }
 
-        // CC Phase Dialogs
-        if (uiState.session?.protocol == WorkoutProtocol.CYBER_CRAPP) {
-            if (uiState.showCyberFinisher && uiState.cyberCrappPhase == CyberCrappPhase.CYBER_FINISHER) {
-                CyberFinisherDialog(onDone = { viewModel.startStretch() })
-            }
-            if (uiState.showLoadedStretch && uiState.cyberCrappPhase == CyberCrappPhase.LOADED_STRETCH) {
-                LoadedStretchDialog(remaining = uiState.stretchTimeRemaining)
-            }
+        if (uiState.showSubstitutionDialog && uiState.exerciseToSubstitute != null) {
+            ExerciseSubstitutionDialog(
+                oldExerciseId = uiState.exerciseToSubstitute!!,
+                recommendations = uiState.recommendedSubstitutes,
+                onSubstitute = { newExercise ->
+                    viewModel.substituteExercise(uiState.exerciseToSubstitute!!, newExercise)
+                },
+                onBrowseLibrary = {
+                    viewModel.dismissSubstitution()
+                },
+                onDismiss = { viewModel.dismissSubstitution() }
+            )
+        }
+
+        // Rest Pause Phase Dialogs
+        if (uiState.showCyberFinisher && uiState.workoutPhase == RestPausePhase.FINISHER) {
+            CyberFinisherDialog(onDone = { viewModel.startStretch() })
+        }
+        if (uiState.showLoadedStretch && uiState.workoutPhase == RestPausePhase.LOADED_STRETCH) {
+            LoadedStretchDialog(remaining = uiState.stretchTimeRemaining)
         }
     }
 }

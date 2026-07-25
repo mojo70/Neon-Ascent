@@ -58,8 +58,8 @@ data class WorkoutUiState(
 
     val activeSessionError: String? = null,
 
-    // CyberCrapp State
-    val cyberCrappPhase: CyberCrappPhase = CyberCrappPhase.NOT_ACTIVE,
+    // Phase Management
+    val workoutPhase: RestPausePhase = RestPausePhase.NOT_ACTIVE,
     val useSomatotypeInfluence: Boolean = true,
     val somatotypeNudgeText: String? = null,
     val comparisonText: String? = null,
@@ -691,7 +691,7 @@ class WorkoutViewModel @Inject constructor(
             workoutDurationSeconds = 0, 
             isPaused = false,
             previousLogs = emptyMap(),
-            cyberCrappPhase = if (protocol == WorkoutProtocol.CYBER_CRAPP) CyberCrappPhase.MINI_SET_1 else CyberCrappPhase.NOT_ACTIVE
+            workoutPhase = if (protocol == WorkoutProtocol.CYBER_CRAPP) RestPausePhase.MINI_SET_1 else RestPausePhase.NOT_ACTIVE
         ) }
         
         sessionJob?.cancel()
@@ -852,7 +852,7 @@ class WorkoutViewModel @Inject constructor(
                 activeRoutine = fullRoutine,
                 workoutDurationSeconds = 0,
                 isPaused = false,
-                cyberCrappPhase = if (fullRoutine.protocol == WorkoutProtocol.CYBER_CRAPP) CyberCrappPhase.MINI_SET_1 else CyberCrappPhase.NOT_ACTIVE
+                workoutPhase = if (fullRoutine.protocol == WorkoutProtocol.CYBER_CRAPP) RestPausePhase.MINI_SET_1 else RestPausePhase.NOT_ACTIVE
             ) }
 
             startWorkoutTimer()
@@ -917,7 +917,7 @@ class WorkoutViewModel @Inject constructor(
                 workoutDurationSeconds = 0,
                 isPaused = false,
                 previousLogs = emptyMap(),
-                cyberCrappPhase = CyberCrappPhase.NOT_ACTIVE
+                workoutPhase = RestPausePhase.NOT_ACTIVE
             ) }
 
             startWorkoutTimer()
@@ -947,7 +947,7 @@ class WorkoutViewModel @Inject constructor(
                 isLoading = false,
                 isPaused = false,
                 workoutDurationSeconds = 0,
-                cyberCrappPhase = CyberCrappPhase.NOT_ACTIVE
+                workoutPhase = RestPausePhase.NOT_ACTIVE
             ) }
             timerJob?.cancel()
         }
@@ -1033,27 +1033,23 @@ class WorkoutViewModel @Inject constructor(
     fun logSet(workoutLog: WorkoutLog, weight: Float, reps: Int, type: SetType = SetType.NORMAL) {
         val session = _uiState.value.session ?: return
         
-        val phase = _uiState.value.cyberCrappPhase
-        val clusterIndex = if (session.protocol == WorkoutProtocol.CYBER_CRAPP && type == SetType.REST_PAUSE) {
+        val phase = _uiState.value.workoutPhase
+        val clusterIndex = if (type == SetType.REST_PAUSE) {
             when (phase) {
-                CyberCrappPhase.MINI_SET_1 -> 1
-                CyberCrappPhase.MINI_SET_2 -> 2
-                CyberCrappPhase.MINI_SET_3 -> 3
+                RestPausePhase.MINI_SET_1 -> 1
+                RestPausePhase.MINI_SET_2 -> 2
+                RestPausePhase.MINI_SET_3 -> 3
                 else -> null
             }
         } else null
 
         val goalReps = when {
             type == SetType.WIDOWMAKER -> "20"
-            session.protocol == WorkoutProtocol.CYBER_CRAPP && type == SetType.REST_PAUSE -> {
+            type == SetType.REST_PAUSE -> {
                 val exercise = _uiState.value.availableExercises.find { it.id == workoutLog.exerciseId }
                 exercise?.let { CyberCrappRules.getRepRangeString(it.movementType) }
             }
             session.protocol == WorkoutProtocol.CYBER_CRAPP && type == SetType.WARMUP -> CyberCrappRules.WARMUP_REP_RANGE
-            session.protocol == WorkoutProtocol.CYBER_CRAPP && type == SetType.NORMAL -> {
-                val exercise = _uiState.value.availableExercises.find { it.id == workoutLog.exerciseId }
-                exercise?.let { CyberCrappRules.getRepRangeString(it.movementType) }
-            }
             else -> null
         }
 
@@ -1075,8 +1071,8 @@ class WorkoutViewModel @Inject constructor(
             repository.saveSetLog(setLog)
             updateComparisonText(workoutLog.exerciseId)
             
-            if (session.protocol == WorkoutProtocol.CYBER_CRAPP && type == SetType.REST_PAUSE) {
-                handleCyberCrappLogic(setLog)
+            if (type == SetType.REST_PAUSE) {
+                handleRestPauseLogic(setLog)
             }
         }
     }
@@ -1149,15 +1145,15 @@ class WorkoutViewModel @Inject constructor(
                 updateComparisonText(log.exerciseId)
             }
 
-            if (_uiState.value.session?.protocol == WorkoutProtocol.CYBER_CRAPP && updatedSet.type == SetType.REST_PAUSE) {
-                handleCyberCrappLogic(updatedSet)
+            if (updatedSet.type == SetType.REST_PAUSE) {
+                handleRestPauseLogic(updatedSet)
             }
 
             if (updatedSet.type == SetType.GS && isCompleted == true) {
                 handleGiantSetLogic(updatedSet)
             }
 
-            if (type == SetType.REST_PAUSE && setLog.clusterMiniSetIndex == null && _uiState.value.session?.protocol == WorkoutProtocol.CYBER_CRAPP) {
+            if (type == SetType.REST_PAUSE && setLog.clusterMiniSetIndex == null) {
                 expandToCluster(setLog)
             }
         }
@@ -1168,7 +1164,7 @@ class WorkoutViewModel @Inject constructor(
             val session = _uiState.value.session
             val log = _uiState.value.logs.find { it.first.id == setLog.workoutLogId }?.first
             
-            val goalReps = if (session?.protocol == WorkoutProtocol.CYBER_CRAPP && log != null) {
+            val goalReps = if (log != null) {
                 val exercise = _uiState.value.availableExercises.find { it.id == log.exerciseId }
                 exercise?.let { CyberCrappRules.getRepRangeString(it.movementType) }
             } else setLog.goalReps
@@ -1372,7 +1368,7 @@ class WorkoutViewModel @Inject constructor(
                 activeRoutine = null,
                 logs = emptyList(), // Clear logs for next session
                 previousLogs = emptyMap(),
-                cyberCrappPhase = CyberCrappPhase.NOT_ACTIVE
+                workoutPhase = RestPausePhase.NOT_ACTIVE
             ) }
             timerJob?.cancel()
             sessionJob?.cancel()
@@ -1384,25 +1380,25 @@ class WorkoutViewModel @Inject constructor(
         updateSomatotypeNudge()
     }
 
-    private fun handleCyberCrappLogic(set: SetLog) {
+    private fun handleRestPauseLogic(set: SetLog) {
         if (!set.isCompleted) return
         
         val index = set.clusterMiniSetIndex ?: return
         val nextPhase = when (index) {
-            1 -> CyberCrappPhase.MINI_SET_2
-            2 -> CyberCrappPhase.MINI_SET_3
-            3 -> CyberCrappPhase.CYBER_FINISHER
+            1 -> RestPausePhase.MINI_SET_2
+            2 -> RestPausePhase.MINI_SET_3
+            3 -> RestPausePhase.FINISHER
             else -> return
         }
 
-        _uiState.update { it.copy(cyberCrappPhase = nextPhase) }
+        _uiState.update { it.copy(workoutPhase = nextPhase) }
 
         when (nextPhase) {
-            CyberCrappPhase.MINI_SET_2, CyberCrappPhase.MINI_SET_3 -> {
+            RestPausePhase.MINI_SET_2, RestPausePhase.MINI_SET_3 -> {
                 _uiState.update { it.copy(isResting = true, restTimeRemaining = 15) }
                 startRestTimer()
             }
-            CyberCrappPhase.CYBER_FINISHER -> {
+            RestPausePhase.FINISHER -> {
                 _uiState.update { it.copy(showCyberFinisher = true, isResting = false) }
                 timerJob?.cancel() // Stop any running rest timer
             }
@@ -1457,7 +1453,7 @@ class WorkoutViewModel @Inject constructor(
                 _uiState.update { it.copy(stretchTimeRemaining = it.stretchTimeRemaining - 1) }
             }
             hapticService.syncSuccess()
-            _uiState.update { it.copy(showLoadedStretch = false, cyberCrappPhase = CyberCrappPhase.NOT_ACTIVE) }
+            _uiState.update { it.copy(showLoadedStretch = false, workoutPhase = RestPausePhase.NOT_ACTIVE) }
         }
     }
 
@@ -1467,7 +1463,7 @@ class WorkoutViewModel @Inject constructor(
             showLoadedStretch = true, 
             showCyberFinisher = false, 
             stretchTimeRemaining = stretchDuration,
-            cyberCrappPhase = CyberCrappPhase.LOADED_STRETCH
+            workoutPhase = RestPausePhase.LOADED_STRETCH
         ) }
         startStretchTimer()
     }
