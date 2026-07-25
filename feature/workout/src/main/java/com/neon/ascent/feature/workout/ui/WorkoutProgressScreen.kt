@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
@@ -52,7 +53,42 @@ fun WorkoutProgressScreen(
                 color = Color.White,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Black,
-                letterSpacing = 2.sp
+                letterSpacing = 2.sp,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = { viewModel.exportHistory() }) {
+                Icon(Icons.Default.Download, contentDescription = "Export JSON", tint = Color(0xFF00FF9C))
+            }
+        }
+
+        if (uiState.exportedJson != null) {
+            AlertDialog(
+                onDismissRequest = { viewModel.clearExport() },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.clearExport() }) {
+                        Text("CLOSE", color = Color(0xFF00FF9C))
+                    }
+                },
+                title = { Text("HISTORY EXPORTED", color = Color.White, fontWeight = FontWeight.Bold) },
+                text = {
+                    Column {
+                        Text("History data has been serialized to JSON format.", color = Color.Gray, fontSize = 12.sp)
+                        Spacer(Modifier.height(16.dp))
+                        Box(
+                            modifier = Modifier
+                                .heightIn(max = 300.dp)
+                                .verticalScroll(rememberScrollState())
+                                .background(Color.Black)
+                                .border(1.dp, Color.DarkGray)
+                                .padding(8.dp)
+                        ) {
+                            SelectionContainer {
+                                Text(uiState.exportedJson!!, color = Color(0xFF00FFAA), fontSize = 10.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                            }
+                        }
+                    }
+                },
+                containerColor = Color(0xFF1C1C1E)
             )
         }
 

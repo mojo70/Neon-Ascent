@@ -38,6 +38,7 @@ fun ExerciseDefinitionEntity.toDomain() = Exercise(
     gifAssetPath = gifAssetPath,
     isLockedClassic = isLockedClassic,
     injurySubstitutions = injurySubstitutions,
+    movementType = MovementType.valueOf(movementType),
     notes = notes
 )
 
@@ -51,6 +52,7 @@ fun Exercise.toEntity() = ExerciseDefinitionEntity(
     gifAssetPath = gifAssetPath,
     isLockedClassic = isLockedClassic,
     injurySubstitutions = injurySubstitutions,
+    movementType = movementType.name,
     notes = notes
 )
 
@@ -183,6 +185,24 @@ fun UserWorkoutProfile.toEntity() = UserWorkoutProfileEntity(
     rotationIndex = rotationIndex,
     scheduledDays = gson.toJson(scheduledDays),
     deepLinkToRoutine = deepLinkToRoutine
+)
+
+fun ProgressionStateEntity.toDomain() = ProgressionState(
+    exerciseId = exerciseId,
+    bestClusterReps = bestClusterReps,
+    weightAtBest = weightAtBest,
+    consecutiveMisses = consecutiveMisses,
+    currentWeight = currentWeight,
+    lastRotationDate = lastRotationDate
+)
+
+fun ProgressionState.toEntity() = ProgressionStateEntity(
+    exerciseId = exerciseId,
+    bestClusterReps = bestClusterReps,
+    weightAtBest = weightAtBest,
+    consecutiveMisses = consecutiveMisses,
+    currentWeight = currentWeight,
+    lastRotationDate = lastRotationDate
 )
 
 fun RoutineSetEntity.toDomain() = RoutineSet(

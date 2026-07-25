@@ -27,7 +27,16 @@ class WorkoutRepositoryImpl @Inject constructor(
         workoutDao.getSessionById(id)?.toDomain()
 
     override suspend fun saveSession(session: WorkoutSession) {
-        workoutDao.insertSession(session.toEntity())
+        workoutDao.upsertSession(session.toEntity())
+    }
+
+    override suspend fun exportHistoryToJson(): String {
+        val history = workoutDao.getAllSessionsWithDetails().first().map { sessionWithLogs ->
+            sessionWithLogs.session.toDomain() to sessionWithLogs.logs.map { logWithSets ->
+                logWithSets.log.toDomain() to logWithSets.sets.map { it.toDomain() }
+            }
+        }
+        return com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(history)
     }
 
     override fun getExerciseDefinitions(): Flow<List<Exercise>> =
@@ -47,11 +56,11 @@ class WorkoutRepositoryImpl @Inject constructor(
         }
 
     override suspend fun saveWorkoutLog(log: WorkoutLog) {
-        workoutDao.insertWorkoutLog(log.toEntity())
+        workoutDao.upsertWorkoutLog(log.toEntity())
     }
 
     override suspend fun saveSetLog(set: SetLog) {
-        workoutDao.insertSetLog(set.toEntity())
+        workoutDao.upsertSetLog(set.toEntity())
     }
 
     override fun getUserProfile(userId: String): Flow<UserWorkoutProfile?> =
@@ -218,7 +227,11 @@ class WorkoutRepositoryImpl @Inject constructor(
         val routineSets = mutableListOf<RoutineSetEntity>()
         val augmentRefs = mutableListOf<RoutineAugmentCrossRef>()
 
+        val validExerciseIds = workoutDao.getExerciseDefinitions().first().map { it.id }.toSet()
+
         finalRoutine.exercises.forEachIndexed { index, routineExercise ->
+            if (!validExerciseIds.contains(routineExercise.exercise.id)) return@forEachIndexed
+            
             exerciseRefs.add(RoutineExerciseCrossRef(finalRoutine.id, routineExercise.exercise.id, index))
             
             routineExercise.sets.forEachIndexed { setIndex, set ->
@@ -326,6 +339,7 @@ class WorkoutRepositoryImpl @Inject constructor(
                 cues = listOf("Retract scapula", "Touch chest at nipple line", "Drive through feet"),
                 muscleGroups = listOf("Chest", "Shoulders", "Triceps"),
                 equipment = listOf("Barbell"),
+                movementType = MovementType.COMPOUND_UPPER,
                 isLockedClassic = true
             ),
             Exercise(
@@ -406,7 +420,8 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Vertical pull with added resistance.",
                 cues = listOf("Chest to bar", "Full hang at bottom", "Control descent"),
                 muscleGroups = listOf("Lats", "Biceps", "Upper Back"),
-                equipment = listOf("Weighted")
+                equipment = listOf("Weighted"),
+                movementType = MovementType.BACK_WIDTH
             ),
             Exercise(
                 id = "chinup_bodyweight",
@@ -470,7 +485,8 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Classic horizontal pull for back thickness.",
                 cues = listOf("Hinged at hips", "Pull to upper stomach", "Squeeze shoulder blades"),
                 muscleGroups = listOf("Back", "Biceps", "Rear Delts"),
-                equipment = listOf("Barbell")
+                equipment = listOf("Barbell"),
+                movementType = MovementType.BACK_THICKNESS
             ),
             Exercise(
                 id = "military_press",
@@ -478,7 +494,8 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Strict overhead barbell press.",
                 cues = listOf("Squeeze glutes", "Head back to clear bar", "Punch through at top"),
                 muscleGroups = listOf("Shoulders", "Triceps"),
-                equipment = listOf("Barbell")
+                equipment = listOf("Barbell"),
+                movementType = MovementType.COMPOUND_UPPER
             ),
             Exercise(
                 id = "shoulder_press_dumbbell",
@@ -543,6 +560,7 @@ class WorkoutRepositoryImpl @Inject constructor(
                 cues = listOf("Brace core", "Hips back first", "Break parallel"),
                 muscleGroups = listOf("Quads", "Glutes", "Hamstrings", "Lower Back"),
                 equipment = listOf("Barbell"),
+                movementType = MovementType.QUAD_DOMINANT,
                 isLockedClassic = true
             ),
             Exercise(
@@ -591,7 +609,8 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Cable machine hamstring isolation.",
                 cues = listOf("Keep hips on pad", "Pull heels to glutes", "Squeeze hamstrings at the bottom"),
                 muscleGroups = listOf("Hamstrings"),
-                equipment = listOf("Cable")
+                equipment = listOf("Cable"),
+                movementType = MovementType.HAMSTRING_ISOLATION
             ),
             Exercise(
                 id = "leg_curl_plate_loaded",
@@ -599,7 +618,8 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Levered plate-loaded machine leg curl.",
                 cues = listOf("Brace thighs tight against support pad", "Contract hamstring explosively", "Control the return stretch"),
                 muscleGroups = listOf("Hamstrings"),
-                equipment = listOf("Plate Loaded")
+                equipment = listOf("Plate Loaded"),
+                movementType = MovementType.HAMSTRING_ISOLATION
             ),
             Exercise(
                 id = "lunge_barbell",
@@ -647,7 +667,8 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Hip hinge focusing on hamstrings.",
                 cues = listOf("Hips back", "Feel the stretch", "Don't touch floor"),
                 muscleGroups = listOf("Hamstrings", "Glutes"),
-                equipment = listOf("Barbell")
+                equipment = listOf("Barbell"),
+                movementType = MovementType.POSTERIOR_CHAIN
             ),
             Exercise(
                 id = "romanian_deadlift_dumbbell",
@@ -655,7 +676,8 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Unilateral or bilateral dumbbell Romanian deadlift.",
                 cues = listOf("Hinged hips back", "Keep dumbbells close to shins", "Squeeze glutes to stand"),
                 muscleGroups = listOf("Hamstrings", "Glutes"),
-                equipment = listOf("Dumbbell")
+                equipment = listOf("Dumbbell"),
+                movementType = MovementType.POSTERIOR_CHAIN
             ),
             Exercise(
                 id = "deadlift",
@@ -664,6 +686,7 @@ class WorkoutRepositoryImpl @Inject constructor(
                 cues = listOf("Slack out of bar", "Drag up shins", "Lockout hips"),
                 muscleGroups = listOf("Hamstrings", "Glutes", "Back", "Forearms"),
                 equipment = listOf("Barbell"),
+                movementType = MovementType.DEADLIFT,
                 isLockedClassic = true
             ),
             Exercise(
@@ -688,7 +711,8 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Seated or standing machine calf isolation.",
                 cues = listOf("Full stretch at bottom", "Explosive up", "1s pause at top"),
                 muscleGroups = listOf("Calves"),
-                equipment = listOf("Plate Loaded")
+                equipment = listOf("Plate Loaded"),
+                movementType = MovementType.CALVES
             ),
             Exercise(
                 id = "bicep_curl_barbell",
@@ -721,6 +745,7 @@ class WorkoutRepositoryImpl @Inject constructor(
                 cues = listOf("Start with back of hand against thigh", "Full supination + hard squeeze at peak", "Emphasize deep stretch on eccentric", "Torso stable, strict form"),
                 muscleGroups = listOf("Biceps", "Brachialis"),
                 equipment = listOf("Dumbbell"),
+                movementType = MovementType.ISOLATION_UPPER,
                 gifAssetPath = "exercises/jerry_curl.gif"
             ),
             Exercise(
@@ -761,7 +786,8 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Isolation for the long head of the triceps.",
                 cues = listOf("Elbow high", "Deep stretch at bottom", "Full lockout"),
                 muscleGroups = listOf("Triceps"),
-                equipment = listOf("Dumbbell")
+                equipment = listOf("Dumbbell"),
+                movementType = MovementType.ISOLATION_UPPER
             ),
             Exercise(
                 id = "skull_crusher",
@@ -973,6 +999,13 @@ class WorkoutRepositoryImpl @Inject constructor(
 
     override fun getActiveSession(): Flow<WorkoutSession?> =
         workoutDao.getActiveSession().map { it?.toDomain() }
+
+    override fun getProgressionState(exerciseId: String): Flow<ProgressionState?> =
+        workoutDao.getProgressionState(exerciseId).map { it?.toDomain() }
+
+    override suspend fun saveProgressionState(state: ProgressionState) {
+        workoutDao.insertProgressionState(state.toEntity())
+    }
 
     override fun getFullHistory(): Flow<List<Pair<WorkoutSession, List<Pair<WorkoutLog, List<SetLog>>>>>> =
         workoutDao.getAllSessionsWithDetails().map { sessions ->

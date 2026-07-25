@@ -6,8 +6,8 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface WorkoutDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertSession(session: WorkoutSessionEntity)
+    @Upsert
+    suspend fun upsertSession(session: WorkoutSessionEntity)
 
     @Query("SELECT * FROM workout_sessions ORDER BY date DESC")
     fun getAllSessions(): Flow<List<WorkoutSessionEntity>>
@@ -21,11 +21,11 @@ interface WorkoutDao {
     @Query("SELECT * FROM exercise_definitions")
     fun getExerciseDefinitions(): Flow<List<ExerciseDefinitionEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertWorkoutLog(log: WorkoutLogEntity)
+    @Upsert
+    suspend fun upsertWorkoutLog(log: WorkoutLogEntity)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertSetLog(set: SetLogEntity)
+    @Upsert
+    suspend fun upsertSetLog(set: SetLogEntity)
 
     @Transaction
     @Query("SELECT * FROM workout_logs WHERE sessionId = :sessionId ORDER BY `order` ASC")
@@ -39,6 +39,12 @@ interface WorkoutDao {
 
     @Query("SELECT * FROM user_workout_profiles WHERE userId = :userId")
     fun getUserProfile(userId: String): Flow<UserWorkoutProfileEntity?>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertProgressionState(state: ProgressionStateEntity)
+
+    @Query("SELECT * FROM progression_states WHERE exerciseId = :exerciseId")
+    fun getProgressionState(exerciseId: String): Flow<ProgressionStateEntity?>
 
     @Transaction
     @Query("SELECT * FROM workout_routines")
@@ -144,10 +150,11 @@ interface WorkoutDao {
 
     @Transaction
     @Query("""
-        SELECT * FROM workout_logs 
-        WHERE exerciseId = :exerciseId 
-        AND sessionId != :excludedSessionId
-        ORDER BY (SELECT date FROM workout_sessions WHERE id = sessionId) DESC 
+        SELECT wl.* FROM workout_logs wl
+        INNER JOIN workout_sessions ws ON wl.sessionId = ws.id
+        WHERE wl.exerciseId = :exerciseId 
+        AND wl.sessionId != :excludedSessionId
+        ORDER BY ws.date DESC 
         LIMIT 1
     """)
     fun getLatestLogForExercise(exerciseId: String, excludedSessionId: String): Flow<WorkoutLogWithSets?>

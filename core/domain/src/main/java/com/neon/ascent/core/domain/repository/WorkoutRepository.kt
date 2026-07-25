@@ -7,6 +7,7 @@ interface WorkoutRepository {
     fun getAllSessions(): Flow<List<WorkoutSession>>
     suspend fun getSessionById(id: String): WorkoutSession?
     suspend fun saveSession(session: WorkoutSession)
+    suspend fun exportHistoryToJson(): String
     
     fun getExerciseDefinitions(): Flow<List<Exercise>>
     suspend fun saveExerciseDefinition(exercise: Exercise)
@@ -33,6 +34,9 @@ interface WorkoutRepository {
     fun getFullHistory(): Flow<List<Pair<WorkoutSession, List<Pair<WorkoutLog, List<SetLog>>>>>>
 
     fun getActiveSession(): Flow<WorkoutSession?>
+
+    fun getProgressionState(exerciseId: String): Flow<ProgressionState?>
+    suspend fun saveProgressionState(state: ProgressionState)
 
     suspend fun deleteWorkoutLog(workoutLogId: String)
     suspend fun updateWorkoutLogOrder(workoutLogId: String, newOrder: Int)

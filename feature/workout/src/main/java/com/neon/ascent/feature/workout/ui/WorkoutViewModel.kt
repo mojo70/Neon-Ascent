@@ -9,10 +9,14 @@ import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.core.data.datastore.HealthPreferencesDataStore
 import com.neon.ascent.core.domain.goals.models.AscensionTask
 import com.neon.ascent.core.domain.goals.models.AscensionTaskType
+import com.neon.ascent.core.domain.workout.models.*
+import com.neon.ascent.core.domain.workout.rules.CyberCrappRules
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.util.UUID
+import java.time.Instant
+import java.util.*
 import javax.inject.Inject
 
 data class WorkoutUiState(
@@ -20,6 +24,7 @@ data class WorkoutUiState(
     val currentExercise: Exercise? = null,
     val logs: List<Pair<WorkoutLog, List<SetLog>>> = emptyList(),
     val previousLogs: Map<String, List<SetLog>> = emptyMap(), // exerciseId -> sets
+    val progressionStates: Map<String, ProgressionState> = emptyMap(),
     val availableExercises: List<Exercise> = emptyList(),
     val routines: List<WorkoutRoutine> = emptyList(),
     val exploreRoutines: List<WorkoutRoutine> = emptyList(),
@@ -76,7 +81,12 @@ data class WorkoutUiState(
     val selectedRoutineForPreview: WorkoutRoutine? = null,
     val showDeactivateProtocolDialog: Boolean = false,
     val configuringProtocol: WorkoutProtocol? = null,
-    val tempConfigProfile: UserWorkoutProfile? = null
+    val tempConfigProfile: UserWorkoutProfile? = null,
+
+    // Progression & Rotation
+    val showSubstitutionDialog: Boolean = false,
+    val exerciseToSubstitute: String? = null, // exerciseId
+    val recommendedSubstitutes: List<Exercise> = emptyList()
 )
 
 @HiltViewModel
@@ -700,17 +710,45 @@ class WorkoutViewModel @Inject constructor(
 
     private fun loadPreviousData(exerciseId: String) {
         val currentSessionId = _uiState.value.session?.id ?: return
-        if (_uiState.value.previousLogs.containsKey(exerciseId)) return
+        if (_uiState.value.previousLogs.containsKey(exerciseId) && _uiState.value.progressionStates.containsKey(exerciseId)) return
         
         viewModelScope.launch {
-            repository.getLatestSetsForExercise(exerciseId, currentSessionId).collect { sets ->
+            val setsFlow = repository.getLatestSetsForExercise(exerciseId, currentSessionId)
+            val stateFlow = repository.getProgressionState(exerciseId)
+
+            setsFlow.combine(stateFlow) { sets, state ->
+                sets to state
+            }.collect { (sets, state) ->
                 _uiState.update { 
-                    val newMap = it.previousLogs.toMutableMap()
-                    newMap[exerciseId] = sets
-                    it.copy(previousLogs = newMap)
+                    val newLogs = it.previousLogs.toMutableMap()
+                    newLogs[exerciseId] = sets
+                    
+                    val newStates = it.progressionStates.toMutableMap()
+                    if (state != null) {
+                        newStates[exerciseId] = state
+                    }
+                    
+                    it.copy(
+                        previousLogs = newLogs,
+                        progressionStates = newStates
+                    )
                 }
             }
         }
+    }
+
+    private fun getUserBodyweight(): Float {
+        val profile = _uiState.value.userProfile ?: return 0f
+        return if (profile.unitSystem == UnitSystem.IMPERIAL) {
+            profile.weightKg * 2.20462f
+        } else {
+            profile.weightKg
+        }
+    }
+
+    private fun isBodyweightExercise(exerciseId: String): Boolean {
+        val exercise = _uiState.value.availableExercises.find { it.id == exerciseId }
+        return exercise?.equipment?.contains("Bodyweight") == true || exercise?.equipment?.contains("Weighted") == true
     }
 
     fun startRoutine(routine: WorkoutRoutine) {
@@ -736,8 +774,9 @@ class WorkoutViewModel @Inject constructor(
             val sessionId = UUID.randomUUID().toString()
             val session = WorkoutSession(id = sessionId, protocol = fullRoutine.protocol)
 
-            // 1. Create the session first in DB
+            // 1. Create the session first in DB and UI state
             repository.saveSession(session)
+            _uiState.update { it.copy(session = session, previousLogs = emptyMap()) }
 
             var currentOrder = 0
             var globalSetTimestamp = java.time.Instant.now()
@@ -753,17 +792,32 @@ class WorkoutViewModel @Inject constructor(
                 )
                 repository.saveWorkoutLog(workoutLog)
 
+                val cyberCrappGoal = if (session.protocol == WorkoutProtocol.CYBER_CRAPP) {
+                    CyberCrappRules.getRepRangeString(routineExercise.exercise.movementType)
+                } else null
+
+                val isBW = routineExercise.exercise.equipment.contains("Bodyweight") || routineExercise.exercise.equipment.contains("Weighted")
+                val defaultWeight = if (isBW) getUserBodyweight() else 0f
+
                 routineExercise.sets.forEach { routineSet ->
+                    val goalReps = routineSet.goalReps ?: when {
+                        routineSet.type == SetType.REST_PAUSE -> cyberCrappGoal
+                        routineSet.type == SetType.WARMUP && session.protocol == WorkoutProtocol.CYBER_CRAPP -> CyberCrappRules.WARMUP_REP_RANGE
+                        else -> null
+                    }
+                    
+                    val setWeight = if (routineSet.weight == 0f) defaultWeight else routineSet.weight
+
                     if (session.protocol == WorkoutProtocol.CYBER_CRAPP && routineSet.type == SetType.REST_PAUSE) {
                         for (i in 1..3) {
                             globalSetTimestamp = globalSetTimestamp.plusMillis(1)
                             val setLog = SetLog(
                                 id = UUID.randomUUID().toString(),
                                 workoutLogId = workoutLog.id,
-                                weight = routineSet.weight,
+                                weight = setWeight,
                                 reps = routineSet.reps,
                                 type = routineSet.type,
-                                goalReps = routineSet.goalReps,
+                                goalReps = goalReps,
                                 clusterMiniSetIndex = i,
                                 timestamp = globalSetTimestamp
                             )
@@ -774,10 +828,10 @@ class WorkoutViewModel @Inject constructor(
                         val setLog = SetLog(
                             id = UUID.randomUUID().toString(),
                             workoutLogId = workoutLog.id,
-                            weight = routineSet.weight,
+                            weight = setWeight,
                             reps = routineSet.reps,
                             type = routineSet.type,
-                            goalReps = routineSet.goalReps,
+                            goalReps = goalReps,
                             timestamp = globalSetTimestamp
                         )
                         repository.saveSetLog(setLog)
@@ -795,11 +849,9 @@ class WorkoutViewModel @Inject constructor(
             }
 
             _uiState.update { it.copy(
-                session = session,
                 activeRoutine = fullRoutine,
                 workoutDurationSeconds = 0,
                 isPaused = false,
-                previousLogs = emptyMap(),
                 cyberCrappPhase = if (fullRoutine.protocol == WorkoutProtocol.CYBER_CRAPP) CyberCrappPhase.MINI_SET_1 else CyberCrappPhase.NOT_ACTIVE
             ) }
 
@@ -991,13 +1043,31 @@ class WorkoutViewModel @Inject constructor(
             }
         } else null
 
+        val goalReps = when {
+            type == SetType.WIDOWMAKER -> "20"
+            session.protocol == WorkoutProtocol.CYBER_CRAPP && type == SetType.REST_PAUSE -> {
+                val exercise = _uiState.value.availableExercises.find { it.id == workoutLog.exerciseId }
+                exercise?.let { CyberCrappRules.getRepRangeString(it.movementType) }
+            }
+            session.protocol == WorkoutProtocol.CYBER_CRAPP && type == SetType.WARMUP -> CyberCrappRules.WARMUP_REP_RANGE
+            session.protocol == WorkoutProtocol.CYBER_CRAPP && type == SetType.NORMAL -> {
+                val exercise = _uiState.value.availableExercises.find { it.id == workoutLog.exerciseId }
+                exercise?.let { CyberCrappRules.getRepRangeString(it.movementType) }
+            }
+            else -> null
+        }
+
+        val setWeight = if (weight == 0f && isBodyweightExercise(workoutLog.exerciseId)) {
+            getUserBodyweight()
+        } else weight
+
         val setLog = SetLog(
             id = UUID.randomUUID().toString(),
             workoutLogId = workoutLog.id,
-            weight = weight,
+            weight = setWeight,
             reps = reps,
             type = type,
-            goalReps = if (type == SetType.WIDOWMAKER) "20" else null,
+            goalReps = goalReps,
             clusterMiniSetIndex = clusterIndex
         )
 
@@ -1095,8 +1165,16 @@ class WorkoutViewModel @Inject constructor(
 
     private fun expandToCluster(setLog: SetLog) {
         viewModelScope.launch {
+            val session = _uiState.value.session
+            val log = _uiState.value.logs.find { it.first.id == setLog.workoutLogId }?.first
+            
+            val goalReps = if (session?.protocol == WorkoutProtocol.CYBER_CRAPP && log != null) {
+                val exercise = _uiState.value.availableExercises.find { it.id == log.exerciseId }
+                exercise?.let { CyberCrappRules.getRepRangeString(it.movementType) }
+            } else setLog.goalReps
+
             // Update original to be index 1
-            repository.saveSetLog(setLog.copy(clusterMiniSetIndex = 1, type = SetType.REST_PAUSE))
+            repository.saveSetLog(setLog.copy(clusterMiniSetIndex = 1, type = SetType.REST_PAUSE, goalReps = goalReps))
             
             // Create 2 and 3 with increasing timestamps to maintain order
             var currentTimestamp = setLog.timestamp
@@ -1109,6 +1187,7 @@ class WorkoutViewModel @Inject constructor(
                     reps = setLog.reps,
                     type = SetType.REST_PAUSE,
                     clusterMiniSetIndex = i,
+                    goalReps = goalReps,
                     timestamp = currentTimestamp
                 )
                 repository.saveSetLog(newSet)
@@ -1279,6 +1358,14 @@ class WorkoutViewModel @Inject constructor(
             }
 
             repository.saveSession(session.copy(durationSeconds = finalDuration))
+
+            // Update progression states for CyberCrapp
+            if (session.protocol == WorkoutProtocol.CYBER_CRAPP) {
+                currentLogs.forEach { (log, sets) ->
+                    updateProgressionForExercise(log, sets)
+                }
+            }
+
             _uiState.update { it.copy(
                 session = null, 
                 workoutDurationSeconds = 0, 
@@ -1383,5 +1470,110 @@ class WorkoutViewModel @Inject constructor(
             cyberCrappPhase = CyberCrappPhase.LOADED_STRETCH
         ) }
         startStretchTimer()
+    }
+
+    fun startSubstitution(exerciseId: String) {
+        val exercise = _uiState.value.availableExercises.find { it.id == exerciseId } ?: return
+        val recommendations = _uiState.value.availableExercises.filter { 
+            it.id != exerciseId && 
+            it.movementType == exercise.movementType && 
+            it.movementType != MovementType.UNDEFINED
+        }.take(3)
+
+        _uiState.update { it.copy(
+            showSubstitutionDialog = true,
+            exerciseToSubstitute = exerciseId,
+            recommendedSubstitutes = recommendations
+        ) }
+    }
+
+    fun substituteExercise(oldExerciseId: String, newExercise: Exercise) {
+        viewModelScope.launch {
+            val session = _uiState.value.session ?: return@launch
+            val logs = _uiState.value.logs
+            val logPair = logs.find { it.first.exerciseId == oldExerciseId } ?: return@launch
+            val logToReplace = logPair.first
+
+            // Update the log in database
+            val updatedLog = logToReplace.copy(
+                exerciseId = newExercise.id,
+                exerciseName = newExercise.name
+            )
+            repository.saveWorkoutLog(updatedLog)
+            
+            // Delete existing sets for this log as it's a new exercise
+            logPair.second.forEach { set ->
+                repository.deleteSetLog(set.id)
+            }
+            
+            // Add one default set
+            val isBW = newExercise.equipment.contains("Bodyweight") || newExercise.equipment.contains("Weighted")
+            val defaultWeight = if (isBW) getUserBodyweight() else 0f
+            
+            val defaultSet = SetLog(
+                id = UUID.randomUUID().toString(),
+                workoutLogId = updatedLog.id,
+                weight = defaultWeight,
+                reps = 0,
+                type = SetType.NORMAL
+            )
+            repository.saveSetLog(defaultSet)
+
+            _uiState.update { it.copy(
+                showSubstitutionDialog = false,
+                exerciseToSubstitute = null,
+                recommendedSubstitutes = emptyList()
+            ) }
+
+            loadPreviousData(newExercise.id)
+        }
+    }
+
+    fun dismissSubstitution() {
+        _uiState.update { it.copy(
+            showSubstitutionDialog = false,
+            exerciseToSubstitute = null,
+            recommendedSubstitutes = emptyList()
+        ) }
+    }
+
+    private suspend fun updateProgressionForExercise(log: WorkoutLog, sets: List<SetLog>) {
+        val completedSets = sets.filter { it.isCompleted }
+        if (completedSets.isEmpty()) return
+
+        val currentState = repository.getProgressionState(log.exerciseId).first() ?: ProgressionState(log.exerciseId)
+        
+        // For CyberCrapp, we mainly care about the cluster (REST_PAUSE)
+        val currentClusterTotal = completedSets.filter { it.type == SetType.REST_PAUSE }.sumOf { it.reps }
+        val currentWeight = completedSets.firstOrNull { it.type == SetType.REST_PAUSE }?.weight ?: 0f
+        
+        if (currentClusterTotal == 0) return 
+
+        var misses = currentState.consecutiveMisses
+        var bestReps = currentState.bestClusterReps
+        var bestWeight = currentState.weightAtBest
+        
+        if (currentWeight > currentState.weightAtBest) {
+            // New weight PR
+            bestReps = currentClusterTotal
+            bestWeight = currentWeight
+            misses = 0
+        } else if (currentWeight == currentState.weightAtBest) {
+            if (currentClusterTotal > currentState.bestClusterReps) {
+                // Improved reps at same weight
+                bestReps = currentClusterTotal
+                misses = 0
+            } else {
+                // Failed to beat best
+                misses++
+            }
+        }
+
+        repository.saveProgressionState(currentState.copy(
+            bestClusterReps = bestReps,
+            weightAtBest = bestWeight,
+            consecutiveMisses = misses,
+            currentWeight = currentWeight
+        ))
     }
 }

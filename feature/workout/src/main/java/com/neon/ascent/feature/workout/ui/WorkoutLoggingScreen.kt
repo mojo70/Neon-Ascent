@@ -53,7 +53,10 @@ import coil.decode.GifDecoder
 import coil.decode.ImageDecoderDecoder
 import coil.request.ImageRequest
 import android.os.Build
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.neon.ascent.core.domain.workout.models.*
+import com.neon.ascent.core.domain.workout.rules.CyberCrappRules
+import com.neon.ascent.core.domain.workout.rules.RepRange
 
 @Composable
 fun WorkoutLoggingScreen(
@@ -77,7 +80,25 @@ fun WorkoutLoggingScreen(
                     .fillMaxSize()
                     .background(Color.Black)
             ) {
-                if (uiState.isExploringProtocols) {
+                if (uiState.showSubstitutionDialog && uiState.exerciseToSubstitute != null) {
+        ExerciseSubstitutionDialog(
+            oldExerciseId = uiState.exerciseToSubstitute!!,
+            recommendations = uiState.recommendedSubstitutes,
+            onSubstitute = { newExercise ->
+                viewModel.substituteExercise(uiState.exerciseToSubstitute!!, newExercise)
+            },
+            onBrowseLibrary = {
+                // Open main library to select substitution
+                // Reuse existing replace logic
+                // For now, just dismiss and open picker?
+                viewModel.dismissSubstitution()
+                // Need a way to trigger picker for substitution specifically
+            },
+            onDismiss = { viewModel.dismissSubstitution() }
+        )
+    }
+
+    if (uiState.isExploringProtocols) {
                     WorkoutExploreScreen(
                         uiState = uiState,
                         onBack = { viewModel.hideExploreProtocols() },
@@ -1562,6 +1583,10 @@ fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel) {
                 showExercisePicker = true
                 showActionMenuFor = null
             },
+            onSubstitute = {
+                viewModel.startSubstitution(showActionMenuFor!!.exerciseId)
+                showActionMenuFor = null
+            },
             onAddSuperset = { 
                 showSupersetMenuFor = showActionMenuFor
                 showActionMenuFor = null
@@ -1986,6 +2011,7 @@ fun WorkoutExerciseActionMenu(
     isMandatoryGoal: Boolean,
     onReorder: () -> Unit,
     onReplace: () -> Unit,
+    onSubstitute: () -> Unit,
     onAddSuperset: () -> Unit,
     onToggleGoalReps: () -> Unit,
     onRemove: () -> Unit,
@@ -2010,6 +2036,14 @@ fun WorkoutExerciseActionMenu(
                 label = "Replace Exercise",
                 onClick = {
                     onReplace()
+                }
+            )
+            ActionMenuItem(
+                icon = Icons.Default.Autorenew,
+                label = "Substitute (Force Rotation)",
+                onClick = {
+                    onSubstitute()
+                    onDismiss()
                 }
             )
             ActionMenuItem(
@@ -2619,10 +2653,28 @@ fun WorkoutLogCard(
     onActionMenuClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val previousSets = uiState.previousLogs[log.exerciseId] ?: emptyList()
+    val previousLogs = uiState.previousLogs
+    val previousSets = previousLogs[log.exerciseId] ?: emptyList()
+    val progressionState = uiState.progressionStates[log.exerciseId]
     var showSetTypeSelector by remember { mutableStateOf<SetLog?>(null) }
     var showClusterDialogFor by remember { mutableStateOf<List<SetLog>?>(null) }
     
+    val exercise = remember(uiState.availableExercises, log.exerciseId) {
+        uiState.availableExercises.find { it.id == log.exerciseId }
+    }
+
+    val repRange: RepRange? = remember(exercise) { 
+        exercise?.movementType?.let { CyberCrappRules.getRepRange(it) } 
+    }
+    
+    val showWeightIncrease = remember(progressionState, repRange) {
+        progressionState != null && repRange != null && progressionState.bestClusterReps >= repRange.max
+    }
+    
+    val showStall = remember(progressionState) {
+        progressionState != null && progressionState.consecutiveMisses >= 2
+    }
+
     val isPrescriptiveAugment = remember(log.augmentId, uiState.augments, uiState.exploreAugments) {
         log.augmentId != null && (uiState.augments + uiState.exploreAugments).any { it.id == log.augmentId && (it.isSystem) }
     }
@@ -2634,9 +2686,6 @@ fun WorkoutLogCard(
     
     val augmentColor = log.augmentColor?.let { Color(android.graphics.Color.parseColor(it)) } ?: Color(0xFF007AFF)
 
-    val exercise = remember(uiState.availableExercises, log.exerciseId) {
-        uiState.availableExercises.find { it.id == log.exerciseId }
-    }
     var notesText by remember(exercise?.notes) { mutableStateOf(exercise?.notes ?: "") }
     var isEditing by remember { mutableStateOf(false) }
     var hasBeenFocused by remember { mutableStateOf(false) }
@@ -2670,6 +2719,23 @@ fun WorkoutLogCard(
                 }
             )
     ) {
+        if (showWeightIncrease) {
+            ProgressionBanner(
+                text = "WEIGHT INCREASE DUE (+2.5-5 lb) ⚡",
+                color = Color(0xFF00FFCC),
+                icon = Icons.Default.TrendingUp
+            )
+        }
+        
+        if (showStall) {
+            ProgressionBanner(
+                text = "STALL DETECTED: ROTATION RECOMMENDED ⚠️",
+                color = Color(0xFFFF0066),
+                icon = Icons.Default.Warning,
+                onActionClick = { viewModel.startSubstitution(log.exerciseId) }
+            )
+        }
+
         if (log.augmentId != null) {
             Text(
                 text = log.augmentName?.uppercase() ?: "AUGMENT",
@@ -2884,15 +2950,23 @@ fun WorkoutLogCard(
             items
         }
 
-        displayItems.forEachIndexed { index, item ->
+        val userWeight = uiState.userProfile?.let { profile ->
+        if (profile.unitSystem == UnitSystem.IMPERIAL) profile.weightKg * 2.20462f else profile.weightKg
+    }
+    val isBWExercise = exercise?.equipment?.contains("Bodyweight") == true || exercise?.equipment?.contains("Weighted") == true
+
+    displayItems.forEachIndexed { index, item ->
             if (item is List<*>) {
                 @Suppress("UNCHECKED_CAST")
                 val clusterSets = item as List<SetLog>
                 val clusterKey = clusterSets.firstOrNull()?.workoutLogId ?: "cluster_$index"
                 key(clusterKey) {
+                    val prevClusterSets = previousSets.filter { it.clusterMiniSetIndex != null }
+                    val prevW = prevClusterSets.firstOrNull()?.weight ?: progressionState?.currentWeight ?: if (isBWExercise) userWeight else null
                     ClusterSetRow(
                         sets = clusterSets,
-                        previousSets = previousSets.filter { it.clusterMiniSetIndex != null },
+                        previousSets = prevClusterSets,
+                        previousWeight = if (prevW != null && prevW > 0) prevW else null,
                         onUpdateWeight = { weight -> clusterSets.forEach { viewModel.updateSet(it, weight = weight) } },
                         onUpdateGoal = { goal -> clusterSets.forEach { viewModel.updateSet(it, goalReps = goal) } },
                         onClick = { showClusterDialogFor = clusterSets }
@@ -2901,12 +2975,21 @@ fun WorkoutLogCard(
             } else if (item is SetLog) {
                 val set = item
                 key(set.id) {
-                    val prevSet = previousSets.find { it.type == set.type && it.clusterMiniSetIndex == null }
+                    val currentTypeSets = sets.filter { it.type == set.type && it.clusterMiniSetIndex == null }
+                    val setIndexInType = currentTypeSets.indexOf(set)
+                    val prevTypeSets = previousSets.filter { it.type == set.type && it.clusterMiniSetIndex == null }
+                    val prevSet = prevTypeSets.getOrNull(setIndexInType)
+                    
+                    val hasPrevData = prevSet != null && (prevSet.weight > 0 || prevSet.reps > 0)
+                    val prevWFallback = if (set.type != SetType.WARMUP) (progressionState?.currentWeight ?: if (isBWExercise) userWeight else null) else (if (isBWExercise) userWeight else null)
+                    val prevWeight = if (prevSet != null && prevSet.weight > 0) prevSet.weight else prevWFallback
+
                     SetLogRow(
                         setNumber = index + 1,
                         set = set,
                         showGoal = showGoalColumn,
-                        previousData = prevSet?.let { "${if (it.weight % 1 == 0f) it.weight.toInt() else it.weight}lbs x ${it.reps}" } ?: "",
+                        previousData = if (hasPrevData) "${if (prevSet!!.weight % 1 == 0f) prevSet.weight.toInt() else prevSet.weight}lbs x ${prevSet.reps}" else if (prevSet != null) "0lbs x 0" else "0",
+                        previousWeight = if (prevWeight != null && prevWeight > 0) prevWeight else null,
                         onUpdateWeight = { viewModel.updateSet(set, weight = it) },
                         onUpdateReps = { viewModel.updateSet(set, reps = it) },
                         onUpdateGoal = { viewModel.updateSet(set, goalReps = it) },
@@ -2959,6 +3042,111 @@ fun WorkoutLogCard(
             },
             onDismiss = { showSetTypeSelector = null }
         )
+    }
+}
+
+@Composable
+fun ProgressionBanner(
+    text: String,
+    color: Color,
+    icon: ImageVector,
+    onActionClick: (() -> Unit)? = null
+) {
+    Surface(
+        color = color.copy(alpha = 0.15f),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.5f)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 8.dp)
+            .then(if (onActionClick != null) Modifier.clickable { onActionClick() } else Modifier)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = text,
+                color = color,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 1.sp
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ExerciseSubstitutionDialog(
+    oldExerciseId: String,
+    recommendations: List<Exercise>,
+    onSubstitute: (Exercise) -> Unit,
+    onBrowseLibrary: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1C1C1E),
+        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.Gray) }
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            Text(
+                text = "SUBSTITUTION RECOMMENDED",
+                color = Color(0xFFFF0066),
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 2.sp
+            )
+            Text(
+                text = "Performance has plateaued. Select a similar movement to continue progression.",
+                color = Color.Gray,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+            
+            Spacer(Modifier.height(16.dp))
+            
+            recommendations.forEach { exercise ->
+                Surface(
+                    onClick = { onSubstitute(exercise) },
+                    color = Color.Black.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.FitnessCenter, contentDescription = null, tint = Color.White)
+                        Spacer(Modifier.width(16.dp))
+                        Column {
+                            Text(exercise.name, color = Color.White, fontWeight = FontWeight.Bold)
+                            Text(exercise.equipment.joinToString(", "), color = Color.Gray, fontSize = 10.sp)
+                        }
+                    }
+                }
+            }
+            
+            Spacer(Modifier.height(16.dp))
+            
+            Button(
+                onClick = onBrowseLibrary,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.1f))
+            ) {
+                Text("BROWSE MAIN LIBRARY", color = Color.White)
+            }
+        }
     }
 }
 
@@ -3283,6 +3471,7 @@ fun LoadedStretchDialog(remaining: Int) {
 fun ClusterSetRow(
     sets: List<SetLog>,
     previousSets: List<SetLog>,
+    previousWeight: Float? = null,
     onUpdateWeight: (Float) -> Unit,
     onUpdateGoal: (String) -> Unit,
     onClick: () -> Unit
@@ -3292,6 +3481,7 @@ fun ClusterSetRow(
     val weight = sets.firstOrNull()?.weight ?: 0f
     val goalReps = sets.firstOrNull()?.goalReps ?: ""
     val prevTotalReps = previousSets.sumOf { it.reps }
+    val weightPlaceholder = previousWeight?.let { if (it % 1 == 0f) it.toInt().toString() else it.toString() } ?: "0"
 
     Row(
         modifier = Modifier
@@ -3341,6 +3531,7 @@ fun ClusterSetRow(
         EditableValueBox(
             value = if (weight % 1 == 0f) weight.toInt().toString() else weight.toString(),
             onValueChange = { it.toFloatOrNull()?.let { w -> onUpdateWeight(w) } },
+            placeholder = weightPlaceholder,
             modifier = Modifier.weight(1.5f),
             keyboardType = KeyboardType.Decimal
         )
@@ -3585,6 +3776,7 @@ fun SetLogRow(
     set: SetLog,
     showGoal: Boolean,
     previousData: String,
+    previousWeight: Float? = null,
     onUpdateWeight: (Float) -> Unit,
     onUpdateReps: (Int) -> Unit,
     onUpdateGoal: (String) -> Unit,
@@ -3593,6 +3785,7 @@ fun SetLogRow(
 ) {
     val haptic = LocalHapticFeedback.current
     val backgroundColor = if (setNumber % 2 == 0) Color.Transparent else Color(0xFF1C1C1E).copy(alpha = 0.3f)
+    val weightPlaceholder = previousWeight?.let { if (it % 1 == 0f) it.toInt().toString() else it.toString() } ?: "0"
     
     Row(
         modifier = Modifier
@@ -3650,6 +3843,7 @@ fun SetLogRow(
         EditableValueBox(
             value = if (set.weight % 1 == 0f) set.weight.toInt().toString() else set.weight.toString(),
             onValueChange = { it.toFloatOrNull()?.let { w -> onUpdateWeight(w) } },
+            placeholder = weightPlaceholder,
             modifier = Modifier.weight(1.5f),
             keyboardType = KeyboardType.Decimal
         )
@@ -3692,6 +3886,7 @@ fun EditableValueBox(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     keyboardType: KeyboardType = KeyboardType.Number,
+    placeholder: String = "0",
     enabled: Boolean = true
 ) {
     var text by remember { mutableStateOf(if (value == "0" || value == "0.0") "" else value) }
@@ -3710,10 +3905,10 @@ fun EditableValueBox(
             .padding(vertical = 4.dp),
         contentAlignment = Alignment.Center
     ) {
-        if (isFocused && text.isEmpty()) {
+        if (text.isEmpty()) {
             Text(
-                text = "0",
-                color = Color.Gray,
+                text = placeholder,
+                color = if (isFocused) Color.Gray.copy(alpha = 0.3f) else Color.Gray.copy(alpha = 0.5f),
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center,
                 fontFamily = FontFamily.Monospace

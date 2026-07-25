@@ -31,7 +31,18 @@ data class ExerciseDefinitionEntity(
     val gifAssetPath: String?,
     val isLockedClassic: Boolean,
     val injurySubstitutions: List<String>,
+    val movementType: String = "UNDEFINED",
     val notes: String? = null
+)
+
+@Entity(tableName = "progression_states")
+data class ProgressionStateEntity(
+    @PrimaryKey val exerciseId: String,
+    val bestClusterReps: Int,
+    val weightAtBest: Float,
+    val consecutiveMisses: Int,
+    val currentWeight: Float,
+    val lastRotationDate: Instant?
 )
 
 @Entity(

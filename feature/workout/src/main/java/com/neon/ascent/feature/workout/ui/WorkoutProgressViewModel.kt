@@ -23,7 +23,8 @@ data class ProgressUiState(
     val carbGrams: Int = 0,
     val fatGrams: Int = 0,
     val isLoading: Boolean = true,
-    val profile: UserWorkoutProfile? = null
+    val profile: UserWorkoutProfile? = null,
+    val exportedJson: String? = null
 )
 
 data class VolumePoint(
@@ -202,5 +203,16 @@ class WorkoutProgressViewModel @Inject constructor(
         val carbGrams = ((tdee - (proteinGrams * 4) - (fatGrams * 9)) / 4).toInt()
         
         return Triple(proteinGrams, carbGrams, fatGrams)
+    }
+
+    fun exportHistory() {
+        viewModelScope.launch {
+            val json = repository.exportHistoryToJson()
+            _uiState.update { it.copy(exportedJson = json) }
+        }
+    }
+
+    fun clearExport() {
+        _uiState.update { it.copy(exportedJson = null) }
     }
 }

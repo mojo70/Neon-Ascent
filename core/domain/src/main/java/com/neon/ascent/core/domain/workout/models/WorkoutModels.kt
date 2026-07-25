@@ -87,6 +87,20 @@ enum class SetType {
     NORMAL, WARMUP, DROP, FAILURE, REST_PAUSE, WIDOWMAKER, POWER, GS
 }
 
+enum class MovementType {
+    COMPOUND_UPPER,
+    ISOLATION_UPPER,
+    BACK_WIDTH,
+    BACK_THICKNESS,
+    DEADLIFT,
+    POSTERIOR_CHAIN,
+    QUAD_DOMINANT,
+    HAMSTRING_ISOLATION,
+    CALVES,
+    ABS,
+    UNDEFINED
+}
+
 data class Exercise(
     val id: String,
     val name: String,
@@ -97,6 +111,7 @@ data class Exercise(
     val gifAssetPath: String? = null,
     val isLockedClassic: Boolean = false,
     val injurySubstitutions: List<String> = emptyList(),
+    val movementType: MovementType = MovementType.UNDEFINED,
     val notes: String? = null
 )
 
@@ -201,4 +216,13 @@ data class RoutineSet(
     val weight: Float = 0f,
     val reps: Int = 0,
     val goalReps: String? = null
+)
+
+data class ProgressionState(
+    val exerciseId: String,
+    val bestClusterReps: Int = 0,
+    val weightAtBest: Float = 0f,
+    val consecutiveMisses: Int = 0,
+    val currentWeight: Float = 0f,
+    val lastRotationDate: Instant? = null
 )
