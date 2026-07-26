@@ -40,6 +40,17 @@ class HapticService @Inject constructor(
         vibrator.vibrate(effect)
     }
 
+    /** Intense alert pulse for rest timer completion */
+    @SuppressLint("MissingPermission")
+    fun alertRestOver() {
+        val effect = VibrationEffect.createWaveform(
+            longArrayOf(0, 300, 100, 300, 100, 300),
+            intArrayOf(0, 255, 0, 255, 0, 255),
+            -1
+        )
+        vibrator.vibrate(effect)
+    }
+
     /** Heavy, glitchy burst for Ascension */
     @SuppressLint("MissingPermission")
     fun ascensionBurst() {

@@ -66,6 +66,7 @@ fun WorkoutLoggingScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showRoutineActionMenuFor by remember { mutableStateOf<WorkoutRoutine?>(null) }
     var showAugmentActionMenuFor by remember { mutableStateOf<WorkoutAugment?>(null) }
+    var showRestTimerAdjustment by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -220,7 +221,7 @@ fun WorkoutLoggingScreen(
                             }
 
                             Box(modifier = Modifier.weight(1f)) {
-                                ActiveWorkoutContent(uiState, viewModel)
+                                ActiveWorkoutContent(uiState, viewModel, onRestTimerClick = { showRestTimerAdjustment = true })
                                 
                                 if (uiState.isPaused) {
                                     Box(
@@ -405,6 +406,32 @@ fun WorkoutLoggingScreen(
         }
         if (uiState.showLoadedStretch && uiState.workoutPhase == RestPausePhase.LOADED_STRETCH) {
             LoadedStretchDialog(remaining = uiState.stretchTimeRemaining)
+        }
+
+        if (showRestTimerAdjustment) {
+            RestTimerAdjustmentDialog(
+                uiState = uiState,
+                viewModel = viewModel,
+                onDismiss = { showRestTimerAdjustment = false }
+            )
+        }
+
+        if (uiState.isResting && (uiState.restTimerMode == RestTimerMode.POPUP || uiState.restTimerMode == RestTimerMode.BOTH)) {
+            RestTimerPopup(
+                remaining = uiState.restTimeRemaining,
+                total = uiState.restTimerTotalSeconds,
+                onAdjust = { viewModel.adjustRestTimer(it) },
+                onSkip = { viewModel.skipRestTimer() }
+            )
+        }
+
+        if (uiState.isResting && uiState.session != null) {
+            StickyBottomTimer(
+                remaining = uiState.restTimeRemaining,
+                total = uiState.restTimerTotalSeconds,
+                onAdjust = { viewModel.adjustRestTimer(it) },
+                onSkip = { viewModel.skipRestTimer() }
+            )
         }
     }
 }
@@ -1499,7 +1526,7 @@ fun RoutineExerciseItem(
 }
 
 @Composable
-fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel) {
+fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel, onRestTimerClick: () -> Unit) {
     var showExercisePicker by remember { mutableStateOf(false) }
     var showAugmentPicker by remember { mutableStateOf(false) }
     var exerciseToReplace by remember { mutableStateOf<WorkoutLog?>(null) }
@@ -1516,7 +1543,8 @@ fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel) {
                 log = log,
                 sets = sets,
                 viewModel = viewModel,
-                onActionMenuClick = { showActionMenuFor = log }
+                onActionMenuClick = { showActionMenuFor = log },
+                onRestTimerClick = onRestTimerClick
             )
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -2644,7 +2672,8 @@ fun WorkoutLogCard(
     log: WorkoutLog,
     sets: List<SetLog>,
     viewModel: WorkoutViewModel,
-    onActionMenuClick: () -> Unit
+    onActionMenuClick: () -> Unit,
+    onRestTimerClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val previousLogs = uiState.previousLogs
@@ -2898,17 +2927,45 @@ fun WorkoutLogCard(
         }
         
         val timerText = if (uiState.isResting) {
-            "RESTING: ${uiState.restTimeRemaining}s"
+            val minutes = uiState.restTimeRemaining / 60
+            val seconds = uiState.restTimeRemaining % 60
+            "RESTING: %d:%02d".format(minutes, seconds)
         } else if (uiState.showLoadedStretch) {
             "STRETCHING: ${uiState.stretchTimeRemaining}s"
         } else {
-            "Rest Timer: 1min 0s"
+            val minutes = uiState.defaultRestTime / 60
+            val seconds = uiState.defaultRestTime % 60
+            "Rest Timer: %d:%02d".format(minutes, seconds)
         }
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Timer, contentDescription = null, tint = if (uiState.isResting || uiState.showLoadedStretch) Color(0xFF00FF9C) else Color(0xFF007AFF), modifier = Modifier.size(16.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.clickable { onRestTimerClick() }
+        ) {
+            Icon(
+                Icons.Default.Timer, 
+                contentDescription = null, 
+                tint = if (uiState.isResting || uiState.showLoadedStretch) Color(0xFF00FF9C) else Color(0xFF007AFF), 
+                modifier = Modifier.size(16.dp)
+            )
             Spacer(modifier = Modifier.width(4.dp))
-            Text(timerText, color = if (uiState.isResting || uiState.showLoadedStretch) Color(0xFF00FF9C) else Color(0xFF007AFF), fontSize = 14.sp)
+            Text(
+                timerText, 
+                color = if (uiState.isResting || uiState.showLoadedStretch) Color(0xFF00FF9C) else Color(0xFF007AFF), 
+                fontSize = 14.sp
+            )
+            
+            if (!uiState.isResting && !uiState.showLoadedStretch) {
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(onClick = { viewModel.startManualRestTimer() }, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.Default.PlayArrow, contentDescription = "Start Timer", tint = Color(0xFF007AFF), modifier = Modifier.size(16.dp))
+                }
+            } else if (uiState.isResting) {
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(onClick = { viewModel.stopRestTimer() }, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.Default.Stop, contentDescription = "Stop Timer", tint = Color.Red, modifier = Modifier.size(16.dp))
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -2963,7 +3020,8 @@ fun WorkoutLogCard(
                         previousWeight = if (prevW != null && prevW > 0) prevW else null,
                         onUpdateWeight = { weight -> clusterSets.forEach { viewModel.updateSet(it, weight = weight) } },
                         onUpdateGoal = { goal -> clusterSets.forEach { viewModel.updateSet(it, goalReps = goal) } },
-                        onClick = { showClusterDialogFor = clusterSets }
+                        onClick = { showClusterDialogFor = clusterSets },
+                        onSetLabelClick = { showSetTypeSelector = clusterSets.first() }
                     )
                 }
             } else if (item is SetLog) {
@@ -2992,6 +3050,24 @@ fun WorkoutLogCard(
                     )
                 }
             }
+            
+            // Inline Rest Timer Injection
+            val isMatch = if (item is SetLog) {
+                item.id == uiState.lastCompletedSetId
+            } else {
+                (item as? List<SetLog>)?.any { it.id == uiState.lastCompletedSetId } == true
+            }
+            
+            if (uiState.isResting && isMatch && 
+                (uiState.restTimerMode == RestTimerMode.INLINE || uiState.restTimerMode == RestTimerMode.BOTH)) {
+                InlineRestTimer(
+                    remaining = uiState.restTimeRemaining,
+                    total = uiState.restTimerTotalSeconds,
+                    onAdjust = { viewModel.adjustRestTimer(it) },
+                    onSkip = { viewModel.skipRestTimer() }
+                )
+            }
+            
             Spacer(modifier = Modifier.height(4.dp))
         }
 
@@ -3468,7 +3544,8 @@ fun ClusterSetRow(
     previousWeight: Float? = null,
     onUpdateWeight: (Float) -> Unit,
     onUpdateGoal: (String) -> Unit,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onSetLabelClick: (() -> Unit)? = null
 ) {
     val totalReps = sets.filter { it.isCompleted }.sumOf { it.reps }
     val isCompleted = sets.all { it.isCompleted } && sets.isNotEmpty()
@@ -3488,7 +3565,7 @@ fun ClusterSetRow(
         Box(
             modifier = Modifier
                 .weight(1f)
-                .clickable { onClick() }
+                .clickable { onSetLabelClick?.invoke() ?: onClick() }
                 .padding(vertical = 4.dp)
         ) {
             Text(
@@ -4779,6 +4856,387 @@ fun RoutinePreviewScreen(
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text("INITIALIZE SESSION", color = Color.Black, fontWeight = FontWeight.Black)
+            }
+        }
+    }
+}
+
+@Composable
+fun RestTimerAdjustmentDialog(
+    uiState: WorkoutUiState,
+    viewModel: WorkoutViewModel,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            color = Color(0xFF1C1C1E),
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, Color(0xFF007AFF).copy(alpha = 0.5f))
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    "UPDATE REST TIMERS",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp
+                )
+                
+                Text(
+                    "Completed timers will not be affected. Durations will be saved for next time.",
+                    color = Color.Gray,
+                    fontSize = 11.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
+                )
+                
+                TimerConfigRow("Work Set", uiState.workSetRestTime) { viewModel.updateWorkSetRestTime(it) }
+                Spacer(Modifier.height(12.dp))
+                TimerConfigRow("Warm-up Set", uiState.warmupSetRestTime) { viewModel.updateWarmupSetRestTime(it) }
+                Spacer(Modifier.height(12.dp))
+                TimerConfigRow("Drop Set", uiState.dropSetRestTime) { viewModel.updateDropSetRestTime(it) }
+                
+                Spacer(Modifier.height(24.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("AUTO-START TIMER", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text("Starts when set is completed", color = Color.Gray, fontSize = 11.sp)
+                    }
+                    Switch(
+                        checked = uiState.isAutoStartTimerEnabled,
+                        onCheckedChange = { viewModel.toggleAutoStartTimer() },
+                        colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF00FF9C))
+                    )
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("DISPLAY MODE", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    
+                    val modes = RestTimerMode.entries.filter { it != RestTimerMode.NONE }
+                    Row {
+                        modes.forEach { mode ->
+                            val isSelected = uiState.restTimerMode == mode
+                            Surface(
+                                modifier = Modifier
+                                    .padding(start = 4.dp)
+                                    .clickable { viewModel.updateRestTimerMode(mode) },
+                                color = if (isSelected) Color(0xFF007AFF) else Color.DarkGray,
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
+                                Text(
+                                    mode.name, 
+                                    color = Color.White, 
+                                    fontSize = 10.sp, 
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(32.dp))
+                
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("UPDATE REST TIMERS", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TimerConfigRow(label: String, currentSeconds: Int, onUpdate: (Int) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+        
+        Surface(
+            color = Color.Black.copy(alpha = 0.3f),
+            shape = RoundedCornerShape(8.dp),
+            modifier = Modifier.width(100.dp).height(40.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { onUpdate((currentSeconds - 15).coerceAtLeast(0)) }, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.Default.Remove, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                }
+                
+                val minutes = currentSeconds / 60
+                val seconds = currentSeconds % 60
+                Text(
+                    if (currentSeconds == 0) "None" else "%d:%02d".format(minutes, seconds),
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                
+                IconButton(onClick = { onUpdate((currentSeconds + 15).coerceAtMost(600)) }, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.Default.Add, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun RestTimerPopup(
+    remaining: Int,
+    total: Int,
+    onAdjust: (Int) -> Unit,
+    onSkip: () -> Unit
+) {
+    Dialog(onDismissRequest = { }) { // Non-dismissable by tapping outside
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            color = Color.White,
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onSkip) { Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Gray) }
+                    Text("Rest Timer", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Box(Modifier.size(48.dp))
+                }
+
+                Text(
+                    "Adjust duration via the +/- buttons.",
+                    color = Color.Gray,
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(vertical = 16.dp)
+                )
+
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(200.dp)) {
+                    val progress = if (total > 0) remaining.toFloat() / total else 0f
+                    CircularProgressIndicator(
+                        progress = { 1f - progress },
+                        modifier = Modifier.fillMaxSize(),
+                        strokeWidth = 12.dp,
+                        color = Color(0xFF007AFF).copy(alpha = 0.2f),
+                        trackColor = Color.Transparent
+                    )
+                    CircularProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier.fillMaxSize(),
+                        strokeWidth = 12.dp,
+                        color = Color(0xFF007AFF),
+                        strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
+                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        val minutes = remaining / 60
+                        val seconds = remaining % 60
+                        Text(
+                            "%d:%02d".format(minutes, seconds),
+                            color = Color.Black,
+                            fontSize = 48.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        val tMin = total / 60
+                        val tSec = total % 60
+                        Text(
+                            "%d:%02d".format(tMin, tSec),
+                            color = Color.Gray,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { onAdjust(-10) },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF2F2F7)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("-10s", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                    Button(
+                        onClick = { onAdjust(10) },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF2F2F7)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("+10s", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                    Button(
+                        onClick = onSkip,
+                        modifier = Modifier.weight(1.2f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Skip", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun InlineRestTimer(
+    remaining: Int,
+    total: Int,
+    onAdjust: (Int) -> Unit,
+    onSkip: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+            .height(44.dp),
+        color = Color(0xFF007AFF).copy(alpha = 0.1f),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, Color(0xFF007AFF).copy(alpha = 0.3f))
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            val progress = if (total > 0) remaining.toFloat() / total else 0f
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(progress)
+                    .background(Color(0xFF007AFF).copy(alpha = 0.6f))
+            )
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val minutes = remaining / 60
+                val seconds = remaining % 60
+                Text(
+                    "%d:%02d".format(minutes, seconds),
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { onAdjust(-10) }, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.Remove, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    IconButton(onClick = { onAdjust(10) }, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "Skip", 
+                        color = Color.White, 
+                        fontWeight = FontWeight.Bold, 
+                        fontSize = 12.sp,
+                        modifier = Modifier.clickable { onSkip() }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun StickyBottomTimer(
+    remaining: Int,
+    total: Int,
+    onAdjust: (Int) -> Unit,
+    onSkip: () -> Unit
+) {
+    Box(modifier = Modifier.fillMaxSize().padding(bottom = 80.dp), contentAlignment = Alignment.BottomCenter) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .height(56.dp),
+            color = Color(0xFF1C1C1E).copy(alpha = 0.95f),
+            shape = RoundedCornerShape(12.dp),
+            shadowElevation = 8.dp,
+            border = BorderStroke(1.dp, Color(0xFF007AFF).copy(alpha = 0.5f))
+        ) {
+            Column {
+                val progress = if (total > 0) remaining.toFloat() / total else 0f
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxWidth().height(4.dp),
+                    color = Color(0xFF007AFF),
+                    trackColor = Color.Transparent
+                )
+                
+                Row(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Timer, contentDescription = null, tint = Color(0xFF007AFF), modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(12.dp))
+                        val minutes = remaining / 60
+                        val seconds = remaining % 60
+                        Text(
+                            "RESTING: %d:%02d".format(minutes, seconds),
+                            color = Color.White,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 14.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                    
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = { onAdjust(15) }) {
+                            Text("+15s", color = Color(0xFF007AFF), fontWeight = FontWeight.Bold)
+                        }
+                        Button(
+                            onClick = onSkip,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF)),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
+                            modifier = Modifier.height(32.dp)
+                        ) {
+                            Text("SKIP", color = Color.White, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                        }
+                    }
+                }
             }
         }
     }

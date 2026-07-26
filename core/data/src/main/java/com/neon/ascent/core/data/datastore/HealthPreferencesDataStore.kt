@@ -28,6 +28,12 @@ class HealthPreferencesDataStore @Inject constructor(
         val LAST_SUCCESSFUL_SYNC = longPreferencesKey("last_successful_sync")
         val LIVE_MONITORING_ENABLED = booleanPreferencesKey("live_monitoring_enabled")
         val WORKOUT_ZOOM_LEVEL = floatPreferencesKey("workout_zoom_level")
+        val DEFAULT_REST_TIME = intPreferencesKey("default_rest_time")
+        val AUTO_START_REST_TIMER = booleanPreferencesKey("auto_start_rest_timer")
+        val WORK_SET_REST_TIME = intPreferencesKey("work_set_rest_time")
+        val WARMUP_SET_REST_TIME = intPreferencesKey("warmup_set_rest_time")
+        val DROP_SET_REST_TIME = intPreferencesKey("drop_set_rest_time")
+        val REST_TIMER_MODE = stringPreferencesKey("rest_timer_mode")
     }
 
     private val dataStore = context.healthDataStore
@@ -100,6 +106,55 @@ class HealthPreferencesDataStore @Inject constructor(
 
     suspend fun setWorkoutZoomLevel(level: Float) {
         dataStore.edit { it[Keys.WORKOUT_ZOOM_LEVEL] = level }
+    }
+
+    val defaultRestTime: Flow<Int> = dataStore.data.map { prefs ->
+        prefs[Keys.DEFAULT_REST_TIME] ?: 60
+    }
+
+    suspend fun setDefaultRestTime(seconds: Int) {
+        dataStore.edit { it[Keys.DEFAULT_REST_TIME] = seconds.coerceIn(15, 600) }
+    }
+
+    val autoStartRestTimer: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.AUTO_START_REST_TIMER] ?: true
+    }
+
+    suspend fun setAutoStartRestTimer(enabled: Boolean) {
+        dataStore.edit { it[Keys.AUTO_START_REST_TIMER] = enabled }
+    }
+
+    val workSetRestTime: Flow<Int> = dataStore.data.map { prefs ->
+        prefs[Keys.WORK_SET_REST_TIME] ?: 120
+    }
+
+    suspend fun setWorkSetRestTime(seconds: Int) {
+        dataStore.edit { it[Keys.WORK_SET_REST_TIME] = seconds }
+    }
+
+    val warmupSetRestTime: Flow<Int> = dataStore.data.map { prefs ->
+        prefs[Keys.WARMUP_SET_REST_TIME] ?: 60
+    }
+
+    suspend fun setWarmupSetRestTime(seconds: Int) {
+        dataStore.edit { it[Keys.WARMUP_SET_REST_TIME] = seconds }
+    }
+
+    val dropSetRestTime: Flow<Int> = dataStore.data.map { prefs ->
+        prefs[Keys.DROP_SET_REST_TIME] ?: 30
+    }
+
+    suspend fun setDropSetRestTime(seconds: Int) {
+        dataStore.edit { it[Keys.DROP_SET_REST_TIME] = seconds }
+    }
+
+    val restTimerMode: Flow<com.neon.ascent.core.domain.workout.models.RestTimerMode> = dataStore.data.map { prefs ->
+        val name = prefs[Keys.REST_TIMER_MODE] ?: com.neon.ascent.core.domain.workout.models.RestTimerMode.BOTH.name
+        runCatching { com.neon.ascent.core.domain.workout.models.RestTimerMode.valueOf(name) }.getOrDefault(com.neon.ascent.core.domain.workout.models.RestTimerMode.BOTH)
+    }
+
+    suspend fun setRestTimerMode(mode: com.neon.ascent.core.domain.workout.models.RestTimerMode) {
+        dataStore.edit { it[Keys.REST_TIMER_MODE] = mode.name }
     }
 
     /** Reset all health preferences (useful for debugging or user "Reset Data" option) */

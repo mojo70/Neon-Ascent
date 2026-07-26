@@ -11,7 +11,14 @@ import com.neon.ascent.core.domain.goals.models.AscensionTask
 import com.neon.ascent.core.domain.goals.models.AscensionTaskType
 import com.neon.ascent.core.domain.workout.models.*
 import com.neon.ascent.core.domain.workout.rules.CyberCrappRules
+import com.neon.ascent.feature.workout.services.WorkoutTimerService
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -32,7 +39,15 @@ data class WorkoutUiState(
     val exploreAugments: List<WorkoutAugment> = emptyList(),
     val isLoading: Boolean = false,
     val isResting: Boolean = false,
-    val restTimeRemaining: Int = 15,
+    val restTimeRemaining: Int = 0,
+    val restTimerTotalSeconds: Int = 60,
+    val restTimerMode: RestTimerMode = RestTimerMode.BOTH,
+    val lastCompletedSetId: String? = null,
+    val workSetRestTime: Int = 120,
+    val warmupSetRestTime: Int = 60,
+    val dropSetRestTime: Int = 30,
+    val defaultRestTime: Int = 60,
+    val isAutoStartTimerEnabled: Boolean = true,
     val currentClusterIndex: Int? = null, // 1, 2, 3 for CC
     val showCyberFinisher: Boolean = false,
     val showLoadedStretch: Boolean = false,
@@ -94,11 +109,26 @@ class WorkoutViewModel @Inject constructor(
     private val repository: WorkoutRepository,
     private val hapticService: HapticService,
     private val ascensionRepository: AscensionRepository,
-    private val healthPrefs: HealthPreferencesDataStore
+    private val healthPrefs: HealthPreferencesDataStore,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WorkoutUiState())
     val uiState = _uiState.asStateFlow()
+
+    private val timerReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                WorkoutTimerService.ACTION_TIMER_TICK -> {
+                    val remaining = intent.getIntExtra(WorkoutTimerService.EXTRA_REMAINING, 0)
+                    _uiState.update { it.copy(restTimeRemaining = remaining, isResting = true) }
+                }
+                WorkoutTimerService.ACTION_TIMER_FINISHED -> {
+                    _uiState.update { it.copy(restTimeRemaining = 0, isResting = false) }
+                }
+            }
+        }
+    }
 
     private val updateJobs = mutableMapOf<String, kotlinx.coroutines.Job>()
     private val pendingUpdates = mutableMapOf<String, SetLog>()
@@ -114,7 +144,8 @@ class WorkoutViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private var timerJob: kotlinx.coroutines.Job? = null
+    private var workoutDurationJob: kotlinx.coroutines.Job? = null
+    private var stretchTimerJob: kotlinx.coroutines.Job? = null
     private var sessionJob: kotlinx.coroutines.Job? = null
 
     init {
@@ -125,10 +156,125 @@ class WorkoutViewModel @Inject constructor(
             loadAugments()
             loadUserProfile()
             checkForActiveSession()
-            healthPrefs.workoutZoomLevel.collect { zoom ->
-                _uiState.update { it.copy(zoomLevel = zoom) }
+            
+            launch {
+                healthPrefs.workoutZoomLevel.collect { zoom ->
+                    _uiState.update { it.copy(zoomLevel = zoom) }
+                }
+            }
+            launch {
+                healthPrefs.defaultRestTime.collect { time ->
+                    _uiState.update { it.copy(defaultRestTime = time) }
+                }
+            }
+            launch {
+                healthPrefs.autoStartRestTimer.collect { enabled ->
+                    _uiState.update { it.copy(isAutoStartTimerEnabled = enabled) }
+                }
+            }
+            launch {
+                healthPrefs.workSetRestTime.collect { time ->
+                    _uiState.update { it.copy(workSetRestTime = time) }
+                }
+            }
+            launch {
+                healthPrefs.warmupSetRestTime.collect { time ->
+                    _uiState.update { it.copy(warmupSetRestTime = time) }
+                }
+            }
+            launch {
+                healthPrefs.dropSetRestTime.collect { time ->
+                    _uiState.update { it.copy(dropSetRestTime = time) }
+                }
+            }
+            launch {
+                healthPrefs.restTimerMode.collect { mode ->
+                    _uiState.update { it.copy(restTimerMode = mode) }
+                }
             }
         }
+        
+        val filter = IntentFilter().apply {
+            addAction(WorkoutTimerService.ACTION_TIMER_TICK)
+            addAction(WorkoutTimerService.ACTION_TIMER_FINISHED)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(timerReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            context.registerReceiver(timerReceiver, filter)
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        context.unregisterReceiver(timerReceiver)
+    }
+
+    fun updateDefaultRestTime(seconds: Int) {
+        viewModelScope.launch {
+            healthPrefs.setDefaultRestTime(seconds)
+        }
+    }
+
+    fun toggleAutoStartTimer() {
+        viewModelScope.launch {
+            healthPrefs.setAutoStartRestTimer(!_uiState.value.isAutoStartTimerEnabled)
+        }
+    }
+
+    fun startManualRestTimer() {
+        WorkoutTimerService.start(context, _uiState.value.defaultRestTime)
+    }
+
+    fun stopRestTimer() {
+        WorkoutTimerService.stop(context)
+        _uiState.update { it.copy(isResting = false, restTimeRemaining = 0, lastCompletedSetId = null) }
+    }
+
+    private fun triggerRestTimer(setLog: SetLog, customDuration: Int? = null) {
+        val duration = customDuration ?: when (setLog.type) {
+            SetType.WARMUP -> _uiState.value.warmupSetRestTime
+            SetType.DROP -> _uiState.value.dropSetRestTime
+            else -> _uiState.value.workSetRestTime
+        }
+        
+        if (duration > 0) {
+            _uiState.update { it.copy(
+                isResting = true,
+                restTimerTotalSeconds = duration,
+                restTimeRemaining = duration,
+                lastCompletedSetId = setLog.id
+            ) }
+            WorkoutTimerService.start(context, duration)
+        }
+    }
+
+    fun skipRestTimer() {
+        stopRestTimer()
+    }
+
+    fun adjustRestTimer(seconds: Int) {
+        val intent = Intent(context, WorkoutTimerService::class.java).apply {
+            action = WorkoutTimerService.ACTION_ADD_TIME
+            putExtra(WorkoutTimerService.EXTRA_SECONDS, seconds)
+        }
+        context.startService(intent)
+    }
+
+    fun updateWorkSetRestTime(seconds: Int) {
+        viewModelScope.launch { healthPrefs.setWorkSetRestTime(seconds) }
+    }
+
+    fun updateWarmupSetRestTime(seconds: Int) {
+        viewModelScope.launch { healthPrefs.setWarmupSetRestTime(seconds) }
+    }
+
+    fun updateDropSetRestTime(seconds: Int) {
+        viewModelScope.launch { healthPrefs.setDropSetRestTime(seconds) }
+    }
+
+    fun updateRestTimerMode(mode: RestTimerMode) {
+        viewModelScope.launch { healthPrefs.setRestTimerMode(mode) }
     }
 
     fun updateZoomLevel(zoom: Float) {
@@ -667,8 +813,8 @@ class WorkoutViewModel @Inject constructor(
     }
 
     private fun startWorkoutTimer() {
-        timerJob?.cancel()
-        timerJob = viewModelScope.launch {
+        workoutDurationJob?.cancel()
+        workoutDurationJob = viewModelScope.launch {
             while (true) {
                 kotlinx.coroutines.delay(1000)
                 if (!_uiState.value.isPaused) {
@@ -949,7 +1095,7 @@ class WorkoutViewModel @Inject constructor(
                 workoutDurationSeconds = 0,
                 workoutPhase = RestPausePhase.NOT_ACTIVE
             ) }
-            timerJob?.cancel()
+            workoutDurationJob?.cancel()
         }
     }
 
@@ -1036,10 +1182,11 @@ class WorkoutViewModel @Inject constructor(
         val phase = _uiState.value.workoutPhase
         val clusterIndex = if (type == SetType.REST_PAUSE) {
             when (phase) {
+                RestPausePhase.NOT_ACTIVE -> 1 // Start new cluster
                 RestPausePhase.MINI_SET_1 -> 1
                 RestPausePhase.MINI_SET_2 -> 2
                 RestPausePhase.MINI_SET_3 -> 3
-                else -> null
+                else -> 1 // Fallback to 1 if we're in a weird state
             }
         } else null
 
@@ -1072,6 +1219,7 @@ class WorkoutViewModel @Inject constructor(
             updateComparisonText(workoutLog.exerciseId)
             
             if (type == SetType.REST_PAUSE) {
+                expandToCluster(setLog)
                 handleRestPauseLogic(setLog)
             }
         }
@@ -1120,15 +1268,34 @@ class WorkoutViewModel @Inject constructor(
             goalReps ?: currentBase.goalReps
         }
 
+        // If changing AWAY from RestPause, clear the index
+        val newClusterIndex = if (type != null && type != SetType.REST_PAUSE) {
+            null
+        } else if (type == SetType.REST_PAUSE && currentBase.type != SetType.REST_PAUSE) {
+            1
+        } else {
+            currentBase.clusterMiniSetIndex
+        }
+
         val updatedSet = currentBase.copy(
             weight = weight ?: currentBase.weight,
             reps = reps ?: currentBase.reps,
             type = newType,
             goalReps = newGoalReps,
-            isCompleted = isCompleted ?: currentBase.isCompleted
+            isCompleted = isCompleted ?: currentBase.isCompleted,
+            clusterMiniSetIndex = newClusterIndex
         )
+
+        // UX: If user entered reps but weight is still 0, auto-fill from history/bodyweight
+        val finalWeight = if (reps != null && reps > 0 && updatedSet.weight == 0f) {
+            getAutoFillWeight(updatedSet)
+        } else {
+            updatedSet.weight
+        }
+
+        val finalizedSet = updatedSet.copy(weight = finalWeight)
         
-        pendingUpdates[setLog.id] = updatedSet
+        pendingUpdates[setLog.id] = finalizedSet
         
         updateJobs[setLog.id]?.cancel()
         updateJobs[setLog.id] = viewModelScope.launch {
@@ -1137,7 +1304,7 @@ class WorkoutViewModel @Inject constructor(
                 kotlinx.coroutines.delay(300)
             }
             
-            repository.saveSetLog(updatedSet)
+            repository.saveSetLog(finalizedSet)
             pendingUpdates.remove(setLog.id)
             
             val log = _uiState.value.logs.find { it.second.any { s -> s.id == setLog.id } }?.first
@@ -1145,49 +1312,104 @@ class WorkoutViewModel @Inject constructor(
                 updateComparisonText(log.exerciseId)
             }
 
-            if (updatedSet.type == SetType.REST_PAUSE) {
-                handleRestPauseLogic(updatedSet)
+            // Cleanup extra sets if we moved away from RP
+            if (type != null && type != SetType.REST_PAUSE && currentBase.type == SetType.REST_PAUSE) {
+                val setsForLog = _uiState.value.logs.find { it.first.id == finalizedSet.workoutLogId }?.second ?: emptyList()
+                setsForLog.filter { it.id != finalizedSet.id && it.clusterMiniSetIndex != null }.forEach {
+                    repository.deleteSetLog(it.id)
+                }
             }
 
-            if (updatedSet.type == SetType.GS && isCompleted == true) {
-                handleGiantSetLogic(updatedSet)
+            if (finalizedSet.type == SetType.REST_PAUSE) {
+                handleRestPauseLogic(finalizedSet)
             }
 
-            if (type == SetType.REST_PAUSE && setLog.clusterMiniSetIndex == null) {
-                expandToCluster(setLog)
+            if (finalizedSet.type == SetType.GS && isCompleted == true) {
+                handleGiantSetLogic(finalizedSet)
+            }
+
+            // Auto-start rest timer for appropriate sets if enabled
+            if (isCompleted == true && _uiState.value.isAutoStartTimerEnabled && finalizedSet.clusterMiniSetIndex == null) {
+                triggerRestTimer(finalizedSet)
+            }
+
+            if (type == SetType.REST_PAUSE && currentBase.type != SetType.REST_PAUSE) {
+                expandToCluster(finalizedSet)
             }
         }
     }
 
-    private fun expandToCluster(setLog: SetLog) {
-        viewModelScope.launch {
-            val session = _uiState.value.session
-            val log = _uiState.value.logs.find { it.first.id == setLog.workoutLogId }?.first
-            
-            val goalReps = if (log != null) {
-                val exercise = _uiState.value.availableExercises.find { it.id == log.exerciseId }
-                exercise?.let { CyberCrappRules.getRepRangeString(it.movementType) }
-            } else setLog.goalReps
+    private fun getAutoFillWeight(setLog: SetLog): Float {
+        val state = _uiState.value
+        val log = state.logs.find { it.first.id == setLog.workoutLogId }?.first ?: return 0f
+        val exercise = state.availableExercises.find { it.id == log.exerciseId }
+        val isBW = exercise?.equipment?.contains("Bodyweight") == true || exercise?.equipment?.contains("Weighted") == true
+        val userWeight = getUserBodyweight()
+        
+        val prevSets = state.previousLogs[log.exerciseId] ?: emptyList()
+        val progressionState = state.progressionStates[log.exerciseId]
 
-            // Update original to be index 1
-            repository.saveSetLog(setLog.copy(clusterMiniSetIndex = 1, type = SetType.REST_PAUSE, goalReps = goalReps))
+        return if (setLog.clusterMiniSetIndex != null) {
+            val prevClusterSets = prevSets.filter { it.clusterMiniSetIndex != null }
+            prevClusterSets.firstOrNull()?.weight 
+                ?: progressionState?.currentWeight 
+                ?: if (isBW) userWeight else 0f
+        } else {
+            val currentSets = state.logs.find { it.first.id == setLog.workoutLogId }?.second ?: emptyList()
+            val typeSets = currentSets.filter { it.type == setLog.type && it.clusterMiniSetIndex == null }
+            val index = typeSets.indexOfFirst { it.id == setLog.id }
             
-            // Create 2 and 3 with increasing timestamps to maintain order
-            var currentTimestamp = setLog.timestamp
-            for (i in 2..3) {
-                currentTimestamp = currentTimestamp.plusMillis(1)
-                val newSet = SetLog(
-                    id = UUID.randomUUID().toString(),
-                    workoutLogId = setLog.workoutLogId,
-                    weight = setLog.weight,
-                    reps = setLog.reps,
-                    type = SetType.REST_PAUSE,
-                    clusterMiniSetIndex = i,
-                    goalReps = goalReps,
-                    timestamp = currentTimestamp
-                )
-                repository.saveSetLog(newSet)
+            val prevTypeSets = prevSets.filter { it.type == setLog.type && it.clusterMiniSetIndex == null }
+            val prevSet = prevTypeSets.getOrNull(index)
+            
+            val prevWFallback = if (setLog.type != SetType.WARMUP) {
+                progressionState?.currentWeight ?: if (isBW) userWeight else 0f
+            } else {
+                if (isBW) userWeight else 0f
             }
+            
+            if (prevSet != null && prevSet.weight > 0) prevSet.weight else prevWFallback
+        }
+    }
+
+    private suspend fun expandToCluster(setLog: SetLog) {
+        // Use the logs already present in UI state to avoid repo Flow delay
+        val currentLogs = _uiState.value.logs
+        val logPair = currentLogs.find { it.first.id == setLog.workoutLogId }
+        val setsForLog = logPair?.second ?: emptyList()
+        
+        if (setsForLog.count { it.clusterMiniSetIndex != null } >= 3) return
+
+        val log = logPair?.first
+        
+        val goalReps = if (log != null) {
+            val exercise = _uiState.value.availableExercises.find { it.id == log.exerciseId }
+            exercise?.let { CyberCrappRules.getRepRangeString(it.movementType) }
+        } else setLog.goalReps
+
+        // Update original to be index 1 (already done in updateSet, but ensure here too)
+        if (setLog.clusterMiniSetIndex != 1) {
+            repository.saveSetLog(setLog.copy(clusterMiniSetIndex = 1, type = SetType.REST_PAUSE, goalReps = goalReps))
+        }
+        
+        // Create 2 and 3 with increasing timestamps to maintain order
+        var currentTimestamp = setLog.timestamp
+        for (i in 2..3) {
+            // Double check existing indices in case state updated while running
+            if (setsForLog.any { it.clusterMiniSetIndex == i }) continue
+            
+            currentTimestamp = currentTimestamp.plusMillis(1)
+            val newSet = SetLog(
+                id = UUID.randomUUID().toString(),
+                workoutLogId = setLog.workoutLogId,
+                weight = setLog.weight,
+                reps = setLog.reps,
+                type = SetType.REST_PAUSE,
+                clusterMiniSetIndex = i,
+                goalReps = goalReps,
+                timestamp = currentTimestamp
+            )
+            repository.saveSetLog(newSet)
         }
     }
 
@@ -1370,7 +1592,7 @@ class WorkoutViewModel @Inject constructor(
                 previousLogs = emptyMap(),
                 workoutPhase = RestPausePhase.NOT_ACTIVE
             ) }
-            timerJob?.cancel()
+            workoutDurationJob?.cancel()
             sessionJob?.cancel()
         }
     }
@@ -1384,10 +1606,12 @@ class WorkoutViewModel @Inject constructor(
         if (!set.isCompleted) return
         
         val index = set.clusterMiniSetIndex ?: return
+        val isCyberCrapp = _uiState.value.session?.protocol == WorkoutProtocol.CYBER_CRAPP
+        
         val nextPhase = when (index) {
             1 -> RestPausePhase.MINI_SET_2
             2 -> RestPausePhase.MINI_SET_3
-            3 -> RestPausePhase.FINISHER
+            3 -> if (isCyberCrapp) RestPausePhase.FINISHER else RestPausePhase.NOT_ACTIVE
             else -> return
         }
 
@@ -1395,12 +1619,11 @@ class WorkoutViewModel @Inject constructor(
 
         when (nextPhase) {
             RestPausePhase.MINI_SET_2, RestPausePhase.MINI_SET_3 -> {
-                _uiState.update { it.copy(isResting = true, restTimeRemaining = 15) }
-                startRestTimer()
+                triggerRestTimer(set, 15)
             }
             RestPausePhase.FINISHER -> {
                 _uiState.update { it.copy(showCyberFinisher = true, isResting = false) }
-                timerJob?.cancel() // Stop any running rest timer
+                WorkoutTimerService.stop(context)
             }
             else -> {}
         }
@@ -1417,8 +1640,7 @@ class WorkoutViewModel @Inject constructor(
         
         if (log.order == maxOrder) {
             // "20 deep breaths" is calibrated to 60 seconds (1 minute)
-            _uiState.update { it.copy(isResting = true, restTimeRemaining = 60) }
-            startRestTimer()
+            triggerRestTimer(set, 60)
         }
     }
 
@@ -1433,21 +1655,9 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
-    private fun startRestTimer() {
-        timerJob?.cancel()
-        timerJob = viewModelScope.launch {
-            while (_uiState.value.restTimeRemaining > 0) {
-                kotlinx.coroutines.delay(1000)
-                _uiState.update { it.copy(restTimeRemaining = it.restTimeRemaining - 1) }
-            }
-            hapticService.heartbeat()
-            _uiState.update { it.copy(isResting = false) }
-        }
-    }
-
     private fun startStretchTimer() {
-        timerJob?.cancel()
-        timerJob = viewModelScope.launch {
+        stretchTimerJob?.cancel()
+        stretchTimerJob = viewModelScope.launch {
             while (_uiState.value.stretchTimeRemaining > 0) {
                 kotlinx.coroutines.delay(1000)
                 _uiState.update { it.copy(stretchTimeRemaining = it.stretchTimeRemaining - 1) }

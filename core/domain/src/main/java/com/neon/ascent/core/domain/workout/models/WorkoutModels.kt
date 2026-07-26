@@ -75,6 +75,10 @@ enum class RestPausePhase {
     NOT_ACTIVE, MINI_SET_1, MINI_SET_2, MINI_SET_3, FINISHER, LOADED_STRETCH
 }
 
+enum class RestTimerMode {
+    POPUP, INLINE, BOTH, NONE
+}
+
 enum class ExperienceLevel {
     NOVICE, INTERMEDIATE, ADVANCED
 }

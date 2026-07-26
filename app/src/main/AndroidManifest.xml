@@ -10,6 +10,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <!-- Bluetooth Permissions for 1Hz Live Heart Rate -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
@@ -107,6 +108,13 @@
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="health|connectedDevice" />
+
+        <service
+            android:name="com.neon.ascent.feature.workout.services.WorkoutTimerService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            tools:ignore="ForegroundServiceSpecialUseType" />
 
     </application>
 </manifest>
