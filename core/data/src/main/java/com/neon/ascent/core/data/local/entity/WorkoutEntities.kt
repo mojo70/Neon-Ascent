@@ -17,7 +17,10 @@ data class WorkoutSessionEntity(
     val durationSeconds: Long,
     val notes: String?,
     val experienceLevel: String,
-    val somatotype: String
+    val somatotype: String,
+    val sessionRpe: Int? = null,
+    val jointHealth: Int? = null,
+    val isDeload: Boolean = false
 )
 
 @Entity(tableName = "exercise_definitions")
@@ -31,6 +34,7 @@ data class ExerciseDefinitionEntity(
     val gifAssetPath: String?,
     val isLockedClassic: Boolean,
     val injurySubstitutions: List<String>,
+    val dangerousFor: List<String> = emptyList(),
     val movementType: String = "UNDEFINED",
     val notes: String? = null
 )
@@ -206,7 +210,15 @@ data class UserWorkoutProfileEntity(
     val activeProtocol: String?,
     val rotationIndex: Int,
     val scheduledDays: String, // JSON serialized List<ScheduledDay>
-    val deepLinkToRoutine: Boolean
+    val deepLinkToRoutine: Boolean,
+    val autoWeightIncrement: Boolean = true,
+    val weightIncrementCompound: Float = 5.0f,
+    val weightIncrementIsolation: Float = 2.5f,
+    val rirCapturePerMiniSet: Boolean = false,
+    val sequencerEnabled: Boolean = true,
+    val customSequenceIds: String = "[]",
+    val coachingHintsEnabled: Boolean = true,
+    val lastBlastStartDate: Instant? = null
 )
 
 @Entity(tableName = "workout_routines")

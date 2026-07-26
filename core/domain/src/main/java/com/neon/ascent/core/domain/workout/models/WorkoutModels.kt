@@ -9,7 +9,10 @@ data class WorkoutSession(
     val durationSeconds: Long = 0,
     val notes: String? = null,
     val experienceLevel: ExperienceLevel = ExperienceLevel.INTERMEDIATE,
-    val somatotype: Somatotype = Somatotype.MESOMORPH
+    val somatotype: Somatotype = Somatotype.MESOMORPH,
+    val sessionRpe: Int? = null,
+    val jointHealth: Int? = null,
+    val isDeload: Boolean = false
 )
 
 enum class WorkoutProtocol {
@@ -115,6 +118,7 @@ data class Exercise(
     val gifAssetPath: String? = null,
     val isLockedClassic: Boolean = false,
     val injurySubstitutions: List<String> = emptyList(),
+    val dangerousFor: List<String> = emptyList(),
     val movementType: MovementType = MovementType.UNDEFINED,
     val notes: String? = null
 )
@@ -190,7 +194,17 @@ data class UserWorkoutProfile(
     val activeProtocol: WorkoutProtocol? = null,
     val rotationIndex: Int = 0,
     val scheduledDays: List<ScheduledDay> = emptyList(),
-    val deepLinkToRoutine: Boolean = true
+    val deepLinkToRoutine: Boolean = true,
+
+    // Progression & Recovery Settings
+    val autoWeightIncrement: Boolean = true,
+    val weightIncrementCompound: Float = 5.0f,
+    val weightIncrementIsolation: Float = 2.5f,
+    val rirCapturePerMiniSet: Boolean = false,
+    val sequencerEnabled: Boolean = true,
+    val customSequenceIds: List<String> = emptyList(),
+    val coachingHintsEnabled: Boolean = true,
+    val lastBlastStartDate: Instant? = null
 )
 
 data class ScheduledDay(
@@ -229,4 +243,18 @@ data class ProgressionState(
     val consecutiveMisses: Int = 0,
     val currentWeight: Float = 0f,
     val lastRotationDate: Instant? = null
+)
+
+enum class RecoveryStatus {
+    OPTIMAL, CAUTION, DELOAD, CRITICAL
+}
+
+data class RecoveryScore(
+    val totalScore: Int, // 0-100
+    val status: RecoveryStatus,
+    val rirTrend: Float,
+    val avgJointHealth: Float,
+    val stagnationCount: Int,
+    val avgRpe: Float,
+    val plainLanguageSummary: String
 )

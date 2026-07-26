@@ -35,6 +35,8 @@ interface WorkoutRepository {
 
     fun getActiveSession(): Flow<WorkoutSession?>
 
+    fun getRecoveryScore(): Flow<RecoveryScore>
+
     fun getProgressionState(exerciseId: String): Flow<ProgressionState?>
     suspend fun saveProgressionState(state: ProgressionState)
 

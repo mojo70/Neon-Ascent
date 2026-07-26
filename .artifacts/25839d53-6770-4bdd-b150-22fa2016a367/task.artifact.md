@@ -1,29 +1,9 @@
-# Progression Engine & Rotation Mechanic Implementation Task List
-
-- [x] **Core Data & Domain Layer**
-    - [x] Update `WorkoutModels.kt` with `MovementType` and `ProgressionState`
-    - [x] Create `CyberCrappRules.kt` utility
-    - [x] Update `WorkoutEntities.kt` (Room schema updates)
-    - [x] Update `WorkoutDao.kt` for progression state persistence
-- [x] **Repository Layer**
-    - [x] Update `WorkoutRepository.kt` interface
-    - [x] Implement new methods in `WorkoutRepositoryImpl.kt`
-    - [x] Seed `MovementType` for existing exercises in library
-- [x] **ViewModel Layer**
-    - [x] Update `WorkoutUiState` to handle progression alerts and substitutions
-    - [x] Implement progression calculation in `performFinalFinish()`
-    - [x] Update `loadPreviousData()` to fetch progression status
-    - [x] Implement `forceRotate()` and `substituteExercise()` logic
-- [x] **UI Layer**
-    - [x] Implement "Weight Increase" and "Stall" banners in `WorkoutLogCard`
-    - [x] Add "Substitute Exercise" to `WorkoutExerciseActionMenu`
-    - [x] Create `ExerciseSubstitutionDialog` with 2-3 recommendations
-    - [x] Fix UI issues: pre-filled goal ranges and weight placeholders
-- [x] **Verification**
-    - [x] Verify database state and seeding
-    - [x] Manual test of weight increase flow
-    - [x] Manual test of rotation/substitution flow
-- [x] **Stability & Generalization**
-    - [x] Fix database cascade crash on Finish
-    - [x] Implement surgical session duration updates
-    - [x] Generalize Rest-Pause timer logic to `SetType.REST_PAUSE`
+- `[x]` Core Data Updates (Blast & Injury models)
+- `[x]` Expand Exercise Library with "Stability-First" alternatives
+- `[x]` Implement MacroCalculator logic
+- `[x]` Implement Blast tracking logic in WorkoutViewModel
+- `[x]` Implement Injury Guard scanning and auto-swap logic
+- `[x]` Update WorkoutLoggingScreen with Blast Week HUD and Injury Warning
+- `[x]` Update Biohacking Screen with Nutrition Macros card
+- `[x]` Final Verification & Walkthrough
+- `[x]` Added Future Missions backlog (Equipment, Blacklist, Endurance)

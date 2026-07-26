@@ -42,7 +42,7 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_11_12
         AugmentSetEntity::class,
         ProgressionStateEntity::class
     ],
-    version = 38,
+    version = 41,
     exportSchema = true
 )
 @TypeConverters(

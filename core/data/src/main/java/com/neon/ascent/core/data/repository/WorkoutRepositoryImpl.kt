@@ -9,6 +9,8 @@ import com.neon.ascent.core.data.local.entity.AugmentSetEntity
 import com.neon.ascent.core.data.mapper.*
 import com.neon.ascent.core.domain.repository.WorkoutRepository
 import com.neon.ascent.core.domain.workout.models.*
+import com.neon.ascent.core.domain.workout.rules.CyberCrappRules
+import com.neon.ascent.core.domain.workout.rules.RecoveryEngine
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -340,7 +342,8 @@ class WorkoutRepositoryImpl @Inject constructor(
                 muscleGroups = listOf("Chest", "Shoulders", "Triceps"),
                 equipment = listOf("Barbell"),
                 movementType = MovementType.COMPOUND_UPPER,
-                isLockedClassic = true
+                isLockedClassic = true,
+                dangerousFor = listOf("Shoulder Pain")
             ),
             Exercise(
                 id = "bench_press_dumbbell",
@@ -348,7 +351,8 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Unilateral dumbbell flat bench press for increased range of motion.",
                 cues = listOf("Keep dumbbells stable", "Tuck elbows slightly", "Press to center"),
                 muscleGroups = listOf("Chest", "Shoulders", "Triceps"),
-                equipment = listOf("Dumbbell")
+                equipment = listOf("Dumbbell"),
+                dangerousFor = listOf("Shoulder Pain")
             ),
             Exercise(
                 id = "incline_bench_press",
@@ -356,7 +360,8 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Barbell chest press on an incline to emphasize upper pectorals.",
                 cues = listOf("30-45 degree incline", "Bar to upper chest", "Tuck elbows slightly"),
                 muscleGroups = listOf("Chest", "Shoulders"),
-                equipment = listOf("Barbell")
+                equipment = listOf("Barbell"),
+                dangerousFor = listOf("Shoulder Pain")
             ),
             Exercise(
                 id = "incline_bench_press_dumbbell",
@@ -364,7 +369,35 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Unilateral dumbbell incline chest press for upper chest isolation.",
                 cues = listOf("Controlled descent", "Drive dumbbells upward", "Keep wrists straight"),
                 muscleGroups = listOf("Chest", "Shoulders"),
-                equipment = listOf("Dumbbell")
+                equipment = listOf("Dumbbell"),
+                dangerousFor = listOf("Shoulder Pain")
+            ),
+            Exercise(
+                id = "chest_press_hammer_strength",
+                name = "Chest Press (Hammer Strength)",
+                description = "Stability-focused plate-loaded machine press. Ideal for rest-pause to absolute failure.",
+                cues = listOf("Keep back against pad", "Explosive press", "Controlled return"),
+                muscleGroups = listOf("Chest", "Shoulders", "Triceps"),
+                equipment = listOf("Plate Loaded"),
+                movementType = MovementType.COMPOUND_UPPER
+            ),
+            Exercise(
+                id = "incline_smith_press",
+                name = "Incline Press (Smith Machine)",
+                description = "Fixed-path incline press to isolate upper chest safely.",
+                cues = listOf("Adjust bench to mid-chest", "Keep elbows tucked slightly", "Touch chest lightly"),
+                muscleGroups = listOf("Chest", "Shoulders"),
+                equipment = listOf("Machine"),
+                movementType = MovementType.COMPOUND_UPPER
+            ),
+            Exercise(
+                id = "floor_press_dumbbell",
+                name = "Floor Press (Dumbbell)",
+                description = "Dumbbell press on the floor to limit range of motion and protect the shoulders.",
+                cues = listOf("Lie flat on floor", "Pause when elbows touch floor", "Drive up explosively"),
+                muscleGroups = listOf("Chest", "Triceps"),
+                equipment = listOf("Dumbbell"),
+                movementType = MovementType.COMPOUND_UPPER
             ),
             Exercise(
                 id = "chest_press_plate_loaded",
@@ -373,6 +406,33 @@ class WorkoutRepositoryImpl @Inject constructor(
                 cues = listOf("Adjust seat height so handles are mid-chest", "Keep back flat against pad", "Press forward explosively"),
                 muscleGroups = listOf("Chest", "Triceps"),
                 equipment = listOf("Plate Loaded")
+            ),
+            Exercise(
+                id = "chest_press_hammer_strength",
+                name = "Chest Press (Hammer Strength)",
+                description = "Stability-focused plate-loaded machine press. Ideal for rest-pause to absolute failure.",
+                cues = listOf("Keep back against pad", "Explosive press", "Controlled return"),
+                muscleGroups = listOf("Chest", "Shoulders", "Triceps"),
+                equipment = listOf("Plate Loaded"),
+                movementType = MovementType.COMPOUND_UPPER
+            ),
+            Exercise(
+                id = "incline_smith_press",
+                name = "Incline Press (Smith Machine)",
+                description = "Fixed-path incline press to isolate upper chest safely.",
+                cues = listOf("Adjust bench to mid-chest", "Keep elbows tucked slightly", "Touch chest lightly"),
+                muscleGroups = listOf("Chest", "Shoulders"),
+                equipment = listOf("Machine"),
+                movementType = MovementType.COMPOUND_UPPER
+            ),
+            Exercise(
+                id = "floor_press_dumbbell",
+                name = "Floor Press (Dumbbell)",
+                description = "Dumbbell press on the floor to limit range of motion and protect the shoulders.",
+                cues = listOf("Lie flat on floor", "Pause when elbows touch floor", "Drive up explosively"),
+                muscleGroups = listOf("Chest", "Triceps"),
+                equipment = listOf("Dumbbell"),
+                movementType = MovementType.COMPOUND_UPPER
             ),
             Exercise(
                 id = "chest_fly_cable",
@@ -486,7 +546,36 @@ class WorkoutRepositoryImpl @Inject constructor(
                 cues = listOf("Hinged at hips", "Pull to upper stomach", "Squeeze shoulder blades"),
                 muscleGroups = listOf("Back", "Biceps", "Rear Delts"),
                 equipment = listOf("Barbell"),
+                movementType = MovementType.BACK_THICKNESS,
+                dangerousFor = listOf("Lower Back Pain")
+            ),
+            Exercise(
+                id = "tbar_row_chest_supported",
+                name = "T-Bar Row (Chest Supported)",
+                description = "Stability-focused row machine that eliminates lower back strain.",
+                cues = listOf("Lean chest into pad", "Drive elbows back", "Squeeze mid-back hard"),
+                muscleGroups = listOf("Back", "Biceps"),
+                equipment = listOf("Plate Loaded"),
                 movementType = MovementType.BACK_THICKNESS
+            ),
+            Exercise(
+                id = "rack_pull_below_knee",
+                name = "Rack Pull (Below Knee)",
+                description = "Partial range deadlift focused on back thickness and traps.",
+                cues = listOf("Set pins below knee", "Drag bar up shins", "Lockout hard at top"),
+                muscleGroups = listOf("Back", "Traps", "Forearms"),
+                equipment = listOf("Barbell"),
+                movementType = MovementType.BACK_THICKNESS,
+                dangerousFor = listOf("Lower Back Pain")
+            ),
+            Exercise(
+                id = "trap_bar_deadlift",
+                name = "Deadlift (Trap Bar)",
+                description = "High-stability deadlift that keeps the center of gravity aligned with the body.",
+                cues = listOf("Step inside bar", "Hips down, chest up", "Drive through floor"),
+                muscleGroups = listOf("Back", "Legs", "Traps"),
+                equipment = listOf("Specialty Bar"),
+                movementType = MovementType.POSTERIOR_CHAIN
             ),
             Exercise(
                 id = "military_press",
@@ -495,6 +584,25 @@ class WorkoutRepositoryImpl @Inject constructor(
                 cues = listOf("Squeeze glutes", "Head back to clear bar", "Punch through at top"),
                 muscleGroups = listOf("Shoulders", "Triceps"),
                 equipment = listOf("Barbell"),
+                movementType = MovementType.COMPOUND_UPPER,
+                dangerousFor = listOf("Shoulder Pain", "Lower Back Pain")
+            ),
+            Exercise(
+                id = "shoulder_press_hammer_strength",
+                name = "Shoulder Press (Hammer Strength)",
+                description = "High-stability shoulder press machine. Maximizes deltoid isolation.",
+                cues = listOf("Sit deep into seat", "Maintain arch in upper back", "Press to full lockout"),
+                muscleGroups = listOf("Shoulders", "Triceps"),
+                equipment = listOf("Plate Loaded"),
+                movementType = MovementType.COMPOUND_UPPER
+            ),
+            Exercise(
+                id = "seated_smith_overhead_press",
+                name = "Overhead Press (Smith Machine)",
+                description = "Seated fixed-path overhead press for maximum stability.",
+                cues = listOf("Set bar height at nose level", "Brace core against bench", "Punch up hard"),
+                muscleGroups = listOf("Shoulders", "Triceps"),
+                equipment = listOf("Machine"),
                 movementType = MovementType.COMPOUND_UPPER
             ),
             Exercise(
@@ -512,6 +620,24 @@ class WorkoutRepositoryImpl @Inject constructor(
                 cues = listOf("Rack KB tight against chest", "Press up in a slight arc", "Lock out fully at top"),
                 muscleGroups = listOf("Shoulders", "Triceps"),
                 equipment = listOf("Kettlebell")
+            ),
+            Exercise(
+                id = "shoulder_press_hammer_strength",
+                name = "Shoulder Press (Hammer Strength)",
+                description = "High-stability shoulder press machine. Maximizes deltoid isolation.",
+                cues = listOf("Sit deep into seat", "Maintain arch in upper back", "Press to full lockout"),
+                muscleGroups = listOf("Shoulders", "Triceps"),
+                equipment = listOf("Plate Loaded"),
+                movementType = MovementType.COMPOUND_UPPER
+            ),
+            Exercise(
+                id = "seated_smith_overhead_press",
+                name = "Overhead Press (Smith Machine)",
+                description = "Seated fixed-path overhead press for maximum stability.",
+                cues = listOf("Set bar height at nose level", "Brace core against bench", "Punch up hard"),
+                muscleGroups = listOf("Shoulders", "Triceps"),
+                equipment = listOf("Machine"),
+                movementType = MovementType.COMPOUND_UPPER
             ),
             Exercise(
                 id = "lateral_raise",
@@ -561,7 +687,35 @@ class WorkoutRepositoryImpl @Inject constructor(
                 muscleGroups = listOf("Quads", "Glutes", "Hamstrings", "Lower Back"),
                 equipment = listOf("Barbell"),
                 movementType = MovementType.QUAD_DOMINANT,
-                isLockedClassic = true
+                isLockedClassic = true,
+                dangerousFor = listOf("Knee Pain", "Lower Back Pain")
+            ),
+            Exercise(
+                id = "hack_squat_machine",
+                name = "Hack Squat (Machine)",
+                description = "Fixed-path squat focusing on the quadriceps with full back support.",
+                cues = listOf("Shoulders against pads", "Feet low on platform for quads", "Push up and release handles"),
+                muscleGroups = listOf("Quads", "Glutes"),
+                equipment = listOf("Machine"),
+                movementType = MovementType.QUAD_DOMINANT
+            ),
+            Exercise(
+                id = "belt_squat",
+                name = "Belt Squat",
+                description = "Lower body squat that removes all spinal loading. Ideal for lower back issues.",
+                cues = listOf("Secure belt to hips", "Stand tall to release weight", "Sit deep into the hole"),
+                muscleGroups = listOf("Quads", "Glutes"),
+                equipment = listOf("Machine"),
+                movementType = MovementType.QUAD_DOMINANT
+            ),
+            Exercise(
+                id = "pendulum_squat",
+                name = "Pendulum Squat",
+                description = "Arc-path machine squat that provides incredible quad stretch and stability.",
+                cues = listOf("Maintain back contact", "Slow controlled negative", "Drive through mid-foot"),
+                muscleGroups = listOf("Quads"),
+                equipment = listOf("Machine"),
+                movementType = MovementType.QUAD_DOMINANT
             ),
             Exercise(
                 id = "front_squat",
@@ -687,7 +841,8 @@ class WorkoutRepositoryImpl @Inject constructor(
                 muscleGroups = listOf("Hamstrings", "Glutes", "Back", "Forearms"),
                 equipment = listOf("Barbell"),
                 movementType = MovementType.DEADLIFT,
-                isLockedClassic = true
+                isLockedClassic = true,
+                dangerousFor = listOf("Lower Back Pain")
             ),
             Exercise(
                 id = "kettlebell_swings",
@@ -746,7 +901,7 @@ class WorkoutRepositoryImpl @Inject constructor(
                 muscleGroups = listOf("Biceps", "Brachialis"),
                 equipment = listOf("Dumbbell"),
                 movementType = MovementType.ISOLATION_UPPER,
-                gifAssetPath = "exercises/jerry_curl.gif"
+ gifAssetPath = "exercises/jerry_curl.gif"
             ),
             Exercise(
                 id = "jerry_curl_kettlebell",
@@ -795,7 +950,17 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Tricep isolation.",
                 cues = listOf("Elbows tucked", "Lower to forehead", "Full lockout"),
                 muscleGroups = listOf("Triceps"),
-                equipment = listOf("EZ-Bar")
+                equipment = listOf("EZ-Bar"),
+                dangerousFor = listOf("Elbow Pain")
+            ),
+            Exercise(
+                id = "close_grip_smith_press",
+                name = "Close Grip Press (Smith Machine)",
+                description = "High-stability tricep focused press.",
+                cues = listOf("Grip shoulder-width", "Touch lower chest", "Full tricep lockout"),
+                muscleGroups = listOf("Triceps", "Chest"),
+                equipment = listOf("Machine"),
+                movementType = MovementType.ISOLATION_UPPER
             ),
             Exercise(
                 id = "dip_bodyweight",
@@ -999,6 +1164,15 @@ class WorkoutRepositoryImpl @Inject constructor(
 
     override fun getActiveSession(): Flow<WorkoutSession?> =
         workoutDao.getActiveSession().map { it?.toDomain() }
+
+    override fun getRecoveryScore(): Flow<RecoveryScore> =
+        getFullHistory().map { history ->
+            val recentSessions = history.take(5)
+            val allProgressionStates = workoutDao.getExerciseDefinitions().first().map {
+                workoutDao.getProgressionState(it.id).first()?.toDomain() ?: ProgressionState(it.id)
+            }
+            RecoveryEngine.calculateScore(recentSessions, allProgressionStates)
+        }
 
     override fun getProgressionState(exerciseId: String): Flow<ProgressionState?> =
         workoutDao.getProgressionState(exerciseId).map { it?.toDomain() }

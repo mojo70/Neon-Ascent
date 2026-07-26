@@ -15,6 +15,10 @@ import com.neon.ascent.model.TerminalEvent
 import com.neon.ascent.core.data.local.dao.NeuralMemoryDao
 import com.neon.ascent.core.data.local.entity.NeuralMemory
 import com.neon.ascent.core.data.datastore.HealthPreferencesDataStore
+import com.neon.ascent.core.domain.repository.WorkoutRepository
+import com.neon.ascent.core.domain.workout.models.UserWorkoutProfile
+import com.neon.ascent.core.domain.workout.rules.MacroCalculator
+import com.neon.ascent.core.domain.workout.rules.Macros
 import com.neon.ascent.feature.health.data.uplink.NeuralUplinkManager
 import com.neon.ascent.feature.health.domain.uplink.UplinkSyncStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -38,6 +42,7 @@ class BiohackingViewModel @Inject constructor(
     private val healthRepository: HealthRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val healthPrefs: HealthPreferencesDataStore,
+    private val workoutRepository: WorkoutRepository,
     private val taskRepository: TaskRepository,
     private val goalRepository: GoalRepository,
     private val aiProvider: AiProvider,
@@ -65,6 +70,9 @@ class BiohackingViewModel @Inject constructor(
 
     private val _latestReport = MutableStateFlow<String?>(null)
     val latestReport: StateFlow<String?> = _latestReport.asStateFlow()
+
+    private val _macros = MutableStateFlow<Macros?>(null)
+    val macros: StateFlow<Macros?> = _macros.asStateFlow()
 
     val neuralInsights: StateFlow<List<NeuralMemory>> = neuralMemoryDao.getMemoriesByWing("INSIGHTS")
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -169,6 +177,17 @@ class BiohackingViewModel @Inject constructor(
         viewModelScope.launch {
             _selectedTimeRange.collectLatest { days ->
                 fetchTrends(days)
+            }
+        }
+        loadBioMacros()
+    }
+
+    private fun loadBioMacros() {
+        viewModelScope.launch {
+            workoutRepository.getUserProfile("default_user").collect { profile ->
+                if (profile != null) {
+                    _macros.value = MacroCalculator.calculateMacros(profile)
+                }
             }
         }
     }

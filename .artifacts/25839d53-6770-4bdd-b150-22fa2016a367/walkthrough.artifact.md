@@ -1,36 +1,31 @@
-# Progression Engine & Logic Generalization Walkthrough
+# Blast blocks, Injury Guard, and Nutrition Uplink
 
-I have implemented the core logic for progressive overload, exercise rotation, and generalized the rest-pause mechanics across all training protocols.
+This update integrates intelligent physiological tracking and safety features, completing the "High Fidelity" CyberCrapp experience and enhancing adaptive custom workouts.
 
-## Key Implementation Details
+## 🚀 Key Features
 
-### 1. Domain & Data Layer Enhancements
-- **[MovementType](file:///Users/joeevans/StudioProjects/Neon-Ascent/core/domain/src/main/java/com/neon/ascent/core/domain/workout/models/WorkoutModels.kt)**: Exercises are now categorized into specific types (Compound Upper, Back Thickness, Quad Dominant, etc.) to apply correct rep ranges.
-- **[ProgressionState](file:///Users/joeevans/StudioProjects/Neon-Ascent/core/data/src/main/java/com/neon/ascent/core/data/local/entity/WorkoutEntities.kt)**: A new Room table tracks performance history (best cluster reps, consecutive misses) for every exercise.
-- **[RestPausePhase](file:///Users/joeevans/StudioProjects/Neon-Ascent/core/domain/src/main/java/com/neon/ascent/core/domain/workout/models/WorkoutModels.kt)**: Generalized the phase management for high-intensity sets.
+### Blast Block Tracker
+The app now tracks your high-intensity training blocks (Blasts) automatically.
+- **Dynamic Calculation**: "BLAST WEEK X" appears on your dashboard, calculated from your first full-intensity session after a deload.
+- **Auto-Reset**: Reset occurs automatically upon completion of a "Soft Deload" session, allowing your connective tissues to recover.
 
-### 2. Intelligent Feedback System
-- **Next-Session Alerts**: Neon banners appear for "Weight Increase Due" or "Stall Detected" based on your performance in the previous session.
-- **Pre-filled Goals**: Correct rep ranges (e.g., "11-20", "5-10" for warmups) are automatically populated in the GOAL column.
-- **Smart Placeholders**: The LBS box shows your previous session's weight as a placeholder, and bodyweight exercises pre-fill your actual weight from your profile.
+### 🛡️ Injury Guard & Stable Library
+The app now proactively protects your joints by scanning your routines for contraindications.
+- **Neural Scanning**: When starting a routine, the app cross-references your listed injuries (e.g., "Shoulder Pain") with the exercise requirements.
+- **Stable Alternatives**: Added 12+ new "Stability-First" exercises (Hammer Strength, Smith Machine, etc.) to serve as safe replacements.
+- **Neural Swap**: One tap "Auto-Swap" instantly replaces high-risk movements with safe, high-stability alternatives from the library.
 
-### 3. Generalized Rest-Pause Mechanics
-- **Timer Generalization**: The 15-second rest-pause timer between mini-sets is now tied directly to the `REST_PAUSE` set type. It triggers automatically in any protocol, not just CyberCrapp.
-- **Phase Management**: Renamed `cyberCrappPhase` to `workoutPhase` to reflect its availability across the entire logging engine.
+### 🍱 Biometric Nutrition Uplink
+Nutrition targets are now visible in the Biohacking hub, adjusted for your training and somatotype.
+- **MacroCalculator**: Implemented the Mifflin-St Jeor equation with somatotype modifiers.
+- **Adaptive Targets**: Protein, Carbs, and Fats are calculated based on your protocol intensity and goal.
+- **Visual Breakdown**: High-contrast chart showing your daily calorie and macronutrient split.
 
-### 4. Stability & Reliability
-- **Surgical Updates**: Moved away from destructive database replaces. Updating session time no longer risks wiping your log data.
-- **Robust Matching**: History matching now correctly aligns warmup and working sets by their index, ensuring "Previous" data is always accurate.
+## 🧠 Technical Implementation
+- **Database v41**: Schema updated to persist Blast dates and exercise risk tags.
+- **Macro Logic**: Centralized logic for TDEE and nutritional distribution in `core:domain`.
+- **UI HUD**: Integrated Blast Week into the active workout header for real-time motivation.
 
-## Verification Status
-
-### Automated Tests
-- Validated `CyberCrappRules` mapping.
-- Verified Room non-destructive updates.
-- **Build finished successfully.**
-
-### Manual Testing
-- [x] Verified Rest-Pause timer works in "General" protocol.
-- [x] Verified bodyweight pre-filling for calisthenics.
-- [x] Verified "Finish" stability and data persistence.
-- [x] Verified JSON history export from the Progress screen.
+---
+> [!TIP]
+> Make sure your **Injuries** are updated in your Profile to enable the full functionality of the **Injury Guard** neural link!

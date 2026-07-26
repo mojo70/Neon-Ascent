@@ -71,6 +71,7 @@ fun BiohackingScreen(
     val neuralInsights by viewModel.neuralInsights.collectAsState()
     val uplinkSyncStatuses by viewModel.uplinkSyncStatuses.collectAsState()
     val isLiveMonitoringEnabled by viewModel.liveMonitoringEnabled.collectAsState()
+    val macros by viewModel.macros.collectAsState()
     val selectedTimeRange by viewModel.selectedTimeRange.collectAsState()
     val context = LocalContext.current
 
@@ -256,6 +257,16 @@ fun BiohackingScreen(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
+
+            // Nutrition Macros Uplink
+            macros?.let {
+                NutritionMacrosCard(
+                    macros = it,
+                    neonCyan = neonCyan,
+                    neonMagenta = neonMagenta
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+            }
 
             // Biometric Trends Section
             BiometricTrendsSection(
@@ -1399,6 +1410,49 @@ fun TrendCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun NutritionMacrosCard(macros: com.neon.ascent.core.domain.workout.rules.Macros, neonCyan: Color, neonMagenta: Color) {
+    CyberFrame(label = "BIOMETRIC_NUTRITION_UPLINK", borderColor = neonCyan) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text("DAILY_TARGET", color = Color.Gray, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                    Text("${macros.calories}", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Black)
+                    Text("KCAL", color = neonCyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
+                
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    MacroSubStat("PRO", "${macros.protein}g", neonCyan)
+                    MacroSubStat("CHO", "${macros.carbs}g", Color.White)
+                    MacroSubStat("FAT", "${macros.fat}g", neonMagenta)
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Visual breakdown bar
+            Row(modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp))) {
+                val total = (macros.protein * 4 + macros.carbs * 4 + macros.fat * 9).toFloat()
+                Box(Modifier.weight(macros.protein * 4 / total).fillMaxHeight().background(neonCyan))
+                Box(Modifier.weight(macros.carbs * 4 / total).fillMaxHeight().background(Color.White.copy(alpha = 0.6f)))
+                Box(Modifier.weight(macros.fat * 9 / total).fillMaxHeight().background(neonMagenta))
+            }
+        }
+    }
+}
+
+@Composable
+fun MacroSubStat(label: String, value: String, color: Color) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(label, color = color, fontSize = 8.sp, fontWeight = FontWeight.Black)
+        Text(value, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
     }
 }
 

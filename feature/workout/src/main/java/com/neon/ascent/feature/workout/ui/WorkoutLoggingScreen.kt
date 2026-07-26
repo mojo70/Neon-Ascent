@@ -141,6 +141,13 @@ fun WorkoutLoggingScreen(
                                 viewModel.hideExploreProtocols()
                             }
                         )
+                    } else if (uiState.isShowingSettings) {
+                        WorkoutSettingsScreen(
+                            uiState = uiState,
+                            onBack = { viewModel.hideSettings() },
+                            onSave = { viewModel.saveWorkoutSettings() },
+                            onUpdateProfile = { viewModel.updateTempSettingsProfile(it) }
+                        )
                     } else if (uiState.selectedProtocolForDetail != null) {
                         ProtocolDetailScreen(
                             protocol = uiState.selectedProtocolForDetail!!,
@@ -159,8 +166,8 @@ fun WorkoutLoggingScreen(
                             uiState = uiState,
                             onBack = onBack,
                             onShowProgress = { viewModel.showProgress() },
-                            onStartProtocol = { viewModel.startSession(it) },
-                            onStartRoutine = { viewModel.startRoutine(it) },
+                            onStartProtocol = { protocol, deload -> viewModel.startSession(protocol, deload) },
+                            onStartRoutine = { routine, deload -> viewModel.handleRoutineSelection(routine, deload) },
                             onStartAugment = { viewModel.startAugment(it) },
                             onCreateRoutine = { viewModel.startCreateRoutine() },
                             onCreateAugment = { viewModel.startCreateAugment() },
@@ -169,7 +176,8 @@ fun WorkoutLoggingScreen(
                             onExplore = { viewModel.startExploreProtocols() },
                             onAddAugment = { viewModel.toggleAugmentLibrary(it) },
                             onAddRoutine = { viewModel.toggleRoutineLibrary(it) },
-                            onDeactivateProtocol = { viewModel.initiateDeactivateProtocol() }
+                            onDeactivateProtocol = { viewModel.initiateDeactivateProtocol() },
+                            onShowSettings = { viewModel.showSettings() }
                         )
                     }
                 } else if (uiState.isReorderingExercises) {
@@ -214,7 +222,7 @@ fun WorkoutLoggingScreen(
                                 },
                                 onDiscard = { viewModel.discardWorkout() }
                             )
-                            WorkoutSummaryBar(uiState, onToggleSomatotype = { viewModel.toggleSomatotypeInfluence() })
+                            WorkoutSummaryBar(uiState, viewModel, onToggleSomatotype = { viewModel.toggleSomatotypeInfluence() })
                             
                             if (uiState.somatotypeNudgeText != null) {
                                 SomatotypeBadge(uiState.somatotypeNudgeText!!, uiState.userProfile?.somatotype)
@@ -433,6 +441,109 @@ fun WorkoutLoggingScreen(
                 onSkip = { viewModel.skipRestTimer() }
             )
         }
+        if (uiState.showPostWorkoutCheckIn) {
+            PostWorkoutCheckInDialog(
+                onFinish = { rpe: Int, joint: Int -> viewModel.submitPostWorkoutCheckIn(rpe, joint) },
+                onCancel = { viewModel.cancelPostWorkoutCheckIn() }
+            )
+        }
+
+        if (uiState.showSequenceOverrideDialog && uiState.pendingSequenceRoutine != null) {
+            SequenceOverrideDialog(
+                routine = uiState.pendingSequenceRoutine!!,
+                onConfirm = { viewModel.confirmSequenceOverride(it) },
+                onDismiss = { viewModel.dismissSequenceOverride() }
+            )
+        }
+
+        if (uiState.showInjuryWarningDialog && uiState.pendingInjuryRoutine != null) {
+            InjuryWarningDialog(
+                injuredExercises = uiState.injuredExercises,
+                onAutoSwap = { viewModel.confirmInjuryAutoSwap() },
+                onIgnore = { viewModel.ignoreInjuryWarning() }
+            )
+        }
+    }
+}
+
+@Composable
+fun PostWorkoutCheckInDialog(
+    onFinish: (Int, Int) -> Unit,
+    onCancel: () -> Unit
+) {
+    var rpe by remember { mutableFloatStateOf(7f) }
+    var jointHealth by remember { mutableFloatStateOf(1f) }
+
+    Dialog(onDismissRequest = onCancel) {
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            color = Color(0xFF050505),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.5f))
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(
+                    "INTENSITY & WELLNESS",
+                    color = Color(0xFF00FF9C),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 2.sp
+                )
+                
+                Spacer(Modifier.height(24.dp))
+
+                Text("SESSION RPE: ${rpe.toInt()}", color = Color.White, fontWeight = FontWeight.Bold)
+                Text(
+                    when {
+                        rpe < 4 -> "Light recovery work."
+                        rpe < 7 -> "Moderate training effort."
+                        rpe < 9 -> "Hard session. Near limit."
+                        else -> "Max effort. All-out intensity."
+                    },
+                    color = Color.Gray,
+                    fontSize = 12.sp
+                )
+                Slider(
+                    value = rpe,
+                    onValueChange = { rpe = it },
+                    valueRange = 1f..10f,
+                    steps = 8,
+                    colors = SliderDefaults.colors(thumbColor = Color(0xFF00FF9C), activeTrackColor = Color(0xFF00FF9C))
+                )
+
+                Spacer(Modifier.height(24.dp))
+
+                Text("JOINT PAIN: ${jointHealth.toInt()}", color = Color.White, fontWeight = FontWeight.Bold)
+                Text(
+                    when {
+                        jointHealth < 2 -> "Pain-free / Feeling strong."
+                        jointHealth < 3 -> "Mild stiffness or fatigue."
+                        jointHealth < 4 -> "Significant aches. Use caution."
+                        else -> "Sharp pain. Immediate recovery needed."
+                    },
+                    color = Color.Gray,
+                    fontSize = 12.sp
+                )
+                Slider(
+                    value = jointHealth,
+                    onValueChange = { jointHealth = it },
+                    valueRange = 1f..5f,
+                    steps = 3,
+                    colors = SliderDefaults.colors(thumbColor = Color(0xFFFF006E), activeTrackColor = Color(0xFFFF006E))
+                )
+
+                Spacer(Modifier.height(32.dp))
+
+                Button(
+                    onClick = { onFinish(rpe.toInt(), jointHealth.toInt()) },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("FINISH & LOG BIOMETRICS", color = Color.Black, fontWeight = FontWeight.Black)
+                }
+            }
+        }
     }
 }
 
@@ -512,11 +623,12 @@ fun ActiveWorkoutHeader(
                 Text("Finish", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
             }
         }
+
     }
 }
 
 @Composable
-fun WorkoutSummaryBar(uiState: WorkoutUiState, onToggleSomatotype: () -> Unit = {}) {
+fun WorkoutSummaryBar(uiState: WorkoutUiState, viewModel: WorkoutViewModel, onToggleSomatotype: () -> Unit = {}) {
     val totalVolume = remember(uiState.logs) {
         uiState.logs.sumOf { (_, sets) -> 
             sets.sumOf { (it.weight * it.reps).toDouble() }
@@ -534,6 +646,10 @@ fun WorkoutSummaryBar(uiState: WorkoutUiState, onToggleSomatotype: () -> Unit = 
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
+        val blastWeek = viewModel.getBlastWeek()
+        if (blastWeek != null) {
+            SummaryStat("Blast", "Week $blastWeek", Color(0xFF00FF9C))
+        }
         SummaryStat("Duration", "${durationMinutes}m", Color(0xFF007AFF))
         SummaryStat("Volume", "%,d lbs".format(totalVolume), Color.White)
         SummaryStat("Sets", "$totalSets", Color.White)
@@ -546,6 +662,7 @@ fun WorkoutSummaryBar(uiState: WorkoutUiState, onToggleSomatotype: () -> Unit = 
                 modifier = Modifier.size(20.dp)
             )
         }
+
     }
 }
 
@@ -573,6 +690,7 @@ fun SomatotypeBadge(text: String, somatotype: Somatotype?) {
             fontWeight = FontWeight.Black,
             letterSpacing = 1.sp
         )
+
     }
 }
 
@@ -581,6 +699,7 @@ fun SummaryStat(label: String, value: String, valueColor: Color) {
     Column {
         Text(label, color = Color.Gray, fontSize = 12.sp)
         Text(value, color = valueColor, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+
     }
 }
 
@@ -589,8 +708,8 @@ fun WorkoutIntakeScreen(
     uiState: WorkoutUiState,
     onBack: () -> Unit,
     onShowProgress: () -> Unit,
-    onStartProtocol: (WorkoutProtocol) -> Unit,
-    onStartRoutine: (WorkoutRoutine) -> Unit,
+    onStartProtocol: (WorkoutProtocol, Boolean) -> Unit,
+    onStartRoutine: (WorkoutRoutine, Boolean) -> Unit,
     onStartAugment: (WorkoutAugment) -> Unit,
     onCreateRoutine: () -> Unit,
     onCreateAugment: () -> Unit,
@@ -599,7 +718,8 @@ fun WorkoutIntakeScreen(
     onExplore: () -> Unit,
     onAddAugment: (WorkoutAugment) -> Unit,
     onAddRoutine: (WorkoutRoutine) -> Unit,
-    onDeactivateProtocol: () -> Unit
+    onDeactivateProtocol: () -> Unit,
+    onShowSettings: () -> Unit
 ) {
     var isRoutinesExpanded by remember { mutableStateOf(true) }
     var isAugmentsExpanded by remember { mutableStateOf(true) }
@@ -632,6 +752,14 @@ fun WorkoutIntakeScreen(
                 )
             }
             Row {
+                IconButton(onClick = onShowSettings) {
+                    Icon(
+                        Icons.Default.Settings,
+                        contentDescription = "Settings",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
                 IconButton(onClick = onShowProgress) {
                     Icon(
                         Icons.AutoMirrored.Filled.TrendingUp,
@@ -661,9 +789,34 @@ fun WorkoutIntakeScreen(
             Spacer(modifier = Modifier.height(24.dp))
         }
 
+        // NEXT MISSION SEQUENCER
+        uiState.nextSequencedRoutine?.let { routine ->
+            NextMissionCard(
+                routine = routine,
+                onStart = { onStartRoutine(routine, false) }
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+
+        // RECOVERY BRAIN DASHBOARD
+        uiState.recoveryScore?.let { score ->
+            RecoveryScoreCard(
+                score = score, 
+                onStartDeload = {
+                    val activeRoutine = uiState.routines.find { it.protocol == uiState.userProfile?.activeProtocol }
+                    if (activeRoutine != null) {
+                        onStartRoutine(activeRoutine, true)
+                    } else {
+                        onStartProtocol(uiState.userProfile?.activeProtocol ?: WorkoutProtocol.GENERAL, true)
+                    }
+                }
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+
         // Start Empty Workout Button
         Button(
-            onClick = { onStartProtocol(WorkoutProtocol.GENERAL) },
+            onClick = { onStartProtocol(WorkoutProtocol.GENERAL, false) },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
@@ -755,7 +908,7 @@ fun WorkoutIntakeScreen(
             uiState.routines.forEach { routine ->
                 RoutineCard(
                     routine = routine, 
-                    onStart = { onStartRoutine(routine) },
+                    onStart = { onStartRoutine(routine, false) },
                     onActionClick = { onRoutineActionClick(routine) }
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -799,6 +952,255 @@ fun WorkoutIntakeScreen(
         }
         
         Spacer(modifier = Modifier.height(100.dp))
+
+    }
+}
+
+@Composable
+fun NextMissionCard(routine: WorkoutRoutine, onStart: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable { onStart() },
+        color = Color(0xFF00FF9C).copy(alpha = 0.05f),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.5f))
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier.size(48.dp).background(Color(0xFF00FF9C).copy(alpha = 0.1f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color(0xFF00FF9C))
+            }
+            
+            Spacer(Modifier.width(20.dp))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "NEXT MISSION",
+                    color = Color(0xFF00FF9C),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 2.sp
+                )
+                Text(
+                    routine.name,
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Black
+                )
+                Text(
+                    routine.exercises.take(3).joinToString(", ") { it.exercise.name } + if (routine.exercises.size > 3) "..." else "",
+                    color = Color.Gray,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = Color(0xFF00FF9C))
+        }
+    }
+}
+
+@Composable
+fun SequenceOverrideDialog(
+    routine: WorkoutRoutine,
+    onConfirm: (Boolean) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1C1C1E),
+        title = { 
+            Text(
+                "OFF-MISSION DETECTED", 
+                color = Color(0xFFFF006E), 
+                fontWeight = FontWeight.Black,
+                letterSpacing = 2.sp,
+                fontSize = 18.sp
+            ) 
+        },
+        text = {
+            Column {
+                Text(
+                    "You've selected ${routine.name}, but a different routine was due in your rotation.",
+                    color = Color.White
+                )
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    "Would you like to update your sequence baseline to this routine, or treat this as a one-off session?",
+                    color = Color.Gray,
+                    fontSize = 14.sp
+                )
+            }
+        },
+        confirmButton = {
+            Column(Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = { onConfirm(true) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("UPDATE SEQUENCE BASELINE", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+                Spacer(Modifier.height(8.dp))
+                TextButton(
+                    onClick = { onConfirm(false) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("ONE-OFF SESSION (KEEP SEQUENCE)", color = Color.White)
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("CANCEL", color = Color.Gray)
+            }
+        }
+    )
+}
+
+@Composable
+fun InjuryWarningDialog(
+    injuredExercises: List<Pair<Exercise, List<Exercise>>>,
+    onAutoSwap: () -> Unit,
+    onIgnore: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onIgnore,
+        containerColor = Color(0xFF1C1C1E),
+        title = { 
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFFF006E))
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    "INJURY GUARD DETECTED", 
+                    color = Color(0xFFFF006E), 
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp,
+                    fontSize = 16.sp
+                )
+            }
+        },
+        text = {
+            Column {
+                Text(
+                    "The following exercises in this routine are contraindicated for your current injuries:",
+                    color = Color.White,
+                    fontSize = 14.sp
+                )
+                Spacer(Modifier.height(16.dp))
+                injuredExercises.forEach { (highRisk, alternatives) ->
+                    Column(modifier = Modifier.padding(bottom = 12.dp)) {
+                        Text(highRisk.name, color = Color(0xFFFF006E), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        if (alternatives.isNotEmpty()) {
+                            Text("Safe swap: ${alternatives.first().name}", color = Color.Gray, fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onAutoSwap,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("NEURAL SWAP (STABILITY-FIRST)", color = Color.Black, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onIgnore,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("IGNORE & PROCEED AT RISK", color = Color.White.copy(alpha = 0.6f))
+            }
+        }
+    )
+}
+
+@Composable
+fun RecoveryScoreCard(score: RecoveryScore, onStartDeload: () -> Unit) {
+    val color = when (score.status) {
+        RecoveryStatus.OPTIMAL -> Color(0xFF00FF9C)
+        RecoveryStatus.CAUTION -> Color(0xFFFFD700)
+        RecoveryStatus.DELOAD -> Color(0xFFFF006E)
+        RecoveryStatus.CRITICAL -> Color(0xFFFF0000)
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = Color(0xFF1C1C1E),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.5f))
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "RECOVERY BRAIN",
+                        color = color,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 2.sp
+                    )
+                    Text(
+                        score.status.name,
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+                
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(60.dp)) {
+                    CircularProgressIndicator(
+                        progress = { score.totalScore / 100f },
+                        modifier = Modifier.fillMaxSize(),
+                        color = color,
+                        trackColor = Color.White.copy(alpha = 0.1f),
+                        strokeWidth = 6.dp,
+                        strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
+                    )
+                    Text(
+                        "${score.totalScore}",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                score.plainLanguageSummary,
+                color = Color.Gray,
+                fontSize = 13.sp,
+                lineHeight = 18.sp
+            )
+
+            if (score.status == RecoveryStatus.DELOAD || score.status == RecoveryStatus.CRITICAL) {
+                Spacer(modifier = Modifier.height(20.dp))
+                Button(
+                    onClick = onStartDeload,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = color),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("START SOFT DELOAD SESSION", color = Color.Black, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                }
+            }
+        }
     }
 }
 
@@ -876,6 +1278,7 @@ fun ActiveProtocolCard(protocol: WorkoutProtocol, onDeactivate: () -> Unit) {
                 )
             }
         }
+
     }
 }
 
@@ -902,6 +1305,7 @@ fun IntakeActionButton(
             Spacer(modifier = Modifier.width(8.dp))
             Text(label, color = Color.White, fontWeight = FontWeight.Medium, fontSize = 15.sp)
         }
+
     }
 }
 
@@ -952,6 +1356,7 @@ fun RoutineCard(routine: WorkoutRoutine, onStart: () -> Unit, onActionClick: () 
                 Text("Start Routine", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
         }
+
     }
 }
 
@@ -1012,6 +1417,7 @@ fun AugmentCard(augment: WorkoutAugment, onStart: () -> Unit, onActionClick: () 
                 Text("Start Protocol", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
         }
+
     }
 }
 
@@ -1208,6 +1614,7 @@ fun CreateRoutineScreen(
                 )
             }
         }
+
     }
 }
 
@@ -1381,6 +1788,7 @@ fun CreateAugmentScreen(
                 )
             }
         }
+
     }
 }
 
@@ -1522,6 +1930,7 @@ fun RoutineExerciseItem(
             },
             onDismiss = { showSetTypeSelectorForIndex = null }
         )
+
     }
 }
 
@@ -1685,6 +2094,7 @@ fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel, o
                 )
             }
         }
+
     }
 }
 
@@ -1771,6 +2181,7 @@ fun AugmentPicker(
                 }
             }
         }
+
     }
 }
 
@@ -1817,8 +2228,11 @@ fun AugmentPickerItem(augment: WorkoutAugment, onSelect: (WorkoutAugment) -> Uni
                 fontSize = 13.sp
             )
         }
+
     }
 }
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1883,8 +2297,11 @@ fun SupersetSelectionMenu(
                 HorizontalDivider(color = Color.Gray.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 24.dp))
             }
         }
+
     }
 }
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1953,8 +2370,11 @@ fun WorkoutRoutineActionMenu(
                 }
             )
         }
+
     }
 }
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -2023,8 +2443,11 @@ fun WorkoutAugmentActionMenu(
                 }
             )
         }
+
     }
 }
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -2099,6 +2522,7 @@ fun WorkoutExerciseActionMenu(
                 }
             )
         }
+
     }
 }
 
@@ -2221,6 +2645,7 @@ fun ReorderExercisesScreen(
                 Text("Done", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
             }
         }
+
     }
 }
 
@@ -2316,6 +2741,7 @@ fun ReorderExerciseItem(
                 )
             }
         }
+
     }
 }
 
@@ -2336,6 +2762,7 @@ fun ActionMenuItem(
         Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
         Spacer(modifier = Modifier.width(16.dp))
         Text(label, color = color, fontSize = 16.sp)
+
     }
 }
 
@@ -2458,6 +2885,7 @@ fun ExercisePicker(
             }
             // Mock custom exercises for now if needed, or just filtered list
         }
+
     }
 }
 
@@ -2478,6 +2906,7 @@ fun FilterButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifi
             Text(label, color = Color.White, fontSize = 14.sp)
             Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = Color.Gray)
         }
+
     }
 }
 
@@ -2549,6 +2978,7 @@ fun ExerciseListItem(exercise: Exercise, onDetailClick: (Exercise) -> Unit, onSe
             color = Color.DarkGray,
             thickness = 0.5.dp
         )
+
     }
 }
 
@@ -2664,6 +3094,7 @@ fun CustomExerciseForm(
                 }
             }
         }
+
     }
 }
 
@@ -2829,6 +3260,20 @@ fun WorkoutLogCard(
                     
                     comparisonText?.let {
                         Text(it, color = Color(0xFF00FF9C), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    // Neural Uplink Hints
+                    val hint = remember(log.exerciseId, uiState.recoveryScore) {
+                        viewModel.getHintForExercise(log.exerciseId)
+                    }
+                    hint?.let {
+                        Text(
+                            it,
+                            color = Color(0xFFFFA500).copy(alpha = 0.8f),
+                            fontSize = 11.sp,
+                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
                     }
                 }
             }
@@ -3112,6 +3557,7 @@ fun WorkoutLogCard(
             },
             onDismiss = { showSetTypeSelector = null }
         )
+
     }
 }
 
@@ -3145,8 +3591,11 @@ fun ProgressionBanner(
                 letterSpacing = 1.sp
             )
         }
+
     }
 }
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -3217,6 +3666,7 @@ fun ExerciseSubstitutionDialog(
                 Text("BROWSE MAIN LIBRARY", color = Color.White)
             }
         }
+
     }
 }
 
@@ -3424,6 +3874,7 @@ fun ExerciseDetailModal(
                 }
             }
         }
+
     }
 }
 
@@ -3479,6 +3930,7 @@ fun CyberFinisherDialog(onDone: () -> Unit) {
                 }
             }
         }
+
     }
 }
 
@@ -3534,6 +3986,7 @@ fun LoadedStretchDialog(remaining: Int) {
                 )
             }
         }
+
     }
 }
 
@@ -3639,8 +4092,11 @@ fun ClusterSetRow(
                 Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
             }
         }
+
     }
 }
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -3789,6 +4245,69 @@ fun ClusterLoggingDialog(
                             }
                         }
                     }
+
+                    if (uiState.userProfile?.rirCapturePerMiniSet == true) {
+                        if (isActive || (set.isCompleted && set.rir != null)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("REPS IN RESERVE", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    listOf(0, 1, 2, 3).forEach { rirValue ->
+                                        val label = if (rirValue == 3) ">2" else rirValue.toString()
+                                        val isSelected = set.rir == rirValue
+                                        val chipColor = if (isSelected) Color(0xFF00FFAA) else Color.Gray.copy(alpha = 0.2f)
+                                        
+                                        Box(
+                                            modifier = Modifier
+                                                .size(width = 44.dp, height = 28.dp)
+                                                .background(chipColor, RoundedCornerShape(4.dp))
+                                                .clickable { viewModel.updateSet(set, rir = rirValue) },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(label, color = if (isSelected) Color.Black else Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (uiState.userProfile?.rirCapturePerMiniSet == false) {
+                    val lastSet = sets.find { it.clusterMiniSetIndex == 3 }
+                    if (lastSet != null) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text("CLUSTER INTENSITY", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                Text("How many left in the tank?", color = Color.Gray, fontSize = 10.sp)
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                listOf(0, 1, 2, 3).forEach { rirValue ->
+                                    val label = if (rirValue == 3) ">2" else rirValue.toString()
+                                    val isSelected = lastSet.rir == rirValue
+                                    val chipColor = if (isSelected) Color(0xFF00FFAA) else Color.Gray.copy(alpha = 0.2f)
+                                    
+                                    Box(
+                                        modifier = Modifier
+                                            .size(width = 44.dp, height = 28.dp)
+                                            .background(chipColor, RoundedCornerShape(4.dp))
+                                            .clickable { viewModel.updateSet(lastSet, rir = rirValue) },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(label, color = if (isSelected) Color.Black else Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -3838,6 +4357,7 @@ fun ClusterLoggingDialog(
                 }
             }
         }
+
     }
 }
 
@@ -3948,6 +4468,7 @@ fun SetLogRow(
                 modifier = Modifier.size(16.dp)
             )
         }
+
     }
 }
 
@@ -4031,8 +4552,11 @@ fun EditableValueBox(
                     }
                 }
         )
+
     }
 }
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -4080,6 +4604,7 @@ fun SetTypeSelectorBottomSheet(
                 Text("Remove Set", color = Color.Red, fontSize = 16.sp)
             }
         }
+
     }
 }
 
@@ -4268,8 +4793,11 @@ fun WorkoutExploreScreen(
                 }
             }
         }
+
     }
 }
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -4463,6 +4991,7 @@ fun ProtocolConfigScreen(
                 containerColor = Color(0xFF1C1C1E)
             )
         }
+
     }
 }
 
@@ -4651,6 +5180,7 @@ fun ProtocolDetailScreen(
                 Text("INITIALIZE PROTOCOL SESSION", color = Color.Black, fontWeight = FontWeight.Black)
             }
         }
+
     }
 }
 
@@ -4858,6 +5388,7 @@ fun RoutinePreviewScreen(
                 Text("INITIALIZE SESSION", color = Color.Black, fontWeight = FontWeight.Black)
             }
         }
+
     }
 }
 
@@ -4964,6 +5495,7 @@ fun RestTimerAdjustmentDialog(
                 }
             }
         }
+
     }
 }
 
@@ -5004,6 +5536,7 @@ fun TimerConfigRow(label: String, currentSeconds: Int, onUpdate: (Int) -> Unit) 
                 }
             }
         }
+
     }
 }
 
@@ -5109,6 +5642,7 @@ fun RestTimerPopup(
                 }
             }
         }
+
     }
 }
 
@@ -5173,6 +5707,7 @@ fun InlineRestTimer(
                 }
             }
         }
+
     }
 }
 
@@ -5239,5 +5774,8 @@ fun StickyBottomTimer(
                 }
             }
         }
+
     }
 }
+
+

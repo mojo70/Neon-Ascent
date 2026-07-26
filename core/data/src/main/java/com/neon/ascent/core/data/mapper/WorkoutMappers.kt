@@ -15,7 +15,10 @@ fun WorkoutSessionEntity.toDomain() = WorkoutSession(
     durationSeconds = durationSeconds,
     notes = notes,
     experienceLevel = ExperienceLevel.valueOf(experienceLevel),
-    somatotype = Somatotype.valueOf(somatotype)
+    somatotype = Somatotype.valueOf(somatotype),
+    sessionRpe = sessionRpe,
+    jointHealth = jointHealth,
+    isDeload = isDeload
 )
 
 fun WorkoutSession.toEntity() = WorkoutSessionEntity(
@@ -25,7 +28,10 @@ fun WorkoutSession.toEntity() = WorkoutSessionEntity(
     durationSeconds = durationSeconds,
     notes = notes,
     experienceLevel = experienceLevel.name,
-    somatotype = somatotype.name
+    somatotype = somatotype.name,
+    sessionRpe = sessionRpe,
+    jointHealth = jointHealth,
+    isDeload = isDeload
 )
 
 fun ExerciseDefinitionEntity.toDomain() = Exercise(
@@ -38,6 +44,7 @@ fun ExerciseDefinitionEntity.toDomain() = Exercise(
     gifAssetPath = gifAssetPath,
     isLockedClassic = isLockedClassic,
     injurySubstitutions = injurySubstitutions,
+    dangerousFor = dangerousFor,
     movementType = MovementType.valueOf(movementType),
     notes = notes
 )
@@ -52,6 +59,7 @@ fun Exercise.toEntity() = ExerciseDefinitionEntity(
     gifAssetPath = gifAssetPath,
     isLockedClassic = isLockedClassic,
     injurySubstitutions = injurySubstitutions,
+    dangerousFor = dangerousFor,
     movementType = movementType.name,
     notes = notes
 )
@@ -166,7 +174,15 @@ fun UserWorkoutProfileEntity.toDomain() = UserWorkoutProfile(
     activeProtocol = activeProtocol?.let { WorkoutProtocol.valueOf(it) },
     rotationIndex = rotationIndex,
     scheduledDays = gson.fromJson(scheduledDays, object : TypeToken<List<ScheduledDay>>() {}.type),
-    deepLinkToRoutine = deepLinkToRoutine
+    deepLinkToRoutine = deepLinkToRoutine,
+    autoWeightIncrement = autoWeightIncrement,
+    weightIncrementCompound = weightIncrementCompound,
+    weightIncrementIsolation = weightIncrementIsolation,
+    rirCapturePerMiniSet = rirCapturePerMiniSet,
+    sequencerEnabled = sequencerEnabled,
+    customSequenceIds = gson.fromJson(customSequenceIds, object : TypeToken<List<String>>() {}.type),
+    coachingHintsEnabled = coachingHintsEnabled,
+    lastBlastStartDate = lastBlastStartDate
 )
 
 fun UserWorkoutProfile.toEntity() = UserWorkoutProfileEntity(
@@ -184,7 +200,15 @@ fun UserWorkoutProfile.toEntity() = UserWorkoutProfileEntity(
     activeProtocol = activeProtocol?.name,
     rotationIndex = rotationIndex,
     scheduledDays = gson.toJson(scheduledDays),
-    deepLinkToRoutine = deepLinkToRoutine
+    deepLinkToRoutine = deepLinkToRoutine,
+    autoWeightIncrement = autoWeightIncrement,
+    weightIncrementCompound = weightIncrementCompound,
+    weightIncrementIsolation = weightIncrementIsolation,
+    rirCapturePerMiniSet = rirCapturePerMiniSet,
+    sequencerEnabled = sequencerEnabled,
+    customSequenceIds = gson.toJson(customSequenceIds),
+    coachingHintsEnabled = coachingHintsEnabled,
+    lastBlastStartDate = lastBlastStartDate
 )
 
 fun ProgressionStateEntity.toDomain() = ProgressionState(

@@ -98,8 +98,19 @@ data class WorkoutUiState(
     val configuringProtocol: WorkoutProtocol? = null,
     val tempConfigProfile: UserWorkoutProfile? = null,
 
-    // Progression & Rotation
+    // Progression & Recovery
+    val recoveryScore: RecoveryScore? = null,
+    val exerciseLastRir: Map<String, Int> = emptyMap(), // exerciseId -> RIR
     val showSubstitutionDialog: Boolean = false,
+    val showPostWorkoutCheckIn: Boolean = false,
+    val isShowingSettings: Boolean = false,
+    val tempSettingsProfile: UserWorkoutProfile? = null,
+    val nextSequencedRoutine: WorkoutRoutine? = null,
+    val showSequenceOverrideDialog: Boolean = false,
+    val pendingSequenceRoutine: WorkoutRoutine? = null,
+    val showInjuryWarningDialog: Boolean = false,
+    val injuredExercises: List<Pair<Exercise, List<Exercise>>> = emptyList(),
+    val pendingInjuryRoutine: WorkoutRoutine? = null,
     val exerciseToSubstitute: String? = null, // exerciseId
     val recommendedSubstitutes: List<Exercise> = emptyList()
 )
@@ -156,6 +167,12 @@ class WorkoutViewModel @Inject constructor(
             loadAugments()
             loadUserProfile()
             checkForActiveSession()
+            
+            launch {
+                repository.getRecoveryScore().collect { score ->
+                    _uiState.update { it.copy(recoveryScore = score) }
+                }
+            }
             
             launch {
                 healthPrefs.workoutZoomLevel.collect { zoom ->
@@ -289,6 +306,7 @@ class WorkoutViewModel @Inject constructor(
             repository.getUserProfile("default_user").collect { profile ->
                 _uiState.update { it.copy(userProfile = profile) }
                 updateSomatotypeNudge()
+                updateSequencerState()
             }
         }
     }
@@ -638,6 +656,26 @@ class WorkoutViewModel @Inject constructor(
         _uiState.update { it.copy(isShowingProgress = false) }
     }
 
+    fun showSettings() {
+        _uiState.update { it.copy(isShowingSettings = true, tempSettingsProfile = it.userProfile) }
+    }
+
+    fun hideSettings() {
+        _uiState.update { it.copy(isShowingSettings = false, tempSettingsProfile = null) }
+    }
+
+    fun updateTempSettingsProfile(profile: UserWorkoutProfile) {
+        _uiState.update { it.copy(tempSettingsProfile = profile) }
+    }
+
+    fun saveWorkoutSettings() {
+        val profile = _uiState.value.tempSettingsProfile ?: return
+        viewModelScope.launch {
+            repository.saveUserProfile(profile)
+            _uiState.update { it.copy(userProfile = profile, isShowingSettings = false, tempSettingsProfile = null) }
+        }
+    }
+
     fun startExploreProtocols() {
         _uiState.update { it.copy(isExploringProtocols = true, selectedProtocolForDetail = null) }
     }
@@ -681,8 +719,30 @@ class WorkoutViewModel @Inject constructor(
                     routines = routines.filter { r -> r.isAddedToLibrary },
                     exploreRoutines = routines.filter { r -> r.isSystem }
                 ) }
+                updateSequencerState()
             }
         }
+    }
+
+    private fun updateSequencerState() {
+        val state = _uiState.value
+        val profile = state.userProfile ?: return
+        if (!profile.sequencerEnabled) {
+            _uiState.update { it.copy(nextSequencedRoutine = null) }
+            return
+        }
+
+        val nextRoutine = if (profile.activeProtocol != null) {
+            val protocolRoutines = state.routines.filter { it.protocol == profile.activeProtocol }
+            if (protocolRoutines.isNotEmpty()) {
+                protocolRoutines[profile.rotationIndex % protocolRoutines.size]
+            } else null
+        } else if (profile.customSequenceIds.isNotEmpty()) {
+            val nextId = profile.customSequenceIds[profile.rotationIndex % profile.customSequenceIds.size]
+            state.routines.find { it.id == nextId }
+        } else null
+
+        _uiState.update { it.copy(nextSequencedRoutine = nextRoutine) }
     }
 
     private fun loadAugments() {
@@ -824,20 +884,24 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
-    fun startSession(protocol: WorkoutProtocol) {
+    fun startSession(protocol: WorkoutProtocol, isDeload: Boolean = false) {
         if (_uiState.value.session != null) {
             _uiState.update { it.copy(activeSessionError = "A workout session is already in progress. Please finish or discard it before starting a new one.") }
             return
         }
         val sessionId = UUID.randomUUID().toString()
-        val session = WorkoutSession(id = sessionId, protocol = protocol)
+        val session = WorkoutSession(
+            id = sessionId, 
+            protocol = protocol,
+            isDeload = isDeload
+        )
         _uiState.update { it.copy(
             session = session, 
             isLoading = true, 
             workoutDurationSeconds = 0, 
             isPaused = false,
             previousLogs = emptyMap(),
-            workoutPhase = if (protocol == WorkoutProtocol.CYBER_CRAPP) RestPausePhase.MINI_SET_1 else RestPausePhase.NOT_ACTIVE
+            workoutPhase = if (protocol == WorkoutProtocol.CYBER_CRAPP && !isDeload) RestPausePhase.MINI_SET_1 else RestPausePhase.NOT_ACTIVE
         ) }
         
         sessionJob?.cancel()
@@ -897,7 +961,7 @@ class WorkoutViewModel @Inject constructor(
         return exercise?.equipment?.contains("Bodyweight") == true || exercise?.equipment?.contains("Weighted") == true
     }
 
-    fun startRoutine(routine: WorkoutRoutine) {
+    fun startRoutine(routine: WorkoutRoutine, isDeload: Boolean = false) {
         if (_uiState.value.session != null) {
             _uiState.update { it.copy(activeSessionError = "A workout session is already in progress. Please finish or discard it before starting a new one.") }
             return
@@ -918,7 +982,11 @@ class WorkoutViewModel @Inject constructor(
             }
 
             val sessionId = UUID.randomUUID().toString()
-            val session = WorkoutSession(id = sessionId, protocol = fullRoutine.protocol)
+            val session = WorkoutSession(
+                id = sessionId, 
+                protocol = fullRoutine.protocol,
+                isDeload = isDeload
+            )
 
             // 1. Create the session first in DB and UI state
             repository.saveSession(session)
@@ -939,12 +1007,22 @@ class WorkoutViewModel @Inject constructor(
                 repository.saveWorkoutLog(workoutLog)
 
                 val cyberCrappGoal = if (session.protocol == WorkoutProtocol.CYBER_CRAPP) {
-                    CyberCrappRules.getRepRangeString(routineExercise.exercise.movementType)
+                    if (isDeload) "DELOAD (RIR 3-4)" else CyberCrappRules.getRepRangeString(routineExercise.exercise.movementType)
                 } else null
 
                 val isBW = routineExercise.exercise.equipment.contains("Bodyweight") || routineExercise.exercise.equipment.contains("Weighted")
                 val defaultWeight = if (isBW) getUserBodyweight() else 0f
 
+                // Pre-fetch progression for warmup calculation
+                val progression = repository.getProgressionState(routineExercise.exercise.id).first()
+                val warmupWeights = if (progression != null && progression.currentWeight > 0) {
+                    com.neon.ascent.core.domain.workout.rules.WarmupCalculator.calculateWarmupWeights(
+                        progression.currentWeight, 
+                        _uiState.value.userProfile?.unitSystem ?: UnitSystem.IMPERIAL
+                    )
+                } else emptyList()
+
+                var warmupIndex = 0
                 routineExercise.sets.forEach { routineSet ->
                     val goalReps = routineSet.goalReps ?: when {
                         routineSet.type == SetType.REST_PAUSE -> cyberCrappGoal
@@ -952,20 +1030,29 @@ class WorkoutViewModel @Inject constructor(
                         else -> null
                     }
                     
-                    val setWeight = if (routineSet.weight == 0f) defaultWeight else routineSet.weight
+                    var setWeight = if (routineSet.weight == 0f) defaultWeight else routineSet.weight
+                    
+                    // Intelligent warmup weighting
+                    if (routineSet.type == SetType.WARMUP && warmupWeights.isNotEmpty() && !isBW) {
+                        setWeight = warmupWeights.getOrNull(warmupIndex) ?: setWeight
+                        warmupIndex++
+                    }
 
+                    // Transformation: REST_PAUSE -> 3 Straight Sets if Deload
                     if (session.protocol == WorkoutProtocol.CYBER_CRAPP && routineSet.type == SetType.REST_PAUSE) {
+                        val typeToSave = if (isDeload) SetType.NORMAL else SetType.REST_PAUSE
                         for (i in 1..3) {
                             globalSetTimestamp = globalSetTimestamp.plusMillis(1)
                             val setLog = SetLog(
                                 id = UUID.randomUUID().toString(),
                                 workoutLogId = workoutLog.id,
                                 weight = setWeight,
-                                reps = routineSet.reps,
-                                type = routineSet.type,
+                                reps = if (isDeload) 0 else routineSet.reps,
+                                type = typeToSave,
                                 goalReps = goalReps,
-                                clusterMiniSetIndex = i,
-                                timestamp = globalSetTimestamp
+                                clusterMiniSetIndex = if (isDeload) null else i,
+                                timestamp = globalSetTimestamp,
+                                rir = if (isDeload) 4 else null
                             )
                             repository.saveSetLog(setLog)
                         }
@@ -998,7 +1085,7 @@ class WorkoutViewModel @Inject constructor(
                 activeRoutine = fullRoutine,
                 workoutDurationSeconds = 0,
                 isPaused = false,
-                workoutPhase = if (fullRoutine.protocol == WorkoutProtocol.CYBER_CRAPP) RestPausePhase.MINI_SET_1 else RestPausePhase.NOT_ACTIVE
+                workoutPhase = if (fullRoutine.protocol == WorkoutProtocol.CYBER_CRAPP && !isDeload) RestPausePhase.MINI_SET_1 else RestPausePhase.NOT_ACTIVE
             ) }
 
             startWorkoutTimer()
@@ -1259,7 +1346,7 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
-    fun updateSet(setLog: SetLog, weight: Float? = null, reps: Int? = null, type: SetType? = null, goalReps: String? = null, isCompleted: Boolean? = null) {
+    fun updateSet(setLog: SetLog, weight: Float? = null, reps: Int? = null, type: SetType? = null, goalReps: String? = null, isCompleted: Boolean? = null, rir: Int? = null) {
         val currentBase = pendingUpdates[setLog.id] ?: setLog
         val newType = type ?: currentBase.type
         val newGoalReps = if (type == SetType.WIDOWMAKER && currentBase.type != SetType.WIDOWMAKER) {
@@ -1283,6 +1370,7 @@ class WorkoutViewModel @Inject constructor(
             type = newType,
             goalReps = newGoalReps,
             isCompleted = isCompleted ?: currentBase.isCompleted,
+            rir = rir ?: currentBase.rir,
             clusterMiniSetIndex = newClusterIndex
         )
 
@@ -1456,25 +1544,25 @@ class WorkoutViewModel @Inject constructor(
         if (hasUncompletedSets) {
             _uiState.update { it.copy(showUncompletedSetsDialog = true) }
         } else {
-            checkRoutineModificationsAndFinish()
+            checkRoutineModificationsAndPostCheckIn()
         }
     }
 
     fun dismissUncompletedSetsDialog(discard: Boolean) {
         _uiState.update { it.copy(showUncompletedSetsDialog = false) }
         if (discard) {
-            checkRoutineModificationsAndFinish(isDiscardingUncompleted = true)
+            checkRoutineModificationsAndPostCheckIn(isDiscardingUncompleted = true)
         }
     }
 
-    private fun checkRoutineModificationsAndFinish(isDiscardingUncompleted: Boolean = false) {
+    private fun checkRoutineModificationsAndPostCheckIn(isDiscardingUncompleted: Boolean = false) {
         val activeRoutine = _uiState.value.activeRoutine
         val currentLogs = _uiState.value.logs
         
         if (activeRoutine != null && checkIfRoutineModified(activeRoutine, currentLogs, isDiscardingUncompleted)) {
             _uiState.update { it.copy(showSaveRoutineChangesDialog = true) }
         } else {
-            performFinalFinish()
+            _uiState.update { it.copy(showPostWorkoutCheckIn = true) }
         }
     }
 
@@ -1514,8 +1602,118 @@ class WorkoutViewModel @Inject constructor(
         if (save) {
             saveCurrentWorkoutAsRoutineUpdate()
         }
-        _uiState.update { it.copy(showSaveRoutineChangesDialog = false) }
+        _uiState.update { it.copy(showSaveRoutineChangesDialog = false, showPostWorkoutCheckIn = true) }
+    }
+
+    fun submitPostWorkoutCheckIn(rpe: Int, jointHealth: Int) {
+        val session = _uiState.value.session ?: return
+        viewModelScope.launch {
+            repository.saveSession(session.copy(
+                sessionRpe = rpe,
+                jointHealth = jointHealth
+            ))
+            _uiState.update { it.copy(showPostWorkoutCheckIn = false) }
+            performFinalFinish()
+        }
+    }
+
+    fun cancelPostWorkoutCheckIn() {
+        _uiState.update { it.copy(showPostWorkoutCheckIn = false) }
         performFinalFinish()
+    }
+
+    fun handleRoutineSelection(routine: WorkoutRoutine, isDeload: Boolean = false) {
+        val state = _uiState.value
+        val profile = state.userProfile
+        
+        // 1. Check for Injuries first
+        val profileInjuries = profile?.injuries ?: emptyList()
+        val injured = routine.exercises.filter { re -> 
+            re.exercise.dangerousFor.any { it in profileInjuries }
+        }.map { re ->
+            val safeAlternatives = state.availableExercises.filter { alt ->
+                alt.movementType == re.exercise.movementType && 
+                alt.id != re.exercise.id &&
+                alt.dangerousFor.none { it in profileInjuries }
+            }.take(2)
+            re.exercise to safeAlternatives
+        }
+
+        if (injured.isNotEmpty()) {
+            _uiState.update { it.copy(
+                showInjuryWarningDialog = true, 
+                injuredExercises = injured,
+                pendingInjuryRoutine = routine 
+            ) }
+            return
+        }
+
+        // 2. Check for sequence override
+        if (profile?.sequencerEnabled == true && state.nextSequencedRoutine != null && routine.id != state.nextSequencedRoutine.id) {
+            _uiState.update { it.copy(showSequenceOverrideDialog = true, pendingSequenceRoutine = routine) }
+        } else {
+            startRoutine(routine, isDeload)
+        }
+    }
+
+    fun confirmInjuryAutoSwap() {
+        val state = _uiState.value
+        val routine = state.pendingInjuryRoutine ?: return
+        
+        val updatedExercises = routine.exercises.map { re ->
+            val injuredMatch = state.injuredExercises.find { it.first.id == re.exercise.id }
+            if (injuredMatch != null && injuredMatch.second.isNotEmpty()) {
+                re.copy(exercise = injuredMatch.second.first())
+            } else {
+                re
+            }
+        }
+        
+        val safeRoutine = routine.copy(exercises = updatedExercises)
+        _uiState.update { it.copy(showInjuryWarningDialog = false, pendingInjuryRoutine = null, injuredExercises = emptyList()) }
+        
+        // Now proceed to sequence check with the safe routine
+        handleRoutineSelection(safeRoutine)
+    }
+
+    fun ignoreInjuryWarning() {
+        val routine = _uiState.value.pendingInjuryRoutine ?: return
+        _uiState.update { it.copy(showInjuryWarningDialog = false, pendingInjuryRoutine = null, injuredExercises = emptyList()) }
+        
+        // Proceed with original routine
+        val state = _uiState.value
+        val profile = state.userProfile
+        if (profile?.sequencerEnabled == true && state.nextSequencedRoutine != null && routine.id != state.nextSequencedRoutine.id) {
+            _uiState.update { it.copy(showSequenceOverrideDialog = true, pendingSequenceRoutine = routine) }
+        } else {
+            startRoutine(routine)
+        }
+    }
+
+    fun confirmSequenceOverride(updateBaseline: Boolean) {
+        val routine = _uiState.value.pendingSequenceRoutine ?: return
+        val profile = _uiState.value.userProfile ?: return
+
+        viewModelScope.launch {
+            if (updateBaseline) {
+                // Find index of this routine in the sequence
+                val sequence = if (profile.activeProtocol != null) {
+                    _uiState.value.routines.filter { it.protocol == profile.activeProtocol }
+                } else {
+                    profile.customSequenceIds.mapNotNull { id -> _uiState.value.routines.find { it.id == id } }
+                }
+                
+                val newIndex = sequence.indexOfFirst { it.id == routine.id }.takeIf { it != -1 } ?: profile.rotationIndex
+                repository.saveUserProfile(profile.copy(rotationIndex = newIndex))
+            }
+            
+            _uiState.update { it.copy(showSequenceOverrideDialog = false, pendingSequenceRoutine = null) }
+            startRoutine(routine)
+        }
+    }
+
+    fun dismissSequenceOverride() {
+        _uiState.update { it.copy(showSequenceOverrideDialog = false, pendingSequenceRoutine = null) }
     }
 
     private fun saveCurrentWorkoutAsRoutineUpdate() {
@@ -1577,6 +1775,32 @@ class WorkoutViewModel @Inject constructor(
 
             repository.saveSession(session.copy(durationSeconds = finalDuration))
 
+            // Blast tracking logic
+            val profile = _uiState.value.userProfile
+            if (profile != null) {
+                var updatedProfile = profile
+                if (session.isDeload) {
+                    // Reset blast on deload
+                    updatedProfile = updatedProfile.copy(lastBlastStartDate = null)
+                } else if (profile.lastBlastStartDate == null) {
+                    // Start new blast on first high-intensity session
+                    updatedProfile = updatedProfile.copy(lastBlastStartDate = java.time.Instant.now())
+                }
+                
+                // Advance rotation if sequencer is active and this was the expected routine
+                if (profile.sequencerEnabled) {
+                    val wasSequenced = _uiState.value.activeRoutine?.id == _uiState.value.nextSequencedRoutine?.id
+                    if (wasSequenced) {
+                        val nextIndex = (profile.rotationIndex + 1)
+                        updatedProfile = updatedProfile.copy(rotationIndex = nextIndex)
+                    }
+                }
+                
+                if (updatedProfile != profile) {
+                    repository.saveUserProfile(updatedProfile)
+                }
+            }
+
             // Update progression states for CyberCrapp
             if (session.protocol == WorkoutProtocol.CYBER_CRAPP) {
                 currentLogs.forEach { (log, sets) ->
@@ -1600,6 +1824,13 @@ class WorkoutViewModel @Inject constructor(
     fun toggleSomatotypeInfluence() {
         _uiState.update { it.copy(useSomatotypeInfluence = !it.useSomatotypeInfluence) }
         updateSomatotypeNudge()
+    }
+
+    fun getBlastWeek(): Int? {
+        val startDate = _uiState.value.userProfile?.lastBlastStartDate ?: return null
+        val now = java.time.Instant.now()
+        val days = java.time.Duration.between(startDate, now).toDays()
+        return (days / 7).toInt() + 1
     }
 
     private fun handleRestPauseLogic(set: SetLog) {
@@ -1743,11 +1974,45 @@ class WorkoutViewModel @Inject constructor(
         ) }
     }
 
+    fun getHintForExercise(exerciseId: String): String? {
+        val state = _uiState.value
+        val score = state.recoveryScore ?: return null
+        val profile = state.userProfile ?: return null
+        if (!profile.coachingHintsEnabled) return null
+
+        val exercise = state.availableExercises.find { it.id == exerciseId } ?: return null
+        val isCyberCrapp = state.session?.protocol == WorkoutProtocol.CYBER_CRAPP
+        
+        return when {
+            score.totalScore > 85 -> {
+                if (isCyberCrapp && (exercise.movementType == MovementType.ISOLATION_UPPER || exercise.movementType == MovementType.CALVES)) {
+                    "⚡ Optimal recovery: Add a Cyber Finisher (Partials) to this movement?"
+                } else if (!isCyberCrapp) {
+                    "⚡ Uplink strong: Feeling strong? Add an extra set to this exercise."
+                } else {
+                    "⚡ Uplink strong: High intensity effort recommended."
+                }
+            }
+            score.totalScore < 40 -> {
+                if (isCyberCrapp) {
+                    "⚠️ Fatigue detected: Suggest skipping the Loaded Stretch here."
+                } else {
+                    "⚠️ Fatigue detected: Recovery compromised. Consider dropping the final set."
+                }
+            }
+            score.totalScore > 70 && exercise.id == "jerry_curl" -> {
+                "⚡ Neural Link stable: Focus on a 2s pause at the bottom stretch."
+            }
+            else -> null
+        }
+    }
+
     private suspend fun updateProgressionForExercise(log: WorkoutLog, sets: List<SetLog>) {
         val completedSets = sets.filter { it.isCompleted }
         if (completedSets.isEmpty()) return
 
         val currentState = repository.getProgressionState(log.exerciseId).first() ?: ProgressionState(log.exerciseId)
+        val profile = _uiState.value.userProfile
         
         // For CyberCrapp, we mainly care about the cluster (REST_PAUSE)
         val currentClusterTotal = completedSets.filter { it.type == SetType.REST_PAUSE }.sumOf { it.reps }
@@ -1758,7 +2023,11 @@ class WorkoutViewModel @Inject constructor(
         var misses = currentState.consecutiveMisses
         var bestReps = currentState.bestClusterReps
         var bestWeight = currentState.weightAtBest
+        var nextWeight = currentWeight
         
+        val exercise = _uiState.value.availableExercises.find { it.id == log.exerciseId }
+        val repRange = exercise?.movementType?.let { CyberCrappRules.getRepRange(it) }
+
         if (currentWeight > currentState.weightAtBest) {
             // New weight PR
             bestReps = currentClusterTotal
@@ -1775,11 +2044,25 @@ class WorkoutViewModel @Inject constructor(
             }
         }
 
+        // Auto-increment logic
+        if (profile?.autoWeightIncrement == true && repRange != null && bestReps >= repRange.max) {
+            val isCompound = exercise.movementType == MovementType.COMPOUND_UPPER || 
+                             exercise.movementType == MovementType.QUAD_DOMINANT || 
+                             exercise.movementType == MovementType.POSTERIOR_CHAIN ||
+                             exercise.movementType == MovementType.DEADLIFT
+            
+            val increment = if (isCompound) profile.weightIncrementCompound else profile.weightIncrementIsolation
+            nextWeight += increment
+            // Reset best reps for the new weight
+            bestReps = 0 
+            bestWeight = nextWeight
+        }
+
         repository.saveProgressionState(currentState.copy(
             bestClusterReps = bestReps,
             weightAtBest = bestWeight,
             consecutiveMisses = misses,
-            currentWeight = currentWeight
+            currentWeight = nextWeight
         ))
     }
 }
