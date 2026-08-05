@@ -91,7 +91,7 @@ enum class Somatotype {
 }
 
 enum class SetType {
-    NORMAL, WARMUP, DROP, FAILURE, REST_PAUSE, WIDOWMAKER, POWER, GS
+    NORMAL, WARMUP, DROP, FAILURE, REST_PAUSE, WIDOWMAKER, POWER, GS, PARTIAL, STRETCH
 }
 
 enum class MovementType {
@@ -204,6 +204,7 @@ data class UserWorkoutProfile(
     val sequencerEnabled: Boolean = true,
     val customSequenceIds: List<String> = emptyList(),
     val coachingHintsEnabled: Boolean = true,
+    val breathingVibrationEnabled: Boolean = true,
     val lastBlastStartDate: Instant? = null
 )
 

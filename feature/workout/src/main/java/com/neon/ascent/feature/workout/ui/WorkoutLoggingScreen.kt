@@ -228,6 +228,13 @@ fun WorkoutLoggingScreen(
                                 SomatotypeBadge(uiState.somatotypeNudgeText!!, uiState.userProfile?.somatotype)
                             }
 
+                            if (uiState.stagnantExerciseId != null) {
+                                StagnationBadge(
+                                    exerciseName = uiState.logs.find { it.first.exerciseId == uiState.stagnantExerciseId }?.first?.exerciseName ?: "Exercise",
+                                    onRotate = { viewModel.forceRotateStagnant(uiState.stagnantExerciseId!!) }
+                                )
+                            }
+
                             Box(modifier = Modifier.weight(1f)) {
                                 ActiveWorkoutContent(uiState, viewModel, onRestTimerClick = { showRestTimerAdjustment = true })
                                 
@@ -410,7 +417,7 @@ fun WorkoutLoggingScreen(
 
         // Rest Pause Phase Dialogs
         if (uiState.showCyberFinisher && uiState.workoutPhase == RestPausePhase.FINISHER) {
-            CyberFinisherDialog(onDone = { viewModel.startStretch() })
+            CyberFinisherDialog(onDone = { reps -> viewModel.startStretch(reps) })
         }
         if (uiState.showLoadedStretch && uiState.workoutPhase == RestPausePhase.LOADED_STRETCH) {
             LoadedStretchDialog(remaining = uiState.stretchTimeRemaining)
@@ -1860,6 +1867,8 @@ fun RoutineExerciseItem(
                         SetType.WIDOWMAKER -> "WM"
                         SetType.POWER -> "P"
                         SetType.GS -> "GS"
+                        SetType.PARTIAL -> "PAR"
+                        SetType.STRETCH -> "STR"
                     }
                     val color = when (set.type) {
                         SetType.WARMUP -> Color(0xFFFFA500)
@@ -1869,6 +1878,8 @@ fun RoutineExerciseItem(
                         SetType.WIDOWMAKER -> Color(0xFFFF00FF)
                         SetType.POWER -> Color(0xFFFFD700)
                         SetType.GS -> Color(0xFF00CCFF)
+                        SetType.PARTIAL -> Color(0xFF00FF9C)
+                        SetType.STRETCH -> Color(0xFFFF006E)
                         else -> Color.White
                     }
                     Text(label, color = color, fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -3434,9 +3445,9 @@ fun WorkoutLogCard(
             val items = mutableListOf<Any>()
             var handledCluster = false
             sets.forEach { set ->
-                if (set.clusterMiniSetIndex != null) {
+                if (set.clusterMiniSetIndex != null || set.type == SetType.PARTIAL || set.type == SetType.STRETCH) {
                     if (!handledCluster) {
-                        items.add(sets.filter { it.clusterMiniSetIndex != null })
+                        items.add(sets.filter { it.clusterMiniSetIndex != null || it.type == SetType.PARTIAL || it.type == SetType.STRETCH })
                         handledCluster = true
                     }
                 } else {
@@ -3491,7 +3502,11 @@ fun WorkoutLogCard(
                         onUpdateReps = { viewModel.updateSet(set, reps = it) },
                         onUpdateGoal = { viewModel.updateSet(set, goalReps = it) },
                         onCompleteToggle = { viewModel.updateSet(set, isCompleted = !set.isCompleted) },
-                        onSetLabelClick = { showSetTypeSelector = set }
+                        onSetLabelClick = { 
+                            if (set.type != SetType.PARTIAL && set.type != SetType.STRETCH) {
+                                showSetTypeSelector = set 
+                            }
+                        }
                     )
                 }
             }
@@ -3879,7 +3894,9 @@ fun ExerciseDetailModal(
 }
 
 @Composable
-fun CyberFinisherDialog(onDone: () -> Unit) {
+fun CyberFinisherDialog(onDone: (Int) -> Unit) {
+    var partialReps by remember { mutableStateOf(3) }
+    
     Dialog(onDismissRequest = { /* Force completion */ }) {
         Surface(
             modifier = Modifier
@@ -3904,7 +3921,7 @@ fun CyberFinisherDialog(onDone: () -> Unit) {
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 Text(
-                    "3-5 LENGTHENED PARTIALS",
+                    "LENGTHENED PARTIALS",
                     color = Color.White,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
@@ -3918,10 +3935,47 @@ fun CyberFinisherDialog(onDone: () -> Unit) {
                     modifier = Modifier.padding(top = 8.dp)
                 )
 
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    IconButton(
+                        onClick = { if (partialReps > 0) partialReps-- },
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(Icons.Default.Remove, contentDescription = null, tint = Color(0xFF00FF9C))
+                    }
+                    
+                    Text(
+                        text = partialReps.toString(),
+                        color = Color.White,
+                        fontSize = 48.sp,
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.padding(horizontal = 24.dp)
+                    )
+                    
+                    IconButton(
+                        onClick = { partialReps++ },
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF00FF9C))
+                    }
+                }
+                
+                Text(
+                    "TARGET: 3-5 REPS",
+                    color = if (partialReps in 3..5) Color(0xFF00FF9C) else Color.Gray,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
                 Spacer(modifier = Modifier.height(32.dp))
 
                 Button(
-                    onClick = onDone,
+                    onClick = { onDone(partialReps) },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
                     shape = RoundedCornerShape(12.dp)
@@ -3930,7 +3984,6 @@ fun CyberFinisherDialog(onDone: () -> Unit) {
                 }
             }
         }
-
     }
 }
 
@@ -3959,21 +4012,43 @@ fun LoadedStretchDialog(remaining: Int) {
                 
                 Spacer(modifier = Modifier.height(24.dp))
                 
+                Box(contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(
+                        progress = { 1f },
+                        modifier = Modifier.size(120.dp),
+                        color = Color.White.copy(alpha = 0.1f),
+                        strokeWidth = 8.dp
+                    )
+                    CircularProgressIndicator(
+                        progress = { remaining / 45f },
+                        modifier = Modifier.size(120.dp),
+                        color = Color(0xFFFF006E),
+                        strokeWidth = 8.dp
+                    )
+                    Text(
+                        remaining.toString(),
+                        color = Color.White,
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                val isInhale = (remaining % 6) >= 3
                 Text(
-                    "${remaining}s",
+                    text = if (isInhale) "BREATHE IN" else "BREATHE OUT",
                     color = Color.White,
-                    fontSize = 64.sp,
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
+                    modifier = Modifier.graphicsLayer { alpha = if (remaining % 3 == 0) 0.5f else 1f }
                 )
                 
-                Spacer(modifier = Modifier.height(12.dp))
-                
                 Text(
-                    "Deep, weighted stretch. Breathe through the intensity.",
+                    "DEEP DIAPHRAGMATIC BREATHING",
                     color = Color.Gray,
-                    fontSize = 13.sp,
-                    textAlign = TextAlign.Center
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 8.dp)
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -4000,8 +4075,8 @@ fun ClusterSetRow(
     onClick: () -> Unit,
     onSetLabelClick: (() -> Unit)? = null
 ) {
-    val totalReps = sets.filter { it.isCompleted }.sumOf { it.reps }
-    val isCompleted = sets.all { it.isCompleted } && sets.isNotEmpty()
+    val totalReps = sets.filter { it.isCompleted && it.type == SetType.REST_PAUSE }.sumOf { it.reps }
+    val isCompleted = sets.filter { it.type == SetType.REST_PAUSE }.all { it.isCompleted } && sets.isNotEmpty()
     val weight = sets.firstOrNull()?.weight ?: 0f
     val goalReps = sets.firstOrNull()?.goalReps ?: ""
     val prevTotalReps = previousSets.sumOf { it.reps }
@@ -4044,11 +4119,28 @@ fun ClusterSetRow(
                 .clickable { onClick() }
                 .padding(vertical = 4.dp)
         ) {
-            Text(
-                if (prevTotalReps > 0) "${prevTotalReps} total" else "-",
-                color = Color.Gray,
-                fontSize = 12.sp
-            )
+            Column {
+                Text(
+                    if (prevTotalReps > 0) "${prevTotalReps} total" else "-",
+                    color = Color.Gray,
+                    fontSize = 12.sp
+                )
+                
+                val partials = sets.find { it.type == SetType.PARTIAL }
+                val stretch = sets.find { it.type == SetType.STRETCH }
+                
+                if (partials != null || stretch != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
+                        if (partials != null) {
+                            Text("P:${partials.reps}", color = Color(0xFF00FF9C), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            if (stretch != null) Spacer(Modifier.width(6.dp))
+                        }
+                        if (stretch != null) {
+                            Text("S:${stretch.reps}s", color = Color(0xFFFF006E), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
         }
 
         // Weight Input
@@ -4107,6 +4199,12 @@ fun ClusterLoggingDialog(
     viewModel: WorkoutViewModel,
     onDismiss: () -> Unit
 ) {
+    LaunchedEffect(uiState.workoutPhase) {
+        if (uiState.workoutPhase == RestPausePhase.FINISHER || uiState.workoutPhase == RestPausePhase.LOADED_STRETCH) {
+            onDismiss()
+        }
+    }
+
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier
@@ -4310,9 +4408,49 @@ fun ClusterLoggingDialog(
                     }
                 }
 
+                // Show Finishers if they exist
+                val partials = sets.find { it.type == SetType.PARTIAL }
+                val stretch = sets.find { it.type == SetType.STRETCH }
+                
+                if (partials != null || stretch != null) {
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Text("CYBER FINISHERS", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (partials != null) {
+                            Surface(
+                                modifier = Modifier.weight(1f),
+                                color = Color(0xFF00FF9C).copy(alpha = 0.1f),
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.3f))
+                            ) {
+                                Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("PARTIALS", color = Color(0xFF00FF9C), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    Text("${partials.reps}", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Black)
+                                }
+                            }
+                        }
+                        
+                        if (stretch != null) {
+                            Surface(
+                                modifier = Modifier.weight(1f),
+                                color = Color(0xFFFF006E).copy(alpha = 0.1f),
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, Color(0xFFFF006E).copy(alpha = 0.3f))
+                            ) {
+                                Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("STRETCH", color = Color(0xFFFF006E), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    Text("${stretch.reps}s", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Black)
+                                }
+                            }
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(24.dp))
 
-                val totalReps = sets.filter { it.isCompleted }.sumOf { it.reps }
+                val totalReps = sets.filter { it.isCompleted && it.type == SetType.REST_PAUSE }.sumOf { it.reps }
                 val prevTotal = previousSets.sumOf { it.reps }
                 
                 Row(
@@ -4401,6 +4539,8 @@ fun SetLogRow(
                 SetType.WIDOWMAKER -> "WM"
                 SetType.POWER -> "P"
                 SetType.GS -> "GS"
+                SetType.PARTIAL -> "PAR"
+                SetType.STRETCH -> "STR"
             }
             val color = when (set.type) {
                 SetType.WARMUP -> Color(0xFFFFA500)
@@ -4410,6 +4550,8 @@ fun SetLogRow(
                 SetType.WIDOWMAKER -> Color(0xFFFF00FF)
                 SetType.POWER -> Color(0xFFFFD700)
                 SetType.GS -> Color(0xFF00CCFF)
+                SetType.PARTIAL -> Color(0xFF00FF9C)
+                SetType.STRETCH -> Color(0xFFFF006E)
                 else -> Color.White
             }
             Text(label, color = color, fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -4441,8 +4583,11 @@ fun SetLogRow(
         
         // Reps Input
         EditableValueBox(
-            value = set.reps.toString(),
-            onValueChange = { it.toIntOrNull()?.let { r -> onUpdateReps(r) } },
+            value = if (set.type == SetType.STRETCH) "${set.reps}s" else set.reps.toString(),
+            onValueChange = { 
+                val clean = it.replace("s", "")
+                clean.toIntOrNull()?.let { r -> onUpdateReps(r) } 
+            },
             modifier = Modifier.weight(1.5f),
             keyboardType = KeyboardType.Number
         )
@@ -5304,6 +5449,8 @@ fun RoutinePreviewScreen(
                                     SetType.POWER -> "POWER"
                                     SetType.WIDOWMAKER -> "WIDOWMAKER"
                                     SetType.GS -> "GIANT SET"
+                                    SetType.PARTIAL -> "PARTIAL"
+                                    SetType.STRETCH -> "STRETCH"
                                     else -> "SET ${index + 1}"
                                 }
                                 val typeColor = when (set.type) {
@@ -5312,6 +5459,8 @@ fun RoutinePreviewScreen(
                                     SetType.POWER -> Color(0xFFFFD700)
                                     SetType.WIDOWMAKER -> Color(0xFFFF00FF)
                                     SetType.GS -> Color(0xFF00CCFF)
+                                    SetType.PARTIAL -> Color(0xFF00FF9C)
+                                    SetType.STRETCH -> Color(0xFFFF006E)
                                     else -> Color.White.copy(alpha = 0.7f)
                                 }
                                 
@@ -5775,6 +5924,49 @@ fun StickyBottomTimer(
             }
         }
 
+    }
+}
+
+@Composable
+fun StagnationBadge(exerciseName: String, onRotate: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        color = Color(0xFFFF4444).copy(alpha = 0.1f),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, Color(0xFFFF4444))
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "STAGNATION DETECTED",
+                    color = Color(0xFFFF4444),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Black
+                )
+                Text(
+                    "You've failed to beat the log for $exerciseName twice. System recommends rotation.",
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+            
+            Button(
+                onClick = onRotate,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF4444)),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                modifier = Modifier.height(32.dp),
+                shape = RoundedCornerShape(4.dp)
+            ) {
+                Text("ROTATE MISSION", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Black)
+            }
+        }
     }
 }
 

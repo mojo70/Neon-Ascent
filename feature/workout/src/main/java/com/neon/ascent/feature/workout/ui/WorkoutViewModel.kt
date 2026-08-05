@@ -112,7 +112,9 @@ data class WorkoutUiState(
     val injuredExercises: List<Pair<Exercise, List<Exercise>>> = emptyList(),
     val pendingInjuryRoutine: WorkoutRoutine? = null,
     val exerciseToSubstitute: String? = null, // exerciseId
-    val recommendedSubstitutes: List<Exercise> = emptyList()
+    val recommendedSubstitutes: List<Exercise> = emptyList(),
+    val activeCyberCrappLogId: String? = null,
+    val stagnantExerciseId: String? = null
 )
 
 @HiltViewModel
@@ -666,6 +668,13 @@ class WorkoutViewModel @Inject constructor(
 
     fun updateTempSettingsProfile(profile: UserWorkoutProfile) {
         _uiState.update { it.copy(tempSettingsProfile = profile) }
+    }
+
+    fun updateBreathingVibrationEnabled(enabled: Boolean) {
+        val profile = _uiState.value.userProfile ?: return
+        viewModelScope.launch {
+            repository.saveUserProfile(profile.copy(breathingVibrationEnabled = enabled))
+        }
     }
 
     fun saveWorkoutSettings() {
@@ -1300,6 +1309,18 @@ class WorkoutViewModel @Inject constructor(
             goalReps = goalReps,
             clusterMiniSetIndex = clusterIndex
         )
+        
+        // Immediate UI feedback and state consistency for sequential updates (e.g. Phase change)
+        _uiState.update { state ->
+            val newLogs = state.logs.map { (log, sets) ->
+                if (log.id == workoutLog.id) {
+                    log to (sets + setLog).sortedWith(compareBy({ it.timestamp }, { it.id }))
+                } else {
+                    log to sets
+                }
+            }
+            state.copy(logs = newLogs)
+        }
 
         viewModelScope.launch {
             repository.saveSetLog(setLog)
@@ -1383,6 +1404,18 @@ class WorkoutViewModel @Inject constructor(
 
         val finalizedSet = updatedSet.copy(weight = finalWeight)
         
+        // Immediate UI feedback and state consistency for sequential updates (e.g. Phase change)
+        _uiState.update { state ->
+            val newLogs = state.logs.map { (log, sets) ->
+                if (log.id == finalizedSet.workoutLogId) {
+                    log to sets.map { s -> if (s.id == finalizedSet.id) finalizedSet else s }
+                } else {
+                    log to sets
+                }
+            }
+            state.copy(logs = newLogs)
+        }
+
         pendingUpdates[setLog.id] = finalizedSet
         
         updateJobs[setLog.id]?.cancel()
@@ -1418,7 +1451,9 @@ class WorkoutViewModel @Inject constructor(
 
             // Auto-start rest timer for appropriate sets if enabled
             if (isCompleted == true && _uiState.value.isAutoStartTimerEnabled && finalizedSet.clusterMiniSetIndex == null) {
-                triggerRestTimer(finalizedSet)
+                if (finalizedSet.type != SetType.PARTIAL && finalizedSet.type != SetType.STRETCH) {
+                    triggerRestTimer(finalizedSet)
+                }
             }
 
             if (type == SetType.REST_PAUSE && currentBase.type != SetType.REST_PAUSE) {
@@ -1482,6 +1517,7 @@ class WorkoutViewModel @Inject constructor(
         
         // Create 2 and 3 with increasing timestamps to maintain order
         var currentTimestamp = setLog.timestamp
+        val newSets = mutableListOf<SetLog>()
         for (i in 2..3) {
             // Double check existing indices in case state updated while running
             if (setsForLog.any { it.clusterMiniSetIndex == i }) continue
@@ -1497,7 +1533,21 @@ class WorkoutViewModel @Inject constructor(
                 goalReps = goalReps,
                 timestamp = currentTimestamp
             )
+            newSets.add(newSet)
             repository.saveSetLog(newSet)
+        }
+
+        if (newSets.isNotEmpty()) {
+            _uiState.update { state ->
+                val updatedLogs = state.logs.map { (log, sets) ->
+                    if (log.id == setLog.workoutLogId) {
+                        log to (sets + newSets).distinctBy { it.id }.sortedWith(compareBy({ it.timestamp }, { it.id }))
+                    } else {
+                        log to sets
+                    }
+                }
+                state.copy(logs = updatedLogs)
+            }
         }
     }
 
@@ -1837,7 +1887,18 @@ class WorkoutViewModel @Inject constructor(
         if (!set.isCompleted) return
         
         val index = set.clusterMiniSetIndex ?: return
-        val isCyberCrapp = _uiState.value.session?.protocol == WorkoutProtocol.CYBER_CRAPP
+        val state = _uiState.value
+        val isCyberCrapp = state.session?.protocol == WorkoutProtocol.CYBER_CRAPP
+        val currentPhase = state.workoutPhase
+        
+        // Prevent re-triggering finisher flow if already active, completed, or if we're past it
+        if (index == 3 && isCyberCrapp) {
+            if (currentPhase == RestPausePhase.FINISHER || currentPhase == RestPausePhase.LOADED_STRETCH) return
+            
+            val logPair = state.logs.find { it.first.id == set.workoutLogId }
+            val hasFinisher = logPair?.second?.any { it.type == SetType.PARTIAL || it.type == SetType.STRETCH } ?: false
+            if (hasFinisher) return
+        }
         
         val nextPhase = when (index) {
             1 -> RestPausePhase.MINI_SET_2
@@ -1846,6 +1907,7 @@ class WorkoutViewModel @Inject constructor(
             else -> return
         }
 
+        // Only progress the phase or stay if it's a rest-pause rest timer tick
         _uiState.update { it.copy(workoutPhase = nextPhase) }
 
         when (nextPhase) {
@@ -1853,7 +1915,12 @@ class WorkoutViewModel @Inject constructor(
                 triggerRestTimer(set, 15)
             }
             RestPausePhase.FINISHER -> {
-                _uiState.update { it.copy(showCyberFinisher = true, isResting = false) }
+                val log = _uiState.value.logs.find { it.second.any { s -> s.id == set.id } }?.first
+                _uiState.update { it.copy(
+                    showCyberFinisher = true, 
+                    isResting = false,
+                    activeCyberCrappLogId = log?.id
+                ) }
                 WorkoutTimerService.stop(context)
             }
             else -> {}
@@ -1891,22 +1958,98 @@ class WorkoutViewModel @Inject constructor(
         stretchTimerJob = viewModelScope.launch {
             while (_uiState.value.stretchTimeRemaining > 0) {
                 kotlinx.coroutines.delay(1000)
-                _uiState.update { it.copy(stretchTimeRemaining = it.stretchTimeRemaining - 1) }
+                val remaining = _uiState.value.stretchTimeRemaining - 1
+                
+                // Breathing Vibration (Pulse on BREATHE IN)
+                val isBreathingIn = (remaining % 6) >= 3
+                if (isBreathingIn && (remaining % 6) == 5) { // At the start of the 3s inhale
+                    if (_uiState.value.userProfile?.breathingVibrationEnabled == true) {
+                        hapticService.breathingPulse()
+                    }
+                }
+                
+                _uiState.update { it.copy(stretchTimeRemaining = remaining) }
             }
             hapticService.syncSuccess()
-            _uiState.update { it.copy(showLoadedStretch = false, workoutPhase = RestPausePhase.NOT_ACTIVE) }
+            
+            // Save Loaded Stretch log
+            val logId = _uiState.value.activeCyberCrappLogId
+            if (logId != null) {
+                val stretchSet = SetLog(
+                    id = UUID.randomUUID().toString(),
+                    workoutLogId = logId,
+                    weight = 0f,
+                    reps = calculateStretchDuration(),
+                    type = SetType.STRETCH,
+                    isLoadedStretch = true,
+                    stretchDurationSeconds = calculateStretchDuration(),
+                    isCompleted = true
+                )
+                
+                _uiState.update { state ->
+                    val newLogs = state.logs.map { (log, sets) ->
+                        if (log.id == logId) {
+                            log to (sets + stretchSet).sortedWith(compareBy({ it.timestamp }, { it.id }))
+                        } else {
+                            log to sets
+                        }
+                    }
+                    state.copy(logs = newLogs)
+                }
+                
+                repository.saveSetLog(stretchSet)
+            }
+            
+            _uiState.update { it.copy(
+                showLoadedStretch = false, 
+                workoutPhase = RestPausePhase.NOT_ACTIVE,
+                activeCyberCrappLogId = null
+            ) }
         }
     }
 
-    fun startStretch() {
+    fun startStretch(partialReps: Int) {
         val stretchDuration = calculateStretchDuration()
-        _uiState.update { it.copy(
-            showLoadedStretch = true, 
-            showCyberFinisher = false, 
-            stretchTimeRemaining = stretchDuration,
-            workoutPhase = RestPausePhase.LOADED_STRETCH
-        ) }
-        startStretchTimer()
+        val logId = _uiState.value.activeCyberCrappLogId
+        
+        viewModelScope.launch {
+            if (logId != null) {
+                val partialSet = SetLog(
+                    id = UUID.randomUUID().toString(),
+                    workoutLogId = logId,
+                    weight = 0f,
+                    reps = partialReps,
+                    type = SetType.PARTIAL,
+                    isLengthenedPartial = true,
+                    isCompleted = true
+                )
+                
+                _uiState.update { state ->
+                    val newLogs = state.logs.map { (log, sets) ->
+                        if (log.id == logId) {
+                            log to (sets + partialSet).sortedWith(compareBy({ it.timestamp }, { it.id }))
+                        } else {
+                            log to sets
+                        }
+                    }
+                    state.copy(logs = newLogs)
+                }
+                
+                repository.saveSetLog(partialSet)
+            }
+            
+            _uiState.update { it.copy(
+                showLoadedStretch = true, 
+                showCyberFinisher = false, 
+                stretchTimeRemaining = stretchDuration,
+                workoutPhase = RestPausePhase.LOADED_STRETCH
+            ) }
+            startStretchTimer()
+        }
+    }
+
+    fun forceRotateStagnant(exerciseId: String) {
+        startSubstitution(exerciseId)
     }
 
     fun startSubstitution(exerciseId: String) {
@@ -2064,5 +2207,9 @@ class WorkoutViewModel @Inject constructor(
             consecutiveMisses = misses,
             currentWeight = nextWeight
         ))
+
+        if (misses >= 2) {
+            _uiState.update { it.copy(stagnantExerciseId = log.exerciseId) }
+        }
     }
 }

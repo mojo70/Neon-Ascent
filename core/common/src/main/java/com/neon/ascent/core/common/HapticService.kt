@@ -61,4 +61,16 @@ class HapticService @Inject constructor(
         )
         vibrator.vibrate(effect)
     }
+
+    /** Gentle pulse for breathing guidance */
+    @SuppressLint("MissingPermission")
+    fun breathingPulse() {
+        // Soft swell (ramp up)
+        val effect = VibrationEffect.createWaveform(
+            longArrayOf(0, 100, 200, 300),
+            intArrayOf(0, 50, 100, 150),
+            -1
+        )
+        vibrator.vibrate(effect)
+    }
 }

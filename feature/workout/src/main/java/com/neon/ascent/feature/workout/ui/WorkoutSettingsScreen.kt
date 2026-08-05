@@ -195,6 +195,13 @@ fun WorkoutSettingsScreen(
                     checked = tempProfile.rirCapturePerMiniSet,
                     onCheckedChange = { onUpdateProfile(tempProfile.copy(rirCapturePerMiniSet = it)) }
                 )
+
+                SettingsToggleRow(
+                    label = "Breathing Vibration",
+                    description = "Phone pulses on 'BREATHE IN' during CyberCrapp stretches.",
+                    checked = tempProfile.breathingVibrationEnabled,
+                    onCheckedChange = { onUpdateProfile(tempProfile.copy(breathingVibrationEnabled = it)) }
+                )
             }
 
             // Category: CYBER FIDELITY
