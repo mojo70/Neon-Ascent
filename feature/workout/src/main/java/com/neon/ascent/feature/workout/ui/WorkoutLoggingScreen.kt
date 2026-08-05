@@ -7,8 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -195,25 +194,56 @@ fun WorkoutLoggingScreen(
                         "%d:%02d".format(minutes, seconds)
                     }
                     val originalDensity = LocalDensity.current
-                    val scaledDensity = remember(originalDensity, uiState.zoomLevel) {
+                    val haptic = LocalHapticFeedback.current
+                    
+                    // Pro-Calibrated Zoom Levels for HUD Stability
+                    val zoomLevels = listOf(0.8f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
+                    
+                    var currentZoom by remember { mutableFloatStateOf(uiState.zoomLevel) }
+                    var accumulatedZoomChange by remember { mutableFloatStateOf(1f) }
+
+                    LaunchedEffect(uiState.zoomLevel) {
+                        currentZoom = uiState.zoomLevel
+                    }
+
+                    val scaledDensity = remember(originalDensity, currentZoom) {
                         Density(
-                            density = originalDensity.density * uiState.zoomLevel,
+                            density = originalDensity.density * currentZoom,
                             fontScale = originalDensity.fontScale
                         )
                     }
-                    val transformableState = rememberTransformableState { zoomChange, _, _ ->
-                        val newZoom = (uiState.zoomLevel * zoomChange).coerceIn(0.9f, 2.0f)
-                        viewModel.updateZoomLevel(newZoom)
-                    }
-
-                    CompositionLocalProvider(LocalDensity provides scaledDensity) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .transformable(state = transformableState)
-                        ) {
-                            ActiveWorkoutHeader(
+                    
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(Unit) {
+                                detectTransformGestures { _, _, zoom, _ ->
+                                    if (zoom != 1f) {
+                                        accumulatedZoomChange *= zoom
+                                        
+                                        // Sensitivity threshold: 15% change to trigger a snap
+                                        if (kotlin.math.abs(accumulatedZoomChange - 1f) > 0.15f) {
+                                            val direction = if (accumulatedZoomChange > 1f) 1 else -1
+                                            val currentIndex = zoomLevels.indexOf(currentZoom).coerceAtLeast(0)
+                                            val nextIndex = (currentIndex + direction).coerceIn(zoomLevels.indices)
+                                            
+                                            val newZoom = zoomLevels[nextIndex]
+                                            if (newZoom != currentZoom) {
+                                                currentZoom = newZoom
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                viewModel.updateZoomLevel(newZoom)
+                                            }
+                                            accumulatedZoomChange = 1f // Reset after snap
+                                        }
+                                    }
+                                }
+                            }
+                    ) {
+                        CompositionLocalProvider(LocalDensity provides scaledDensity) {
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                ActiveWorkoutHeader(
                                 duration = durationFormatted,
+                                zoomLevel = uiState.zoomLevel,
                                 onBack = onBack,
                                 onFinish = { viewModel.finishWorkout() },
                                 isPaused = uiState.isPaused,
@@ -254,11 +284,6 @@ fun WorkoutLoggingScreen(
                                                 fontWeight = FontWeight.Bold
                                             )
                                             Spacer(modifier = Modifier.height(16.dp))
-                                            Button(
-                                                onClick = { viewModel.resumeWorkout() },
-                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF))
-                                            ) {
-                                                Text("Resume", color = Color.White)
                                             }
                                         }
                                     }
@@ -557,6 +582,7 @@ fun PostWorkoutCheckInDialog(
 @Composable
 fun ActiveWorkoutHeader(
     duration: String,
+    zoomLevel: Float,
     onBack: () -> Unit,
     onFinish: () -> Unit,
     isPaused: Boolean,
@@ -589,48 +615,73 @@ fun ActiveWorkoutHeader(
         )
     }
 
+    val zoom = zoomLevel
+    val hPadding = if (zoom >= 1.75f) 8.dp else 16.dp
+    
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = hPadding, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { onBack() }) {
             Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Color.White)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Log Workout", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            if (zoom < 1.25f) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    if (zoom <= 0.8f) "ASCENT NEURAL LINK" else "Log Workout", 
+                    color = Color.White, 
+                    fontSize = 18.sp, 
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
         
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { showDiscardDialog = true }) {
-                Icon(Icons.Default.Delete, contentDescription = "Discard", tint = Color.Red.copy(alpha = 0.7f), modifier = Modifier.size(20.dp))
+            val iconSize = if (zoom >= 1.5f) 18.dp else 20.dp
+            
+            if (zoom < 1.75f) {
+                IconButton(onClick = { showDiscardDialog = true }, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.Delete, contentDescription = "Discard", tint = Color.Red.copy(alpha = 0.7f), modifier = Modifier.size(iconSize))
+                }
             }
             
-            IconButton(onClick = onPauseToggle) {
+            IconButton(onClick = onPauseToggle, modifier = Modifier.size(32.dp)) {
                 Icon(
                     if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
                     contentDescription = if (isPaused) "Resume" else "Pause",
                     tint = Color.White,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(iconSize)
                 )
             }
 
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(duration, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(if (zoom >= 1.5f) 2.dp else 4.dp))
+            Text(
+                duration, 
+                color = Color.White, 
+                fontSize = if (zoom >= 1.5f) 14.sp else 16.sp, 
+                fontWeight = FontWeight.Black,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 1,
+                softWrap = false
+            )
+            
+            val buttonWidth = if (zoom >= 1.75f) 56.dp else 80.dp
+            val buttonText = if (zoom >= 1.75f) "OK" else "Finish"
+            
+            Spacer(modifier = Modifier.width(if (zoom >= 1.5f) 6.dp else 12.dp))
             Button(
                 onClick = onFinish,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF)),
                 shape = RoundedCornerShape(6.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
-                modifier = Modifier.height(32.dp)
+                contentPadding = PaddingValues(horizontal = if (zoom >= 1.5f) 4.dp else 8.dp, vertical = 0.dp),
+                modifier = Modifier.height(30.dp).widthIn(min = buttonWidth)
             ) {
-                Text("Finish", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(buttonText, color = Color.White, fontWeight = FontWeight.Bold, fontSize = if (zoom >= 1.5f) 12.sp else 14.sp)
             }
         }
-
     }
 }
 
@@ -646,30 +697,40 @@ fun WorkoutSummaryBar(uiState: WorkoutUiState, viewModel: WorkoutViewModel, onTo
     }
     val durationMinutes = uiState.workoutDurationSeconds / 60
 
+    val zoom = uiState.zoomLevel
+    val hPadding = if (zoom >= 1.75f) 8.dp else 16.dp
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = hPadding, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         val blastWeek = viewModel.getBlastWeek()
-        if (blastWeek != null) {
-            SummaryStat("Blast", "Week $blastWeek", Color(0xFF00FF9C))
+        if (blastWeek != null && zoom < 1.75f) {
+            SummaryStat("Blast", "Wk $blastWeek", Color(0xFF00FF9C))
         }
         SummaryStat("Duration", "${durationMinutes}m", Color(0xFF007AFF))
-        SummaryStat("Volume", "%,d lbs".format(totalVolume), Color.White)
-        SummaryStat("Sets", "$totalSets", Color.White)
+        SummaryStat("Volume", "%,d".format(totalVolume), Color.White)
         
+        if (zoom < 1.5f) {
+            SummaryStat("Sets", "$totalSets", Color.White)
+        }
+        
+        if (zoom <= 0.8f) {
+            val status = uiState.recoveryScore?.status?.name ?: "READY"
+            SummaryStat("Status", status, Color(0xFF00FF9C))
+        }
+
         IconButton(onClick = onToggleSomatotype) {
             Icon(
                 Icons.Default.SettingsInputComponent, 
                 contentDescription = "Toggle Somatotype Influence", 
                 tint = if (uiState.useSomatotypeInfluence) Color(0xFF00FF9C) else Color.Gray,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(if (zoom >= 1.75f) 16.dp else 20.dp)
             )
         }
-
     }
 }
 
@@ -704,9 +765,8 @@ fun SomatotypeBadge(text: String, somatotype: Somatotype?) {
 @Composable
 fun SummaryStat(label: String, value: String, valueColor: Color) {
     Column {
-        Text(label, color = Color.Gray, fontSize = 12.sp)
-        Text(value, color = valueColor, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-
+        Text(label, color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        Text(value, color = valueColor, fontSize = 14.sp, fontWeight = FontWeight.Black)
     }
 }
 
@@ -1955,8 +2015,8 @@ fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel, o
     val filteredExercises by viewModel.filteredExercises.collectAsState()
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 100.dp)
+        modifier = Modifier.fillMaxSize().imePadding(),
+        contentPadding = PaddingValues(bottom = 200.dp)
     ) {
         items(uiState.logs, key = { it.first.id }) { (log, sets) ->
             WorkoutLogCard(
@@ -3427,14 +3487,22 @@ fun WorkoutLogCard(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Set Table Header
+        val zoom = uiState.zoomLevel
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("SET", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1f))
-            if (showGoalColumn) {
+            val setLabel = if (zoom >= 1.5f) "S" else "SET"
+            val lbsLabel = if (zoom >= 1.5f) "LB" else "LBS"
+            val repsLabel = if (zoom >= 1.5f) "R" else "REPS"
+
+            Text(setLabel, color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1f))
+            if (showGoalColumn && zoom < 1.5f) {
                 Text("GOAL", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center)
             }
-            Text("PREVIOUS", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(2f))
-            Text("LBS", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center)
-            Text("REPS", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center)
+            if (zoom < 1.5f) {
+                val prevLabel = if (zoom <= 0.8f) "LAST BEST" else "PREVIOUS"
+                Text(prevLabel, color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(2f))
+            }
+            Text(lbsLabel, color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center)
+            Text(repsLabel, color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center)
             Icon(Icons.Default.Check, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
         }
 
@@ -3474,6 +3542,7 @@ fun WorkoutLogCard(
                         sets = clusterSets,
                         previousSets = prevClusterSets,
                         previousWeight = if (prevW != null && prevW > 0) prevW else null,
+                        zoomLevel = zoom,
                         onUpdateWeight = { weight -> clusterSets.forEach { viewModel.updateSet(it, weight = weight) } },
                         onUpdateGoal = { goal -> clusterSets.forEach { viewModel.updateSet(it, goalReps = goal) } },
                         onClick = { showClusterDialogFor = clusterSets },
@@ -3498,6 +3567,7 @@ fun WorkoutLogCard(
                         showGoal = showGoalColumn,
                         previousData = if (hasPrevData) "${if (prevSet!!.weight % 1 == 0f) prevSet.weight.toInt() else prevSet.weight}lbs x ${prevSet.reps}" else if (prevSet != null) "0lbs x 0" else "0",
                         previousWeight = if (prevWeight != null && prevWeight > 0) prevWeight else null,
+                        zoomLevel = zoom,
                         onUpdateWeight = { viewModel.updateSet(set, weight = it) },
                         onUpdateReps = { viewModel.updateSet(set, reps = it) },
                         onUpdateGoal = { viewModel.updateSet(set, goalReps = it) },
@@ -4070,6 +4140,7 @@ fun ClusterSetRow(
     sets: List<SetLog>,
     previousSets: List<SetLog>,
     previousWeight: Float? = null,
+    zoomLevel: Float = 1.0f,
     onUpdateWeight: (Float) -> Unit,
     onUpdateGoal: (String) -> Unit,
     onClick: () -> Unit,
@@ -4082,58 +4153,149 @@ fun ClusterSetRow(
     val prevTotalReps = previousSets.sumOf { it.reps }
     val weightPlaceholder = previousWeight?.let { if (it % 1 == 0f) it.toInt().toString() else it.toString() } ?: "0"
 
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color(0xFF00FFAA).copy(alpha = 0.05f), RoundedCornerShape(4.dp))
-            .padding(vertical = 4.dp, horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(vertical = 4.dp, horizontal = 4.dp)
     ) {
-        // Label (Clickable area)
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .clickable { onSetLabelClick?.invoke() ?: onClick() }
-                .padding(vertical = 4.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                "RP",
-                color = Color(0xFF00FFAA),
-                fontWeight = FontWeight.Black,
-                fontSize = 16.sp
+            // Label (Clickable area)
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onSetLabelClick?.invoke() ?: onClick() }
+                    .padding(vertical = 4.dp)
+            ) {
+                Text(
+                    "RP",
+                    color = Color(0xFF00FFAA),
+                    fontWeight = FontWeight.Black,
+                    fontSize = 16.sp
+                )
+            }
+
+            // Goal Input (Standard)
+            if (zoomLevel < 1.5f) {
+                EditableValueBox(
+                    value = goalReps,
+                    onValueChange = { onUpdateGoal(it) },
+                    modifier = Modifier.weight(1.5f),
+                    keyboardType = KeyboardType.Text
+                )
+            }
+
+            // Previous (Standard area)
+            if (zoomLevel < 1.5f) {
+                Box(
+                    modifier = Modifier
+                        .weight(2f)
+                        .clickable { onClick() }
+                        .padding(vertical = 4.dp)
+                ) {
+                    Column {
+                        Text(
+                            if (prevTotalReps > 0) "${prevTotalReps} total" else "-",
+                            color = Color.Gray,
+                            fontSize = 12.sp
+                        )
+                        
+                        val partials = sets.find { it.type == SetType.PARTIAL }
+                        val stretch = sets.find { it.type == SetType.STRETCH }
+                        
+                        if (partials != null || stretch != null) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
+                                if (partials != null) {
+                                    Text("P:${partials.reps}", color = Color(0xFF00FF9C), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    if (stretch != null) Spacer(Modifier.width(6.dp))
+                                }
+                                if (stretch != null) {
+                                    Text("S:${stretch.reps}s", color = Color(0xFFFF006E), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Weight Input
+            EditableValueBox(
+                value = if (weight % 1 == 0f) weight.toInt().toString() else weight.toString(),
+                onValueChange = { it.toFloatOrNull()?.let { w -> onUpdateWeight(w) } },
+                placeholder = weightPlaceholder,
+                modifier = Modifier.weight(1.5f),
+                keyboardType = KeyboardType.Decimal
             )
+
+            // Total Reps (Clickable area)
+            Box(
+                modifier = Modifier
+                    .weight(1.5f)
+                    .clickable { onClick() }
+                    .padding(vertical = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    if (totalReps > 0) totalReps.toString() else "-",
+                    color = Color(0xFF00FFAA),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            // Completion Check (Clickable area)
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .background(
+                        if (isCompleted) Color(0xFF4CD964) else Color.Gray.copy(alpha = 0.5f),
+                        RoundedCornerShape(4.dp)
+                    )
+                    .clickable { onClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                if (isCompleted) {
+                    Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                }
+            }
         }
 
-        // Goal Input
-        EditableValueBox(
-            value = goalReps,
-            onValueChange = { onUpdateGoal(it) },
-            modifier = Modifier.weight(1.5f),
-            keyboardType = KeyboardType.Text
-        )
-
-        // Previous (Clickable area)
-        Box(
-            modifier = Modifier
-                .weight(2f)
-                .clickable { onClick() }
-                .padding(vertical = 4.dp)
-        ) {
-            Column {
+        // Sub-row for Stacked Data (Zoom >= 1.5f)
+        if (zoomLevel >= 1.5f) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 32.dp, top = 2.dp, end = 32.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    if (prevTotalReps > 0) "${prevTotalReps} total" else "-",
-                    color = Color.Gray,
-                    fontSize = 12.sp
+                    "GOAL: $goalReps", 
+                    color = Color.Gray, 
+                    fontSize = 10.sp, 
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
                 )
                 
-                val partials = sets.find { it.type == SetType.PARTIAL }
-                val stretch = sets.find { it.type == SetType.STRETCH }
-                
-                if (partials != null || stretch != null) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
+                Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.End) {
+                    Text(
+                        "PREV: $prevTotalReps", 
+                        color = Color.Gray, 
+                        fontSize = 10.sp, 
+                        fontWeight = FontWeight.Bold
+                    )
+                    
+                    val partials = sets.find { it.type == SetType.PARTIAL }
+                    val stretch = sets.find { it.type == SetType.STRETCH }
+                    if (partials != null || stretch != null) {
+                        Spacer(Modifier.width(8.dp))
                         if (partials != null) {
                             Text("P:${partials.reps}", color = Color(0xFF00FF9C), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                            if (stretch != null) Spacer(Modifier.width(6.dp))
+                            if (stretch != null) Spacer(Modifier.width(4.dp))
                         }
                         if (stretch != null) {
                             Text("S:${stretch.reps}s", color = Color(0xFFFF006E), fontSize = 10.sp, fontWeight = FontWeight.Bold)
@@ -4142,49 +4304,6 @@ fun ClusterSetRow(
                 }
             }
         }
-
-        // Weight Input
-        EditableValueBox(
-            value = if (weight % 1 == 0f) weight.toInt().toString() else weight.toString(),
-            onValueChange = { it.toFloatOrNull()?.let { w -> onUpdateWeight(w) } },
-            placeholder = weightPlaceholder,
-            modifier = Modifier.weight(1.5f),
-            keyboardType = KeyboardType.Decimal
-        )
-
-        // Total Reps (Clickable area)
-        Box(
-            modifier = Modifier
-                .weight(1.5f)
-                .clickable { onClick() }
-                .padding(vertical = 4.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                if (totalReps > 0) totalReps.toString() else "-",
-                color = Color(0xFF00FFAA),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
-        }
-
-        // Completion Check (Clickable area)
-        Box(
-            modifier = Modifier
-                .size(24.dp)
-                .background(
-                    if (isCompleted) Color(0xFF4CD964) else Color.Gray.copy(alpha = 0.5f),
-                    RoundedCornerShape(4.dp)
-                )
-                .clickable { onClick() },
-            contentAlignment = Alignment.Center
-        ) {
-            if (isCompleted) {
-                Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-            }
-        }
-
     }
 }
 
@@ -4506,6 +4625,7 @@ fun SetLogRow(
     showGoal: Boolean,
     previousData: String,
     previousWeight: Float? = null,
+    zoomLevel: Float = 1.0f,
     onUpdateWeight: (Float) -> Unit,
     onUpdateReps: (Int) -> Unit,
     onUpdateGoal: (String) -> Unit,
@@ -4516,104 +4636,137 @@ fun SetLogRow(
     val backgroundColor = if (setNumber % 2 == 0) Color.Transparent else Color(0xFF1C1C1E).copy(alpha = 0.3f)
     val weightPlaceholder = previousWeight?.let { if (it % 1 == 0f) it.toInt().toString() else it.toString() } ?: "0"
     
-    Row(
+    val setLabel = when (set.type) {
+        SetType.NORMAL -> "$setNumber"
+        SetType.WARMUP -> "W"
+        SetType.DROP -> "D"
+        SetType.FAILURE -> "F"
+        SetType.REST_PAUSE -> if (set.clusterMiniSetIndex != null) "RP ${set.clusterMiniSetIndex}" else "RP"
+        SetType.WIDOWMAKER -> "WM"
+        SetType.POWER -> "P"
+        SetType.GS -> "GS"
+        SetType.PARTIAL -> "PAR"
+        SetType.STRETCH -> "STR"
+    }
+    val labelColor = when (set.type) {
+        SetType.WARMUP -> Color(0xFFFFA500)
+        SetType.DROP -> Color(0xFF00CCFF)
+        SetType.FAILURE -> Color(0xFFFF4444)
+        SetType.REST_PAUSE -> Color(0xFF00FFAA)
+        SetType.WIDOWMAKER -> Color(0xFFFF00FF)
+        SetType.POWER -> Color(0xFFFFD700)
+        SetType.GS -> Color(0xFF00CCFF)
+        SetType.PARTIAL -> Color(0xFF00FF9C)
+        SetType.STRETCH -> Color(0xFFFF006E)
+        else -> Color.White
+    }
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(backgroundColor)
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(vertical = 4.dp)
     ) {
-        // Set Label (Clickable to change type)
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .clickable { onSetLabelClick() },
-            contentAlignment = Alignment.CenterStart
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            val label = when (set.type) {
-                SetType.NORMAL -> "$setNumber"
-                SetType.WARMUP -> "W"
-                SetType.DROP -> "D"
-                SetType.FAILURE -> "F"
-                SetType.REST_PAUSE -> if (set.clusterMiniSetIndex != null) "RP ${set.clusterMiniSetIndex}" else "RP"
-                SetType.WIDOWMAKER -> "WM"
-                SetType.POWER -> "P"
-                SetType.GS -> "GS"
-                SetType.PARTIAL -> "PAR"
-                SetType.STRETCH -> "STR"
+            // Set Label
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onSetLabelClick() },
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Text(setLabel, color = labelColor, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
-            val color = when (set.type) {
-                SetType.WARMUP -> Color(0xFFFFA500)
-                SetType.DROP -> Color(0xFF00CCFF)
-                SetType.FAILURE -> Color(0xFFFF4444)
-                SetType.REST_PAUSE -> Color(0xFF00FFAA)
-                SetType.WIDOWMAKER -> Color(0xFFFF00FF)
-                SetType.POWER -> Color(0xFFFFD700)
-                SetType.GS -> Color(0xFF00CCFF)
-                SetType.PARTIAL -> Color(0xFF00FF9C)
-                SetType.STRETCH -> Color(0xFFFF006E)
-                else -> Color.White
-            }
-            Text(label, color = color, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        }
 
-        // Goal Input
-        if (showGoal) {
-            val isGoalMandatory = set.type == SetType.WIDOWMAKER
-            EditableValueBox(
-                value = set.goalReps ?: "",
-                onValueChange = { onUpdateGoal(it) },
-                modifier = Modifier.weight(1.5f),
-                keyboardType = KeyboardType.Text,
-                enabled = !isGoalMandatory
-            )
-        }
-
-        // Previous Data
-        Text(previousData, color = Color.Gray, fontSize = 14.sp, modifier = Modifier.weight(2f))
-        
-        // Weight Input
-        EditableValueBox(
-            value = if (set.weight % 1 == 0f) set.weight.toInt().toString() else set.weight.toString(),
-            onValueChange = { it.toFloatOrNull()?.let { w -> onUpdateWeight(w) } },
-            placeholder = weightPlaceholder,
-            modifier = Modifier.weight(1.5f),
-            keyboardType = KeyboardType.Decimal
-        )
-        
-        // Reps Input
-        EditableValueBox(
-            value = if (set.type == SetType.STRETCH) "${set.reps}s" else set.reps.toString(),
-            onValueChange = { 
-                val clean = it.replace("s", "")
-                clean.toIntOrNull()?.let { r -> onUpdateReps(r) } 
-            },
-            modifier = Modifier.weight(1.5f),
-            keyboardType = KeyboardType.Number
-        )
-        
-        // Completion Check
-        Box(
-            modifier = Modifier
-                .size(24.dp)
-                .background(
-                    if (set.isCompleted) Color(0xFF4CD964) else Color.Gray.copy(alpha = 0.5f), 
-                    RoundedCornerShape(4.dp)
+            // Goal Input (Standard)
+            if (showGoal && zoomLevel < 1.5f) {
+                val isGoalMandatory = set.type == SetType.WIDOWMAKER
+                EditableValueBox(
+                    value = set.goalReps ?: "",
+                    onValueChange = { onUpdateGoal(it) },
+                    modifier = Modifier.weight(1.5f),
+                    keyboardType = KeyboardType.Text,
+                    enabled = !isGoalMandatory
                 )
-                .clickable {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onCompleteToggle()
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                Icons.Default.Check, 
-                contentDescription = null, 
-                tint = if (set.isCompleted) Color.White else Color.White.copy(alpha = 0.3f), 
-                modifier = Modifier.size(16.dp)
+            }
+
+            // Previous Data (Standard)
+            if (zoomLevel < 1.5f) {
+                Text(previousData, color = Color.Gray, fontSize = 14.sp, modifier = Modifier.weight(2f))
+            }
+            
+            // Weight Input
+            EditableValueBox(
+                value = if (set.weight % 1 == 0f) set.weight.toInt().toString() else set.weight.toString(),
+                onValueChange = { it.toFloatOrNull()?.let { w -> onUpdateWeight(w) } },
+                placeholder = weightPlaceholder,
+                modifier = Modifier.weight(1.5f),
+                keyboardType = KeyboardType.Decimal
             )
+            
+            // Reps Input
+            EditableValueBox(
+                value = if (set.type == SetType.STRETCH) "${set.reps}s" else set.reps.toString(),
+                onValueChange = { 
+                    val clean = it.replace("s", "")
+                    clean.toIntOrNull()?.let { r -> onUpdateReps(r) } 
+                },
+                modifier = Modifier.weight(1.5f),
+                keyboardType = KeyboardType.Number
+            )
+            
+            // Completion Check
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .background(
+                        if (set.isCompleted) Color(0xFF4CD964) else Color.Gray.copy(alpha = 0.5f), 
+                        RoundedCornerShape(4.dp)
+                    )
+                    .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onCompleteToggle()
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Check, 
+                    contentDescription = null, 
+                    tint = if (set.isCompleted) Color.Black else Color.White.copy(alpha = 0.5f),
+                    modifier = Modifier.size(16.dp)
+                )
+            }
         }
 
+        // Sub-row for Stacked Data (Zoom >= 1.5f)
+        if (zoomLevel >= 1.5f) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 32.dp, top = 2.dp, end = 32.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (showGoal) {
+                    Text(
+                        "GOAL: ${set.goalReps ?: "-"}", 
+                        color = Color.Gray, 
+                        fontSize = 10.sp, 
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Text(
+                    "PREV: $previousData", 
+                    color = Color.Gray, 
+                    fontSize = 10.sp, 
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
     }
 }
 

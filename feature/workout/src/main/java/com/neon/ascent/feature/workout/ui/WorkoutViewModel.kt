@@ -1,5 +1,10 @@
 package com.neon.ascent.feature.workout.ui
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.neon.ascent.core.common.HapticService
@@ -9,16 +14,11 @@ import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.core.data.datastore.HealthPreferencesDataStore
 import com.neon.ascent.core.domain.goals.models.AscensionTask
 import com.neon.ascent.core.domain.goals.models.AscensionTaskType
-import com.neon.ascent.core.domain.workout.models.*
 import com.neon.ascent.core.domain.workout.rules.CyberCrappRules
 import com.neon.ascent.feature.workout.services.WorkoutTimerService
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import android.os.Build
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -160,6 +160,7 @@ class WorkoutViewModel @Inject constructor(
     private var workoutDurationJob: kotlinx.coroutines.Job? = null
     private var stretchTimerJob: kotlinx.coroutines.Job? = null
     private var sessionJob: kotlinx.coroutines.Job? = null
+    private var zoomUpdateJob: kotlinx.coroutines.Job? = null
 
     init {
         viewModelScope.launch {
@@ -178,7 +179,10 @@ class WorkoutViewModel @Inject constructor(
             
             launch {
                 healthPrefs.workoutZoomLevel.collect { zoom ->
-                    _uiState.update { it.copy(zoomLevel = zoom) }
+                    // Only update from preferences if we're not actively zooming/updating
+                    if (_uiState.value.zoomLevel != zoom) {
+                        _uiState.update { it.copy(zoomLevel = zoom) }
+                    }
                 }
             }
             launch {
@@ -297,7 +301,12 @@ class WorkoutViewModel @Inject constructor(
     }
 
     fun updateZoomLevel(zoom: Float) {
-        viewModelScope.launch {
+        _uiState.update { it.copy(zoomLevel = zoom) }
+        
+        // Debounce persistent storage write to avoid gesture lag
+        zoomUpdateJob?.cancel()
+        zoomUpdateJob = viewModelScope.launch {
+            delay(1000)
             healthPrefs.setWorkoutZoomLevel(zoom)
         }
     }
