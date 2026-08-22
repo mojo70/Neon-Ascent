@@ -142,6 +142,14 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             benchmarkRepository.populateBenchmarksFromCsv()
         }
+
+        viewModelScope.launch {
+            userCharacter.collect { character ->
+                if (character != null && character.netrunnerName.isNullOrBlank()) {
+                    generateDefaultNetrunnerName()
+                }
+            }
+        }
     }
 
     private fun loadDashboard() {
@@ -483,6 +491,15 @@ class DashboardViewModel @Inject constructor(
                 characterRepository.updateCharacter(it.copy(netrunnerName = newName))
             }
         }
+    }
+
+    private fun generateDefaultNetrunnerName() {
+        val prefixes = listOf("GHOST", "NEON", "SILVER", "VOID", "CYBER", "COBALT", "VECTOR", "STATIC")
+        val suffixes = listOf("STRIKER", "RUNNER", "GHOST", "BLADE", "PHANTOM", "SHADOW", "PULSE", "BREACH")
+        val randomId = (100..999).random()
+        val generatedName = "${prefixes.random()}_${suffixes.random()}_$randomId"
+        
+        updateNetrunnerName(generatedName)
     }
 
     fun refreshHealthData() {

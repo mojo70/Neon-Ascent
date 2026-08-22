@@ -32,6 +32,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -89,7 +90,7 @@ fun SlimChromeHeader(
             // Bracketed Avatar
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(56.dp)
                     .clickable { onAvatarClick() }
             ) {
                 HudBracket(Modifier.align(Alignment.TopStart), systemColor)
@@ -99,18 +100,18 @@ fun SlimChromeHeader(
                 
                 AvatarImage(
                     character = character,
-                    modifier = Modifier.fillMaxSize().padding(4.dp),
+                    modifier = Modifier.fillMaxSize().padding(6.dp),
                     contentScale = ContentScale.Crop
                 )
             }
             
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(16.dp))
             
             Column {
                 Text(
-                    text = "RUNNER // ${character?.name?.uppercase() ?: "UNKNOWN"}",
+                    text = "RUNNER // ${character?.netrunnerName?.uppercase() ?: "UNKNOWN"}",
                     color = Color.White,
-                    fontSize = 12.sp,
+                    fontSize = 14.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.sp
@@ -118,7 +119,7 @@ fun SlimChromeHeader(
                 Text(
                     text = "RANK_0${character?.level ?: 1}",
                     color = Color(0xFFFF006E),
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold
                 )
@@ -133,7 +134,7 @@ fun SlimChromeHeader(
             Text(
                 text = currentTime.format(DateTimeFormatter.ofPattern("HH:mm:ss")),
                 color = systemColor,
-                fontSize = 13.sp,
+                fontSize = 15.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold
             )
@@ -141,16 +142,16 @@ fun SlimChromeHeader(
                 Text(
                     text = "${weatherState.temperature}°",
                     color = Color.White.copy(alpha = 0.6f),
-                    fontSize = 11.sp,
+                    fontSize = 13.sp,
                     fontFamily = FontFamily.Monospace
                 )
                 if (liveMetrics?.heartRate != null && liveMetrics.heartRate!! > 0) {
-                    Spacer(Modifier.width(6.dp))
+                    Spacer(Modifier.width(8.dp))
                     Icon(
                         Icons.Outlined.FavoriteBorder,
                         contentDescription = null,
                         tint = Color(0xFFFF006E),
-                        modifier = Modifier.size(10.dp)
+                        modifier = Modifier.size(12.dp)
                     )
                 }
             }
@@ -193,42 +194,42 @@ fun NeuralBriefCard(
                     Text(
                         text = "TODAY'S INTELLIGENCE // NEURAL_BRIEF /",
                         color = Color(0xFF00CCFF),
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 12.dp)
+                        modifier = Modifier.padding(bottom = 14.dp)
                     )
                     Text(
                         text = "Insight: $insight",
                         color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 12.sp,
+                        fontSize = 14.sp,
                         fontFamily = FontFamily.Monospace,
                         fontStyle = FontStyle.Italic,
-                        lineHeight = 16.sp
+                        lineHeight = 18.sp
                     )
                 }
                 
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(start = 16.dp)) {
-                    Canvas(modifier = Modifier.size(64.dp)) {
+                    Canvas(modifier = Modifier.size(80.dp)) {
                         drawArc(
                             color = Color.White.copy(alpha = 0.1f),
                             startAngle = 0f,
                             sweepAngle = 360f,
                             useCenter = false,
-                            style = Stroke(width = 3.dp.toPx())
+                            style = Stroke(width = 4.dp.toPx())
                         )
                         drawArc(
                             color = systemColor,
                             startAngle = -90f,
                             sweepAngle = neuralLoad * 360f,
                             useCenter = false,
-                            style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+                            style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round)
                         )
                     }
                     Text(
                         "${(neuralLoad * 100).toInt()}%",
                         color = Color.White,
-                        fontSize = 13.sp,
+                        fontSize = 16.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold
                     )
@@ -236,7 +237,7 @@ fun NeuralBriefCard(
             }
             
             if (primaryActionTask != null) {
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(24.dp))
                 val buttonText = if (isWorkout) {
                     "LOG WORKOUT // ${primaryActionTask.title.uppercase()}"
                 } else {
@@ -246,21 +247,23 @@ fun NeuralBriefCard(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .heightIn(min = 52.dp)
                         .border(1.dp, systemColor, CyberCutShape)
                         .clickable { 
                             if (isWorkout) onWorkoutClick(primaryActionTask.id)
                             else onActionClick(primaryActionTask.id) 
-                        },
+                        }
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = buttonText,
                         color = systemColor,
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
+                        letterSpacing = 1.2.sp,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
@@ -279,34 +282,34 @@ fun HeroPulseRow(
             .fillMaxWidth()
             .border(1.dp, Color.White.copy(alpha = 0.1f), CyberCutShape)
             .background(Color.Black.copy(alpha = 0.4f), CyberCutShape)
-            .padding(vertical = 12.dp, horizontal = 16.dp),
+            .padding(vertical = 16.dp, horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = Icons.Outlined.CheckBoxOutlineBlank,
             contentDescription = null,
             tint = Color.White.copy(alpha = 0.4f),
-            modifier = Modifier.size(18.dp).clickable { onComplete() }
+            modifier = Modifier.size(20.dp).clickable { onComplete() }
         )
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(14.dp))
         Text(
             text = "DIURNAL_PULSE • ${task.title.uppercase()}",
             color = Color.White,
-            fontSize = 11.sp,
+            fontSize = 12.sp,
             fontFamily = FontFamily.Monospace,
             modifier = Modifier.weight(1f)
         )
         Text(
             text = "AM",
             color = Color.White.copy(alpha = 0.6f),
-            fontSize = 10.sp,
+            fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
-            modifier = Modifier.padding(end = 12.dp)
+            modifier = Modifier.padding(end = 14.dp)
         )
         Text(
             text = "LOG >>",
             color = Color.White,
-            fontSize = 10.sp,
+            fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Bold
         )
@@ -328,21 +331,21 @@ fun MetricPillRow(
             value = if (steps > 1000) String.format("%.1fK", steps / 1000f) else steps.toString(),
             color = Color(0xFF00CCFF),
             icon = Icons.AutoMirrored.Filled.DirectionsRun,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f).height(86.dp)
         )
         MetricPill(
             label = "KCAL",
             value = if (kcal > 1000) String.format("%.1fK", kcal / 1000f) else kcal.toString(),
             color = Color(0xFFFF8C00),
             icon = Icons.Default.LocalFireDepartment,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f).height(86.dp)
         )
         MetricPill(
             label = "STREAK",
             value = streak.toString(),
             color = Color(0xFF00FF9C),
             icon = Icons.Default.Whatshot,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f).height(86.dp)
         )
     }
 }
@@ -353,14 +356,14 @@ fun MetricPill(label: String, value: String, color: Color, icon: ImageVector, mo
         modifier = modifier
             .border(1.dp, color.copy(alpha = 0.4f), CyberCutShape)
             .background(Color.Black.copy(alpha = 0.2f), CyberCutShape)
-            .padding(10.dp)
+            .padding(12.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, color = color, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
-            Icon(icon, contentDescription = null, tint = color.copy(alpha = 0.8f), modifier = Modifier.size(14.dp))
+            Text(label, color = color, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+            Icon(icon, contentDescription = null, tint = color.copy(alpha = 0.8f), modifier = Modifier.size(16.dp))
         }
-        Spacer(Modifier.height(6.dp))
-        Text(value, color = color, fontSize = 18.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        Text(value, color = color, fontSize = 22.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Black)
     }
 }
 
@@ -456,20 +459,9 @@ fun DashboardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 12.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Absolute Center Clock
-            Text(
-                text = currentTime.value.format(DateTimeFormatter.ofPattern("HH:mm")),
-                color = Color.White,
-                fontSize = 14.sp,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
-
             Spacer(Modifier.height(16.dp))
             
             SlimChromeHeader(
@@ -482,7 +474,7 @@ fun DashboardScreen(
                 systemColor = systemColor
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(24.dp))
 
             NeuralBriefCard(
                 insight = systemAdvice,
@@ -493,7 +485,7 @@ fun DashboardScreen(
                 systemColor = systemColor
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(24.dp))
 
             state.todayPulses.firstOrNull()?.let { heroTask ->
                 HeroPulseRow(
@@ -501,7 +493,7 @@ fun DashboardScreen(
                     onComplete = { viewModel.completePulse(heroTask.id) },
                     systemColor = systemColor
                 )
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(24.dp))
             }
 
             MetricPillRow(
@@ -510,11 +502,11 @@ fun DashboardScreen(
                 streak = state.totalHabitDays
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(24.dp))
 
             if (state.activeMissions.isNotEmpty()) {
                 MissionChipRow(missions = state.activeMissions)
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(24.dp))
             }
 
             AiTerminal(
@@ -528,7 +520,7 @@ fun DashboardScreen(
                 onGuideClick = onNavigateToGuide
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(24.dp))
 
             // Action Buttons
             Row(
@@ -621,7 +613,7 @@ fun AiTerminal(
             // Terminal indicator dot
             Box(
                 modifier = Modifier
-                    .size(6.dp)
+                    .size(8.dp)
                     .background(Color(0xFF00F5FF), CircleShape)
                     .align(Alignment.TopEnd)
             )
@@ -630,16 +622,16 @@ fun AiTerminal(
                 Text(
                     text = "AI_TERMINAL // CYBR-TES",
                     color = Color.White.copy(alpha = 0.6f),
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    modifier = Modifier.padding(bottom = 10.dp)
                 )
 
                 if (isExpanded) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -647,47 +639,47 @@ fun AiTerminal(
                             Text(
                                 "CONNECTION_SECURE",
                                 color = accentColor.copy(alpha = 0.4f),
-                                fontSize = 10.sp,
+                                fontSize = 11.sp,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold
                             )
-                            Spacer(Modifier.width(8.dp))
+                            Spacer(Modifier.width(10.dp))
                             Text(
                                 "[NEON_GUIDE]",
                                 color = Color(0xFF00FFFF),
-                                fontSize = 10.sp,
+                                fontSize = 11.sp,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Black,
                                 modifier = Modifier
                                     .clickable { onGuideClick() }
-                                    .padding(4.dp)
+                                    .padding(6.dp)
                             )
                         }
                         Text(
                             "[MINIMIZE]",
                             color = accentColor.copy(alpha = 0.8f),
-                            fontSize = 10.sp,
+                            fontSize = 11.sp,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier
                                 .clickable { onToggleExpand() }
-                                .padding(4.dp)
+                                .padding(6.dp)
                         )
                     }
 
                     Column(
                         modifier = Modifier
-                            .heightIn(max = 240.dp)
+                            .heightIn(max = 280.dp)
                             .verticalScroll(rememberScrollState())
-                            .padding(8.dp)
+                            .padding(10.dp)
                     ) {
                         messages.forEach { msg ->
                             Text(
                                 text = if (msg.isFromUser) "> ${msg.text}" else "CYBR-TES: ${msg.text}",
                                 color = if (msg.isFromUser) Color.White else accentColor,
-                                fontSize = 12.sp,
+                                fontSize = 13.sp,
                                 fontFamily = FontFamily.Monospace,
-                                modifier = Modifier.padding(vertical = 4.dp)
+                                modifier = Modifier.padding(vertical = 6.dp)
                             )
                         }
                     }
@@ -695,7 +687,7 @@ fun AiTerminal(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(8.dp)
+                            .padding(10.dp)
                             .background(Color.Black.copy(alpha = 0.4f)),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -705,16 +697,16 @@ fun AiTerminal(
                             textStyle = TextStyle(
                                 color = Color.White,
                                 fontFamily = FontFamily.Monospace,
-                                fontSize = 12.sp
+                                fontSize = 13.sp
                             ),
-                            modifier = Modifier.weight(1f).padding(8.dp),
+                            modifier = Modifier.weight(1f).padding(10.dp),
                             cursorBrush = SolidColor(accentColor),
                             decorationBox = { innerTextField ->
                                 if (inputValue.isEmpty()) {
                                     Text(
                                         "ENTER_COMMAND...",
                                         color = Color.White.copy(alpha = 0.3f),
-                                        fontSize = 12.sp,
+                                        fontSize = 13.sp,
                                         fontFamily = FontFamily.Monospace
                                     )
                                 }
@@ -726,7 +718,7 @@ fun AiTerminal(
                                 Icons.AutoMirrored.Filled.Send,
                                 contentDescription = "SEND",
                                 tint = accentColor,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(22.dp)
                             )
                         }
                     }
@@ -734,11 +726,11 @@ fun AiTerminal(
                     Text(
                         text = messages.lastOrNull()?.text ?: "WAITING_FOR_INPUT...",
                         color = Color.White,
-                        fontSize = 10.sp,
+                        fontSize = 12.sp,
                         fontFamily = FontFamily.Monospace,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(8.dp)
+                        modifier = Modifier.padding(10.dp)
                     )
                 }
             }

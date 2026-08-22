@@ -173,7 +173,7 @@ fun AppNavigation(
         }
         
         composable<Screen.MainHub> {
-            val pagerState = rememberPagerState(pageCount = { 6 }, initialPage = 0)
+            val pagerState = rememberPagerState(pageCount = { 6 }, initialPage = 2) // Default to DECK (index 2)
             val coroutineScope = rememberCoroutineScope()
             
             Scaffold(
@@ -193,30 +193,13 @@ fun AppNavigation(
                     modifier = Modifier.padding(padding)
                 ) { page ->
                     when (page) {
-                        0 -> Box(Modifier.fillMaxSize()) {
-                            DashboardScreen(
-                                onAvatarClick = { 
-                                    navController.navigate(Screen.HolographicHub)
-                                },
-                                onTaskClick = { id -> navController.navigate(Screen.TaskDetail(id)) },
-                                onNavigateToWorkout = { taskId -> 
-                                    navController.navigate(Screen.WorkoutLog(taskId))
-                                },
-                                onNavigateToGuide = {
-                                    coroutineScope.launch {
-                                        pagerState.animateScrollToPage(3) // CODEX
-                                    }
+                        0 -> LoreScreen(
+                            onBack = { 
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(2) // DECK
                                 }
-                            )
-                            
-                            // Ongoing Workout Indicator
-                            if (workoutState.session != null) {
-                                OngoingWorkoutOverlay(
-                                    duration = workoutState.workoutDurationSeconds,
-                                    onClick = { navController.navigate(Screen.WorkoutLog(null)) }
-                                )
                             }
-                        }
+                        )
                         1 -> CyberdeckScreen(
                             onWalletClick = { navController.navigate(Screen.Wallet) },
                             onDatabaseClick = { navController.navigate(Screen.DatabaseCore) },
@@ -234,10 +217,34 @@ fun AppNavigation(
                             },
                             tickerMessages = tickerMessages
                         )
-                        2 -> BiohackingScreen(
+                        2 -> Box(Modifier.fillMaxSize()) {
+                            DashboardScreen(
+                                onAvatarClick = { 
+                                    navController.navigate(Screen.HolographicHub)
+                                },
+                                onTaskClick = { id -> navController.navigate(Screen.TaskDetail(id)) },
+                                onNavigateToWorkout = { taskId -> 
+                                    navController.navigate(Screen.WorkoutLog(taskId))
+                                },
+                                onNavigateToGuide = {
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(0) // CODEX
+                                    }
+                                }
+                            )
+                            
+                            // Ongoing Workout Indicator
+                            if (workoutState.session != null) {
+                                OngoingWorkoutOverlay(
+                                    duration = workoutState.workoutDurationSeconds,
+                                    onClick = { navController.navigate(Screen.WorkoutLog(null)) }
+                                )
+                            }
+                        }
+                        3 -> BiohackingScreen(
                             onBack = { 
                                 coroutineScope.launch {
-                                    pagerState.animateScrollToPage(0)
+                                    pagerState.animateScrollToPage(2) // DECK
                                 }
                             },
                             onNavigateToForge = { type, title, desc, biometrics ->
@@ -246,24 +253,17 @@ fun AppNavigation(
                             onNavigateToGuide = { message ->
                                 pendingGuideMessage = message
                                 coroutineScope.launch {
-                                    pagerState.animateScrollToPage(3)
+                                    pagerState.animateScrollToPage(0) // CODEX
                                 }
                             },
                             onNavigateToDopamineMenu = {
                                 navController.navigate(Screen.DopamineMenu)
                             }
                         )
-                        3 -> LoreScreen(
-                            onBack = { 
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(0)
-                                }
-                            }
-                        )
                         4 -> AscensionTerminalScreen(
                             onBack = {
                                 coroutineScope.launch {
-                                    pagerState.animateScrollToPage(0)
+                                    pagerState.animateScrollToPage(2) // DECK
                                 }
                             },
                             onDirectiveClick = { id -> navController.navigate(Screen.DirectiveDetail(id)) },
