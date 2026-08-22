@@ -145,7 +145,8 @@ data class WorkoutAugment(
     val exercises: List<RoutineExercise> = emptyList(),
     val colorHex: String = "#007AFF",
     val isSystem: Boolean = false,
-    val isAddedToLibrary: Boolean = true
+    val isAddedToLibrary: Boolean = true,
+    val scheduledDays: List<ScheduledDay> = emptyList()
 )
 
 data class SetLog(

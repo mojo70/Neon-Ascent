@@ -1181,6 +1181,16 @@ class WorkoutRepositoryImpl @Inject constructor(
         workoutDao.insertProgressionState(state.toEntity())
     }
 
+    override fun getAccomplishments(exerciseId: String): Flow<ExerciseAccomplishments?> =
+        workoutDao.getAccomplishments(exerciseId).map { it?.toDomain() }
+
+    override fun getAllAccomplishments(): Flow<List<ExerciseAccomplishments>> =
+        workoutDao.getAllAccomplishments().map { list -> list.map { it.toDomain() } }
+
+    override suspend fun saveAccomplishments(accomplishments: ExerciseAccomplishments) {
+        workoutDao.insertAccomplishments(accomplishments.toEntity())
+    }
+
     override fun getFullHistory(): Flow<List<Pair<WorkoutSession, List<Pair<WorkoutLog, List<SetLog>>>>>> =
         workoutDao.getAllSessionsWithDetails().map { sessions ->
             sessions.map { sessionWithLogs ->

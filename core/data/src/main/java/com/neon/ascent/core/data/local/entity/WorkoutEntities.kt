@@ -49,6 +49,25 @@ data class ProgressionStateEntity(
     val lastRotationDate: Instant?
 )
 
+@Entity(tableName = "exercise_accomplishments")
+data class ExerciseAccomplishmentsEntity(
+    @PrimaryKey val exerciseId: String,
+    val heaviestWeight: Float,
+    val heaviestWeightReps: Int,
+    val heaviestWeightDate: Instant?,
+    val maxEstimatedOneRepMax: Float,
+    val maxOneRepMaxWeight: Float,
+    val maxOneRepMaxReps: Int,
+    val maxOneRepMaxDate: Instant?,
+    val maxSessionVolume: Float,
+    val maxSessionVolumeDate: Instant?,
+    val maxRepsAtTopWeight: Int,
+    val topWeightForReps: Float,
+    val bestClusterReps: Int,
+    val bestClusterWeight: Float,
+    val bestClusterDate: Instant?
+)
+
 @Entity(
     tableName = "workout_logs",
     foreignKeys = [
@@ -83,7 +102,8 @@ data class WorkoutAugmentEntity(
     val focusBodyPart: String,
     val colorHex: String,
     val isSystem: Boolean = false,
-    val isAddedToLibrary: Boolean = true
+    val isAddedToLibrary: Boolean = true,
+    val scheduledDays: String = "[]" // JSON string of List<ScheduledDay>
 )
 
 @Entity(

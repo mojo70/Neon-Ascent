@@ -112,7 +112,10 @@ fun WorkoutAugmentEntity.toDomain(
     }.sortedBy { it.first }.map { it.second },
     colorHex = colorHex,
     isSystem = isSystem,
-    isAddedToLibrary = isAddedToLibrary
+    isAddedToLibrary = isAddedToLibrary,
+    scheduledDays = runCatching {
+        gson.fromJson<List<ScheduledDay>>(scheduledDays, object : TypeToken<List<ScheduledDay>>() {}.type)
+    }.getOrNull() ?: emptyList()
 )
 
 fun WorkoutAugment.toEntity() = WorkoutAugmentEntity(
@@ -122,7 +125,8 @@ fun WorkoutAugment.toEntity() = WorkoutAugmentEntity(
     focusBodyPart = focusBodyPart,
     colorHex = colorHex,
     isSystem = isSystem,
-    isAddedToLibrary = isAddedToLibrary
+    isAddedToLibrary = isAddedToLibrary,
+    scheduledDays = gson.toJson(scheduledDays)
 )
 
 fun SetLogEntity.toDomain() = SetLog(
@@ -242,6 +246,43 @@ fun AugmentSetEntity.toDomain() = RoutineSet(
     reps = reps,
     goalReps = goalReps
 )
+
+fun ExerciseAccomplishmentsEntity.toDomain() = ExerciseAccomplishments(
+    exerciseId = exerciseId,
+    heaviestWeight = heaviestWeight,
+    heaviestWeightReps = heaviestWeightReps,
+    heaviestWeightDate = heaviestWeightDate,
+    maxEstimatedOneRepMax = maxEstimatedOneRepMax,
+    maxOneRepMaxWeight = maxOneRepMaxWeight,
+    maxOneRepMaxReps = maxOneRepMaxReps,
+    maxOneRepMaxDate = maxOneRepMaxDate,
+    maxSessionVolume = maxSessionVolume,
+    maxSessionVolumeDate = maxSessionVolumeDate,
+    maxRepsAtTopWeight = maxRepsAtTopWeight,
+    topWeightForReps = topWeightForReps,
+    bestClusterReps = bestClusterReps,
+    bestClusterWeight = bestClusterWeight,
+    bestClusterDate = bestClusterDate
+)
+
+fun ExerciseAccomplishments.toEntity() = ExerciseAccomplishmentsEntity(
+    exerciseId = exerciseId,
+    heaviestWeight = heaviestWeight,
+    heaviestWeightReps = heaviestWeightReps,
+    heaviestWeightDate = heaviestWeightDate,
+    maxEstimatedOneRepMax = maxEstimatedOneRepMax,
+    maxOneRepMaxWeight = maxOneRepMaxWeight,
+    maxOneRepMaxReps = maxOneRepMaxReps,
+    maxOneRepMaxDate = maxOneRepMaxDate,
+    maxSessionVolume = maxSessionVolume,
+    maxSessionVolumeDate = maxSessionVolumeDate,
+    maxRepsAtTopWeight = maxRepsAtTopWeight,
+    topWeightForReps = topWeightForReps,
+    bestClusterReps = bestClusterReps,
+    bestClusterWeight = bestClusterWeight,
+    bestClusterDate = bestClusterDate
+)
+
 
 fun WorkoutRoutineEntity.toDomain(
     exercisesWithOrder: List<RoutineExerciseWithOrder> = emptyList(),

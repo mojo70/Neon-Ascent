@@ -65,6 +65,7 @@ fun WorkoutLoggingScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showRoutineActionMenuFor by remember { mutableStateOf<WorkoutRoutine?>(null) }
     var showAugmentActionMenuFor by remember { mutableStateOf<WorkoutAugment?>(null) }
+    var showAugmentScheduleDialogFor by remember { mutableStateOf<WorkoutAugment?>(null) }
     var showRestTimerAdjustment by remember { mutableStateOf(false) }
 
     Box(
@@ -372,8 +373,23 @@ fun WorkoutLoggingScreen(
                     viewModel.editAugment(showAugmentActionMenuFor!!)
                     showAugmentActionMenuFor = null
                 },
+                onSchedule = {
+                    showAugmentScheduleDialogFor = showAugmentActionMenuFor
+                    showAugmentActionMenuFor = null
+                },
                 onDelete = { viewModel.deleteAugment(showAugmentActionMenuFor!!) },
                 onDismiss = { showAugmentActionMenuFor = null }
+            )
+        }
+
+        if (showAugmentScheduleDialogFor != null) {
+            AugmentScheduleDialog(
+                augment = showAugmentScheduleDialogFor!!,
+                onSave = { updatedDays ->
+                    viewModel.updateAugmentSchedule(showAugmentScheduleDialogFor!!, updatedDays)
+                    showAugmentScheduleDialogFor = null
+                },
+                onDismiss = { showAugmentScheduleDialogFor = null }
             )
         }
 
@@ -2454,6 +2470,7 @@ fun WorkoutAugmentActionMenu(
     onShare: () -> Unit,
     onDuplicate: () -> Unit,
     onEdit: () -> Unit,
+    onSchedule: () -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -2501,6 +2518,14 @@ fun WorkoutAugmentActionMenu(
                     onDismiss()
                 }
             )
+            ActionMenuItem(
+                icon = Icons.Default.CalendarMonth,
+                label = "Schedule & Reminders",
+                onClick = {
+                    onSchedule()
+                    onDismiss()
+                }
+            )
             
             HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f))
             
@@ -2514,7 +2539,184 @@ fun WorkoutAugmentActionMenu(
                 }
             )
         }
+    }
+}
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AugmentScheduleDialog(
+    augment: WorkoutAugment,
+    onSave: (List<ScheduledDay>) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val days = listOf("M", "T", "W", "T", "F", "S", "S")
+    var scheduledDays by remember(augment.scheduledDays) { mutableStateOf(augment.scheduledDays) }
+    var applyTimeToAll by remember { mutableStateOf(true) }
+    var showTimePickerForDay by remember { mutableStateOf<Int?>(null) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(8.dp),
+            color = Color(0xFF0D0D0D),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.4f))
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(
+                    "SUB-PROTOCOL SCHEDULE",
+                    color = Color(0xFF00FF9C),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp
+                )
+                Text(
+                    "Schedule independent training & reminders for ${augment.name}.",
+                    color = Color.Gray,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("APPLY SAME TIME TO ALL", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Switch(
+                        checked = applyTimeToAll,
+                        onCheckedChange = { applyTimeToAll = it },
+                        colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF00FF9C))
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    days.forEachIndexed { index, label ->
+                        val dayId = index + 1
+                        val scheduled = scheduledDays.find { it.dayOfWeek == dayId }
+                        val isSelected = scheduled != null
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(horizontal = 2.dp)
+                        ) {
+                            Surface(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clickable {
+                                        scheduledDays = if (isSelected) {
+                                            scheduledDays.filter { it.dayOfWeek != dayId }
+                                        } else {
+                                            val baseTime = scheduledDays.firstOrNull()?.time ?: "18:00"
+                                            scheduledDays + ScheduledDay(dayId, baseTime)
+                                        }
+                                    },
+                                color = if (isSelected) Color(0xFF00FF9C).copy(alpha = 0.15f) else Color(0xFF1C1C1E),
+                                shape = CircleShape,
+                                border = BorderStroke(1.5.dp, if (isSelected) Color(0xFF00FF9C) else Color.DarkGray)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        label,
+                                        color = if (isSelected) Color(0xFF00FF9C) else Color.Gray,
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 15.sp
+                                    )
+                                }
+                            }
+                            if (scheduled != null) {
+                                Surface(
+                                    modifier = Modifier
+                                        .padding(top = 6.dp)
+                                        .clickable { showTimePickerForDay = dayId },
+                                    color = Color(0xFF2C2C2E),
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        scheduled.time,
+                                        color = Color(0xFF00FF9C),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) {
+                        Text("CANCEL", color = Color.Gray)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Button(
+                        onClick = { onSave(scheduledDays) },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("SAVE SCHEDULE", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+
+    if (showTimePickerForDay != null) {
+        val initialTime = scheduledDays.find { it.dayOfWeek == showTimePickerForDay }?.time ?: "18:00"
+        val initialHour = initialTime.split(":")[0].toIntOrNull() ?: 18
+        val initialMinute = initialTime.split(":")[1].toIntOrNull() ?: 0
+
+        val timePickerState = rememberTimePickerState(
+            initialHour = initialHour,
+            initialMinute = initialMinute
+        )
+
+        AlertDialog(
+            onDismissRequest = { showTimePickerForDay = null },
+            confirmButton = {
+                TextButton(onClick = {
+                    val newTime = "%02d:%02d".format(timePickerState.hour, timePickerState.minute)
+                    scheduledDays = if (applyTimeToAll) {
+                        scheduledDays.map { it.copy(time = newTime) }
+                    } else {
+                        scheduledDays.map { if (it.dayOfWeek == showTimePickerForDay) it.copy(time = newTime) else it }
+                    }
+                    showTimePickerForDay = null
+                }) {
+                    Text("CONFIRM", color = Color(0xFF00FF9C), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePickerForDay = null }) {
+                    Text("CANCEL", color = Color.Gray)
+                }
+            },
+            title = {
+                Text(
+                    "TRAINING TIME WINDOW",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp
+                )
+            },
+            text = {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    TimePicker(state = timePickerState)
+                }
+            },
+            containerColor = Color(0xFF1C1C1E),
+            shape = RoundedCornerShape(16.dp)
+        )
     }
 }
 
@@ -3279,11 +3481,13 @@ fun WorkoutLogCard(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.clickable { 
-                    uiState.availableExercises.find { it.id == log.exerciseId }?.let {
-                        viewModel.showExerciseDetail(it)
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { 
+                        uiState.availableExercises.find { it.id == log.exerciseId }?.let {
+                            viewModel.showExerciseDetail(it)
+                        }
                     }
-                }
             ) {
                 val exerciseIcon = when (exercise?.equipment?.firstOrNull()) {
                     "Cable", "Plate Loaded" -> Icons.Default.SettingsInputComponent
@@ -3292,7 +3496,7 @@ fun WorkoutLogCard(
                 }
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(36.dp)
                         .background(Color(0xFF1C1C1E), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
@@ -3300,12 +3504,18 @@ fun WorkoutLogCard(
                         exerciseIcon,
                         contentDescription = null,
                         tint = Color.White.copy(alpha = 0.6f),
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(log.exerciseName, color = augmentColor, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f, fill = false)) {
+                    Text(
+                        log.exerciseName, 
+                        color = augmentColor, 
+                        fontSize = (18 * (if (uiState.zoomLevel >= 1.5f) 0.9f else 1.0f)).sp, 
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2
+                    )
                     
                     // Comparison Logic
                     val comparisonText = remember(sets, previousSets, uiState.session?.protocol) {
@@ -3333,6 +3543,41 @@ fun WorkoutLogCard(
                         Text(it, color = Color(0xFF00FF9C), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
 
+                    // Accomplishments badge display
+                    val acc = uiState.accomplishments[log.exerciseId]
+                    if (acc != null && (acc.heaviestWeight > 0f || acc.maxEstimatedOneRepMax > 0f || acc.bestClusterReps > 0)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(top = 2.dp)
+                        ) {
+                            if (acc.heaviestWeight > 0f) {
+                                Text(
+                                    "MAX: ${if (acc.heaviestWeight % 1 == 0f) acc.heaviestWeight.toInt() else acc.heaviestWeight}lbs × ${acc.heaviestWeightReps}",
+                                    color = Color(0xFFFFD700),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            if (acc.maxEstimatedOneRepMax > 0f) {
+                                Text(
+                                    "1RM: ~${acc.maxEstimatedOneRepMax.toInt()}lbs",
+                                    color = Color(0xFF00FFAA),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            if (acc.bestClusterReps > 0) {
+                                Text(
+                                    "RP: ${acc.bestClusterReps}r @ ${acc.bestClusterWeight.toInt()}lbs",
+                                    color = Color(0xFF00CCFF),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+
                     // Neural Uplink Hints
                     val hint = remember(log.exerciseId, uiState.recoveryScore) {
                         viewModel.getHintForExercise(log.exerciseId)
@@ -3348,8 +3593,16 @@ fun WorkoutLogCard(
                     }
                 }
             }
-            IconButton(onClick = onActionMenuClick) {
-                Icon(Icons.Default.MoreHoriz, contentDescription = "Exercise Actions", tint = Color.Gray)
+            IconButton(
+                onClick = onActionMenuClick,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    Icons.Default.MoreHoriz, 
+                    contentDescription = "Exercise Actions", 
+                    tint = Color.White.copy(alpha = 0.8f),
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
 
@@ -3525,19 +3778,14 @@ fun WorkoutLogCard(
             items
         }
 
-        val userWeight = uiState.userProfile?.let { profile ->
-        if (profile.unitSystem == UnitSystem.IMPERIAL) profile.weightKg * 2.20462f else profile.weightKg
-    }
-    val isBWExercise = exercise?.equipment?.contains("Bodyweight") == true || exercise?.equipment?.contains("Weighted") == true
-
-    displayItems.forEachIndexed { index, item ->
+        displayItems.forEachIndexed { index, item ->
             if (item is List<*>) {
                 @Suppress("UNCHECKED_CAST")
                 val clusterSets = item as List<SetLog>
                 val clusterKey = clusterSets.firstOrNull()?.workoutLogId ?: "cluster_$index"
                 key(clusterKey) {
                     val prevClusterSets = previousSets.filter { it.clusterMiniSetIndex != null }
-                    val prevW = prevClusterSets.firstOrNull()?.weight ?: progressionState?.currentWeight ?: if (isBWExercise) userWeight else null
+                    val prevW = prevClusterSets.firstOrNull()?.weight ?: progressionState?.currentWeight
                     ClusterSetRow(
                         sets = clusterSets,
                         previousSets = prevClusterSets,
@@ -3558,8 +3806,15 @@ fun WorkoutLogCard(
                     val prevSet = prevTypeSets.getOrNull(setIndexInType)
                     
                     val hasPrevData = prevSet != null && (prevSet.weight > 0 || prevSet.reps > 0)
-                    val prevWFallback = if (set.type != SetType.WARMUP) (progressionState?.currentWeight ?: if (isBWExercise) userWeight else null) else (if (isBWExercise) userWeight else null)
-                    val prevWeight = if (prevSet != null && prevSet.weight > 0) prevSet.weight else prevWFallback
+                    
+                    // Realistic Warmup vs Working Set Suggestion:
+                    // For Bodyweight exercises, the user enters added weight (0 if bodyweight only).
+                    // Bodyweight is handled in the background calculations, not shown/entered by user.
+                    val prevWeight = when {
+                        prevSet != null && prevSet.weight > 0 -> prevSet.weight
+                        set.type == SetType.WARMUP -> null
+                        else -> progressionState?.currentWeight
+                    }
 
                     SetLogRow(
                         setNumber = index + 1,
@@ -5261,8 +5516,8 @@ fun ProtocolConfigScreen(
 
         if (showTimePickerForDay != null) {
             val initialTime = tempProfile.scheduledDays.find { it.dayOfWeek == showTimePickerForDay }?.time ?: "09:00"
-            val initialHour = initialTime.split(":")[0].toInt()
-            val initialMinute = initialTime.split(":")[1].toInt()
+            val initialHour = initialTime.split(":")[0].toIntOrNull() ?: 9
+            val initialMinute = initialTime.split(":")[1].toIntOrNull() ?: 0
             
             val timePickerState = rememberTimePickerState(
                 initialHour = initialHour,
@@ -5281,12 +5536,33 @@ fun ProtocolConfigScreen(
                         }
                         showTimePickerForDay = null 
                     }) { 
-                        Text("CONFIRM", color = Color(0xFF00FF9C)) 
+                        Text("CONFIRM", color = Color(0xFF00FF9C), fontWeight = FontWeight.Bold) 
                     } 
+                },
+                dismissButton = {
+                    TextButton(onClick = { showTimePickerForDay = null }) {
+                        Text("CANCEL", color = Color.Gray)
+                    }
+                },
+                title = { 
+                    Text(
+                        "TRAINING TIME WINDOW", 
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.sp
+                    ) 
                 }, 
-                title = { Text("SELECT TIME", color = Color.White) }, 
-                text = { TimePicker(state = timePickerState) }, 
-                containerColor = Color(0xFF1C1C1E)
+                text = { 
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        TimePicker(state = timePickerState) 
+                    }
+                }, 
+                containerColor = Color(0xFF1C1C1E),
+                shape = RoundedCornerShape(16.dp)
             )
         }
 

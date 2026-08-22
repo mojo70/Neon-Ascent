@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import com.neon.ascent.data.AppSessionManager
 import com.neon.ascent.feature.notifications.data.SmartPingScheduler
 import java.util.UUID
 import javax.inject.Inject
@@ -42,7 +43,8 @@ class SettingsViewModel @Inject constructor(
     private val userStoryRepository: UserStoryRepository,
     private val specialRepository: SpecialRepository,
     private val notificationScheduler: SmartPingScheduler,
-    private val workoutRepository: WorkoutRepository
+    private val workoutRepository: WorkoutRepository,
+    private val appSessionManager: AppSessionManager
 ) : ViewModel() {
 
     private val _prayerToast = MutableStateFlow<String?>(null)
@@ -366,6 +368,7 @@ class SettingsViewModel @Inject constructor(
 
     fun resetProfile(onComplete: () -> Unit) {
         viewModelScope.launch {
+            appSessionManager.resetAppLoaded()
             characterRepository.resetCharacter()
             settingsRepository.setReligionShortcutEnabled(false)
             settingsRepository.setLocalAiOnly(false)

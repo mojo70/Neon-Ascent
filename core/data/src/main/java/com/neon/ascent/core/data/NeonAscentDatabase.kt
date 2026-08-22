@@ -40,9 +40,10 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_11_12
         RoutineAugmentCrossRef::class,
         RoutineSetEntity::class,
         AugmentSetEntity::class,
-        ProgressionStateEntity::class
+        ProgressionStateEntity::class,
+        ExerciseAccomplishmentsEntity::class
     ],
-    version = 41,
+    version = 43,
     exportSchema = true
 )
 @TypeConverters(

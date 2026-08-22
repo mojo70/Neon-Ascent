@@ -40,6 +40,17 @@ class HapticService @Inject constructor(
         vibrator.vibrate(effect)
     }
 
+    /** Distinct triple-buzz alert pulse for rest pause cluster timer completion */
+    @SuppressLint("MissingPermission")
+    fun clusterTimerBuzz() {
+        val effect = VibrationEffect.createWaveform(
+            longArrayOf(0, 200, 80, 200, 80, 350),
+            intArrayOf(0, 255, 0, 255, 0, 255),
+            -1
+        )
+        vibrator.vibrate(effect)
+    }
+
     /** Intense alert pulse for rest timer completion */
     @SuppressLint("MissingPermission")
     fun alertRestOver() {

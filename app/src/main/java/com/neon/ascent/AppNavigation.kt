@@ -87,6 +87,7 @@ import com.neon.ascent.feature.workout.ui.WorkoutLoggingScreen
 import com.neon.ascent.feature.wallet.EurodollarWalletScreen
 import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.core.common.cyberGlitch
+import com.neon.ascent.data.AppSessionManager
 import com.neon.ascent.util.derivePersonalityArchetype
 
 @Composable
@@ -94,7 +95,8 @@ fun AppNavigation(
     creationViewModel: CreationViewModel = hiltViewModel(),
     dashboardViewModel: DashboardViewModel = hiltViewModel(),
     notificationViewModel: NotificationPermissionViewModel = hiltViewModel(),
-    workoutViewModel: com.neon.ascent.feature.workout.ui.WorkoutViewModel = hiltViewModel()
+    workoutViewModel: com.neon.ascent.feature.workout.ui.WorkoutViewModel = hiltViewModel(),
+    loadingViewModel: com.neon.ascent.feature.loading.LoadingViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
     val userCharacter by dashboardViewModel.userCharacter.collectAsState()
@@ -129,9 +131,20 @@ fun AppNavigation(
         }
     }
 
+    val isAppLoaded by loadingViewModel.isAppLoaded.collectAsState()
+
+    val initialStartDestination = remember {
+        if (isAppLoaded) {
+            val char = dashboardViewModel.userCharacter.value
+            if (char?.isCreationComplete == true) Screen.MainHub else Screen.Creation
+        } else {
+            Screen.Loading
+        }
+    }
+
     NavHost(
         navController = navController, 
-        startDestination = Screen.Loading,
+        startDestination = initialStartDestination,
         enterTransition = { fadeIn(animationSpec = tween(300)) },
         exitTransition = { fadeOut(animationSpec = tween(300)) }
     ) {
@@ -149,7 +162,8 @@ fun AppNavigation(
                             popUpTo(Screen.Loading) { inclusive = true }
                         }
                     }
-                }
+                },
+                viewModel = loadingViewModel
             )
         }
         

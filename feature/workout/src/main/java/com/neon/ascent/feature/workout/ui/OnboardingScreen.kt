@@ -285,7 +285,6 @@ fun StepHardwareCheck(state: OnboardingUiState, onToggle: (String) -> Unit) {
 fun StepChronosCalibration(state: OnboardingUiState, onUpdateSchedule: (List<ScheduledDay>) -> Unit, onToggleApplyToAll: () -> Unit) {
     val days = listOf("M", "T", "W", "T", "F", "S", "S")
     var showTimePickerForDay by remember { mutableStateOf<Int?>(null) }
-    val timePickerState = rememberTimePickerState(initialHour = 9, initialMinute = 0)
 
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
         Text("CHRONOS CALIBRATION", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
@@ -298,22 +297,121 @@ fun StepChronosCalibration(state: OnboardingUiState, onUpdateSchedule: (List<Sch
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
             days.forEachIndexed { index, label ->
                 val dayId = index + 1
                 val scheduled = state.profile.scheduledDays.find { it.dayOfWeek == dayId }
                 val isSelected = scheduled != null
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Surface(modifier = Modifier.size(40.dp).clickable { if (isSelected) onUpdateSchedule(state.profile.scheduledDays.filter { it.dayOfWeek != dayId }) else onUpdateSchedule(state.profile.scheduledDays + ScheduledDay(dayId, state.profile.scheduledDays.firstOrNull()?.time ?: "09:00")) }, color = if (isSelected) Color(0xFF00CCFF).copy(alpha = 0.1f) else Color(0xFF1C1C1E), shape = CircleShape, border = BorderStroke(1.dp, if (isSelected) Color(0xFF00CCFF) else Color.DarkGray)) {
-                        Box(contentAlignment = Alignment.Center) { Text(label, color = if (isSelected) Color(0xFF00CCFF) else Color.Gray, fontWeight = FontWeight.Bold) }
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(horizontal = 2.dp)
+                ) {
+                    Surface(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clickable {
+                                if (isSelected) {
+                                    onUpdateSchedule(state.profile.scheduledDays.filter { it.dayOfWeek != dayId })
+                                } else {
+                                    onUpdateSchedule(
+                                        state.profile.scheduledDays + ScheduledDay(
+                                            dayId,
+                                            state.profile.scheduledDays.firstOrNull()?.time ?: "09:00"
+                                        )
+                                    )
+                                }
+                            },
+                        color = if (isSelected) Color(0xFF00CCFF).copy(alpha = 0.15f) else Color(0xFF1C1C1E),
+                        shape = CircleShape,
+                        border = BorderStroke(1.5.dp, if (isSelected) Color(0xFF00CCFF) else Color.DarkGray)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                label,
+                                color = if (isSelected) Color(0xFF00CCFF) else Color.Gray,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 16.sp
+                            )
+                        }
                     }
-                    if (scheduled != null) Text(scheduled.time, color = Color.Gray, fontSize = 9.sp, modifier = Modifier.padding(top = 4.dp).clickable { showTimePickerForDay = dayId })
+                    if (scheduled != null) {
+                        Surface(
+                            modifier = Modifier
+                                .padding(top = 6.dp)
+                                .clickable { showTimePickerForDay = dayId },
+                            color = Color(0xFF2C2C2E),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                scheduled.time,
+                                color = Color(0xFF00CCFF),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
 
         if (showTimePickerForDay != null) {
-            AlertDialog(onDismissRequest = { showTimePickerForDay = null }, confirmButton = { TextButton(onClick = { val newTime = "%02d:%02d".format(timePickerState.hour, timePickerState.minute); if (state.applyTimeToAll) onUpdateSchedule(state.profile.scheduledDays.map { it.copy(time = newTime) }) else onUpdateSchedule(state.profile.scheduledDays.map { if (it.dayOfWeek == showTimePickerForDay) it.copy(time = newTime) else it }); showTimePickerForDay = null }) { Text("CONFIRM", color = Color(0xFF00CCFF)) } }, title = { Text("SELECT TIME", color = Color.White) }, text = { TimePicker(state = timePickerState) }, containerColor = Color(0xFF1C1C1E))
+            val initialTime = state.profile.scheduledDays.find { it.dayOfWeek == showTimePickerForDay }?.time ?: "09:00"
+            val initialHour = initialTime.split(":")[0].toIntOrNull() ?: 9
+            val initialMinute = initialTime.split(":")[1].toIntOrNull() ?: 0
+
+            val dialogTimePickerState = rememberTimePickerState(
+                initialHour = initialHour,
+                initialMinute = initialMinute
+            )
+
+            AlertDialog(
+                onDismissRequest = { showTimePickerForDay = null },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val newTime = "%02d:%02d".format(dialogTimePickerState.hour, dialogTimePickerState.minute)
+                        if (state.applyTimeToAll) {
+                            onUpdateSchedule(state.profile.scheduledDays.map { it.copy(time = newTime) })
+                        } else {
+                            onUpdateSchedule(state.profile.scheduledDays.map {
+                                if (it.dayOfWeek == showTimePickerForDay) it.copy(time = newTime) else it
+                            })
+                        }
+                        showTimePickerForDay = null
+                    }) {
+                        Text("CONFIRM", color = Color(0xFF00CCFF), fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showTimePickerForDay = null }) {
+                        Text("CANCEL", color = Color.Gray)
+                    }
+                },
+                title = {
+                    Text(
+                        "TRAINING TIME WINDOW",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.sp
+                    )
+                },
+                text = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        TimePicker(state = dialogTimePickerState)
+                    }
+                },
+                containerColor = Color(0xFF1C1C1E),
+                shape = RoundedCornerShape(16.dp)
+            )
         }
     }
 }

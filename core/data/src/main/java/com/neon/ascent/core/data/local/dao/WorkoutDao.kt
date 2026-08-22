@@ -46,6 +46,15 @@ interface WorkoutDao {
     @Query("SELECT * FROM progression_states WHERE exerciseId = :exerciseId")
     fun getProgressionState(exerciseId: String): Flow<ProgressionStateEntity?>
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAccomplishments(entity: ExerciseAccomplishmentsEntity)
+
+    @Query("SELECT * FROM exercise_accomplishments WHERE exerciseId = :exerciseId")
+    fun getAccomplishments(exerciseId: String): Flow<ExerciseAccomplishmentsEntity?>
+
+    @Query("SELECT * FROM exercise_accomplishments")
+    fun getAllAccomplishments(): Flow<List<ExerciseAccomplishmentsEntity>>
+
     @Transaction
     @Query("SELECT * FROM workout_routines")
     fun getAllRoutines(): Flow<List<WorkoutRoutineWithDetails>>

@@ -40,6 +40,10 @@ interface WorkoutRepository {
     fun getProgressionState(exerciseId: String): Flow<ProgressionState?>
     suspend fun saveProgressionState(state: ProgressionState)
 
+    fun getAccomplishments(exerciseId: String): Flow<ExerciseAccomplishments?>
+    fun getAllAccomplishments(): Flow<List<ExerciseAccomplishments>>
+    suspend fun saveAccomplishments(accomplishments: ExerciseAccomplishments)
+
     suspend fun deleteWorkoutLog(workoutLogId: String)
     suspend fun updateWorkoutLogOrder(workoutLogId: String, newOrder: Int)
     suspend fun updateShowGoalReps(workoutLogId: String, show: Boolean)
