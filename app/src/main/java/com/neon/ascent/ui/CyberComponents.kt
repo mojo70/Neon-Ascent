@@ -47,6 +47,47 @@ import com.neon.ascent.model.TrainingTemplate
 import com.neon.ascent.core.domain.character.models.UserCharacter
 import kotlin.random.Random
 
+val CyberCutShape = GenericShape { size, _ ->
+    val cutSize = 12f
+    moveTo(cutSize, 0f)
+    lineTo(size.width - cutSize, 0f)
+    lineTo(size.width, cutSize)
+    lineTo(size.width, size.height - cutSize)
+    lineTo(size.width - cutSize, size.height)
+    lineTo(cutSize, size.height)
+    lineTo(0f, size.height - cutSize)
+    lineTo(0f, cutSize)
+    close()
+}
+
+@Composable
+fun SoftGridBackground(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.fillMaxSize()) {
+        val gridSpacing = 40.dp.toPx()
+        val gridColor = Color(0xFF1A1A1A)
+        
+        // Horizontal lines
+        for (y in 0..size.height.toInt() step gridSpacing.toInt()) {
+            drawLine(
+                color = gridColor,
+                start = Offset(0f, y.toFloat()),
+                end = Offset(size.width, y.toFloat()),
+                strokeWidth = 1f
+            )
+        }
+        
+        // Vertical lines
+        for (x in 0..size.width.toInt() step gridSpacing.toInt()) {
+            drawLine(
+                color = gridColor,
+                start = Offset(x.toFloat(), 0f),
+                end = Offset(x.toFloat(), size.height),
+                strokeWidth = 1f
+            )
+        }
+    }
+}
+
 val CyberButtonShape = GenericShape { size, _ ->
     moveTo(0f, 12f)
     lineTo(12f, 0f)

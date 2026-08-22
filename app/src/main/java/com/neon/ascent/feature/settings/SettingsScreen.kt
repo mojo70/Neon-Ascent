@@ -381,6 +381,38 @@ fun SettingsScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 7. Credits & Attribution
+            SettingsSection(label = "SYSTEM_CREDITS", icon = Icons.Default.Info) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "EXTERNAL_ASSETS //",
+                        color = Color(0xFF00FF9C).copy(alpha = 0.6f),
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                    
+                    Text(
+                        "gong.wav by reinsamba -- https://freesound.org/s/46062/ -- License: Attribution 4.0",
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        lineHeight = 16.sp
+                    )
+                    
+                    Spacer(Modifier.height(8.dp))
+                    
+                    Text(
+                        "CORE_OS // NEON_ASCENT_LABS",
+                        color = Color.White.copy(alpha = 0.4f),
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(32.dp))
 
             // Footer

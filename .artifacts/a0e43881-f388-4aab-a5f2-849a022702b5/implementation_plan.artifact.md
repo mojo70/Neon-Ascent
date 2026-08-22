@@ -1,40 +1,49 @@
-# Cyber-Style Bottom Navigation Integration
+# Dashboard OS-Style Redesign
 
-Implement a persistent, stylized bottom navigation bar for the main hub, inspired by the requested "Gutter Signal" aesthetic.
+Implement a high-density, technical "OS interface" redesign of the Dashboard as per the provided mock.
+
+## User Review Required
+
+> [!NOTE]
+> The top "Chrome" area includes pager dots (DECK · HOME · BIO · GUIDE). These are currently visual indicators. "HOME" will be highlighted when on this screen.
 
 ## Proposed Changes
 
-### [Component: UI Components]
+### [Component: UI Theme]
 
-#### [NEW] [NeonBottomBar.kt](file:///Users/joeevans/StudioProjects/Neon-Ascent/app/src/main/java/com/neon/ascent/ui/components/NeonBottomBar.kt)
-Create a new composable that implements the visual style from the screenshot:
-- Monospace labels with wide letter spacing.
-- Cyber-minimalist icons.
-- Persistent top border line.
-- Custom colors (`onBackground` for active, muted gray for inactive).
+#### [MODIFY] [Theme.kt](file:///Users/joeevans/StudioProjects/Neon-Ascent/app/src/main/java/com/neon/ascent/ui/theme/Theme.kt)
+Add specialized colors if needed, but primary focus will be on custom drawing.
 
-### [Component: Navigation]
+### [Component: Dashboard Feature]
+
+#### [MODIFY] [DashboardScreen.kt](file:///Users/joeevans/StudioProjects/Neon-Ascent/app/src/main/java/com/neon/ascent/feature/dashboard/DashboardScreen.kt)
+- **Visuals**: Implement `SoftGridBackground` and `VignetteOverlay`. Remove heavy particles/glitch.
+- **Chrome Header**:
+    - Small 48dp avatar with corner brackets.
+    - Identity text: "RUNNER // [NAME] · RANK_0[LEVEL]".
+    - Navigation dots row.
+    - Status block: Time, Weather, Heart Rate.
+- **Neural Brief**:
+    - `NeuralBriefCard` with circular gauge (Neural Load).
+    - Primary action button: "COMPLETE PULSE // [TASK NAME]".
+- **Hero Pulse**:
+    - `HeroPulseRow` showing only the top priority task.
+- **Metric Pills**:
+    - Single thin row for STEPS, KCAL, STREAK.
+- **Mission Chips**:
+    - Horizontal scroll/flow of active missions as small chips.
+- **AI Terminal**:
+    - Collapsed technical terminal bar at the bottom.
 
 #### [MODIFY] [AppNavigation.kt](file:///Users/joeevans/StudioProjects/Neon-Ascent/app/src/main/java/com/neon/ascent/AppNavigation.kt)
-- Update the `MainHub` composable to use a `Scaffold`.
-- Integrate `NeonBottomBar` into the `Scaffold.bottomBar`.
-- Expand the `HorizontalPager` to 6 pages:
-    - Index 0: **BOARD** (Dashboard)
-    - Index 1: **ALTAR** (Lore)
-    - Index 2: **ICE** (Cyberdeck)
-    - Index 3: **LABS** (Biohacking)
-    - Index 4: **RIG** (Workout/Performance)
-    - Index 5: **OPS** (Ascension/Terminal)
-- Sync `PagerState` with the selected item in the bottom bar.
-- Update existing `animateScrollToPage` calls to match new indices.
+- Update `DashboardScreen` call if needed (e.g., passing level or name directly if not using character object).
 
 ## Verification Plan
 
 ### Automated Tests
-- Build the project to ensure no compilation errors in the navigation logic.
+- Build verification.
 
 ### Manual Verification
-- Deploy to device/emulator.
-- Verify that tapping bottom bar items smooth-scrolls the pager.
-- Verify that swiping the pager updates the active item in the bottom bar.
-- Confirm the styling matches the target aesthetic (font, spacing, colors).
+- Confirm UI density and layout against the provided screenshot.
+- Verify "Primary Action" button correctly triggers task completion.
+- Verify Mission chips correctly display active mission titles.

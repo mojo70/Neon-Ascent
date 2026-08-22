@@ -164,5 +164,8 @@ sealed interface Screen {
     data object DopamineMenu : Screen
 
     @Serializable
+    data object Stilljack : Screen
+
+    @Serializable
     data class WorkoutLog(val taskId: String? = null) : Screen
 }

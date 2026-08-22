@@ -84,6 +84,8 @@ import com.neon.ascent.feature.notifications.ui.NotificationPermissionViewModel
 import com.neon.ascent.feature.notifications.ui.NotificationPreferencesScreen
 import com.neon.ascent.feature.neonguide.NeonGuideScreen
 import com.neon.ascent.feature.workout.ui.WorkoutLoggingScreen
+import com.neon.ascent.feature.dashboard.PhysicalOpsHub
+import com.neon.ascent.feature.biohacking.ui.stilljack.StilljackScreen
 import com.neon.ascent.feature.wallet.EurodollarWalletScreen
 import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.core.common.cyberGlitch
@@ -192,31 +194,17 @@ fun AppNavigation(
                     when (page) {
                         0 -> Box(Modifier.fillMaxSize()) {
                             DashboardScreen(
-                                onAvatarClick = { navController.navigate(Screen.HolographicHub) },
-                                onAttributeSetClick = { navController.navigate(Screen.AttributeScan) },
-                                onStoryClick = {
-                                    val target = if (dashboardViewModel.uiState.value.userStory.bio.isNotBlank()) {
-                                        Screen.Lore
-                                    } else {
-                                        Screen.StoryIntake
-                                    }
-                                    navController.navigate(target)
+                                onAvatarClick = { 
+                                    navController.navigate(Screen.HolographicHub)
                                 },
                                 onTaskClick = { id -> navController.navigate(Screen.TaskDetail(id)) },
                                 onNavigateToWorkout = { taskId -> 
-                                    coroutineScope.launch {
-                                        pagerState.animateScrollToPage(4) // PULSE
-                                    }
-                                },
-                                onSettingsClick = { navController.navigate(Screen.Settings) },
-                                onDeusExMachinaClick = { navController.navigate(Screen.DeepNode("DEUS_EX_MACHINA")) },
-                                onNavigateToBiohacking = { focus ->
-                                    coroutineScope.launch {
-                                        pagerState.animateScrollToPage(3) // LABS
-                                    }
+                                    navController.navigate(Screen.WorkoutLog(taskId))
                                 },
                                 onNavigateToGuide = {
-                                    navController.navigate(Screen.NeonGuide())
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(3) // CODEX
+                                    }
                                 }
                             )
                             
@@ -224,22 +212,11 @@ fun AppNavigation(
                             if (workoutState.session != null) {
                                 OngoingWorkoutOverlay(
                                     duration = workoutState.workoutDurationSeconds,
-                                    onClick = { 
-                                        coroutineScope.launch {
-                                            pagerState.animateScrollToPage(4) // PULSE
-                                        }
-                                    }
+                                    onClick = { navController.navigate(Screen.WorkoutLog(null)) }
                                 )
                             }
                         }
-                        1 -> LoreScreen(
-                            onBack = { 
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(0)
-                                }
-                            }
-                        )
-                        2 -> CyberdeckScreen(
+                        1 -> CyberdeckScreen(
                             onWalletClick = { navController.navigate(Screen.Wallet) },
                             onDatabaseClick = { navController.navigate(Screen.DatabaseCore) },
                             onIceBreachClick = { 
@@ -256,7 +233,7 @@ fun AppNavigation(
                             },
                             tickerMessages = tickerMessages
                         )
-                        3 -> BiohackingScreen(
+                        2 -> BiohackingScreen(
                             onBack = { 
                                 coroutineScope.launch {
                                     pagerState.animateScrollToPage(0)
@@ -267,20 +244,22 @@ fun AppNavigation(
                             },
                             onNavigateToGuide = { message ->
                                 pendingGuideMessage = message
-                                navController.navigate(Screen.NeonGuide())
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(3)
+                                }
                             },
                             onNavigateToDopamineMenu = {
                                 navController.navigate(Screen.DopamineMenu)
                             }
                         )
-                        4 -> WorkoutLoggingScreen(
-                            onBack = {
+                        3 -> LoreScreen(
+                            onBack = { 
                                 coroutineScope.launch {
                                     pagerState.animateScrollToPage(0)
                                 }
                             }
                         )
-                        5 -> AscensionTerminalScreen(
+                        4 -> AscensionTerminalScreen(
                             onBack = {
                                 coroutineScope.launch {
                                     pagerState.animateScrollToPage(0)
@@ -292,6 +271,18 @@ fun AppNavigation(
                             onReviewClick = { id -> navController.navigate(Screen.AscensionReview(id)) },
                             onRitualClick = { navController.navigate(Screen.TerminalRitual) },
                             onBrowseProtocols = { navController.navigate(Screen.ProtocolLibrary) }
+                        )
+                        5 -> PhysicalOpsHub(
+                            onNavigateToWorkout = {
+                                navController.navigate(Screen.WorkoutLog(null))
+                            },
+                            onNavigateToStilljack = {
+                                navController.navigate(Screen.Stilljack)
+                            },
+                            onNavigateToHullPulse = {
+                                // TODO: Implement Hull Pulse screen or use NeonGuide as fallback
+                                navController.navigate(Screen.NeonGuide("I want to initiate Hull Pulse pelvic training."))
+                            }
                         )
                     }
                 }
@@ -884,6 +875,10 @@ fun AppNavigation(
             DopamineMenuScreen(
                 onBack = { navController.popBackStack() }
             )
+        }
+
+        composable<Screen.Stilljack> {
+            StilljackScreen(onBack = { navController.popBackStack() })
         }
 
         composable<Screen.WorkoutLog> { backStackEntry ->

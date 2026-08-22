@@ -304,14 +304,21 @@ private fun CoreLayout(
     aiType: AiType,
     viewModel: CyberdeckViewModel
 ) {
-    Box(Modifier.fillMaxSize()) {
-        // NET CORE
-        HexCore("NET",  Color(0xFF00FF99), Modifier.align(Alignment.TopCenter).padding(top = 80.dp), onClick = onNetworkClick)
-        
-        // EXPLOITS
-        HexCore("EXPLOITS", Color(0xFFFF0088), Modifier.align(Alignment.CenterStart).padding(start = 32.dp, bottom = 40.dp), onClick = onExploitsClick)
-        
-        // CORE_OS / AI Status
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        // Core background glow
+        Box(
+            Modifier
+                .size(240.dp)
+                .background(
+                    Brush.radialGradient(
+                        listOf(Color(0xFF00FF99).copy(alpha = 0.05f), Color.Transparent)
+                    )
+                )
+        )
+
+        val offsetDistance = 115.dp // Spacing between centers
+
+        // CORE_OS / AI Status (Central Node)
         val coreLabel = when (aiType) {
             AiType.LOCAL -> "LOCAL AI"
             AiType.CLOUD -> "CLOUD AI"
@@ -325,15 +332,42 @@ private fun CoreLayout(
         HexCore(
             label = coreLabel,
             color = coreColor,
-            modifier = Modifier.align(Alignment.Center).padding(bottom = 40.dp),
+            modifier = Modifier.align(Alignment.Center),
             aiType = aiType,
             onClick = onCoreClick
         )
 
-        // WALLET
-        HexCore("WALLET",   Color(0xFF00CCFF), Modifier.align(Alignment.CenterEnd).padding(end = 32.dp, bottom = 40.dp), onClick = onWalletClick)
-        // DATABASE
-        HexCore("DATABASE", Color(0xFF00CCFF), Modifier.align(Alignment.BottomCenter).padding(bottom = 120.dp), onClick = onDatabaseClick)
+        // NET CORE (North)
+        HexCore(
+            label = "NET",
+            color = Color(0xFF00FF99),
+            modifier = Modifier.align(Alignment.Center).offset(y = -offsetDistance),
+            onClick = onNetworkClick
+        )
+        
+        // EXPLOITS (West)
+        HexCore(
+            label = "EXPLOITS",
+            color = Color(0xFFFF0088),
+            modifier = Modifier.align(Alignment.Center).offset(x = -offsetDistance),
+            onClick = onExploitsClick
+        )
+        
+        // WALLET (East)
+        HexCore(
+            label = "WALLET",
+            color = Color(0xFF00CCFF),
+            modifier = Modifier.align(Alignment.Center).offset(x = offsetDistance),
+            onClick = onWalletClick
+        )
+
+        // DATABASE (South)
+        HexCore(
+            label = "DATABASE",
+            color = Color(0xFF00CCFF),
+            modifier = Modifier.align(Alignment.Center).offset(y = offsetDistance),
+            onClick = onDatabaseClick
+        )
     }
 }
 

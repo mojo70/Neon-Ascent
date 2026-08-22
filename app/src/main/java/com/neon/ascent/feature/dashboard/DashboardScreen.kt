@@ -10,9 +10,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.CheckBoxOutlineBlank
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -23,6 +24,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -31,7 +36,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.graphics.SolidColor
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -39,6 +43,8 @@ import com.neon.ascent.feature.settings.SettingsViewModel
 import com.neon.ascent.feature.health.ui.HealthViewModel
 import com.neon.ascent.feature.biohacking.BiohackingViewModel
 import com.neon.ascent.core.common.*
+import com.neon.ascent.core.domain.character.models.UserCharacter
+import com.neon.ascent.feature.health.domain.uplink.LiveBiometrics
 import com.neon.ascent.core.domain.goals.models.*
 import com.neon.ascent.feature.goals.ui.ascension.QuickTaskBottomSheet
 import com.neon.ascent.core.common.CelebrationOverlay
@@ -48,40 +54,357 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-@Composable
-fun ScrollingMicroLogs(messages: List<String>, modifier: Modifier = Modifier) {
-    val logs = if (messages.isNotEmpty()) messages else listOf(
-        "NEURAL_LINK_STABLE",
-        "SYNC_RATIO: 98.4%",
-        "BIOMETRIC_FEED_ACTIVE",
-        "CALIBRATING_AGILITY_NODE",
-        "STRUCTURAL_INTEGRITY: OPTIMAL",
-        "TRACING_PACKETS...",
-        "DECRYPTING_DESTINY..."
-    )
-    
-    val infiniteTransition = rememberInfiniteTransition(label = "MicroLogs")
-    val scrollY by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(logs.size * 2000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "Scroll"
-    )
 
-    Box(modifier = modifier.height(40.dp).clipToBounds()) {
-        Column(modifier = Modifier.graphicsLayer { translationY = -scrollY * (logs.size * 20f) }) {
-            (logs + logs).forEach { log ->
+@Composable
+fun CyberCutFrame(
+    modifier: Modifier = Modifier,
+    borderColor: Color = Color.White.copy(alpha = 0.2f),
+    backgroundColor: Color = Color.Black.copy(alpha = 0.4f),
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .background(backgroundColor, CyberCutShape)
+            .border(1.dp, borderColor, CyberCutShape)
+            .padding(16.dp)
+    ) {
+        content()
+    }
+}
+
+
+@Composable
+fun SlimChromeHeader(
+    character: UserCharacter?,
+    identity: OperatorIdentity,
+    weatherState: WeatherState,
+    liveMetrics: LiveBiometrics?,
+    currentTime: LocalDateTime,
+    onAvatarClick: () -> Unit,
+    systemColor: Color
+) {
+    Box(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+        // Left Section: Avatar and Info
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // Bracketed Avatar
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clickable { onAvatarClick() }
+            ) {
+                HudBracket(Modifier.align(Alignment.TopStart), systemColor)
+                HudBracket(Modifier.align(Alignment.TopEnd), systemColor, rotate = 90f)
+                HudBracket(Modifier.align(Alignment.BottomStart), systemColor, rotate = 270f)
+                HudBracket(Modifier.align(Alignment.BottomEnd), systemColor, rotate = 180f)
+                
+                AvatarImage(
+                    character = character,
+                    modifier = Modifier.fillMaxSize().padding(4.dp),
+                    contentScale = ContentScale.Crop
+                )
+            }
+            
+            Spacer(Modifier.width(12.dp))
+            
+            Column {
                 Text(
-                    text = "> $log",
-                    color = Color(0xFF00FF9C).copy(alpha = 0.4f),
-                    fontSize = 8.sp,
+                    text = "RUNNER // ${character?.name?.uppercase() ?: "UNKNOWN"}",
+                    color = Color.White,
+                    fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.padding(vertical = 2.dp),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
+                Text(
+                    text = "RANK_0${character?.level ?: 1}",
+                    color = Color(0xFFFF006E),
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        // Right: Status Cluster
+        Column(
+            modifier = Modifier.align(Alignment.TopEnd),
+            horizontalAlignment = Alignment.End
+        ) {
+            Text(
+                text = currentTime.format(DateTimeFormatter.ofPattern("HH:mm:ss")),
+                color = systemColor,
+                fontSize = 13.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "${weatherState.temperature}°",
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                if (liveMetrics?.heartRate != null && liveMetrics.heartRate!! > 0) {
+                    Spacer(Modifier.width(6.dp))
+                    Icon(
+                        Icons.Outlined.FavoriteBorder,
+                        contentDescription = null,
+                        tint = Color(0xFFFF006E),
+                        modifier = Modifier.size(10.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+fun HudBracket(modifier: Modifier = Modifier, color: Color, rotate: Float = 0f) {
+    Canvas(modifier = modifier.size(8.dp).graphicsLayer { rotationZ = rotate }) {
+        drawLine(color, Offset(0f, 0f), Offset(size.width, 0f), 2.dp.toPx())
+        drawLine(color, Offset(0f, 0f), Offset(0f, size.height), 2.dp.toPx())
+    }
+}
+
+@Composable
+fun NeuralBriefCard(
+    insight: String,
+    neuralLoad: Float,
+    primaryActionTask: AscensionTask?,
+    onActionClick: (String) -> Unit,
+    onWorkoutClick: (String) -> Unit,
+    systemColor: Color
+) {
+    val isWorkout = primaryActionTask?.tags?.any { 
+        it.contains("workout", ignoreCase = true) || it.contains("lift", ignoreCase = true) 
+    } == true
+    
+    CyberCutFrame(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "TODAY'S INTELLIGENCE // NEURAL_BRIEF /",
+                        color = Color(0xFF00CCFF),
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                    Text(
+                        text = "Insight: $insight",
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontStyle = FontStyle.Italic,
+                        lineHeight = 16.sp
+                    )
+                }
+                
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(start = 16.dp)) {
+                    Canvas(modifier = Modifier.size(64.dp)) {
+                        drawArc(
+                            color = Color.White.copy(alpha = 0.1f),
+                            startAngle = 0f,
+                            sweepAngle = 360f,
+                            useCenter = false,
+                            style = Stroke(width = 3.dp.toPx())
+                        )
+                        drawArc(
+                            color = systemColor,
+                            startAngle = -90f,
+                            sweepAngle = neuralLoad * 360f,
+                            useCenter = false,
+                            style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+                        )
+                    }
+                    Text(
+                        "${(neuralLoad * 100).toInt()}%",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+            
+            if (primaryActionTask != null) {
+                Spacer(Modifier.height(20.dp))
+                val buttonText = if (isWorkout) {
+                    "LOG WORKOUT // ${primaryActionTask.title.uppercase()}"
+                } else {
+                    "COMPLETE PULSE // ${primaryActionTask.title.uppercase()}"
+                }
+                
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                        .border(1.dp, systemColor, CyberCutShape)
+                        .clickable { 
+                            if (isWorkout) onWorkoutClick(primaryActionTask.id)
+                            else onActionClick(primaryActionTask.id) 
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = buttonText,
+                        color = systemColor,
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HeroPulseRow(
+    task: AscensionTask,
+    onComplete: () -> Unit,
+    systemColor: Color
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color.White.copy(alpha = 0.1f), CyberCutShape)
+            .background(Color.Black.copy(alpha = 0.4f), CyberCutShape)
+            .padding(vertical = 12.dp, horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.CheckBoxOutlineBlank,
+            contentDescription = null,
+            tint = Color.White.copy(alpha = 0.4f),
+            modifier = Modifier.size(18.dp).clickable { onComplete() }
+        )
+        Spacer(Modifier.width(12.dp))
+        Text(
+            text = "DIURNAL_PULSE • ${task.title.uppercase()}",
+            color = Color.White,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = "AM",
+            color = Color.White.copy(alpha = 0.6f),
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier.padding(end = 12.dp)
+        )
+        Text(
+            text = "LOG >>",
+            color = Color.White,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+@Composable
+fun MetricPillRow(
+    steps: Int,
+    kcal: Int,
+    streak: Int
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        MetricPill(
+            label = "STEPS",
+            value = if (steps > 1000) String.format("%.1fK", steps / 1000f) else steps.toString(),
+            color = Color(0xFF00CCFF),
+            icon = Icons.AutoMirrored.Filled.DirectionsRun,
+            modifier = Modifier.weight(1f)
+        )
+        MetricPill(
+            label = "KCAL",
+            value = if (kcal > 1000) String.format("%.1fK", kcal / 1000f) else kcal.toString(),
+            color = Color(0xFFFF8C00),
+            icon = Icons.Default.LocalFireDepartment,
+            modifier = Modifier.weight(1f)
+        )
+        MetricPill(
+            label = "STREAK",
+            value = streak.toString(),
+            color = Color(0xFF00FF9C),
+            icon = Icons.Default.Whatshot,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+fun MetricPill(label: String, value: String, color: Color, icon: ImageVector, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .border(1.dp, color.copy(alpha = 0.4f), CyberCutShape)
+            .background(Color.Black.copy(alpha = 0.2f), CyberCutShape)
+            .padding(10.dp)
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, color = color, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+            Icon(icon, contentDescription = null, tint = color.copy(alpha = 0.8f), modifier = Modifier.size(14.dp))
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(value, color = color, fontSize = 18.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+fun MissionChipRow(missions: List<AscensionMission>) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            "MISSION_CHIPS //",
+            color = Color.White.copy(alpha = 0.4f),
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier.padding(end = 8.dp)
+        )
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            missions.forEach { mission ->
+                val chipColor = if (mission.status == AscensionMissionStatus.RECOVERY) Color(0xFFFF8C00) else Color(0xFFFF006E)
+                Box(
+                    modifier = Modifier
+                        .border(1.dp, chipColor.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        "${mission.title.uppercase()} ${(mission.progress * 100).toInt()}%",
+                        color = chipColor,
+                        fontSize = 9.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+            if (missions.size > 2) {
+                Text(
+                    "+${missions.size - 2}",
+                    color = Color.White.copy(alpha = 0.4f),
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 4.dp)
                 )
             }
         }
@@ -91,27 +414,17 @@ fun ScrollingMicroLogs(messages: List<String>, modifier: Modifier = Modifier) {
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel(),
-    settingsViewModel: SettingsViewModel = hiltViewModel(),
     healthViewModel: HealthViewModel = hiltViewModel(),
-    biohackingViewModel: BiohackingViewModel = hiltViewModel(),
     onAvatarClick: () -> Unit,
-    onAttributeSetClick: () -> Unit,
-    onStoryClick: () -> Unit,
     onTaskClick: (String) -> Unit,
-    onSettingsClick: () -> Unit,
-    onDeusExMachinaClick: () -> Unit,
     onNavigateToWorkout: (String?) -> Unit = {},
-    onNavigateToBiohacking: (String?) -> Unit = {},
     onNavigateToGuide: () -> Unit = {}
 ) {
     val userCharacter by viewModel.userCharacter.collectAsState()
     val weatherState by viewModel.weatherState.collectAsState()
-    val biohackingData by viewModel.biohackingData.collectAsState()
     val systemAdvice by viewModel.systemAdvice.collectAsState()
     val state by viewModel.uiState.collectAsState()
-    val isReligionShortcutEnabled by settingsViewModel.isReligionShortcutEnabled.collectAsState()
     val liveMetrics by healthViewModel.liveMetrics.collectAsState()
-    val terminalFeed by biohackingViewModel.terminalFeed.collectAsState()
     val currentTime = remember { mutableStateOf(LocalDateTime.now()) }
     
     val neuralLoad = userCharacter?.neuralLoad ?: 0.2f
@@ -121,12 +434,6 @@ fun DashboardScreen(
         animationSpec = tween(500),
         label = "SystemColor"
     )
-
-    var glitchTrigger by remember { mutableIntStateOf(0) }
-    
-    val triggerGlitch = {
-        glitchTrigger++
-    }
 
     var isTerminalExpanded by rememberSaveable { mutableStateOf(false) }
     var showQuickTaskSheet by remember { mutableStateOf(false) }
@@ -140,316 +447,75 @@ fun DashboardScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF010101))) {
-        PerspectiveGrid()
-        Scanlines(intensity = neuralLoad)
-        StaticNoise(intensity = neuralLoad)
+        SoftGridBackground()
         Vignette()
-        FloatingParticles(intensity = neuralLoad)
         
-        if (weatherState.isNight) {
-            NightCityGlow()
-        }
-        
-        val activeGlitchIntensity = if (glitchTrigger > 0) (neuralLoad + 0.4f).coerceAtMost(1f) else neuralLoad
-        GlitchOverlay(intensity = activeGlitchIntensity)
-
-        if (glitchTrigger > 0) {
-            LaunchedEffect(glitchTrigger) {
-                kotlinx.coroutines.delay(200)
-                glitchTrigger = 0
-            }
-        }
-
-        if (weatherState.isRaining) {
-            AcidRainOverlay()
-        }
-        
-        HudCornerAccents(color = systemColor.copy(alpha = 0.2f))
+        HudCornerAccents(color = systemColor.copy(alpha = 0.1f))
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            // --- TOP HUD BAR ---
-            Row(
+            // Absolute Center Clock
+            Text(
+                text = currentTime.value.format(DateTimeFormatter.ofPattern("HH:mm")),
+                color = Color.White,
+                fontSize = 14.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    ResonanceAura(
-                        color = state.identity.resonance.getColor(),
-                        intensity = state.identity.resonanceIntensity,
-                        modifier = Modifier.size(120.dp)
-                    )
-                    
-                    if (userCharacter?.holyGhost != null) {
-                        HolyGhostAura()
-                    }
-                    
-                    Box(
-                        modifier = Modifier
-                            .size(90.dp)
-                            .clip(CyberButtonShape)
-                            .cyberGlitch(intensity = if (neuralLoad > 0.8f) 0.3f else 0f)
-                            .neonBorder(state.identity.resonance.getColor(), width = 2.dp, cornerRadius = 12.dp)
-                            .background(Color.Black.copy(alpha = 0.6f))
-                            .clickable { onAvatarClick() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier.fillMaxSize().clip(RectangleShape),
-                            contentAlignment = Alignment.TopCenter
-                        ) {
-                            AvatarImage(
-                                character = userCharacter, 
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .graphicsLayer(
-                                        scaleX = 4.5f,
-                                        scaleY = 4.5f,
-                                        translationY = 80f 
-                                    ),
-                                alpha = 1f,
-                                contentScale = ContentScale.FillWidth,
-                                alignment = Alignment.TopCenter
-                            )
-                        }
-                        
-                        Text(
-                            text = "SYNC", 
-                            color = systemColor.copy(alpha = 0.4f),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Black
-                            ),
-                            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp)
-                    )
-                }
-                
-                ScrollingMicroLogs(
-                    messages = state.recentLogMessages,
-                    modifier = Modifier
-                        .padding(top = 100.dp)
-                        .width(120.dp)
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+
+            Spacer(Modifier.height(16.dp))
+            
+            SlimChromeHeader(
+                character = userCharacter,
+                identity = state.identity,
+                weatherState = weatherState,
+                liveMetrics = liveMetrics,
+                currentTime = currentTime.value,
+                onAvatarClick = onAvatarClick,
+                systemColor = systemColor
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            NeuralBriefCard(
+                insight = systemAdvice,
+                neuralLoad = neuralLoad,
+                primaryActionTask = state.todayPulses.firstOrNull(),
+                onActionClick = { id -> viewModel.completePulse(id) },
+                onWorkoutClick = { id -> onNavigateToWorkout(id) },
+                systemColor = systemColor
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            state.todayPulses.firstOrNull()?.let { heroTask ->
+                HeroPulseRow(
+                    task = heroTask,
+                    onComplete = { viewModel.completePulse(heroTask.id) },
+                    systemColor = systemColor
                 )
+                Spacer(Modifier.height(16.dp))
             }
 
-                Column(horizontalAlignment = Alignment.End) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (isReligionShortcutEnabled) {
-                            CyberCrossIcon(onClick = onDeusExMachinaClick)
-                            Spacer(Modifier.width(16.dp))
-                        }
-                        NeuralJackIcon(onClick = onSettingsClick)
-                        Spacer(Modifier.width(16.dp))
-                        
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text(
-                                text = currentTime.value.format(DateTimeFormatter.ofPattern("HH:mm:ss")),
-                                color = systemColor,
-                                style = MaterialTheme.typography.headlineMedium.copy(
-                                    fontWeight = FontWeight.Black,
-                                    fontFamily = FontFamily.Monospace,
-                                    shadow = Shadow(color = systemColor.copy(alpha = 0.6f), blurRadius = 10f)
-                                ),
-                                modifier = Modifier.cyberGlitch(intensity = if (neuralLoad > 0.9f) 0.2f else 0f)
-                            )
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (liveMetrics?.heartRate != null && liveMetrics!!.heartRate!! > 0) {
-                                    HeartRatePulse(liveMetrics!!.heartRate!!)
-                                    Spacer(Modifier.width(8.dp))
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .background(if (weatherState.isRaining) Color(0xFF00FFFF) else systemColor, CircleShape)
-                                )
-                                Spacer(Modifier.width(6.dp))
-                                Text(
-                                    text = "${weatherState.temperature}°${weatherState.unitSymbol}",
-                                    color = Color.White.copy(alpha = 0.8f),
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontFamily = FontFamily.Monospace
-                                    )
-                                )
-                            }
-                        }
-                    }
-                    Text(
-                        text = currentTime.value.format(DateTimeFormatter.ofPattern("EEE, MMM d, yyyy")),
-                        color = Color(0xFFFF006E),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold
-                        )
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = state.identity.title,
-                        color = state.identity.resonance.getColor(),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace,
-                            letterSpacing = 1.sp
-                        )
-                    )
-                    Text(
-                        text = "RANK_0${userCharacter?.level ?: 1}",
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            fontFamily = FontFamily.Monospace,
-                            letterSpacing = 1.sp
-                        )
-                    )
-                    Box(
-                        modifier = Modifier
-                            .width(100.dp)
-                            .height(4.dp)
-                            .background(Color.White.copy(alpha = 0.1f))
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(0.4f)
-                                .fillMaxHeight()
-                                .background(systemColor)
-                                .neonBorder(systemColor, width = 1.dp, glowIntensity = 1f, cornerRadius = 0.dp)
-                        )
-                    }
-                }
+            MetricPillRow(
+                steps = liveMetrics?.stepsToday?.toInt() ?: 0,
+                kcal = liveMetrics?.caloriesToday?.toInt() ?: 0,
+                streak = state.totalHabitDays
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            if (state.activeMissions.isNotEmpty()) {
+                MissionChipRow(missions = state.activeMissions)
+                Spacer(Modifier.height(16.dp))
             }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .neonBorder(systemColor.copy(alpha = 0.4f), cornerRadius = 12.dp),
-                color = Color.Black.copy(alpha = 0.4f),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(24.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    NeuralLoadGauge(
-                        load = neuralLoad,
-                        modifier = Modifier.size(110.dp)
-                    )
-                    
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = if (biohackingData?.enableOnDeviceNeuralCore == true) "NEURAL_CORE_UTILIZATION" else "NEURAL_LINK_INTEGRITY",
-                            color = systemColor,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace,
-                                letterSpacing = 1.sp
-                            )
-                        )
-                        Text(
-                            text = if (neuralLoad > 0.8f) "CRITICAL_STRESS" else if (neuralLoad > 0.5f) "ELEVATED_LOAD" else "SYNC_STABLE",
-                            color = if (neuralLoad > 0.7f) Color(0xFFFF006E) else Color.White,
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontWeight = FontWeight.Black,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        )
-                        
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(8.dp)
-                                .background(Color.Black)
-                                .border(1.dp, systemColor.copy(alpha = 0.3f))
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(neuralLoad)
-                                    .fillMaxHeight()
-                                    .background(Brush.horizontalGradient(listOf(systemColor.copy(alpha = 0.5f), systemColor)))
-                                    .neonBorder(systemColor, width = 1.dp, glowIntensity = 0.5f, cornerRadius = 0.dp)
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            if (state.todayPulses.isNotEmpty()) {
-                Text(
-                    "DIURNAL_PULSES",
-                    color = systemColor,
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        fontFamily = FontFamily.Monospace,
-                        letterSpacing = 2.sp
-                    ),
-                    modifier = Modifier
-                        .padding(bottom = 8.dp)
-                        .clickable { showAllTasksDialog = true }
-                )
-                val displayTasks = state.todayPulses.take(3)
-                displayTasks.forEach { task ->
-                    val isWorkout = task.tags.any { it.contains("workout", ignoreCase = true) || it.contains("lift", ignoreCase = true) }
-                    DashboardTaskItem(
-                        task = task,
-                        onComplete = { viewModel.completePulse(task.id) },
-                        onClick = { 
-                            if (isWorkout) onNavigateToWorkout(task.id)
-                            else onTaskClick(task.id) 
-                        },
-                        isWorkout = isWorkout
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-                
-                if (state.todayPulses.size > 3) {
-                    Text(
-                        "+ ${state.todayPulses.size - 3} MORE PULSES IN QUEUE",
-                        color = systemColor.copy(alpha = 0.6f),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showAllTasksDialog = true }
-                            .padding(vertical = 4.dp),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
-                }
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-
-            CyberFrame(
-                label = "SYSTEM_ADVICE // V.01", 
-                accentColor = Color(0xFF00FFFF),
-                borderColor = Color(0xFF00FFFF).copy(alpha = 0.6f),
-                modifier = Modifier
-                    .cyberGlitch(intensity = if (neuralLoad > 0.7f) neuralLoad * 0.5f else 0f)
-                    .clickable { onNavigateToBiohacking("insight") }
-            ) {
-                Text(
-                    text = "\"$systemAdvice\"",
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontStyle = FontStyle.Italic,
-                        fontFamily = FontFamily.Monospace,
-                        letterSpacing = 0.5.sp
-                    ),
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
 
             AiTerminal(
                 messages = state.terminalMessages,
@@ -462,163 +528,76 @@ fun DashboardScreen(
                 onGuideClick = onNavigateToGuide
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(Modifier.height(16.dp))
 
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                CyberMetricCard(
-                    label = "STEPS", 
-                    value = (liveMetrics?.stepsToday ?: 0).toString(),
-                    subValue = "TARGET: 10K", 
-                    color = NeonBlue,
-                    modifier = Modifier.weight(1f).clickable { onNavigateToBiohacking("activity") }
-                )
-                CyberMetricCard(
-                    label = "CALORIES", 
-                    value = (liveMetrics?.caloriesToday ?: 0.0).toInt().toString(),
-                    subValue = "TARGET: 2.2K", 
-                    color = NeonOrange,
-                    modifier = Modifier.weight(1f).clickable { onNavigateToBiohacking("activity") }
-                )
-                CyberMetricCard(
-                    label = "CONSISTENCY", 
-                    value = "${state.totalHabitDays}", 
-                    subValue = "DAYS 🔥", 
-                    color = NeonGreen,
-                    modifier = Modifier.weight(1f).clickable { onNavigateToBiohacking("consistency") }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            if (userCharacter?.strength == null || state.userStory.bio.isBlank()) {
-                CyberFrame(label = "CORE_SYNC", borderColor = systemColor) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        if (userCharacter?.strength == null) {
-                            Text(
-                                text = "BIOMETRIC_INTERFACE_READY",
-                                color = Color.White.copy(alpha = 0.6f),
-                                fontSize = 10.sp,
-                                fontFamily = FontFamily.Monospace,
-                                letterSpacing = 1.sp
-                            )
-
-                            CyberActionButton("ATTRIBUTE SCAN", Color(0xFF00FF9C), onClick = {
-                                triggerGlitch()
-                                onAttributeSetClick()
-                            })
-                        }
-                        if (state.userStory.bio.isBlank()) {
-                            CyberActionButton("YOUR STORY", Color(0xFFFF006E), onClick = {
-                                triggerGlitch()
-                                onStoryClick()
-                            })
-                        }
-                    }
+            // Action Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Manual Session Log Chip
+                Box(
+                    modifier = Modifier
+                        .border(1.dp, systemColor.copy(alpha = 0.6f), CircleShape)
+                        .clickable { onNavigateToWorkout(null) }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "⚡ LOG SESSION",
+                        color = systemColor,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
-            }
-
-            if (state.activeMissions.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(32.dp))
                 
-                // Show Recovery Missions first
-                val recoveryMissions = state.activeMissions.filter { it.status == com.neon.ascent.core.domain.goals.models.AscensionMissionStatus.RECOVERY }
-                if (recoveryMissions.isNotEmpty()) {
-                    Text(
-                        "RECOVERY_PROTOCOLS",
-                        color = NeonOrange,
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            fontFamily = FontFamily.Monospace,
-                            letterSpacing = 2.sp
-                        ),
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                    recoveryMissions.forEach { mission ->
-                        DashboardMissionCardV3(mission, accentColor = NeonOrange)
-                        Spacer(modifier = Modifier.height(12.dp))
-                    }
-                }
+                Spacer(Modifier.width(12.dp))
 
-                val standardMissions = state.activeMissions.filter { it.status != com.neon.ascent.core.domain.goals.models.AscensionMissionStatus.RECOVERY }
-                if (standardMissions.isNotEmpty()) {
-                    Text(
-                        "ACTIVE_MISSIONS",
-                        color = Color(0xFFFF006E),
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            fontFamily = FontFamily.Monospace,
-                            letterSpacing = 2.sp
-                        ),
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                    standardMissions.forEach { mission ->
-                        DashboardMissionCardV3(mission)
-                        Spacer(modifier = Modifier.height(12.dp))
-                    }
+                SmallFloatingActionButton(
+                    onClick = { viewModel.generateTodaysTasks() },
+                    containerColor = Color.Transparent,
+                    contentColor = systemColor,
+                    modifier = Modifier.size(40.dp).border(1.dp, systemColor.copy(alpha = 0.6f), CircleShape),
+                    shape = CircleShape
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = "RECALIBRATE_TASKS", modifier = Modifier.size(18.dp))
+                }
+                Spacer(Modifier.width(16.dp))
+                FloatingActionButton(
+                    onClick = { showQuickTaskSheet = true },
+                    containerColor = Color.Transparent,
+                    contentColor = systemColor,
+                    shape = CircleShape,
+                    modifier = Modifier.size(40.dp).border(1.dp, systemColor, CircleShape)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "QUICK_TASK_CREATION", modifier = Modifier.size(20.dp))
                 }
             }
 
-            if (state.bioAgeResult != null) {
-                Spacer(modifier = Modifier.height(32.dp))
-                BioAgeDashboardCard(
-                    result = state.bioAgeResult!!,
-                    modifier = Modifier.clickable { onNavigateToBiohacking("longevity") }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(64.dp))
-        }
-
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.End
-        ) {
-            SmallFloatingActionButton(
-                onClick = { viewModel.generateTodaysTasks() },
-                containerColor = Color.Black.copy(alpha = 0.6f),
-                contentColor = systemColor,
-                modifier = Modifier
-                    .neonBorder(systemColor.copy(alpha = 0.6f), cornerRadius = 8.dp),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Icon(Icons.Default.Refresh, contentDescription = "RECALIBRATE_TASKS")
-            }
-
-            FloatingActionButton(
-                onClick = { showQuickTaskSheet = true },
-                containerColor = systemColor,
-                contentColor = Color.Black,
-                modifier = Modifier
-                    .neonBorder(systemColor, cornerRadius = 16.dp),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "QUICK_TASK_CREATION")
-            }
-        }
-
-        if (showQuickTaskSheet) {
-            QuickTaskBottomSheet(
-                onDismiss = { showQuickTaskSheet = false }
-            )
-        }
-
-        if (showAllTasksDialog) {
-            AllTasksDialog(
-                tasks = state.todayPulses,
-                onComplete = { viewModel.completePulse(it) },
-                onTaskClick = { onTaskClick(it) },
-                onNavigateToWorkout = onNavigateToWorkout,
-                onDismiss = { showAllTasksDialog = false },
-                systemColor = systemColor
-            )
+            Spacer(Modifier.height(100.dp)) // Padding for bottom bar
         }
 
         CelebrationOverlay(
             event = state.dopamineEvent,
             onFinished = { viewModel.clearDopamineEvent() }
+        )
+    }
+
+    if (showQuickTaskSheet) {
+        QuickTaskBottomSheet(
+            onDismiss = { showQuickTaskSheet = false }
+        )
+    }
+
+    if (showAllTasksDialog) {
+        AllTasksDialog(
+            tasks = state.todayPulses,
+            onComplete = { viewModel.completePulse(it) },
+            onTaskClick = { onTaskClick(it) },
+            onNavigateToWorkout = onNavigateToWorkout,
+            onDismiss = { showAllTasksDialog = false },
+            systemColor = systemColor
         )
     }
 }
@@ -634,118 +613,134 @@ fun AiTerminal(
     accentColor: Color,
     onGuideClick: () -> Unit = {}
 ) {
-    CyberFrame(
-        label = "AI_TERMINAL // CYBR-TES", 
-        borderColor = accentColor,
-        modifier = if (!isExpanded) Modifier.clickable { onToggleExpand() } else Modifier
+    CyberCutFrame(
+        modifier = if (!isExpanded) Modifier.clickable { onToggleExpand() } else Modifier,
+        borderColor = accentColor.copy(alpha = 0.2f)
     ) {
-        Column(modifier = Modifier.fillMaxWidth().animateContentSize()) {
-            if (isExpanded) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            "CONNECTION_SECURE",
-                            color = accentColor.copy(alpha = 0.4f),
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            "[NEON_GUIDE]",
-                            color = NeonCyan,
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Black,
-                            modifier = Modifier
-                                .clickable { onGuideClick() }
-                                .padding(4.dp)
-                                .cyberGlitch(0.1f)
-                        )
-                    }
-                    Text(
-                        "[MINIMIZE]",
-                        color = accentColor.copy(alpha = 0.8f),
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .clickable { onToggleExpand() }
-                            .padding(4.dp)
-                    )
-                }
+        Box(modifier = Modifier.fillMaxWidth()) {
+            // Terminal indicator dot
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .background(Color(0xFF00F5FF), CircleShape)
+                    .align(Alignment.TopEnd)
+            )
 
-                Column(
-                    modifier = Modifier
-                        .heightIn(max = 240.dp)
-                        .verticalScroll(rememberScrollState())
-                        .padding(8.dp)
-                ) {
-                    messages.forEach { msg ->
-                        Text(
-                            text = if (msg.isFromUser) "> ${msg.text}" else "CYBR-TES: ${msg.text}",
-                            color = if (msg.isFromUser) Color.White else accentColor,
-                            fontSize = 12.sp,
-                            fontFamily = FontFamily.Monospace,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        )
-                    }
-                }
-                
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp)
-                        .background(Color.Black.copy(alpha = 0.4f)),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    BasicTextField(
-                        value = inputValue,
-                        onValueChange = onInputChange,
-                        textStyle = TextStyle(
-                            color = Color.White,
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 12.sp
-                        ),
-                        modifier = Modifier.weight(1f).padding(8.dp),
-                        cursorBrush = SolidColor(accentColor),
-                        decorationBox = { innerTextField ->
-                            if (inputValue.isEmpty()) {
-                                Text(
-                                    "ENTER_COMMAND...",
-                                    color = Color.White.copy(alpha = 0.3f),
-                                    fontSize = 12.sp,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                            }
-                            innerTextField()
-                        }
-                    )
-                    IconButton(onClick = onSend) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "SEND",
-                            tint = accentColor,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            } else {
+            Column(modifier = Modifier.fillMaxWidth().animateContentSize()) {
                 Text(
-                    text = messages.lastOrNull()?.text ?: "WAITING_FOR_INPUT...",
-                    color = accentColor.copy(alpha = 0.6f),
+                    text = "AI_TERMINAL // CYBR-TES",
+                    color = Color.White.copy(alpha = 0.6f),
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(8.dp)
+                    modifier = Modifier.padding(bottom = 8.dp)
                 )
+
+                if (isExpanded) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "CONNECTION_SECURE",
+                                color = accentColor.copy(alpha = 0.4f),
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "[NEON_GUIDE]",
+                                color = Color(0xFF00FFFF),
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Black,
+                                modifier = Modifier
+                                    .clickable { onGuideClick() }
+                                    .padding(4.dp)
+                            )
+                        }
+                        Text(
+                            "[MINIMIZE]",
+                            color = accentColor.copy(alpha = 0.8f),
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .clickable { onToggleExpand() }
+                                .padding(4.dp)
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .heightIn(max = 240.dp)
+                            .verticalScroll(rememberScrollState())
+                            .padding(8.dp)
+                    ) {
+                        messages.forEach { msg ->
+                            Text(
+                                text = if (msg.isFromUser) "> ${msg.text}" else "CYBR-TES: ${msg.text}",
+                                color = if (msg.isFromUser) Color.White else accentColor,
+                                fontSize = 12.sp,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+                        }
+                    }
+                    
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp)
+                            .background(Color.Black.copy(alpha = 0.4f)),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        BasicTextField(
+                            value = inputValue,
+                            onValueChange = onInputChange,
+                            textStyle = TextStyle(
+                                color = Color.White,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 12.sp
+                            ),
+                            modifier = Modifier.weight(1f).padding(8.dp),
+                            cursorBrush = SolidColor(accentColor),
+                            decorationBox = { innerTextField ->
+                                if (inputValue.isEmpty()) {
+                                    Text(
+                                        "ENTER_COMMAND...",
+                                        color = Color.White.copy(alpha = 0.3f),
+                                        fontSize = 12.sp,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                                innerTextField()
+                            }
+                        )
+                        IconButton(onClick = onSend) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.Send,
+                                contentDescription = "SEND",
+                                tint = accentColor,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                } else {
+                    Text(
+                        text = messages.lastOrNull()?.text ?: "WAITING_FOR_INPUT...",
+                        color = Color.White,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
             }
         }
     }
@@ -764,9 +759,9 @@ fun AllTasksDialog(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(CyberButtonShape)
+                .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFF0F0F0F))
-                .border(2.dp, systemColor, CyberButtonShape)
+                .border(2.dp, systemColor, RoundedCornerShape(8.dp))
                 .padding(24.dp)
         ) {
             Column(
@@ -810,7 +805,7 @@ fun AllTasksDialog(
 
                 Button(
                     onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth().clip(CyberButtonShape),
+                    modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = systemColor)
                 ) {
                     Text("CLOSE", color = Color.Black, fontWeight = FontWeight.Bold)

@@ -23,15 +23,15 @@ sealed class NavItem(
     val icon: ImageVector,
     val index: Int
 ) {
-    object Board : NavItem("BOARD", Icons.Default.GridView, 0)
-    object Codex : NavItem("CODEX", Icons.Default.AutoStories, 1)
-    object Rig : NavItem("RIG", Icons.Default.DeveloperBoard, 2)
-    object Labs : NavItem("LABS", Icons.Default.Science, 3)
-    object Pulse : NavItem("PULSE", Icons.Default.MonitorHeart, 4)
-    object Ops : NavItem("OPS", Icons.Default.Terminal, 5)
+    object Deck : NavItem("DECK", Icons.Default.GridView, 0)
+    object Rig : NavItem("RIG", Icons.Default.Terminal, 1)
+    object Labs : NavItem("LABS", Icons.Default.Science, 2)
+    object Codex : NavItem("CODEX", Icons.Default.AutoStories, 3)
+    object Forge : NavItem("FORGE", Icons.Default.AddBox, 4)
+    object Ops : NavItem("OPS", Icons.Default.MonitorHeart, 5)
 
     companion object {
-        val items = listOf(Board, Codex, Rig, Labs, Pulse, Ops)
+        val items = listOf(Deck, Rig, Labs, Codex, Forge, Ops)
     }
 }
 
