@@ -222,6 +222,9 @@ fun AppNavigation(
                                 onAvatarClick = { 
                                     navController.navigate(Screen.HolographicHub)
                                 },
+                                onSettingsClick = {
+                                    navController.navigate(Screen.Settings)
+                                },
                                 onTaskClick = { id -> navController.navigate(Screen.TaskDetail(id)) },
                                 onNavigateToWorkout = { taskId -> 
                                     navController.navigate(Screen.WorkoutLog(taskId))

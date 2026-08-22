@@ -82,11 +82,15 @@ fun SlimChromeHeader(
     liveMetrics: LiveBiometrics?,
     currentTime: LocalDateTime,
     onAvatarClick: () -> Unit,
+    onSettingsClick: () -> Unit,
     systemColor: Color
 ) {
     Box(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
         // Left Section: Avatar and Info
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.align(Alignment.CenterStart),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             // Bracketed Avatar
             Box(
                 modifier = Modifier
@@ -127,33 +131,50 @@ fun SlimChromeHeader(
         }
 
         // Right: Status Cluster
-        Column(
+        Row(
             modifier = Modifier.align(Alignment.TopEnd),
-            horizontalAlignment = Alignment.End
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.End
         ) {
-            Text(
-                text = currentTime.format(DateTimeFormatter.ofPattern("HH:mm:ss")),
-                color = systemColor,
-                fontSize = 15.sp,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "${weatherState.temperature}°",
-                    color = Color.White.copy(alpha = 0.6f),
-                    fontSize = 13.sp,
-                    fontFamily = FontFamily.Monospace
+                    text = currentTime.format(DateTimeFormatter.ofPattern("HH:mm:ss")),
+                    color = systemColor,
+                    fontSize = 15.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
                 )
-                if (liveMetrics?.heartRate != null && liveMetrics.heartRate!! > 0) {
-                    Spacer(Modifier.width(8.dp))
-                    Icon(
-                        Icons.Outlined.FavoriteBorder,
-                        contentDescription = null,
-                        tint = Color(0xFFFF006E),
-                        modifier = Modifier.size(12.dp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "${weatherState.temperature}°",
+                        color = Color.White.copy(alpha = 0.6f),
+                        fontSize = 13.sp,
+                        fontFamily = FontFamily.Monospace
                     )
+                    if (liveMetrics?.heartRate != null && liveMetrics.heartRate!! > 0) {
+                        Spacer(Modifier.width(8.dp))
+                        Icon(
+                            Icons.Outlined.FavoriteBorder,
+                            contentDescription = null,
+                            tint = Color(0xFFFF006E),
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
                 }
+            }
+            
+            Spacer(Modifier.width(12.dp))
+            
+            IconButton(
+                onClick = onSettingsClick,
+                modifier = Modifier.size(28.dp).padding(top = 2.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Adjust,
+                    contentDescription = "JACK IN",
+                    tint = Color(0xFFFF006E),
+                    modifier = Modifier.size(22.dp)
+                )
             }
         }
     }
@@ -419,6 +440,7 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel(),
     healthViewModel: HealthViewModel = hiltViewModel(),
     onAvatarClick: () -> Unit,
+    onSettingsClick: () -> Unit,
     onTaskClick: (String) -> Unit,
     onNavigateToWorkout: (String?) -> Unit = {},
     onNavigateToGuide: () -> Unit = {}
@@ -471,6 +493,7 @@ fun DashboardScreen(
                 liveMetrics = liveMetrics,
                 currentTime = currentTime.value,
                 onAvatarClick = onAvatarClick,
+                onSettingsClick = onSettingsClick,
                 systemColor = systemColor
             )
 
