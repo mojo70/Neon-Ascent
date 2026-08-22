@@ -418,10 +418,25 @@ fun StepChronosCalibration(state: OnboardingUiState, onUpdateSchedule: (List<Sch
 
 @Composable
 fun StepProtocolSynthesis(state: OnboardingUiState) {
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("PROTOCOL SYNTHESIS", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black, modifier = Modifier.fillMaxWidth())
+    var showTenantsOverview by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp, vertical = 16.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            "PROTOCOL SYNTHESIS",
+            color = Color.White,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Black,
+            modifier = Modifier.fillMaxWidth()
+        )
+        
         state.recommendation?.let { routine ->
-            val protocolName = when(routine.protocol) {
+            val protocolName = when (routine.protocol) {
                 WorkoutProtocol.CYBER_CRAPP -> "CYBERCRAPP"
                 WorkoutProtocol.STRAIGHT_SETS -> "STRAIGHT SETS"
                 WorkoutProtocol.DUP -> "D.U.P."
@@ -429,15 +444,256 @@ fun StepProtocolSynthesis(state: OnboardingUiState) {
                 WorkoutProtocol.GENERAL -> "GENERAL"
             }
             
-            Surface(modifier = Modifier.fillMaxWidth().padding(top = 32.dp), color = Color(0xFF1C1C1E), shape = RoundedCornerShape(16.dp), border = BorderStroke(2.dp, Color(0xFF00FF9C))) {
-                Column(modifier = Modifier.padding(24.dp)) {
-                    Text("RECOMMENDED CORE", color = Color(0xFF00FF9C), fontSize = 10.sp, fontWeight = FontWeight.Black)
-                    Text(protocolName, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Black)
-                    if (routine.protocol == WorkoutProtocol.CYBER_CRAPP) {
-                        ModifierBadge("CYBERCRAPP ENABLED", Color(0xFF00FFAA))
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 20.dp),
+                color = Color(0xFF1C1C1E),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(2.dp, Color(0xFF00FF9C))
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("RECOMMENDED CORE", color = Color(0xFF00FF9C), fontSize = 10.sp, fontWeight = FontWeight.Black)
+                            Text(protocolName, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Black)
+                        }
+                        if (routine.protocol == WorkoutProtocol.CYBER_CRAPP) {
+                            ModifierBadge("REST-PAUSE PROTOCOL", Color(0xFF00FFAA))
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        routine.protocol.description,
+                        color = Color.LightGray,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = { showTenantsOverview = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C).copy(alpha = 0.15f)),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Color(0xFF00FF9C))
+                    ) {
+                        Icon(Icons.Default.MenuBook, contentDescription = null, tint = Color(0xFF00FF9C), modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "REVIEW PROTOCOL TENANTS & EXECUTION",
+                            color = Color(0xFF00FF9C),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp
+                        )
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = Color(0xFF141416),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color(0xFF2C2C2E))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        "CORE METHODOLOGY",
+                        color = Color.Gray,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        routine.protocol.methodology,
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp
+                    )
+                }
+            }
+        }
+    }
+
+    if (showTenantsOverview && state.recommendation != null) {
+        ProtocolOverviewModal(
+            protocol = state.recommendation.protocol,
+            onDismiss = { showTenantsOverview = false }
+        )
+    }
+}
+
+@Composable
+fun ProtocolOverviewModal(
+    protocol: WorkoutProtocol,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp),
+            color = Color(0xFF0D0D0D),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.5f))
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            "PROTOCOL PROTO-INTEL",
+                            color = Color(0xFF00FF9C),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 1.sp
+                        )
+                        Text(
+                            protocol.displayName,
+                            color = Color.White,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Gray)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (protocol == WorkoutProtocol.CYBER_CRAPP) {
+                    CyberCrappTenantsContent()
+                } else {
+                    GenericProtocolTenantsContent(protocol)
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("I UNDERSTAND THE SYSTEM", color = Color.Black, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CyberCrappTenantsContent() {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        TenantCard(
+            title = "1. REST-PAUSE CLUSTERS (THE ENGINE)",
+            badge = "CORE MECHANIC",
+            badgeColor = Color(0xFF00FFAA),
+            explanation = "Instead of 3-4 standard sets, you perform 1 brutal cluster consisting of 3 mini-sets to failure with 15 seconds rest between mini-sets:\n\n" +
+                    "• Mini-Set 1: Take the target weight to failure (0-1 RIR, typically 6-10 reps).\n" +
+                    "• Rest 15 seconds: Deep diaphragmatic breaths.\n" +
+                    "• Mini-Set 2: Pick the same weight back up and push to failure (typically 2-4 reps).\n" +
+                    "• Rest 15 seconds: Focus neural drive.\n" +
+                    "• Mini-Set 3: Final push to failure (typically 1-3 reps).\n\n" +
+                    "Goal: Maximize 'Effective Reps' in minimal session time."
+        )
+
+        TenantCard(
+            title = "2. CYBER FINISHER (LENGTHENED PARTIALS)",
+            badge = "HYPERTROPHY MULTIPLIER",
+            badgeColor = Color(0xFF00CCFF),
+            explanation = "Immediately following your 3rd mini-set, drop the load or keep dumbbells and perform 3 to 5 controlled partial reps strictly in the stretched (lengthened) range of motion. This triggers stretch-mediated hypertrophy without joint damage."
+        )
+
+        TenantCard(
+            title = "3. LOADED ACTIVE STRETCHES",
+            badge = "RECOVERY & FASCIA",
+            badgeColor = Color(0xFFFF006E),
+            explanation = "Perform a 30 to 45 second loaded stretch targeting the worked muscle (e.g. deep dumbbell fly stretch for chest, hang for back). The app provides automated vibration cues to pace your breathing."
+        )
+
+        TenantCard(
+            title = "4. BEAT THE LOGBOOK (PROGRESSIVE OVERLOAD)",
+            badge = "RULE OF LAW",
+            badgeColor = Color(0xFFFFD700),
+            explanation = "Keep the weight constant and chase higher total cluster reps (Mini 1 + 2 + 3). Once you exceed your target rep range (e.g., 15 total reps), the system automatically prompts you to bump the weight on your next session."
+        )
+
+        TenantCard(
+            title = "5. AUTO-ROTATION ON STALL",
+            badge = "GUARDRAIL",
+            badgeColor = Color(0xFFFF5555),
+            explanation = "If you fail to beat your previous session's reps or weight twice in a row, the app flags a stagnation and recommends rotating to a safe alternative movement so your nervous system never adapts."
+        )
+    }
+}
+
+@Composable
+private fun GenericProtocolTenantsContent(protocol: WorkoutProtocol) {
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        protocol.tenants.forEachIndexed { index, tenant ->
+            TenantCard(
+                title = "TENANT 0${index + 1}",
+                badge = "PRINCIPLE",
+                badgeColor = Color(0xFF00FF9C),
+                explanation = tenant
+            )
+        }
+    }
+}
+
+@Composable
+private fun TenantCard(
+    title: String,
+    badge: String,
+    badgeColor: Color,
+    explanation: String
+) {
+    Surface(
+        color = Color(0xFF1C1C1E),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, Color(0xFF2C2C2E))
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Surface(
+                    color = badgeColor.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(4.dp),
+                    border = BorderStroke(0.5.dp, badgeColor)
+                ) {
+                    Text(
+                        badge,
+                        color = badgeColor,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(explanation, color = Color(0xFFD0D0D0), fontSize = 12.sp, lineHeight = 17.sp)
         }
     }
 }
