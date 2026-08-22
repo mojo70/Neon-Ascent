@@ -97,7 +97,6 @@ fun DashboardScreen(
     onAvatarClick: () -> Unit,
     onAttributeSetClick: () -> Unit,
     onStoryClick: () -> Unit,
-    onGoalSetClick: () -> Unit,
     onTaskClick: (String) -> Unit,
     onSettingsClick: () -> Unit,
     onDeusExMachinaClick: () -> Unit,
@@ -491,36 +490,30 @@ fun DashboardScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            CyberFrame(label = "CORE_SYNC", borderColor = systemColor) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (userCharacter?.strength == null) {
-                        Text(
-                            text = "BIOMETRIC_INTERFACE_READY",
-                            color = Color.White.copy(alpha = 0.6f),
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                            letterSpacing = 1.sp
-                        )
+            if (userCharacter?.strength == null || state.userStory.bio.isBlank()) {
+                CyberFrame(label = "CORE_SYNC", borderColor = systemColor) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (userCharacter?.strength == null) {
+                            Text(
+                                text = "BIOMETRIC_INTERFACE_READY",
+                                color = Color.White.copy(alpha = 0.6f),
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
+                                letterSpacing = 1.sp
+                            )
 
-                        CyberActionButton("ATTRIBUTE SCAN", Color(0xFF00FF9C), onClick = {
-                            triggerGlitch()
-                            onAttributeSetClick()
-                        })
+                            CyberActionButton("ATTRIBUTE SCAN", Color(0xFF00FF9C), onClick = {
+                                triggerGlitch()
+                                onAttributeSetClick()
+                            })
+                        }
+                        if (state.userStory.bio.isBlank()) {
+                            CyberActionButton("YOUR STORY", Color(0xFFFF006E), onClick = {
+                                triggerGlitch()
+                                onStoryClick()
+                            })
+                        }
                     }
-                    if (state.userStory.bio.isBlank()) {
-                        CyberActionButton("YOUR STORY", Color(0xFFFF006E), onClick = {
-                            triggerGlitch()
-                            onStoryClick()
-                        })
-                    }
-                    CyberActionButton("OPERATIONAL_DIRECTIVES", Color.White, onClick = { 
-                        triggerGlitch()
-                        onGoalSetClick() 
-                    })
-                    CyberActionButton("LOG WORKOUT SESSION", Color(0xFF00CCFF), onClick = {
-                        triggerGlitch()
-                        onNavigateToWorkout(null)
-                    })
                 }
             }
 
