@@ -167,5 +167,8 @@ sealed interface Screen {
     data object Stilljack : Screen
 
     @Serializable
+    data object HullPulse : Screen
+
+    @Serializable
     data class WorkoutLog(val taskId: String? = null) : Screen
 }

@@ -86,6 +86,7 @@ import com.neon.ascent.feature.neonguide.NeonGuideScreen
 import com.neon.ascent.feature.workout.ui.WorkoutLoggingScreen
 import com.neon.ascent.feature.dashboard.PhysicalOpsHub
 import com.neon.ascent.feature.biohacking.ui.stilljack.StilljackScreen
+import com.neon.ascent.feature.biohacking.ui.hullpulse.HullPulseScreen
 import com.neon.ascent.feature.wallet.EurodollarWalletScreen
 import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.core.common.cyberGlitch
@@ -280,8 +281,7 @@ fun AppNavigation(
                                 navController.navigate(Screen.Stilljack)
                             },
                             onNavigateToHullPulse = {
-                                // TODO: Implement Hull Pulse screen or use NeonGuide as fallback
-                                navController.navigate(Screen.NeonGuide("I want to initiate Hull Pulse pelvic training."))
+                                navController.navigate(Screen.HullPulse)
                             }
                         )
                     }
@@ -879,6 +879,10 @@ fun AppNavigation(
 
         composable<Screen.Stilljack> {
             StilljackScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable<Screen.HullPulse> {
+            HullPulseScreen(onBack = { navController.popBackStack() })
         }
 
         composable<Screen.WorkoutLog> { backStackEntry ->
