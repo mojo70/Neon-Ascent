@@ -176,17 +176,10 @@ fun AppNavigation(
             val isReligionShortcutEnabled by dashboardViewModel.isReligionShortcutEnabled.collectAsState()
             val totalPages = if (isReligionShortcutEnabled) 7 else 6
             val deckIndex = if (isReligionShortcutEnabled) 3 else 2
-            val pagerState = rememberPagerState(pageCount = { totalPages }, initialPage = deckIndex)
-            val coroutineScope = rememberCoroutineScope()
-            
-            // Keep pager aligned to DECK when isReligionShortcutEnabled changes on launch
-            var hasInitializedDeck by remember { mutableStateOf(false) }
-            LaunchedEffect(isReligionShortcutEnabled) {
-                if (!hasInitializedDeck) {
-                    pagerState.scrollToPage(deckIndex)
-                    hasInitializedDeck = true
-                }
+            val pagerState = key(isReligionShortcutEnabled) {
+                rememberPagerState(pageCount = { totalPages }, initialPage = deckIndex)
             }
+            val coroutineScope = rememberCoroutineScope()
 
             val codexIndex = 0
             val altarIndex = if (isReligionShortcutEnabled) 1 else -1
