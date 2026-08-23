@@ -84,4 +84,22 @@ class HapticService @Inject constructor(
         )
         vibrator.vibrate(effect)
     }
+
+    /** Continuous hold vibration for duration in milliseconds */
+    @SuppressLint("MissingPermission")
+    fun holdVibration(durationMillis: Long = 4000L) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val effect = VibrationEffect.createOneShot(durationMillis, VibrationEffect.DEFAULT_AMPLITUDE)
+            vibrator.vibrate(effect)
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(durationMillis)
+        }
+    }
+
+    /** Cancel any ongoing vibration */
+    @SuppressLint("MissingPermission")
+    fun cancelVibration() {
+        vibrator.cancel()
+    }
 }

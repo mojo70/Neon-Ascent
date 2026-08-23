@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.neon.ascent.core.common.HapticService
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.seconds
 
@@ -30,7 +31,9 @@ data class HullPulseUiState(
 )
 
 @HiltViewModel
-class HullPulseViewModel @Inject constructor() : ViewModel() {
+class HullPulseViewModel @Inject constructor(
+    private val hapticService: HapticService
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HullPulseUiState())
     val uiState: StateFlow<HullPulseUiState> = _uiState.asStateFlow()
@@ -46,15 +49,18 @@ class HullPulseViewModel @Inject constructor() : ViewModel() {
             for (cycle in 1.._uiState.value.totalCycles) {
                 _uiState.update { it.copy(currentCycle = cycle) }
                 
-                // 1. Contract/Hold (4s)
+                // 1. Contract/Hold (4s) - vibrate during hold
+                hapticService.holdVibration(4000L)
                 runPhase(PulsePhase.HOLD, 4)
                 
-                // 2. Release (4s)
+                // 2. Release (4s) - stop vibration on release
+                hapticService.cancelVibration()
                 runPhase(PulsePhase.RELEASE, 4)
                 
                 _uiState.update { it.copy(totalProgress = cycle.toFloat() / _uiState.value.totalCycles) }
             }
             
+            hapticService.cancelVibration()
             _uiState.update { it.copy(isRunning = false, phase = PulsePhase.IDLE, totalProgress = 1f) }
         }
     }
@@ -69,11 +75,13 @@ class HullPulseViewModel @Inject constructor() : ViewModel() {
 
     fun stopPulse() {
         pulseJob?.cancel()
+        hapticService.cancelVibration()
         _uiState.update { HullPulseUiState() }
     }
 
     override fun onCleared() {
         super.onCleared()
         pulseJob?.cancel()
+        hapticService.cancelVibration()
     }
 }

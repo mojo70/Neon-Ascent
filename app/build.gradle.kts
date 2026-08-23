@@ -69,7 +69,7 @@ android {
 
     packaging {
         jniLibs {
-            useLegacyPackaging = false
+            useLegacyPackaging = true
         }
     }
 }
@@ -112,7 +112,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     // SQLCipher for Room encryption
-    implementation("net.zetetic:android-database-sqlcipher:4.5.4")
+    implementation(libs.sqlcipher)
     implementation("androidx.sqlite:sqlite-ktx:2.4.0")
 
     // Retrofit/OkHttp
@@ -128,7 +128,7 @@ dependencies {
 
     // DataStore & Security
     implementation("androidx.datastore:datastore-preferences:1.1.2")
-    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation(libs.androidx.security.crypto)
 
     // Biometrics
     implementation("androidx.biometric:biometric:1.2.0-alpha05")
@@ -183,10 +183,10 @@ dependencies {
     implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
 
     // ObjectBox (Vector DB)
-    implementation("io.objectbox:objectbox-android:4.1.0")
+    implementation(libs.objectbox)
 
     // ONNX Runtime
-    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.25.1")
+    implementation(libs.onnxruntime)
 
     // PDF Parsing
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
