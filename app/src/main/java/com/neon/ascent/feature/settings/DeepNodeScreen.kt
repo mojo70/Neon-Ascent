@@ -111,8 +111,8 @@ fun DeepNodeScreen(
                             SubNodeItem("DOPAMINE_SUBSYSTEM", "Access localized entertainment protocols.") {
                                 currentSubScreen = "DOPAMINE"
                             }
-                            SubNodeItem("DEUS_EX_MACHINA", "Divine signal decryption & ancient texts.") {
-                                currentSubScreen = "DEUS_EX_MACHINA"
+                            SubNodeItem("CYBER_ALTAR", "Sanctuary, prayer protocols & divine signal.") {
+                                currentSubScreen = "ALTAR"
                             }
                             SubNodeItem("CYBER_LIBRARY", "Deep archive of forbidden knowledge.") {
                                 currentSubScreen = "LIBRARY"
@@ -131,11 +131,11 @@ fun DeepNodeScreen(
                         }
                     }
                 }
-                "DEUS_EX_MACHINA" -> {
+                "ALTAR", "DEUS_EX_MACHINA" -> {
                     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
                         CyberFrame(label = "INTERFACE_SHORTCUT") {
                             ToggleSetting(
-                                label = "ENABLE DASHBOARD OVERLAY",
+                                label = "ENABLE ALTAR NAVIGATION & DASHBOARD ICON",
                                 checked = isReligionShortcutEnabled,
                                 onCheckedChange = { viewModel.setReligionShortcutEnabled(it) }
                             )
@@ -238,13 +238,6 @@ fun DeepNodeScreen(
                                     // SettingsItem("BIBLE_WEB_ENGLISH", onClick = { onReaderNavigate("bible_web", "library/bible_web.epub") })
                                 }
                             }
-                        CyberFrame(label = "AI_CHRIST_COMM_LINK") {
-                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                SettingsItem("INIT_TEXT_UPLINK", onClick = {})
-                                SettingsItem("INIT_VOICE_LINK", onClick = {})
-                                Text("STUB: Multimodal AI Jesus interaction based on scripture.", color = Color.Gray, fontSize = 12.sp)
-                            }
-                        }
                     }
                 }
                 "LIBRARY" -> {

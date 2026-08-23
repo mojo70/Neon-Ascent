@@ -173,9 +173,28 @@ fun AppNavigation(
         }
         
         composable<Screen.MainHub> {
-            val pagerState = rememberPagerState(pageCount = { 6 }, initialPage = 2) // Default to DECK (index 2)
+            val isReligionShortcutEnabled by dashboardViewModel.isReligionShortcutEnabled.collectAsState()
+            val totalPages = if (isReligionShortcutEnabled) 7 else 6
+            val deckIndex = if (isReligionShortcutEnabled) 3 else 2
+            val pagerState = rememberPagerState(pageCount = { totalPages }, initialPage = deckIndex)
             val coroutineScope = rememberCoroutineScope()
             
+            // Keep pager aligned to DECK when isReligionShortcutEnabled changes on launch
+            var hasInitializedDeck by remember { mutableStateOf(false) }
+            LaunchedEffect(isReligionShortcutEnabled) {
+                if (!hasInitializedDeck) {
+                    pagerState.scrollToPage(deckIndex)
+                    hasInitializedDeck = true
+                }
+            }
+
+            val codexIndex = 0
+            val altarIndex = if (isReligionShortcutEnabled) 1 else -1
+            val rigIndex = if (isReligionShortcutEnabled) 2 else 1
+            val labsIndex = if (isReligionShortcutEnabled) 4 else 3
+            val forgeIndex = if (isReligionShortcutEnabled) 5 else 4
+            val opsIndex = if (isReligionShortcutEnabled) 6 else 5
+
             Scaffold(
                 bottomBar = {
                     NeonBottomBar(
@@ -184,7 +203,8 @@ fun AppNavigation(
                             coroutineScope.launch {
                                 pagerState.animateScrollToPage(index)
                             }
-                        }
+                        },
+                        isAltarEnabled = isReligionShortcutEnabled
                     )
                 }
             ) { padding ->
@@ -192,15 +212,25 @@ fun AppNavigation(
                     state = pagerState,
                     modifier = Modifier.padding(padding)
                 ) { page ->
-                    when (page) {
-                        0 -> LoreScreen(
+                    when {
+                        page == codexIndex -> LoreScreen(
                             onBack = { 
                                 coroutineScope.launch {
-                                    pagerState.animateScrollToPage(2) // DECK
+                                    pagerState.animateScrollToPage(deckIndex) // DECK
                                 }
                             }
                         )
-                        1 -> CyberdeckScreen(
+                        isReligionShortcutEnabled && page == altarIndex -> com.neon.ascent.feature.altar.AltarScreen(
+                            onBack = {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(deckIndex)
+                                }
+                            },
+                            onReaderNavigate = { bookId, assetPath ->
+                                navController.navigate(Screen.EReader(bookId, assetPath))
+                            }
+                        )
+                        page == rigIndex -> CyberdeckScreen(
                             onWalletClick = { navController.navigate(Screen.Wallet) },
                             onDatabaseClick = { navController.navigate(Screen.DatabaseCore) },
                             onIceBreachClick = { 
@@ -217,7 +247,7 @@ fun AppNavigation(
                             },
                             tickerMessages = tickerMessages
                         )
-                        2 -> Box(Modifier.fillMaxSize()) {
+                        page == deckIndex -> Box(Modifier.fillMaxSize()) {
                             DashboardScreen(
                                 onAvatarClick = { 
                                     navController.navigate(Screen.HolographicHub)
@@ -231,7 +261,7 @@ fun AppNavigation(
                                 },
                                 onNavigateToGuide = {
                                     coroutineScope.launch {
-                                        pagerState.animateScrollToPage(0) // CODEX
+                                        pagerState.animateScrollToPage(codexIndex) // CODEX
                                     }
                                 }
                             )
@@ -244,10 +274,10 @@ fun AppNavigation(
                                 )
                             }
                         }
-                        3 -> BiohackingScreen(
+                        page == labsIndex -> BiohackingScreen(
                             onBack = { 
                                 coroutineScope.launch {
-                                    pagerState.animateScrollToPage(2) // DECK
+                                    pagerState.animateScrollToPage(deckIndex) // DECK
                                 }
                             },
                             onNavigateToForge = { type, title, desc, biometrics ->
@@ -256,17 +286,17 @@ fun AppNavigation(
                             onNavigateToGuide = { message ->
                                 pendingGuideMessage = message
                                 coroutineScope.launch {
-                                    pagerState.animateScrollToPage(0) // CODEX
+                                    pagerState.animateScrollToPage(codexIndex) // CODEX
                                 }
                             },
                             onNavigateToDopamineMenu = {
                                 navController.navigate(Screen.DopamineMenu)
                             }
                         )
-                        4 -> AscensionTerminalScreen(
+                        page == forgeIndex -> AscensionTerminalScreen(
                             onBack = {
                                 coroutineScope.launch {
-                                    pagerState.animateScrollToPage(2) // DECK
+                                    pagerState.animateScrollToPage(deckIndex) // DECK
                                 }
                             },
                             onDirectiveClick = { id -> navController.navigate(Screen.DirectiveDetail(id)) },
@@ -276,7 +306,7 @@ fun AppNavigation(
                             onRitualClick = { navController.navigate(Screen.TerminalRitual) },
                             onBrowseProtocols = { navController.navigate(Screen.ProtocolLibrary) }
                         )
-                        5 -> PhysicalOpsHub(
+                        page == opsIndex -> PhysicalOpsHub(
                             onNavigateToWorkout = {
                                 navController.navigate(Screen.WorkoutLog(null))
                             },
@@ -824,6 +854,15 @@ fun AppNavigation(
                     } else {
                         navController.popBackStack()
                     }
+                }
+            )
+        }
+
+        composable<Screen.Altar> {
+            com.neon.ascent.feature.altar.AltarScreen(
+                onBack = { navController.popBackStack() },
+                onReaderNavigate = { id, path ->
+                    navController.navigate(Screen.EReader(id, path))
                 }
             )
         }

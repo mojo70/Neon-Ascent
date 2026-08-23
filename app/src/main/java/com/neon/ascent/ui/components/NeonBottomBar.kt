@@ -21,17 +21,24 @@ import androidx.compose.ui.unit.sp
 sealed class NavItem(
     val label: String,
     val icon: ImageVector,
-    val index: Int
+    val id: String
 ) {
-    object Codex : NavItem("CODEX", Icons.Default.AutoStories, 0)
-    object Rig : NavItem("RIG", Icons.Default.Terminal, 1)
-    object Deck : NavItem("DECK", Icons.Default.GridView, 2)
-    object Labs : NavItem("LABS", Icons.Default.Science, 3)
-    object Forge : NavItem("FORGE", Icons.Default.AddBox, 4)
-    object Ops : NavItem("OPS", Icons.Default.MonitorHeart, 5)
+    object Codex : NavItem("CODEX", Icons.Default.AutoStories, "CODEX")
+    object Altar : NavItem("ALTAR", Icons.Default.BrightnessAuto, "ALTAR")
+    object Rig : NavItem("RIG", Icons.Default.Terminal, "RIG")
+    object Deck : NavItem("DECK", Icons.Default.GridView, "DECK")
+    object Labs : NavItem("LABS", Icons.Default.Science, "LABS")
+    object Forge : NavItem("FORGE", Icons.Default.AddBox, "FORGE")
+    object Ops : NavItem("OPS", Icons.Default.MonitorHeart, "OPS")
 
     companion object {
-        val items = listOf(Codex, Rig, Deck, Labs, Forge, Ops)
+        fun getItems(isAltarEnabled: Boolean): List<NavItem> {
+            return if (isAltarEnabled) {
+                listOf(Codex, Altar, Rig, Deck, Labs, Forge, Ops)
+            } else {
+                listOf(Codex, Rig, Deck, Labs, Forge, Ops)
+            }
+        }
     }
 }
 
@@ -39,11 +46,13 @@ sealed class NavItem(
 fun NeonBottomBar(
     selectedIndex: Int,
     onItemSelected: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isAltarEnabled: Boolean = false
 ) {
     val borderColor = Color(0xFF1A262E)
     val inactiveColor = Color(0xFF5A6E78)
     val activeColor = MaterialTheme.colorScheme.onBackground // 0xFF00FF9C
+    val items = NavItem.getItems(isAltarEnabled)
 
     Column(
         modifier = modifier
@@ -66,15 +75,15 @@ fun NeonBottomBar(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            NavItem.items.forEach { item ->
-                val isSelected = selectedIndex == item.index
+            items.forEachIndexed { index, item ->
+                val isSelected = selectedIndex == index
                 val color = if (isSelected) activeColor else inactiveColor
 
                 Column(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .clickable { onItemSelected(item.index) },
+                        .clickable { onItemSelected(index) },
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {

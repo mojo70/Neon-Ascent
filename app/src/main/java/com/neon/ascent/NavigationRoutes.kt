@@ -89,7 +89,10 @@ sealed interface Screen {
     data object Forge : Screen
 
     @Serializable
-    data class DeepNode(val nodeType: String = "DEUS_EX_MACHINA") : Screen
+    data class DeepNode(val nodeType: String = "ALTAR") : Screen
+
+    @Serializable
+    data object Altar : Screen
 
     @Serializable
     data object CharacterBio : Screen

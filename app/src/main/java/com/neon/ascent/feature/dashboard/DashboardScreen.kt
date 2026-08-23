@@ -162,7 +162,7 @@ fun SlimChromeHeader(
                     }
                 }
             }
-            
+
             Spacer(Modifier.width(12.dp))
             
             IconButton(

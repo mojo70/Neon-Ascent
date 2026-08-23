@@ -121,6 +121,12 @@ class SettingsRepository @Inject constructor(
     private val _lastAltarVisit = MutableStateFlow(0L)
     val lastAltarVisit: StateFlow<Long> = _lastAltarVisit.asStateFlow()
 
+    private val _isAltarTrueTextMode = MutableStateFlow(false)
+    val isAltarTrueTextMode: StateFlow<Boolean> = _isAltarTrueTextMode.asStateFlow()
+
+    private val _lastRemainBuffDate = MutableStateFlow(0L)
+    val lastRemainBuffDate: StateFlow<Long> = _lastRemainBuffDate.asStateFlow()
+
     init {
         // Initialize values from sharedPreferences with safety
         try {
@@ -139,6 +145,8 @@ class SettingsRepository @Inject constructor(
             _insightDepth.value = sharedPreferences.getString("insight_depth", "DETAILED") ?: "DETAILED"
             _hasCompletedSinnersPrayer.value = sharedPreferences.getBoolean("has_completed_sinners_prayer", false)
             _lastAltarVisit.value = sharedPreferences.getLong("last_altar_visit", 0L)
+            _isAltarTrueTextMode.value = sharedPreferences.getBoolean("altar_true_text_mode", false)
+            _lastRemainBuffDate.value = sharedPreferences.getLong("last_remain_buff_date", 0L)
         } catch (e: Exception) {
             android.util.Log.e("SettingsRepository", "Failed to load initial settings", e)
         }
@@ -277,6 +285,24 @@ class SettingsRepository @Inject constructor(
             android.util.Log.e("SettingsRepository", "Error saving setting", e)
         }
         _lastAltarVisit.value = timestamp
+    }
+
+    fun setAltarTrueTextMode(enabled: Boolean) {
+        try {
+            sharedPreferences.edit().putBoolean("altar_true_text_mode", enabled).apply()
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsRepository", "Error saving setting", e)
+        }
+        _isAltarTrueTextMode.value = enabled
+    }
+
+    fun setLastRemainBuffDate(timestamp: Long) {
+        try {
+            sharedPreferences.edit().putLong("last_remain_buff_date", timestamp).apply()
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsRepository", "Error saving setting", e)
+        }
+        _lastRemainBuffDate.value = timestamp
     }
 
     fun getBookProgress(bookId: String): Int {
