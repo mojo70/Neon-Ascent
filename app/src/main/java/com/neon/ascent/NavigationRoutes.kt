@@ -174,4 +174,7 @@ sealed interface Screen {
 
     @Serializable
     data class WorkoutLog(val taskId: String? = null) : Screen
+
+    @Serializable
+    data class CodexDossier(val exerciseId: String) : Screen
 }

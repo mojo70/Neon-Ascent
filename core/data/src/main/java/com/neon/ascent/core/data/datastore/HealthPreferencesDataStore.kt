@@ -34,6 +34,9 @@ class HealthPreferencesDataStore @Inject constructor(
         val WARMUP_SET_REST_TIME = intPreferencesKey("warmup_set_rest_time")
         val DROP_SET_REST_TIME = intPreferencesKey("drop_set_rest_time")
         val REST_TIMER_MODE = stringPreferencesKey("rest_timer_mode")
+        val CODEX_PERIOD = stringPreferencesKey("codex_period")
+        val CODEX_WING = stringPreferencesKey("codex_wing")
+        val CODEX_LAST_EXERCISE_ID = stringPreferencesKey("codex_last_exercise_id")
     }
 
     private val dataStore = context.healthDataStore
@@ -155,6 +158,36 @@ class HealthPreferencesDataStore @Inject constructor(
 
     suspend fun setRestTimerMode(mode: com.neon.ascent.core.domain.workout.models.RestTimerMode) {
         dataStore.edit { it[Keys.REST_TIMER_MODE] = mode.name }
+    }
+
+    val codexPeriod: Flow<String> = dataStore.data.map { prefs ->
+        prefs[Keys.CODEX_PERIOD] ?: "THIRTY_DAYS"
+    }
+
+    suspend fun setCodexPeriod(period: String) {
+        dataStore.edit { it[Keys.CODEX_PERIOD] = period }
+    }
+
+    val codexWing: Flow<String> = dataStore.data.map { prefs ->
+        prefs[Keys.CODEX_WING] ?: "OPS_LOG"
+    }
+
+    suspend fun setCodexWing(wing: String) {
+        dataStore.edit { it[Keys.CODEX_WING] = wing }
+    }
+
+    val codexLastExerciseId: Flow<String?> = dataStore.data.map { prefs ->
+        prefs[Keys.CODEX_LAST_EXERCISE_ID]
+    }
+
+    suspend fun setCodexLastExerciseId(exerciseId: String?) {
+        dataStore.edit { 
+            if (exerciseId == null) {
+                it.remove(Keys.CODEX_LAST_EXERCISE_ID)
+            } else {
+                it[Keys.CODEX_LAST_EXERCISE_ID] = exerciseId 
+            }
+        }
     }
 
     /** Reset all health preferences (useful for debugging or user "Reset Data" option) */

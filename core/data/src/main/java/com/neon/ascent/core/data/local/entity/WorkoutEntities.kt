@@ -277,8 +277,7 @@ data class RoutineExerciseCrossRef(
     val order: Int
 )
 
-@Entity(
-    tableName = "routine_sets",
+@Entity(tableName = "routine_sets",
     foreignKeys = [
         ForeignKey(
             entity = WorkoutRoutineEntity::class,
@@ -304,4 +303,17 @@ data class RoutineSetEntity(
     val weight: Float,
     val reps: Int,
     val goalReps: String? = null
+)
+
+@Entity(tableName = "fuel_snapshots")
+data class FuelSnapshotEntity(
+    @PrimaryKey val id: String,
+    val timestamp: Instant,
+    val weightKg: Float,
+    val tdee: Int,
+    val protein: Int,
+    val carb: Int,
+    val fat: Int,
+    val activityFactor: Float,
+    val somatotype: String
 )

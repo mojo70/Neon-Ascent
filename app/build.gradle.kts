@@ -174,6 +174,7 @@ dependencies {
     implementation(project(":feature:notifications"))
     implementation(project(":feature:terminal"))
     implementation(project(":feature:workout"))
+    implementation(project(":feature:codex"))
     // implementation("com.google.ai.edge.litertlm:litertlm-android:0.10.0")
 
     // Google AI SDK (Cloud-based Gemini)

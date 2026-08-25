@@ -27,7 +27,8 @@ import com.neon.ascent.core.common.Vignette
 fun PhysicalOpsHub(
     onNavigateToWorkout: () -> Unit,
     onNavigateToStilljack: () -> Unit,
-    onNavigateToHullPulse: () -> Unit
+    onNavigateToHullPulse: () -> Unit,
+    onNavigateToArchive: () -> Unit = {}
 ) {
     val systemColor = Color(0xFF00FF9C)
 
@@ -51,6 +52,17 @@ fun PhysicalOpsHub(
                 letterSpacing = 2.sp,
                 modifier = Modifier.padding(bottom = 24.dp)
             )
+
+            PhysicalOpCard(
+                title = "NEURAL_ARCHIVE",
+                subtitle = "MISSION LOGS & BIOMETRIC HISTORY",
+                icon = Icons.Default.History,
+                label = "OPEN ARCHIVE",
+                color = systemColor,
+                onClick = onNavigateToArchive
+            )
+
+            Spacer(Modifier.height(16.dp))
 
             PhysicalOpCard(
                 title = "MEATWARE_TRAINING",

@@ -1,15 +1,12 @@
 package com.neon.ascent.core.data.repository
 
 import com.neon.ascent.core.data.local.dao.WorkoutDao
-import com.neon.ascent.core.data.local.entity.AugmentExerciseCrossRef
-import com.neon.ascent.core.data.local.entity.RoutineAugmentCrossRef
-import com.neon.ascent.core.data.local.entity.RoutineExerciseCrossRef
-import com.neon.ascent.core.data.local.entity.RoutineSetEntity
-import com.neon.ascent.core.data.local.entity.AugmentSetEntity
+import com.neon.ascent.core.data.local.entity.*
 import com.neon.ascent.core.data.mapper.*
 import com.neon.ascent.core.domain.repository.WorkoutRepository
 import com.neon.ascent.core.domain.workout.models.*
 import com.neon.ascent.core.domain.workout.rules.CyberCrappRules
+import com.neon.ascent.core.domain.workout.rules.MacroCalculator
 import com.neon.ascent.core.domain.workout.rules.RecoveryEngine
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -69,7 +66,39 @@ class WorkoutRepositoryImpl @Inject constructor(
         workoutDao.getUserProfile(userId).map { it?.toDomain() }
 
     override suspend fun saveUserProfile(profile: UserWorkoutProfile) {
+        val currentProfile = workoutDao.getUserProfile(profile.userId).first()?.toDomain()
+        
         workoutDao.insertUserProfile(profile.toEntity())
+
+        // Detection of changes that trigger a FuelSnapshot
+        if (currentProfile != null) {
+            val changed = currentProfile.weightKg != profile.weightKg ||
+                    currentProfile.activityFactor != profile.activityFactor ||
+                    currentProfile.somatotype != profile.somatotype ||
+                    currentProfile.gender != profile.gender
+            
+            if (changed) {
+                val macros = MacroCalculator.calculateMacros(profile)
+                saveFuelSnapshot(
+                    FuelSnapshot(
+                        weightKg = profile.weightKg,
+                        tdee = macros.calories,
+                        protein = macros.protein,
+                        carb = macros.carbs,
+                        fat = macros.fat,
+                        activityFactor = profile.activityFactor,
+                        somatotype = profile.somatotype
+                    )
+                )
+            }
+        }
+    }
+
+    override fun getFuelHistory(from: java.time.Instant, to: java.time.Instant): Flow<List<FuelSnapshot>> =
+        workoutDao.getFuelHistory(from, to).map { entities -> entities.map { it.toDomain() } }
+
+    override suspend fun saveFuelSnapshot(snapshot: FuelSnapshot) {
+        workoutDao.upsertFuelSnapshot(snapshot.toEntity())
     }
 
     override fun getAllRoutines(): Flow<List<WorkoutRoutine>> =
@@ -1156,6 +1185,60 @@ class WorkoutRepositoryImpl @Inject constructor(
         workoutDao.deleteRoutine("routine_strength")
         workoutDao.deleteRoutine("routine_strength_2")
         workoutDao.deleteRoutine("routine_lower_split")
+
+        // Debug Seed: Mock Sessions if history is empty
+        if (workoutDao.countSessionsBetween(java.time.Instant.EPOCH, java.time.Instant.now()).first() == 0) {
+            val mockSessionId = java.util.UUID.randomUUID().toString()
+            val mockDate = java.time.Instant.now().minus(2, java.time.temporal.ChronoUnit.DAYS)
+            
+            workoutDao.upsertSession(
+                WorkoutSessionEntity(
+                    id = mockSessionId,
+                    date = mockDate,
+                    protocol = WorkoutProtocol.CYBER_CRAPP.name,
+                    durationSeconds = 2400,
+                    notes = "Initial neural calibration session.",
+                    experienceLevel = ExperienceLevel.INTERMEDIATE.name,
+                    somatotype = Somatotype.MESOMORPH.name
+                )
+            )
+
+            val bench = exercises.find { it.id == "bench_press" }
+            if (bench != null) {
+                val logId = java.util.UUID.randomUUID().toString()
+                workoutDao.upsertWorkoutLog(
+                    WorkoutLogEntity(
+                        id = logId,
+                        sessionId = mockSessionId,
+                        exerciseId = bench.id,
+                        order = 0,
+                        exerciseName = bench.name,
+                        protocolOverride = null
+                    )
+                )
+                
+                // Add a completed cluster
+                listOf(1, 2, 3).forEach { mIndex ->
+                    workoutDao.upsertSetLog(
+                        SetLogEntity(
+                            id = java.util.UUID.randomUUID().toString(),
+                            workoutLogId = logId,
+                            weight = 185f,
+                            reps = 8 - mIndex,
+                            setType = SetType.REST_PAUSE.name,
+                            isCompleted = true,
+                            rir = 1,
+                            isWarmup = false,
+                            timestamp = mockDate.plusSeconds((mIndex * 60).toLong()),
+                            clusterMiniSetIndex = mIndex,
+                            isLengthenedPartial = false,
+                            isLoadedStretch = false,
+                            stretchDurationSeconds = null
+                        )
+                    )
+                }
+            }
+        }
     }
 
     override suspend fun deleteSession(sessionId: String) {
@@ -1197,6 +1280,51 @@ class WorkoutRepositoryImpl @Inject constructor(
                 sessionWithLogs.session.toDomain() to sessionWithLogs.logs.map { logWithSets ->
                     logWithSets.log.toDomain() to logWithSets.sets.map { it.toDomain() }
                 }
+            }
+        }
+
+    override fun countSessionsBetween(from: java.time.Instant, to: java.time.Instant): Flow<Int> =
+        workoutDao.countSessionsBetween(from, to)
+
+    override fun getSessionsBetween(
+        from: java.time.Instant,
+        to: java.time.Instant
+    ): Flow<List<Pair<WorkoutSession, List<Pair<WorkoutLog, List<SetLog>>>>>> =
+        workoutDao.getSessionsWithDetailsBetween(from, to).map { sessions ->
+            sessions.map { sessionWithLogs ->
+                sessionWithLogs.session.toDomain() to sessionWithLogs.logs.map { logWithSets ->
+                    logWithSets.log.toDomain() to logWithSets.sets.map { it.toDomain() }
+                }
+            }
+        }
+
+    override fun getSessionDatesAndDeloadBetween(
+        from: java.time.Instant,
+        to: java.time.Instant
+    ): Flow<List<Pair<java.time.Instant, Boolean>>> =
+        workoutDao.getSessionDatesAndDeloadBetween(from, to).map { list ->
+            list.map { it.date to it.isDeload }
+        }
+
+    override fun getMuscleGroupsHitBetween(
+        from: java.time.Instant,
+        to: java.time.Instant
+    ): Flow<List<String>> =
+        workoutDao.getMuscleGroupsHitBetween(from, to).map { list ->
+            list.flatMap { it.muscleGroups }.distinct()
+        }
+
+    override fun getLogsForExerciseBetween(
+        exerciseId: String,
+        from: java.time.Instant,
+        to: java.time.Instant
+    ): Flow<List<Pair<WorkoutLog, List<SetLog>>>> =
+        workoutDao.getLogsForExerciseBetween(exerciseId, from, to).map { list ->
+            list.map { logWithSets ->
+                logWithSets.log.toDomain() to logWithSets.sets
+                    .map { it.toDomain() }
+                    .filter { it.isCompleted }
+                    .sortedWith(compareBy({ it.timestamp }, { it.id }))
             }
         }
 

@@ -60,7 +60,9 @@ import com.neon.ascent.core.domain.workout.rules.RepRange
 @Composable
 fun WorkoutLoggingScreen(
     onBack: () -> Unit,
-    viewModel: WorkoutViewModel = hiltViewModel()
+    onViewInCodex: (String) -> Unit = {},
+    viewModel: WorkoutViewModel = hiltViewModel(),
+    onRestTimerClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showRoutineActionMenuFor by remember { mutableStateOf<WorkoutRoutine?>(null) }
@@ -97,11 +99,7 @@ fun WorkoutLoggingScreen(
                         onAddRoutine = { viewModel.toggleRoutineLibrary(it) }
                     )
                 } else if (uiState.session == null) {
-                    if (uiState.isShowingProgress) {
-                        WorkoutProgressScreen(
-                            onBack = { viewModel.hideProgress() }
-                        )
-                    } else if (uiState.isCreatingRoutine) {
+                    if (uiState.isCreatingRoutine) {
                         CreateRoutineScreen(
                             uiState = uiState,
                             onBack = { viewModel.cancelCreateRoutine() },
@@ -165,7 +163,7 @@ fun WorkoutLoggingScreen(
                         WorkoutIntakeScreen(
                             uiState = uiState,
                             onBack = onBack,
-                            onShowProgress = { viewModel.showProgress() },
+                            onShowArchive = { onViewInCodex("") },
                             onStartProtocol = { protocol, deload -> viewModel.startSession(protocol, deload) },
                             onStartRoutine = { routine, deload -> viewModel.handleRoutineSelection(routine, deload) },
                             onStartAugment = { viewModel.startAugment(it) },
@@ -251,7 +249,8 @@ fun WorkoutLoggingScreen(
                                 onPauseToggle = {
                                     if (uiState.isPaused) viewModel.resumeWorkout() else viewModel.pauseWorkout()
                                 },
-                                onDiscard = { viewModel.discardWorkout() }
+                                onDiscard = { viewModel.discardWorkout() },
+                                onViewInCodex = { onViewInCodex("") }
                             )
                             WorkoutSummaryBar(uiState, viewModel, onToggleSomatotype = { viewModel.toggleSomatotypeInfluence() })
                             
@@ -267,7 +266,12 @@ fun WorkoutLoggingScreen(
                             }
 
                             Box(modifier = Modifier.weight(1f)) {
-                                ActiveWorkoutContent(uiState, viewModel, onRestTimerClick = { showRestTimerAdjustment = true })
+                                ActiveWorkoutContent(
+                                    uiState = uiState, 
+                                    viewModel = viewModel, 
+                                    onRestTimerClick = { showRestTimerAdjustment = true },
+                                    onViewInCodex = onViewInCodex
+                                )
                                 
                                 if (uiState.isPaused) {
                                     Box(
@@ -603,7 +607,8 @@ fun ActiveWorkoutHeader(
     onFinish: () -> Unit,
     isPaused: Boolean,
     onPauseToggle: () -> Unit,
-    onDiscard: () -> Unit
+    onDiscard: () -> Unit,
+    onViewInCodex: () -> Unit = {}
 ) {
     var showDiscardDialog by remember { mutableStateOf(false) }
 
@@ -658,6 +663,12 @@ fun ActiveWorkoutHeader(
         Row(verticalAlignment = Alignment.CenterVertically) {
             val iconSize = if (zoom >= 1.5f) 18.dp else 20.dp
             
+            if (zoom < 1.25f) {
+                IconButton(onClick = onViewInCodex, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.History, contentDescription = "View In Archive", tint = Color(0xFF00FF9C), modifier = Modifier.size(iconSize))
+                }
+            }
+
             if (zoom < 1.75f) {
                 IconButton(onClick = { showDiscardDialog = true }, modifier = Modifier.size(32.dp)) {
                     Icon(Icons.Default.Delete, contentDescription = "Discard", tint = Color.Red.copy(alpha = 0.7f), modifier = Modifier.size(iconSize))
@@ -790,7 +801,7 @@ fun SummaryStat(label: String, value: String, valueColor: Color) {
 fun WorkoutIntakeScreen(
     uiState: WorkoutUiState,
     onBack: () -> Unit,
-    onShowProgress: () -> Unit,
+    onShowArchive: () -> Unit,
     onStartProtocol: (WorkoutProtocol, Boolean) -> Unit,
     onStartRoutine: (WorkoutRoutine, Boolean) -> Unit,
     onStartAugment: (WorkoutAugment) -> Unit,
@@ -843,11 +854,11 @@ fun WorkoutIntakeScreen(
                         modifier = Modifier.size(24.dp)
                     )
                 }
-                IconButton(onClick = onShowProgress) {
+                IconButton(onClick = onShowArchive) {
                     Icon(
                         Icons.AutoMirrored.Filled.TrendingUp,
-                        contentDescription = "Progress",
-                        tint = Color.White,
+                        contentDescription = "Archive",
+                        tint = Color(0xFF00FF9C),
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -2022,13 +2033,19 @@ fun RoutineExerciseItem(
 }
 
 @Composable
-fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel, onRestTimerClick: () -> Unit) {
+fun ActiveWorkoutContent(
+    uiState: WorkoutUiState,
+    viewModel: WorkoutViewModel,
+    onRestTimerClick: () -> Unit,
+    onViewInCodex: (String) -> Unit
+) {
     var showExercisePicker by remember { mutableStateOf(false) }
     var showAugmentPicker by remember { mutableStateOf(false) }
     var exerciseToReplace by remember { mutableStateOf<WorkoutLog?>(null) }
     var showActionMenuFor by remember { mutableStateOf<WorkoutLog?>(null) }
     var showSupersetMenuFor by remember { mutableStateOf<WorkoutLog?>(null) }
     val filteredExercises by viewModel.filteredExercises.collectAsState()
+    val codexNavigation = onViewInCodex
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().imePadding(),
@@ -2040,7 +2057,8 @@ fun ActiveWorkoutContent(uiState: WorkoutUiState, viewModel: WorkoutViewModel, o
                 sets = sets,
                 viewModel = viewModel,
                 onActionMenuClick = { showActionMenuFor = log },
-                onRestTimerClick = onRestTimerClick
+                onRestTimerClick = onRestTimerClick,
+                onViewInCodex = codexNavigation
             )
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -3377,7 +3395,8 @@ fun WorkoutLogCard(
     sets: List<SetLog>,
     viewModel: WorkoutViewModel,
     onActionMenuClick: () -> Unit,
-    onRestTimerClick: () -> Unit
+    onRestTimerClick: () -> Unit,
+    onViewInCodex: (String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val previousLogs = uiState.previousLogs
@@ -3515,6 +3534,14 @@ fun WorkoutLogCard(
                         fontSize = (18 * (if (uiState.zoomLevel >= 1.5f) 0.9f else 1.0f)).sp, 
                         fontWeight = FontWeight.Bold,
                         maxLines = 2
+                    )
+
+                    Text(
+                        "VIEW_IN_CODEX",
+                        color = Color(0xFF00FF9C).copy(alpha = 0.5f),
+                        fontSize = 8.sp,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.clickable { onViewInCodex(log.exerciseId) }
                     )
                     
                     // Comparison Logic

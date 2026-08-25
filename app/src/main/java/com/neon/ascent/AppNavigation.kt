@@ -79,6 +79,10 @@ import com.neon.ascent.feature.terminal.ui.AttributeHistoryScreen
 import com.neon.ascent.feature.terminal.ui.DiagnosticsScreen
 import com.neon.ascent.feature.terminal.ui.CognitiveTestScreen
 import com.neon.ascent.feature.lore.LoreScreen
+import com.neon.ascent.feature.lore.LoreScreenContent
+import com.neon.ascent.feature.lore.LoreViewModel
+import com.neon.ascent.feature.codex.ui.CodexScreen
+import com.neon.ascent.feature.codex.ui.CodexViewModel
 import com.neon.ascent.feature.notifications.ui.NeuralPingPermissionScreen
 import com.neon.ascent.feature.notifications.ui.NotificationPermissionViewModel
 import com.neon.ascent.feature.notifications.ui.NotificationPreferencesScreen
@@ -206,13 +210,19 @@ fun AppNavigation(
                     modifier = Modifier.padding(padding)
                 ) { page ->
                     when {
-                        page == codexIndex -> LoreScreen(
-                            onBack = { 
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(deckIndex) // DECK
+                        page == codexIndex -> {
+                            val loreViewModel: LoreViewModel = hiltViewModel()
+                            CodexScreen(
+                                onBack = {
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(deckIndex) // DECK
+                                    }
+                                },
+                                chronicleContent = {
+                                    LoreScreenContent(viewModel = loreViewModel)
                                 }
-                            }
-                        )
+                            )
+                        }
                         isReligionShortcutEnabled && page == altarIndex -> com.neon.ascent.feature.altar.AltarScreen(
                             onBack = {
                                 coroutineScope.launch {
@@ -308,6 +318,11 @@ fun AppNavigation(
                             },
                             onNavigateToHullPulse = {
                                 navController.navigate(Screen.HullPulse)
+                            },
+                            onNavigateToArchive = {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(codexIndex)
+                                }
                             }
                         )
                     }
@@ -629,7 +644,12 @@ fun AppNavigation(
         }
 
         composable<Screen.Lore> {
-            LoreScreen(onBack = { navController.popBackStack() })
+            // Re-route to Codex at index 0
+            LaunchedEffect(Unit) {
+                navController.navigate(Screen.MainHub) {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
         }
 
         composable<Screen.UserDossier> {
@@ -924,7 +944,29 @@ fun AppNavigation(
             val args = backStackEntry.toRoute<Screen.WorkoutLog>()
             WorkoutLoggingScreen(
                 onBack = { navController.popBackStack() },
+                onViewInCodex = { exerciseId ->
+                    navController.navigate(Screen.CodexDossier(exerciseId))
+                },
                 viewModel = workoutViewModel
+            )
+        }
+
+        composable<Screen.CodexDossier> { backStackEntry ->
+            val exerciseId = backStackEntry.toRoute<Screen.CodexDossier>().exerciseId
+            val loreViewModel: LoreViewModel = hiltViewModel()
+            val codexViewModel: CodexViewModel = hiltViewModel()
+            
+            // Set initial state
+            LaunchedEffect(exerciseId) {
+                codexViewModel.selectExercise(exerciseId)
+            }
+
+            CodexScreen(
+                onBack = { navController.popBackStack() },
+                chronicleContent = {
+                    LoreScreenContent(viewModel = loreViewModel)
+                },
+                viewModel = codexViewModel
             )
         }
     }

@@ -33,6 +33,12 @@ interface WorkoutRepository {
 
     fun getFullHistory(): Flow<List<Pair<WorkoutSession, List<Pair<WorkoutLog, List<SetLog>>>>>>
 
+    fun countSessionsBetween(from: java.time.Instant, to: java.time.Instant): Flow<Int>
+    fun getSessionsBetween(from: java.time.Instant, to: java.time.Instant): Flow<List<Pair<WorkoutSession, List<Pair<WorkoutLog, List<SetLog>>>>>>
+    fun getSessionDatesAndDeloadBetween(from: java.time.Instant, to: java.time.Instant): Flow<List<Pair<java.time.Instant, Boolean>>>
+    fun getMuscleGroupsHitBetween(from: java.time.Instant, to: java.time.Instant): Flow<List<String>>
+    fun getLogsForExerciseBetween(exerciseId: String, from: java.time.Instant, to: java.time.Instant): Flow<List<Pair<WorkoutLog, List<SetLog>>>>
+
     fun getActiveSession(): Flow<WorkoutSession?>
 
     fun getRecoveryScore(): Flow<RecoveryScore>
@@ -49,6 +55,9 @@ interface WorkoutRepository {
     suspend fun updateShowGoalReps(workoutLogId: String, show: Boolean)
     suspend fun updateSupersetId(workoutLogId: String, supersetId: String?)
     suspend fun deleteSetLog(setLogId: String)
+
+    fun getFuelHistory(from: java.time.Instant, to: java.time.Instant): Flow<List<FuelSnapshot>>
+    suspend fun saveFuelSnapshot(snapshot: FuelSnapshot)
 
     suspend fun seedStarterExercises()
 }

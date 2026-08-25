@@ -1,6 +1,7 @@
 package com.neon.ascent.core.data
 
 import com.neon.ascent.core.data.repository.AscensionRepositoryImpl
+import com.neon.ascent.core.data.repository.BiomarkerRepositoryImpl
 import com.neon.ascent.core.data.repository.DopamineMenuRepositoryImpl
 import com.neon.ascent.core.data.repository.InsightProjectionRepositoryImpl
 import com.neon.ascent.core.data.repository.ProtocolRepositoryImpl
@@ -8,6 +9,7 @@ import com.neon.ascent.core.data.repository.WorkoutRepositoryImpl
 import com.neon.ascent.core.domain.GoalRepository
 import com.neon.ascent.core.domain.SpecialRepository
 import com.neon.ascent.core.domain.repository.AscensionRepository
+import com.neon.ascent.core.domain.repository.BiomarkerRepository
 import com.neon.ascent.core.domain.repository.DopamineMenuRepository
 import com.neon.ascent.core.domain.repository.InsightProjectionRepository
 import com.neon.ascent.core.domain.repository.ProtocolRepository
@@ -63,4 +65,10 @@ abstract class DataModule {
     abstract fun bindWorkoutRepository(
         workoutRepositoryImpl: WorkoutRepositoryImpl
     ): WorkoutRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindBiomarkerRepository(
+        biomarkerRepositoryImpl: BiomarkerRepositoryImpl
+    ): BiomarkerRepository
 }

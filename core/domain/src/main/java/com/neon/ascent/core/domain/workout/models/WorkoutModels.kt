@@ -209,6 +209,18 @@ data class UserWorkoutProfile(
     val lastBlastStartDate: Instant? = null
 )
 
+data class FuelSnapshot(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val timestamp: Instant = Instant.now(),
+    val weightKg: Float,
+    val tdee: Int,
+    val protein: Int,
+    val carb: Int,
+    val fat: Int,
+    val activityFactor: Float,
+    val somatotype: Somatotype
+)
+
 data class ScheduledDay(
     val dayOfWeek: Int, // 1 (Mon) to 7 (Sun)
     val time: String // HH:mm

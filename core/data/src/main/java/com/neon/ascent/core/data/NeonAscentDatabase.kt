@@ -41,9 +41,11 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_11_12
         RoutineSetEntity::class,
         AugmentSetEntity::class,
         ProgressionStateEntity::class,
-        ExerciseAccomplishmentsEntity::class
+        ExerciseAccomplishmentsEntity::class,
+        BiomarkerSampleEntity::class,
+        FuelSnapshotEntity::class
     ],
-    version = 43,
+    version = 45,
     exportSchema = true
 )
 @TypeConverters(
@@ -70,4 +72,5 @@ abstract class NeonAscentDatabase : RoomDatabase() {
     abstract fun insightDao(): com.neon.ascent.core.data.local.dao.InsightDao
     abstract fun dopamineMenuDao(): com.neon.ascent.core.data.local.dao.DopamineMenuDao
     abstract fun protocolDao(): com.neon.ascent.core.data.local.dao.ProtocolDao
+    abstract fun biomarkerDao(): com.neon.ascent.core.data.local.dao.BiomarkerDao
 }

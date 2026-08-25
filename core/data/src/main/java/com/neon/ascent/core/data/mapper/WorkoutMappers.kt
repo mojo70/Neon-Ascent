@@ -283,6 +283,30 @@ fun ExerciseAccomplishments.toEntity() = ExerciseAccomplishmentsEntity(
     bestClusterDate = bestClusterDate
 )
 
+fun FuelSnapshotEntity.toDomain() = FuelSnapshot(
+    id = id,
+    timestamp = timestamp,
+    weightKg = weightKg,
+    tdee = tdee,
+    protein = protein,
+    carb = carb,
+    fat = fat,
+    activityFactor = activityFactor,
+    somatotype = Somatotype.valueOf(somatotype)
+)
+
+fun FuelSnapshot.toEntity() = FuelSnapshotEntity(
+    id = id,
+    timestamp = timestamp,
+    weightKg = weightKg,
+    tdee = tdee,
+    protein = protein,
+    carb = carb,
+    fat = fat,
+    activityFactor = activityFactor,
+    somatotype = somatotype.name
+)
+
 
 fun WorkoutRoutineEntity.toDomain(
     exercisesWithOrder: List<RoutineExerciseWithOrder> = emptyList(),

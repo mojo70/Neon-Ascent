@@ -3,6 +3,7 @@ package com.neon.ascent.core.data.local.dao
 import androidx.room.*
 import com.neon.ascent.core.data.local.entity.*
 import kotlinx.coroutines.flow.Flow
+import java.time.Instant
 
 @Dao
 interface WorkoutDao {
@@ -62,7 +63,7 @@ interface WorkoutDao {
     @Query("SELECT isAddedToLibrary FROM workout_routines WHERE id = :id")
     suspend fun getRoutineLibraryStatus(id: String): Boolean?
 
-    @Query("SELECT isAddedToLibrary FROM workout_augments WHERE id = :id")
+    @Query("SELECT isAddedToLibrary FROM workout_augMENTS WHERE id = :id")
     suspend fun getAugmentLibraryStatus(id: String): Boolean?
 
     @Query("SELECT * FROM workout_routines WHERE id = :id")
@@ -189,7 +190,52 @@ interface WorkoutDao {
     @Transaction
     @Query("SELECT * FROM workout_sessions ORDER BY date DESC")
     fun getAllSessionsWithDetails(): Flow<List<WorkoutSessionWithLogs>>
+
+    @Query("SELECT COUNT(*) FROM workout_sessions WHERE date BETWEEN :from AND :to")
+    fun countSessionsBetween(from: Instant, to: Instant): Flow<Int>
+
+    @Transaction
+    @Query("SELECT * FROM workout_sessions WHERE date BETWEEN :from AND :to ORDER BY date DESC")
+    fun getSessionsWithDetailsBetween(from: Instant, to: Instant): Flow<List<WorkoutSessionWithLogs>>
+
+    @Query("SELECT date, isDeload FROM workout_sessions WHERE date BETWEEN :from AND :to ORDER BY date ASC")
+    fun getSessionDatesAndDeloadBetween(from: Instant, to: Instant): Flow<List<SessionDateAndDeload>>
+
+    @Query("""
+        SELECT ed.muscleGroups 
+        FROM workout_sessions ws
+        JOIN workout_logs wl ON ws.id = wl.sessionId
+        JOIN exercise_definitions ed ON wl.exerciseId = ed.id
+        WHERE ws.date BETWEEN :from AND :to
+        AND EXISTS (SELECT 1 FROM set_logs WHERE workoutLogId = wl.id AND isCompleted = 1)
+    """)
+    fun getMuscleGroupsHitBetween(from: Instant, to: Instant): Flow<List<MuscleGroupsWrapper>>
+
+    @Transaction
+    @Query("""
+        SELECT wl.* FROM workout_logs wl
+        INNER JOIN workout_sessions ws ON wl.sessionId = ws.id
+        WHERE wl.exerciseId = :exerciseId 
+        AND ws.date BETWEEN :from AND :to
+        ORDER BY ws.date DESC
+    """)
+    fun getLogsForExerciseBetween(exerciseId: String, from: Instant, to: Instant): Flow<List<WorkoutLogWithSets>>
+
+    @Upsert
+    suspend fun upsertFuelSnapshot(snapshot: FuelSnapshotEntity)
+
+    @Query("SELECT * FROM fuel_snapshots WHERE timestamp BETWEEN :from AND :to ORDER BY timestamp ASC")
+    fun getFuelHistory(from: Instant, to: Instant): Flow<List<FuelSnapshotEntity>>
 }
+
+data class SessionDateAndDeload(
+    val date: Instant,
+    val isDeload: Boolean
+)
+
+data class MuscleGroupsWrapper(
+    val muscleGroups: List<String>
+)
 
 data class WorkoutSessionWithLogs(
     @Embedded val session: WorkoutSessionEntity,

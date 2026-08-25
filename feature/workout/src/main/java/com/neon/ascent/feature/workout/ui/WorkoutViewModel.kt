@@ -91,7 +91,6 @@ data class WorkoutUiState(
     val selectedEquipment: String? = null,
     val selectedMuscleGroup: String? = null,
     val selectedExerciseForDetail: Exercise? = null,
-    val isShowingProgress: Boolean = false,
     val isExploringProtocols: Boolean = false,
     val selectedProtocolForDetail: WorkoutProtocol? = null,
     val selectedRoutineForPreview: WorkoutRoutine? = null,
@@ -663,14 +662,6 @@ class WorkoutViewModel @Inject constructor(
 
     fun hideExerciseDetail() {
         _uiState.update { it.copy(selectedExerciseForDetail = null) }
-    }
-
-    fun showProgress() {
-        _uiState.update { it.copy(isShowingProgress = true) }
-    }
-
-    fun hideProgress() {
-        _uiState.update { it.copy(isShowingProgress = false) }
     }
 
     fun showSettings() {

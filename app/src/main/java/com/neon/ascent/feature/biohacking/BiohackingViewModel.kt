@@ -5,6 +5,10 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.neon.ascent.core.domain.character.models.UserCharacter
+import com.neon.ascent.core.domain.codex.models.BiomarkerKeys
+import com.neon.ascent.core.domain.codex.models.BiomarkerSample
+import com.neon.ascent.core.domain.repository.BiomarkerRepository
+import java.time.Instant
 import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.UserCharacterDao
 import com.neon.ascent.data.repository.*
@@ -47,6 +51,7 @@ class BiohackingViewModel @Inject constructor(
     private val goalRepository: GoalRepository,
     private val aiProvider: AiProvider,
     private val bioAgeRepository: BioAgeRepository,
+    private val biomarkerRepository: BiomarkerRepository,
     private val neuralMemoryDao: NeuralMemoryDao,
     private val uplinkManager: NeuralUplinkManager,
     val modelDownloadManager: ModelDownloadManager,
@@ -377,6 +382,20 @@ class BiohackingViewModel @Inject constructor(
                     
                     userPreferencesRepository.cacheBioAge(bioAge)
                     
+                    // Save historical snapshot
+                    biomarkerRepository.saveSample(
+                        BiomarkerSample(
+                            id = UUID.randomUUID().toString(),
+                            markerKey = BiomarkerKeys.BIO_AGE,
+                            displayName = BiomarkerKeys.SEED_DATA[BiomarkerKeys.BIO_AGE] ?: "Biological Age",
+                            value = bioAge.toDouble(),
+                            unit = "YRS",
+                            drawnAt = Instant.now(),
+                            source = "CALCULATED",
+                            notes = "Neural core prediction"
+                        )
+                    )
+
                     updateData { it.copy(
                         calculatedBioAge = bioAge,
                         calendarAgeAtCalculation = calendarAge,
