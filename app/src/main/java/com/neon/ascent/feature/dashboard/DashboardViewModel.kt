@@ -77,6 +77,9 @@ class DashboardViewModel @Inject constructor(
     val userCharacter: StateFlow<UserCharacter?> = characterRepository.getUserCharacter()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    private val _isCharacterLoaded = MutableStateFlow(false)
+    val isCharacterLoaded = _isCharacterLoaded.asStateFlow()
+
     val biohackingData: StateFlow<BiohackingData?> = biohackingDao.getBiohackingData(0)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
@@ -114,6 +117,10 @@ class DashboardViewModel @Inject constructor(
     private val _dopamineEvent = MutableStateFlow<com.neon.ascent.core.common.DopamineEvent?>(null)
 
     init {
+        viewModelScope.launch {
+            characterRepository.getUserCharacter().first()
+            _isCharacterLoaded.value = true
+        }
         seedSayingsIfEmpty()
         updateAtmosphereSimulated()
         fetchRealWeather()

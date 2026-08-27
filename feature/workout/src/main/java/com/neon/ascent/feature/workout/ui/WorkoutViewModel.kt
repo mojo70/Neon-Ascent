@@ -38,7 +38,7 @@ data class WorkoutUiState(
     val exploreRoutines: List<WorkoutRoutine> = emptyList(),
     val augments: List<WorkoutAugment> = emptyList(),
     val exploreAugments: List<WorkoutAugment> = emptyList(),
-    val isLoading: Boolean = false,
+    val isLoading: Boolean = true,
     val isResting: Boolean = false,
     val restTimeRemaining: Int = 0,
     val restTimerTotalSeconds: Int = 60,
@@ -320,7 +320,7 @@ class WorkoutViewModel @Inject constructor(
         viewModelScope.launch {
             // Assuming a default user ID for now, or fetch from auth
             repository.getUserProfile("default_user").collect { profile ->
-                _uiState.update { it.copy(userProfile = profile) }
+                _uiState.update { it.copy(userProfile = profile, isLoading = false) }
                 updateSomatotypeNudge()
                 updateSequencerState()
             }

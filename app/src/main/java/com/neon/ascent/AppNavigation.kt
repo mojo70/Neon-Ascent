@@ -23,6 +23,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -163,6 +164,9 @@ fun AppNavigation(
                 onLoadingFinished = {
                     scope.launch {
                         // Ensure we have the latest character state before deciding destination
+                        // Wait for database to emit character state at least once
+                        dashboardViewModel.isCharacterLoaded.first { it }
+                        
                         val char = dashboardViewModel.userCharacter.value
                         val isComplete = char?.isCreationComplete == true
                         val target = if (isComplete) Screen.MainHub else Screen.Creation
