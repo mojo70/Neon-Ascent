@@ -45,6 +45,24 @@ class WorkoutRepositoryImpl @Inject constructor(
         workoutDao.insertExerciseDefinition(exercise.toEntity())
     }
 
+    override fun getExerciseFamilies(): Flow<List<ExerciseFamily>> =
+        workoutDao.getExerciseDefinitions().map { entities ->
+            entities.map { it.toDomain() }
+                .groupBy { it.familyId }
+                .mapNotNull { (familyId, variants) ->
+                    val primary = variants.find { it.isPrimaryVariant } ?: variants.firstOrNull() ?: return@mapNotNull null
+                    ExerciseFamily(
+                        id = familyId,
+                        name = primary.familyName,
+                        movementType = primary.movementType,
+                        variants = variants
+                    )
+                }
+        }
+
+    override fun getExercisesByFamily(familyId: String): Flow<List<Exercise>> =
+        workoutDao.getExercisesByFamily(familyId).map { entities -> entities.map { it.toDomain() } }
+
     override fun getLogsForSession(sessionId: String): Flow<List<Pair<WorkoutLog, List<SetLog>>>> =
         workoutDao.getLogsForSession(sessionId).map { list ->
             list.map { logWithSets ->
@@ -363,6 +381,7 @@ class WorkoutRepositoryImpl @Inject constructor(
 
     override suspend fun seedStarterExercises() {
         val exercises = listOf(
+            // --- Push / Bench / Chest ---
             Exercise(
                 id = "bench_press",
                 name = "Bench Press (Barbell)",
@@ -372,7 +391,12 @@ class WorkoutRepositoryImpl @Inject constructor(
                 equipment = listOf("Barbell"),
                 movementType = MovementType.COMPOUND_UPPER,
                 isLockedClassic = true,
-                dangerousFor = listOf("Shoulder Pain")
+                dangerousFor = listOf("Shoulder Pain"),
+                familyId = "bench_press",
+                familyName = "Bench Press",
+                implement = Implement.BARBELL,
+                stance = Stance.STANDARD,
+                isPrimaryVariant = true
             ),
             Exercise(
                 id = "bench_press_dumbbell",
@@ -381,7 +405,38 @@ class WorkoutRepositoryImpl @Inject constructor(
                 cues = listOf("Keep dumbbells stable", "Tuck elbows slightly", "Press to center"),
                 muscleGroups = listOf("Chest", "Shoulders", "Triceps"),
                 equipment = listOf("Dumbbell"),
-                dangerousFor = listOf("Shoulder Pain")
+                movementType = MovementType.COMPOUND_UPPER,
+                dangerousFor = listOf("Shoulder Pain"),
+                familyId = "bench_press",
+                familyName = "Bench Press",
+                implement = Implement.DUMBBELL,
+                stance = Stance.STANDARD
+            ),
+            Exercise(
+                id = "bench_press_decline_bb",
+                name = "Decline Bench Press (Barbell)",
+                description = "Barbell press on a decline bench targeting the lower pectorals with reduced shoulder strain.",
+                cues = listOf("Secure legs under pads", "Touch lower chest", "Drive up smoothly"),
+                muscleGroups = listOf("Chest", "Triceps"),
+                equipment = listOf("Barbell"),
+                movementType = MovementType.COMPOUND_UPPER,
+                familyId = "bench_press",
+                familyName = "Bench Press",
+                implement = Implement.BARBELL,
+                stance = Stance.DECLINE
+            ),
+            Exercise(
+                id = "bench_press_decline_db",
+                name = "Decline Bench Press (Dumbbell)",
+                description = "Dumbbell press on a decline bench for lower chest isolation and shoulder comfort.",
+                cues = listOf("Lock legs securely", "Control dumbbells down", "Press up and squeeze"),
+                muscleGroups = listOf("Chest", "Triceps"),
+                equipment = listOf("Dumbbell"),
+                movementType = MovementType.COMPOUND_UPPER,
+                familyId = "bench_press",
+                familyName = "Bench Press",
+                implement = Implement.DUMBBELL,
+                stance = Stance.DECLINE
             ),
             Exercise(
                 id = "incline_bench_press",
@@ -390,7 +445,13 @@ class WorkoutRepositoryImpl @Inject constructor(
                 cues = listOf("30-45 degree incline", "Bar to upper chest", "Tuck elbows slightly"),
                 muscleGroups = listOf("Chest", "Shoulders"),
                 equipment = listOf("Barbell"),
-                dangerousFor = listOf("Shoulder Pain")
+                movementType = MovementType.COMPOUND_UPPER,
+                dangerousFor = listOf("Shoulder Pain"),
+                familyId = "bench_press",
+                familyName = "Bench Press",
+                implement = Implement.BARBELL,
+                stance = Stance.INCLINE,
+                isPrimaryVariant = false
             ),
             Exercise(
                 id = "incline_bench_press_dumbbell",
@@ -399,16 +460,12 @@ class WorkoutRepositoryImpl @Inject constructor(
                 cues = listOf("Controlled descent", "Drive dumbbells upward", "Keep wrists straight"),
                 muscleGroups = listOf("Chest", "Shoulders"),
                 equipment = listOf("Dumbbell"),
-                dangerousFor = listOf("Shoulder Pain")
-            ),
-            Exercise(
-                id = "chest_press_hammer_strength",
-                name = "Chest Press (Hammer Strength)",
-                description = "Stability-focused plate-loaded machine press. Ideal for rest-pause to absolute failure.",
-                cues = listOf("Keep back against pad", "Explosive press", "Controlled return"),
-                muscleGroups = listOf("Chest", "Shoulders", "Triceps"),
-                equipment = listOf("Plate Loaded"),
-                movementType = MovementType.COMPOUND_UPPER
+                movementType = MovementType.COMPOUND_UPPER,
+                dangerousFor = listOf("Shoulder Pain"),
+                familyId = "bench_press",
+                familyName = "Bench Press",
+                implement = Implement.DUMBBELL,
+                stance = Stance.INCLINE
             ),
             Exercise(
                 id = "incline_smith_press",
@@ -417,16 +474,24 @@ class WorkoutRepositoryImpl @Inject constructor(
                 cues = listOf("Adjust bench to mid-chest", "Keep elbows tucked slightly", "Touch chest lightly"),
                 muscleGroups = listOf("Chest", "Shoulders"),
                 equipment = listOf("Machine"),
-                movementType = MovementType.COMPOUND_UPPER
+                movementType = MovementType.COMPOUND_UPPER,
+                familyId = "bench_press",
+                familyName = "Bench Press",
+                implement = Implement.SMITH,
+                stance = Stance.INCLINE
             ),
             Exercise(
-                id = "floor_press_dumbbell",
-                name = "Floor Press (Dumbbell)",
-                description = "Dumbbell press on the floor to limit range of motion and protect the shoulders.",
-                cues = listOf("Lie flat on floor", "Pause when elbows touch floor", "Drive up explosively"),
-                muscleGroups = listOf("Chest", "Triceps"),
-                equipment = listOf("Dumbbell"),
-                movementType = MovementType.COMPOUND_UPPER
+                id = "chest_press_hammer_strength",
+                name = "Chest Press (Hammer Strength)",
+                description = "Stability-focused plate-loaded machine press. Ideal for rest-pause to absolute failure.",
+                cues = listOf("Keep back against pad", "Explosive press", "Controlled return"),
+                muscleGroups = listOf("Chest", "Shoulders", "Triceps"),
+                equipment = listOf("Plate Loaded"),
+                movementType = MovementType.COMPOUND_UPPER,
+                familyId = "bench_press",
+                familyName = "Bench Press",
+                implement = Implement.PLATE_LOADED,
+                stance = Stance.SEATED
             ),
             Exercise(
                 id = "chest_press_plate_loaded",
@@ -434,25 +499,12 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Levered plate-loaded machine for consistent chest tension.",
                 cues = listOf("Adjust seat height so handles are mid-chest", "Keep back flat against pad", "Press forward explosively"),
                 muscleGroups = listOf("Chest", "Triceps"),
-                equipment = listOf("Plate Loaded")
-            ),
-            Exercise(
-                id = "chest_press_hammer_strength",
-                name = "Chest Press (Hammer Strength)",
-                description = "Stability-focused plate-loaded machine press. Ideal for rest-pause to absolute failure.",
-                cues = listOf("Keep back against pad", "Explosive press", "Controlled return"),
-                muscleGroups = listOf("Chest", "Shoulders", "Triceps"),
                 equipment = listOf("Plate Loaded"),
-                movementType = MovementType.COMPOUND_UPPER
-            ),
-            Exercise(
-                id = "incline_smith_press",
-                name = "Incline Press (Smith Machine)",
-                description = "Fixed-path incline press to isolate upper chest safely.",
-                cues = listOf("Adjust bench to mid-chest", "Keep elbows tucked slightly", "Touch chest lightly"),
-                muscleGroups = listOf("Chest", "Shoulders"),
-                equipment = listOf("Machine"),
-                movementType = MovementType.COMPOUND_UPPER
+                movementType = MovementType.COMPOUND_UPPER,
+                familyId = "bench_press",
+                familyName = "Bench Press",
+                implement = Implement.PLATE_LOADED,
+                stance = Stance.SEATED
             ),
             Exercise(
                 id = "floor_press_dumbbell",
@@ -461,7 +513,50 @@ class WorkoutRepositoryImpl @Inject constructor(
                 cues = listOf("Lie flat on floor", "Pause when elbows touch floor", "Drive up explosively"),
                 muscleGroups = listOf("Chest", "Triceps"),
                 equipment = listOf("Dumbbell"),
-                movementType = MovementType.COMPOUND_UPPER
+                movementType = MovementType.COMPOUND_UPPER,
+                familyId = "bench_press",
+                familyName = "Bench Press",
+                implement = Implement.DUMBBELL,
+                stance = Stance.FLOOR
+            ),
+            Exercise(
+                id = "floor_press_bb",
+                name = "Floor Press (Barbell)",
+                description = "Barbell press lying on floor to build lockout tricep and chest power.",
+                cues = listOf("Lie flat on floor", "Elbows touch gently", "Explode to full lockout"),
+                muscleGroups = listOf("Chest", "Triceps"),
+                equipment = listOf("Barbell"),
+                movementType = MovementType.COMPOUND_UPPER,
+                familyId = "bench_press",
+                familyName = "Bench Press",
+                implement = Implement.BARBELL,
+                stance = Stance.FLOOR
+            ),
+            Exercise(
+                id = "close_grip_bench_bb",
+                name = "Close-Grip Bench Press (Barbell)",
+                description = "Barbell flat press with hands shoulder-width to hammer triceps and inner chest.",
+                cues = listOf("Hands shoulder-width", "Tuck elbows tight to sides", "Full tricep lockout"),
+                muscleGroups = listOf("Triceps", "Chest"),
+                equipment = listOf("Barbell"),
+                movementType = MovementType.COMPOUND_UPPER,
+                familyId = "bench_press",
+                familyName = "Bench Press",
+                implement = Implement.BARBELL,
+                stance = Stance.CLOSE_GRIP
+            ),
+            Exercise(
+                id = "close_grip_smith_press",
+                name = "Close Grip Press (Smith Machine)",
+                description = "High-stability tricep focused press.",
+                cues = listOf("Grip shoulder-width", "Touch lower chest", "Full tricep lockout"),
+                muscleGroups = listOf("Triceps", "Chest"),
+                equipment = listOf("Machine"),
+                movementType = MovementType.ISOLATION_UPPER,
+                familyId = "bench_press",
+                familyName = "Bench Press",
+                implement = Implement.SMITH,
+                stance = Stance.CLOSE_GRIP
             ),
             Exercise(
                 id = "chest_fly_cable",
@@ -469,7 +564,25 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Continuous tension chest isolation using cables.",
                 cues = listOf("Slight bend in elbows", "Hug a tree at the finish", "Squeeze chest hard"),
                 muscleGroups = listOf("Chest"),
-                equipment = listOf("Cable")
+                equipment = listOf("Cable"),
+                movementType = MovementType.ISOLATION_UPPER,
+                familyId = "chest_fly",
+                familyName = "Chest Fly",
+                implement = Implement.CABLE,
+                stance = Stance.STANDING
+            ),
+            Exercise(
+                id = "pec_deck",
+                name = "Pec Deck (Machine)",
+                description = "Machine chest fly providing constant tension and deep chest stretch.",
+                cues = listOf("Elbows slightly bent", "Bring pads together", "Hold squeeze 1s"),
+                muscleGroups = listOf("Chest"),
+                equipment = listOf("Machine"),
+                movementType = MovementType.ISOLATION_UPPER,
+                familyId = "chest_fly",
+                familyName = "Chest Fly",
+                implement = Implement.MACHINE,
+                stance = Stance.SEATED
             ),
             Exercise(
                 id = "pushup_bodyweight",
@@ -477,7 +590,27 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Fundamental horizontal push movement.",
                 cues = listOf("Keep body in straight line", "Elbows tucked 45 degrees", "Chest to floor"),
                 muscleGroups = listOf("Chest", "Shoulders", "Triceps"),
-                equipment = listOf("Bodyweight")
+                equipment = listOf("Bodyweight"),
+                movementType = MovementType.COMPOUND_UPPER,
+                familyId = "push_up",
+                familyName = "Push-Up",
+                implement = Implement.BODYWEIGHT,
+                stance = Stance.STANDARD,
+                allowsAddedLoad = false
+            ),
+            Exercise(
+                id = "push_up_weighted",
+                name = "Push Up (Weighted)",
+                description = "Horizontal push with added weight plate or vest.",
+                cues = listOf("Keep core braced tight", "Plate securely on upper back", "Controlled descent"),
+                muscleGroups = listOf("Chest", "Shoulders", "Triceps"),
+                equipment = listOf("Weighted"),
+                movementType = MovementType.COMPOUND_UPPER,
+                familyId = "push_up",
+                familyName = "Push-Up",
+                implement = Implement.BODYWEIGHT,
+                stance = Stance.STANDARD,
+                allowsAddedLoad = true
             ),
             Exercise(
                 id = "decline_pushup_bodyweight",
@@ -485,7 +618,13 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Push up with feet elevated to target the upper chest and front delts.",
                 cues = listOf("Elevate feet on a box or bench", "Keep hips in line with shoulders", "Touch nose/chest gently to floor"),
                 muscleGroups = listOf("Chest", "Shoulders", "Triceps"),
-                equipment = listOf("Bodyweight")
+                equipment = listOf("Bodyweight"),
+                movementType = MovementType.COMPOUND_UPPER,
+                familyId = "push_up",
+                familyName = "Push-Up",
+                implement = Implement.BODYWEIGHT,
+                stance = Stance.DECLINE,
+                allowsAddedLoad = false
             ),
             Exercise(
                 id = "atlas_pushup_bodyweight",
@@ -493,15 +632,235 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Deficit push up using three elevated contact points for a maximum chest stretch.",
                 cues = listOf("Place hands on two blocks/benches", "Deep stretch at bottom below hand level", "Drive up and contract chest"),
                 muscleGroups = listOf("Chest", "Shoulders", "Triceps"),
-                equipment = listOf("Bodyweight")
+                equipment = listOf("Bodyweight"),
+                movementType = MovementType.COMPOUND_UPPER,
+                familyId = "push_up",
+                familyName = "Push-Up",
+                implement = Implement.BODYWEIGHT,
+                stance = Stance.DEFICIT,
+                allowsAddedLoad = false
             ),
+            Exercise(
+                id = "dip_bodyweight",
+                name = "Dip (Bodyweight)",
+                description = "Strict bodyweight dips.",
+                cues = listOf("Lower until arms hit 90 degrees", "Control the descent", "Squeeze triceps at top"),
+                muscleGroups = listOf("Triceps", "Chest", "Shoulders"),
+                equipment = listOf("Bodyweight"),
+                movementType = MovementType.COMPOUND_UPPER,
+                familyId = "dip",
+                familyName = "Dip",
+                implement = Implement.BODYWEIGHT,
+                stance = Stance.STANDARD,
+                allowsAddedLoad = false
+            ),
+            Exercise(
+                id = "weighted_dip",
+                name = "Dip (Weighted)",
+                description = "Powerful tricep and chest builder.",
+                cues = listOf("Lean forward for chest", "Upright for triceps", "Full lockout"),
+                muscleGroups = listOf("Triceps", "Chest", "Shoulders"),
+                equipment = listOf("Weighted"),
+                movementType = MovementType.COMPOUND_UPPER,
+                familyId = "dip",
+                familyName = "Dip",
+                implement = Implement.BODYWEIGHT,
+                stance = Stance.STANDARD,
+                allowsAddedLoad = true,
+                isPrimaryVariant = false
+            ),
+
+            // --- Shoulders & Overhead Press ---
+            Exercise(
+                id = "military_press",
+                name = "Overhead Press (Barbell)",
+                description = "Strict overhead barbell press.",
+                cues = listOf("Squeeze glutes", "Head back to clear bar", "Punch through at top"),
+                muscleGroups = listOf("Shoulders", "Triceps"),
+                equipment = listOf("Barbell"),
+                movementType = MovementType.COMPOUND_UPPER,
+                dangerousFor = listOf("Shoulder Pain", "Lower Back Pain"),
+                familyId = "overhead_press",
+                familyName = "Overhead Press",
+                implement = Implement.BARBELL,
+                stance = Stance.STANDING,
+                isPrimaryVariant = true
+            ),
+            Exercise(
+                id = "shoulder_press_dumbbell",
+                name = "Shoulder Press (Dumbbell)",
+                description = "Strict seated or standing overhead dumbbell press.",
+                cues = listOf("Keep wrists straight", "Don't flare elbows fully", "Press to full lockout"),
+                muscleGroups = listOf("Shoulders", "Triceps"),
+                equipment = listOf("Dumbbell"),
+                movementType = MovementType.COMPOUND_UPPER,
+                dangerousFor = listOf("Shoulder Pain"),
+                familyId = "overhead_press",
+                familyName = "Overhead Press",
+                implement = Implement.DUMBBELL,
+                stance = Stance.SEATED
+            ),
+            Exercise(
+                id = "shoulder_press_kettlebell",
+                name = "Shoulder Press (Kettlebell)",
+                description = "Overhead kettlebell press from the front rack position.",
+                cues = listOf("Rack KB tight against chest", "Press up in a slight arc", "Lock out fully at top"),
+                muscleGroups = listOf("Shoulders", "Triceps"),
+                equipment = listOf("Kettlebell"),
+                movementType = MovementType.COMPOUND_UPPER,
+                dangerousFor = listOf("Shoulder Pain"),
+                familyId = "overhead_press",
+                familyName = "Overhead Press",
+                implement = Implement.KETTLEBELL,
+                stance = Stance.STANDING
+            ),
+            Exercise(
+                id = "shoulder_press_hammer_strength",
+                name = "Shoulder Press (Hammer Strength)",
+                description = "High-stability shoulder press machine. Maximizes deltoid isolation.",
+                cues = listOf("Sit deep into seat", "Maintain arch in upper back", "Press to full lockout"),
+                muscleGroups = listOf("Shoulders", "Triceps"),
+                equipment = listOf("Plate Loaded"),
+                movementType = MovementType.COMPOUND_UPPER,
+                familyId = "overhead_press",
+                familyName = "Overhead Press",
+                implement = Implement.PLATE_LOADED,
+                stance = Stance.SEATED
+            ),
+            Exercise(
+                id = "seated_smith_overhead_press",
+                name = "Overhead Press (Smith Machine)",
+                description = "Seated fixed-path overhead press for maximum stability.",
+                cues = listOf("Set bar height at nose level", "Brace core against bench", "Punch up hard"),
+                muscleGroups = listOf("Shoulders", "Triceps"),
+                equipment = listOf("Machine"),
+                movementType = MovementType.COMPOUND_UPPER,
+                familyId = "overhead_press",
+                familyName = "Overhead Press",
+                implement = Implement.SMITH,
+                stance = Stance.SEATED
+            ),
+            Exercise(
+                id = "landmine_press",
+                name = "Landmine Press (Barbell)",
+                description = "Angled unilateral or bilateral pressing movement safe for cranky shoulders.",
+                cues = listOf("Lean slightly into bar", "Press upward along arc", "Lockout without shrugging"),
+                muscleGroups = listOf("Shoulders", "Chest", "Triceps"),
+                equipment = listOf("Barbell"),
+                movementType = MovementType.COMPOUND_UPPER,
+                familyId = "landmine_press",
+                familyName = "Landmine Press",
+                implement = Implement.BARBELL,
+                stance = Stance.STANDING
+            ),
+            Exercise(
+                id = "landmine_press_sa",
+                name = "Single-Arm Landmine Press (Barbell)",
+                description = "Unilateral landmine press building shoulder stability and core anti-rotation.",
+                cues = listOf("Staggered stance", "Press along arc", "Squeeze delt at peak"),
+                muscleGroups = listOf("Shoulders", "Core"),
+                equipment = listOf("Barbell"),
+                movementType = MovementType.COMPOUND_UPPER,
+                familyId = "landmine_press",
+                familyName = "Landmine Press",
+                implement = Implement.BARBELL,
+                stance = Stance.SINGLE_ARM
+            ),
+            Exercise(
+                id = "lateral_raise",
+                name = "Lateral Raise (Dumbbell)",
+                description = "Isolation for side delts.",
+                cues = listOf("Pinkies up", "Slight elbow bend", "Control the descent"),
+                muscleGroups = listOf("Shoulders"),
+                equipment = listOf("Dumbbell"),
+                movementType = MovementType.ISOLATION_UPPER,
+                familyId = "lateral_raise",
+                familyName = "Lateral Raise",
+                implement = Implement.DUMBBELL,
+                stance = Stance.STANDING,
+                isPrimaryVariant = false
+            ),
+            Exercise(
+                id = "lateral_raise_cable",
+                name = "Lateral Raise (Cable)",
+                description = "Constant tension side delt cable raise.",
+                cues = listOf("Raise hand slightly forward", "Slight elbow bend", "Slow eccentric"),
+                muscleGroups = listOf("Shoulders"),
+                equipment = listOf("Cable"),
+                movementType = MovementType.ISOLATION_UPPER,
+                familyId = "lateral_raise",
+                familyName = "Lateral Raise",
+                implement = Implement.CABLE,
+                stance = Stance.STANDING
+            ),
+            Exercise(
+                id = "lateral_raise_kettlebell",
+                name = "Lateral Raise (Kettlebell)",
+                description = "Side delt raise utilizing kettlebells for unique load distribution.",
+                cues = listOf("Hold KB handle firmly", "Raise arms to parallel", "Control gravity's pull"),
+                muscleGroups = listOf("Shoulders"),
+                equipment = listOf("Kettlebell"),
+                movementType = MovementType.ISOLATION_UPPER,
+                familyId = "lateral_raise",
+                familyName = "Lateral Raise",
+                implement = Implement.KETTLEBELL,
+                stance = Stance.STANDING
+            ),
+            Exercise(
+                id = "rear_delt_fly_dumbbell",
+                name = "Rear Delt Fly (Dumbbell)",
+                description = "Bent-over rear lateral raise.",
+                cues = listOf("Hinge forward at hips", "Fly dumbbells out to sides", "Squeeze rear delts"),
+                muscleGroups = listOf("Rear Delts"),
+                equipment = listOf("Dumbbell"),
+                movementType = MovementType.ISOLATION_UPPER,
+                familyId = "rear_delt_fly",
+                familyName = "Rear Delt Fly",
+                implement = Implement.DUMBBELL,
+                stance = Stance.STANDING
+            ),
+            Exercise(
+                id = "rear_delt_fly_machine",
+                name = "Rear Delt Fly (Cable)",
+                description = "Cable or machine reverse fly for rear delt isolation.",
+                cues = listOf("Keep arms parallel to ground", "Pull back with shoulder joints", "Pause at peak contraction"),
+                muscleGroups = listOf("Rear Delts"),
+                equipment = listOf("Cable"),
+                movementType = MovementType.ISOLATION_UPPER,
+                familyId = "rear_delt_fly",
+                familyName = "Rear Delt Fly",
+                implement = Implement.CABLE,
+                stance = Stance.SEATED
+            ),
+            Exercise(
+                id = "facepull_cable",
+                name = "Face Pull (Cable)",
+                description = "Rear delt and rotator cuff cable pull.",
+                cues = listOf("Pull rope towards forehead", "Separate hands at peak", "Squeeze rear delts"),
+                muscleGroups = listOf("Rear Delts", "Upper Back", "Rotator Cuff"),
+                equipment = listOf("Cable"),
+                movementType = MovementType.ISOLATION_UPPER,
+                familyId = "facepull",
+                familyName = "Face Pull",
+                implement = Implement.CABLE,
+                stance = Stance.STANDING
+            ),
+
+            // --- Pull / Back Width / Back Thickness ---
             Exercise(
                 id = "pullup_bodyweight",
                 name = "Pull Up (Bodyweight)",
                 description = "Classic vertical bodyweight pull.",
                 cues = listOf("Chest to bar", "Dead hang at bottom", "Active scapula"),
                 muscleGroups = listOf("Lats", "Biceps", "Upper Back"),
-                equipment = listOf("Bodyweight")
+                equipment = listOf("Bodyweight"),
+                movementType = MovementType.BACK_WIDTH,
+                familyId = "pull_up",
+                familyName = "Pull-Up",
+                implement = Implement.BODYWEIGHT,
+                stance = Stance.STANDARD,
+                allowsAddedLoad = false,
+                isPrimaryVariant = true
             ),
             Exercise(
                 id = "weighted_pullups",
@@ -510,7 +869,13 @@ class WorkoutRepositoryImpl @Inject constructor(
                 cues = listOf("Chest to bar", "Full hang at bottom", "Control descent"),
                 muscleGroups = listOf("Lats", "Biceps", "Upper Back"),
                 equipment = listOf("Weighted"),
-                movementType = MovementType.BACK_WIDTH
+                movementType = MovementType.BACK_WIDTH,
+                familyId = "pull_up",
+                familyName = "Pull-Up",
+                implement = Implement.BODYWEIGHT,
+                stance = Stance.STANDARD,
+                allowsAddedLoad = true,
+                isPrimaryVariant = false
             ),
             Exercise(
                 id = "chinup_bodyweight",
@@ -518,7 +883,13 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Underhand vertical bodyweight pull maximizing bicep recruitment.",
                 cues = listOf("Supinated grip", "Drive elbows down", "Chest to bar"),
                 muscleGroups = listOf("Lats", "Biceps", "Upper Back"),
-                equipment = listOf("Bodyweight")
+                equipment = listOf("Bodyweight"),
+                movementType = MovementType.BACK_WIDTH,
+                familyId = "chin_up",
+                familyName = "Chin Up",
+                implement = Implement.BODYWEIGHT,
+                stance = Stance.STANDARD,
+                allowsAddedLoad = false
             ),
             Exercise(
                 id = "chinup_weighted",
@@ -526,7 +897,13 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Weighted underhand vertical pull.",
                 cues = listOf("Supinated grip", "Squeeze shoulder blades at top", "Control the eccentric"),
                 muscleGroups = listOf("Lats", "Biceps", "Upper Back"),
-                equipment = listOf("Weighted")
+                equipment = listOf("Weighted"),
+                movementType = MovementType.BACK_WIDTH,
+                familyId = "chin_up",
+                familyName = "Chin Up",
+                implement = Implement.BODYWEIGHT,
+                stance = Stance.STANDARD,
+                allowsAddedLoad = true
             ),
             Exercise(
                 id = "lat_pulldown",
@@ -534,39 +911,38 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Machine vertical pull.",
                 cues = listOf("Pull to upper chest", "Squeeze lats", "Don't lean back too far"),
                 muscleGroups = listOf("Lats", "Upper Back"),
-                equipment = listOf("Cable")
+                equipment = listOf("Cable"),
+                movementType = MovementType.BACK_WIDTH,
+                familyId = "lat_pulldown",
+                familyName = "Lat Pulldown",
+                implement = Implement.CABLE,
+                stance = Stance.SEATED
             ),
             Exercise(
-                id = "seated_row",
-                name = "Seated Row (Cable)",
-                description = "Horizontal pull focusing on mid-back.",
-                cues = listOf("Chest up", "Pull to navel", "Squeeze shoulder blades"),
-                muscleGroups = listOf("Back", "Biceps"),
-                equipment = listOf("Cable")
+                id = "pullover_db",
+                name = "Pullover (Dumbbell)",
+                description = "Cross-bench dumbbell pullover for lat and serratus stretch-mediated hypertrophy.",
+                cues = listOf("Lie across bench", "Keep slight elbow bend", "Deep lat stretch at bottom"),
+                muscleGroups = listOf("Lats", "Chest"),
+                equipment = listOf("Dumbbell"),
+                movementType = MovementType.BACK_WIDTH,
+                familyId = "pullover",
+                familyName = "Pullover",
+                implement = Implement.DUMBBELL,
+                stance = Stance.STANDARD
             ),
             Exercise(
-                id = "lat_row_plate_loaded",
-                name = "Lat Row (Plate Loaded)",
-                description = "Independent-arm plate-loaded row machine for back thickness.",
-                cues = listOf("Brace chest against pad", "Pull elbow far back", "Squeeze lat and mid-back"),
-                muscleGroups = listOf("Upper Back", "Lats", "Biceps"),
-                equipment = listOf("Plate Loaded")
-            ),
-            Exercise(
-                id = "facepull_cable",
-                name = "Face Pull (Cable)",
-                description = "Rear delt and rotator cuff cable pull.",
-                cues = listOf("Pull rope towards forehead", "Separate hands at peak", "Squeeze rear delts"),
-                muscleGroups = listOf("Rear Delts", "Upper Back", "Rotator Cuff"),
-                equipment = listOf("Cable")
-            ),
-            Exercise(
-                id = "one_arm_row_dumbbell",
-                name = "One-Arm Row (Dumbbell)",
-                description = "Unilateral dumbbell row for lat isolation.",
-                cues = listOf("Keep back flat", "Pull dumbbell to hip", "Stretch fully at bottom"),
-                muscleGroups = listOf("Lats", "Upper Back", "Core"),
-                equipment = listOf("Dumbbell")
+                id = "pullover_cable",
+                name = "Straight-Arm Pulldown (Cable)",
+                description = "Standing cable lat pullover maintaining continuous lat tension.",
+                cues = listOf("Hips hinged slightly", "Sweep bar to thighs", "Keep arms nearly straight"),
+                muscleGroups = listOf("Lats"),
+                equipment = listOf("Cable"),
+                movementType = MovementType.BACK_WIDTH,
+                familyId = "pullover",
+                familyName = "Pullover",
+                implement = Implement.CABLE,
+                stance = Stance.STANDING
             ),
             Exercise(
                 id = "bent_over_row",
@@ -576,7 +952,77 @@ class WorkoutRepositoryImpl @Inject constructor(
                 muscleGroups = listOf("Back", "Biceps", "Rear Delts"),
                 equipment = listOf("Barbell"),
                 movementType = MovementType.BACK_THICKNESS,
-                dangerousFor = listOf("Lower Back Pain")
+                dangerousFor = listOf("Lower Back Pain"),
+                familyId = "rows",
+                familyName = "Row",
+                implement = Implement.BARBELL,
+                stance = Stance.BENT_OVER,
+                isPrimaryVariant = true
+            ),
+            Exercise(
+                id = "row_inverted",
+                name = "Inverted Row (Bodyweight)",
+                description = "Horizontal bodyweight row beneath a bar or rings.",
+                cues = listOf("Keep body in a straight plank", "Pull chest to bar", "Squeeze shoulder blades"),
+                muscleGroups = listOf("Back", "Biceps"),
+                equipment = listOf("Bodyweight"),
+                movementType = MovementType.BACK_THICKNESS,
+                familyId = "rows",
+                familyName = "Row",
+                implement = Implement.BODYWEIGHT,
+                stance = Stance.STANDARD
+            ),
+            Exercise(
+                id = "row_kb_sa",
+                name = "Single-Arm Row (Kettlebell)",
+                description = "Unilateral kettlebell row from a staggered stance.",
+                cues = listOf("Flat back", "Drive elbow towards hip", "Full stretch at bottom"),
+                muscleGroups = listOf("Back", "Biceps"),
+                equipment = listOf("Kettlebell"),
+                movementType = MovementType.BACK_THICKNESS,
+                familyId = "rows",
+                familyName = "Row",
+                implement = Implement.KETTLEBELL,
+                stance = Stance.SINGLE_ARM
+            ),
+            Exercise(
+                id = "one_arm_row_dumbbell",
+                name = "One-Arm Row (Dumbbell)",
+                description = "Unilateral dumbbell row for lat isolation.",
+                cues = listOf("Keep back flat", "Pull dumbbell to hip", "Stretch fully at bottom"),
+                muscleGroups = listOf("Lats", "Upper Back", "Core"),
+                equipment = listOf("Dumbbell"),
+                movementType = MovementType.BACK_THICKNESS,
+                familyId = "rows",
+                familyName = "Row",
+                implement = Implement.DUMBBELL,
+                stance = Stance.SINGLE_ARM
+            ),
+            Exercise(
+                id = "seated_row",
+                name = "Seated Row (Cable)",
+                description = "Horizontal pull focusing on mid-back.",
+                cues = listOf("Chest up", "Pull to navel", "Squeeze shoulder blades"),
+                muscleGroups = listOf("Back", "Biceps"),
+                equipment = listOf("Cable"),
+                movementType = MovementType.BACK_THICKNESS,
+                familyId = "rows",
+                familyName = "Row",
+                implement = Implement.CABLE,
+                stance = Stance.SEATED
+            ),
+            Exercise(
+                id = "lat_row_plate_loaded",
+                name = "Lat Row (Plate Loaded)",
+                description = "Independent-arm plate-loaded row machine for back thickness.",
+                cues = listOf("Brace chest against pad", "Pull elbow far back", "Squeeze lat and mid-back"),
+                muscleGroups = listOf("Upper Back", "Lats", "Biceps"),
+                equipment = listOf("Plate Loaded"),
+                movementType = MovementType.BACK_THICKNESS,
+                familyId = "rows",
+                familyName = "Row",
+                implement = Implement.PLATE_LOADED,
+                stance = Stance.SEATED
             ),
             Exercise(
                 id = "tbar_row_chest_supported",
@@ -585,7 +1031,50 @@ class WorkoutRepositoryImpl @Inject constructor(
                 cues = listOf("Lean chest into pad", "Drive elbows back", "Squeeze mid-back hard"),
                 muscleGroups = listOf("Back", "Biceps"),
                 equipment = listOf("Plate Loaded"),
-                movementType = MovementType.BACK_THICKNESS
+                movementType = MovementType.BACK_THICKNESS,
+                familyId = "rows",
+                familyName = "Row",
+                implement = Implement.PLATE_LOADED,
+                stance = Stance.CHEST_SUPPORTED
+            ),
+            Exercise(
+                id = "shrug_bb",
+                name = "Shrug (Barbell)",
+                description = "Heavy barbell shrug for upper trapezius thickness.",
+                cues = listOf("Stand tall", "Elevate shoulders straight up", "Hold squeeze for 1s"),
+                muscleGroups = listOf("Traps"),
+                equipment = listOf("Barbell"),
+                movementType = MovementType.BACK_THICKNESS,
+                familyId = "shrug",
+                familyName = "Shrug",
+                implement = Implement.BARBELL,
+                stance = Stance.STANDING
+            ),
+            Exercise(
+                id = "shrug_db",
+                name = "Shrug (Dumbbell)",
+                description = "Dumbbell shrug with neutral grip allowing natural arm path.",
+                cues = listOf("Arms at sides", "Shrug up toward ears", "Control eccentric down"),
+                muscleGroups = listOf("Traps"),
+                equipment = listOf("Dumbbell"),
+                movementType = MovementType.BACK_THICKNESS,
+                familyId = "shrug",
+                familyName = "Shrug",
+                implement = Implement.DUMBBELL,
+                stance = Stance.STANDING
+            ),
+            Exercise(
+                id = "shrug_smith",
+                name = "Shrug (Smith Machine)",
+                description = "Fixed track shrug for maximum trap isolation and heavy loading.",
+                cues = listOf("Set bar at thigh level", "Strict vertical shrugging motion", "No rolling shoulders"),
+                muscleGroups = listOf("Traps"),
+                equipment = listOf("Machine"),
+                movementType = MovementType.BACK_THICKNESS,
+                familyId = "shrug",
+                familyName = "Shrug",
+                implement = Implement.SMITH,
+                stance = Stance.STANDING
             ),
             Exercise(
                 id = "rack_pull_below_knee",
@@ -595,316 +1084,26 @@ class WorkoutRepositoryImpl @Inject constructor(
                 muscleGroups = listOf("Back", "Traps", "Forearms"),
                 equipment = listOf("Barbell"),
                 movementType = MovementType.BACK_THICKNESS,
-                dangerousFor = listOf("Lower Back Pain")
+                dangerousFor = listOf("Lower Back Pain"),
+                familyId = "rows",
+                familyName = "Row",
+                implement = Implement.BARBELL,
+                stance = Stance.DEFICIT
             ),
-            Exercise(
-                id = "trap_bar_deadlift",
-                name = "Deadlift (Trap Bar)",
-                description = "High-stability deadlift that keeps the center of gravity aligned with the body.",
-                cues = listOf("Step inside bar", "Hips down, chest up", "Drive through floor"),
-                muscleGroups = listOf("Back", "Legs", "Traps"),
-                equipment = listOf("Specialty Bar"),
-                movementType = MovementType.POSTERIOR_CHAIN
-            ),
-            Exercise(
-                id = "military_press",
-                name = "Overhead Press (Barbell)",
-                description = "Strict overhead barbell press.",
-                cues = listOf("Squeeze glutes", "Head back to clear bar", "Punch through at top"),
-                muscleGroups = listOf("Shoulders", "Triceps"),
-                equipment = listOf("Barbell"),
-                movementType = MovementType.COMPOUND_UPPER,
-                dangerousFor = listOf("Shoulder Pain", "Lower Back Pain")
-            ),
-            Exercise(
-                id = "shoulder_press_hammer_strength",
-                name = "Shoulder Press (Hammer Strength)",
-                description = "High-stability shoulder press machine. Maximizes deltoid isolation.",
-                cues = listOf("Sit deep into seat", "Maintain arch in upper back", "Press to full lockout"),
-                muscleGroups = listOf("Shoulders", "Triceps"),
-                equipment = listOf("Plate Loaded"),
-                movementType = MovementType.COMPOUND_UPPER
-            ),
-            Exercise(
-                id = "seated_smith_overhead_press",
-                name = "Overhead Press (Smith Machine)",
-                description = "Seated fixed-path overhead press for maximum stability.",
-                cues = listOf("Set bar height at nose level", "Brace core against bench", "Punch up hard"),
-                muscleGroups = listOf("Shoulders", "Triceps"),
-                equipment = listOf("Machine"),
-                movementType = MovementType.COMPOUND_UPPER
-            ),
-            Exercise(
-                id = "shoulder_press_dumbbell",
-                name = "Shoulder Press (Dumbbell)",
-                description = "Strict seated or standing overhead dumbbell press.",
-                cues = listOf("Keep wrists straight", "Don't flare elbows fully", "Press to full lockout"),
-                muscleGroups = listOf("Shoulders", "Triceps"),
-                equipment = listOf("Dumbbell")
-            ),
-            Exercise(
-                id = "shoulder_press_kettlebell",
-                name = "Shoulder Press (Kettlebell)",
-                description = "Overhead kettlebell press from the front rack position.",
-                cues = listOf("Rack KB tight against chest", "Press up in a slight arc", "Lock out fully at top"),
-                muscleGroups = listOf("Shoulders", "Triceps"),
-                equipment = listOf("Kettlebell")
-            ),
-            Exercise(
-                id = "shoulder_press_hammer_strength",
-                name = "Shoulder Press (Hammer Strength)",
-                description = "High-stability shoulder press machine. Maximizes deltoid isolation.",
-                cues = listOf("Sit deep into seat", "Maintain arch in upper back", "Press to full lockout"),
-                muscleGroups = listOf("Shoulders", "Triceps"),
-                equipment = listOf("Plate Loaded"),
-                movementType = MovementType.COMPOUND_UPPER
-            ),
-            Exercise(
-                id = "seated_smith_overhead_press",
-                name = "Overhead Press (Smith Machine)",
-                description = "Seated fixed-path overhead press for maximum stability.",
-                cues = listOf("Set bar height at nose level", "Brace core against bench", "Punch up hard"),
-                muscleGroups = listOf("Shoulders", "Triceps"),
-                equipment = listOf("Machine"),
-                movementType = MovementType.COMPOUND_UPPER
-            ),
-            Exercise(
-                id = "lateral_raise",
-                name = "Lateral Raise (Dumbbell)",
-                description = "Isolation for side delts.",
-                cues = listOf("Pinkies up", "Slight elbow bend", "Control the descent"),
-                muscleGroups = listOf("Shoulders"),
-                equipment = listOf("Dumbbell")
-            ),
-            Exercise(
-                id = "lateral_raise_cable",
-                name = "Lateral Raise (Cable)",
-                description = "Constant tension side delt cable raise.",
-                cues = listOf("Raise hand slightly forward", "Slight elbow bend", "Slow eccentric"),
-                muscleGroups = listOf("Shoulders"),
-                equipment = listOf("Cable")
-            ),
-            Exercise(
-                id = "lateral_raise_kettlebell",
-                name = "Lateral Raise (Kettlebell)",
-                description = "Side delt raise utilizing kettlebells for unique load distribution.",
-                cues = listOf("Hold KB handle firmly", "Raise arms to parallel", "Control gravity's pull"),
-                muscleGroups = listOf("Shoulders"),
-                equipment = listOf("Kettlebell")
-            ),
-            Exercise(
-                id = "rear_delt_fly_dumbbell",
-                name = "Rear Delt Fly (Dumbbell)",
-                description = "Bent-over rear lateral raise.",
-                cues = listOf("Hinge forward at hips", "Fly dumbbells out to sides", "Squeeze rear delts"),
-                muscleGroups = listOf("Rear Delts"),
-                equipment = listOf("Dumbbell")
-            ),
-            Exercise(
-                id = "rear_delt_fly_machine",
-                name = "Rear Delt Fly (Cable)",
-                description = "Cable or machine reverse fly for rear delt isolation.",
-                cues = listOf("Keep arms parallel to ground", "Pull back with shoulder joints", "Pause at peak contraction"),
-                muscleGroups = listOf("Rear Delts"),
-                equipment = listOf("Cable")
-            ),
-            Exercise(
-                id = "back_squat",
-                name = "Back Squat (Barbell)",
-                description = "King of leg exercises. Full body demand.",
-                cues = listOf("Brace core", "Hips back first", "Break parallel"),
-                muscleGroups = listOf("Quads", "Glutes", "Hamstrings", "Lower Back"),
-                equipment = listOf("Barbell"),
-                movementType = MovementType.QUAD_DOMINANT,
-                isLockedClassic = true,
-                dangerousFor = listOf("Knee Pain", "Lower Back Pain")
-            ),
-            Exercise(
-                id = "hack_squat_machine",
-                name = "Hack Squat (Machine)",
-                description = "Fixed-path squat focusing on the quadriceps with full back support.",
-                cues = listOf("Shoulders against pads", "Feet low on platform for quads", "Push up and release handles"),
-                muscleGroups = listOf("Quads", "Glutes"),
-                equipment = listOf("Machine"),
-                movementType = MovementType.QUAD_DOMINANT
-            ),
-            Exercise(
-                id = "belt_squat",
-                name = "Belt Squat",
-                description = "Lower body squat that removes all spinal loading. Ideal for lower back issues.",
-                cues = listOf("Secure belt to hips", "Stand tall to release weight", "Sit deep into the hole"),
-                muscleGroups = listOf("Quads", "Glutes"),
-                equipment = listOf("Machine"),
-                movementType = MovementType.QUAD_DOMINANT
-            ),
-            Exercise(
-                id = "pendulum_squat",
-                name = "Pendulum Squat",
-                description = "Arc-path machine squat that provides incredible quad stretch and stability.",
-                cues = listOf("Maintain back contact", "Slow controlled negative", "Drive through mid-foot"),
-                muscleGroups = listOf("Quads"),
-                equipment = listOf("Machine"),
-                movementType = MovementType.QUAD_DOMINANT
-            ),
-            Exercise(
-                id = "front_squat",
-                name = "Front Squat (Barbell)",
-                description = "Barbell squat loaded in front, emphasizing the quads and upper back.",
-                cues = listOf("High elbows", "Brace core", "Upright torso"),
-                muscleGroups = listOf("Quads", "Glutes", "Core", "Upper Back"),
-                equipment = listOf("Barbell")
-            ),
-            Exercise(
-                id = "goblet_squat",
-                name = "Goblet Squat (Dumbbell)",
-                description = "A quad-dominant squat holding a single dumbbell in front.",
-                cues = listOf("Hold dumbbell close to chest", "Keep elbows tucked", "Sit deep into hips"),
-                muscleGroups = listOf("Quads", "Glutes", "Core"),
-                equipment = listOf("Dumbbell")
-            ),
-            Exercise(
-                id = "hack_squat_plate_loaded",
-                name = "Hack Squat (Plate Loaded)",
-                description = "Sled machine squat emphasizing the quadriceps.",
-                cues = listOf("Back flat against backrest", "Feet shoulder-width on platform", "Drive through heels"),
-                muscleGroups = listOf("Quads", "Glutes"),
-                equipment = listOf("Plate Loaded")
-            ),
-            Exercise(
-                id = "leg_extension_cable",
-                name = "Leg Extension (Cable)",
-                description = "Machine isolation targeting the quadriceps.",
-                cues = listOf("Point toes slightly upward", "Hold handles for stability", "Squeeze quads at full extension"),
-                muscleGroups = listOf("Quads"),
-                equipment = listOf("Cable")
-            ),
-            Exercise(
-                id = "leg_extension_plate_loaded",
-                name = "Leg Extension (Plate Loaded)",
-                description = "Levered plate-loaded machine leg extension.",
-                cues = listOf("Keep hips pushed back", "Squeeze quads hard at the peak", "Lower slowly and in control"),
-                muscleGroups = listOf("Quads"),
-                equipment = listOf("Plate Loaded")
-            ),
-            Exercise(
-                id = "leg_curl_cable",
-                name = "Leg Curl (Cable)",
-                description = "Cable machine hamstring isolation.",
-                cues = listOf("Keep hips on pad", "Pull heels to glutes", "Squeeze hamstrings at the bottom"),
-                muscleGroups = listOf("Hamstrings"),
-                equipment = listOf("Cable"),
-                movementType = MovementType.HAMSTRING_ISOLATION
-            ),
-            Exercise(
-                id = "leg_curl_plate_loaded",
-                name = "Leg Curl (Plate Loaded)",
-                description = "Levered plate-loaded machine leg curl.",
-                cues = listOf("Brace thighs tight against support pad", "Contract hamstring explosively", "Control the return stretch"),
-                muscleGroups = listOf("Hamstrings"),
-                equipment = listOf("Plate Loaded"),
-                movementType = MovementType.HAMSTRING_ISOLATION
-            ),
-            Exercise(
-                id = "lunge_barbell",
-                name = "Lunge (Barbell)",
-                description = "Barbell loaded walking or stationary lunges.",
-                cues = listOf("Keep chest tall", "Take a big step forward", "Push off front heel"),
-                muscleGroups = listOf("Quads", "Glutes", "Hamstrings"),
-                equipment = listOf("Barbell")
-            ),
-            Exercise(
-                id = "lunge_dumbbell",
-                name = "Lunge (Dumbbell)",
-                description = "Dumbbell loaded walking or stationary lunges.",
-                cues = listOf("Dumbbells at sides", "Keep torso upright", "Control rear knee down"),
-                muscleGroups = listOf("Quads", "Glutes", "Hamstrings"),
-                equipment = listOf("Dumbbell")
-            ),
-            Exercise(
-                id = "lunge_bodyweight",
-                name = "Lunge (Bodyweight)",
-                description = "Unilateral bodyweight lunge.",
-                cues = listOf("Hands on hips or front", "Stable core", "Step back or forward cleanly"),
-                muscleGroups = listOf("Quads", "Glutes", "Hamstrings"),
-                equipment = listOf("Bodyweight")
-            ),
-            Exercise(
-                id = "hip_thrust_barbell",
-                name = "Hip Thrust (Barbell)",
-                description = "Barbell loaded hip thrusts for absolute glute development.",
-                cues = listOf("Rest upper back on bench", "Drive hips upward", "Squeeze glutes fully at peak"),
-                muscleGroups = listOf("Glutes", "Hamstrings"),
-                equipment = listOf("Barbell")
-            ),
-            Exercise(
-                id = "hip_thrust_plate_loaded",
-                name = "Hip Thrust (Plate Loaded)",
-                description = "Plate loaded belt or pad lever hip thrust machine.",
-                cues = listOf("Secure safety belt tightly", "Drive heels down", "Hold peak contraction for 1s"),
-                muscleGroups = listOf("Glutes", "Hamstrings"),
-                equipment = listOf("Plate Loaded")
-            ),
-            Exercise(
-                id = "romanian_deadlift",
-                name = "Romanian Deadlift (Barbell)",
-                description = "Hip hinge focusing on hamstrings.",
-                cues = listOf("Hips back", "Feel the stretch", "Don't touch floor"),
-                muscleGroups = listOf("Hamstrings", "Glutes"),
-                equipment = listOf("Barbell"),
-                movementType = MovementType.POSTERIOR_CHAIN
-            ),
-            Exercise(
-                id = "romanian_deadlift_dumbbell",
-                name = "Romanian Deadlift (Dumbbell)",
-                description = "Unilateral or bilateral dumbbell Romanian deadlift.",
-                cues = listOf("Hinged hips back", "Keep dumbbells close to shins", "Squeeze glutes to stand"),
-                muscleGroups = listOf("Hamstrings", "Glutes"),
-                equipment = listOf("Dumbbell"),
-                movementType = MovementType.POSTERIOR_CHAIN
-            ),
-            Exercise(
-                id = "deadlift",
-                name = "Conventional Deadlift (Barbell)",
-                description = "Ultimate test of posterior chain strength.",
-                cues = listOf("Slack out of bar", "Drag up shins", "Lockout hips"),
-                muscleGroups = listOf("Hamstrings", "Glutes", "Back", "Forearms"),
-                equipment = listOf("Barbell"),
-                movementType = MovementType.DEADLIFT,
-                isLockedClassic = true,
-                dangerousFor = listOf("Lower Back Pain")
-            ),
-            Exercise(
-                id = "kettlebell_swings",
-                name = "Kettlebell Swing (Kettlebell)",
-                description = "Dynamic ballistic hip hinge.",
-                cues = listOf("Hinged at hips", "Squeeze glutes at peak", "Let arms act as ropes"),
-                muscleGroups = listOf("Glutes", "Hamstrings", "Lower Back", "Core"),
-                equipment = listOf("Kettlebell")
-            ),
-            Exercise(
-                id = "calf_raise_bodyweight",
-                name = "Calf Raise (Bodyweight)",
-                description = "Standing bodyweight calf lifts.",
-                cues = listOf("Full range on floor/step", "Peak squeeze", "Control descent"),
-                muscleGroups = listOf("Calves"),
-                equipment = listOf("Bodyweight")
-            ),
-            Exercise(
-                id = "calf_raise",
-                name = "Calf Raise (Plate Loaded)",
-                description = "Seated or standing machine calf isolation.",
-                cues = listOf("Full stretch at bottom", "Explosive up", "1s pause at top"),
-                muscleGroups = listOf("Calves"),
-                equipment = listOf("Plate Loaded"),
-                movementType = MovementType.CALVES
-            ),
+
+            // --- Arms (Biceps & Triceps) ---
             Exercise(
                 id = "bicep_curl_barbell",
                 name = "Bicep Curl (Barbell)",
                 description = "Traditional barbell bicep curl.",
                 cues = listOf("Keep elbows locked by side", "Don't lean or swing", "Squeeze at top"),
                 muscleGroups = listOf("Biceps", "Forearms"),
-                equipment = listOf("Barbell")
+                equipment = listOf("Barbell"),
+                movementType = MovementType.ISOLATION_UPPER,
+                familyId = "bicep_curl",
+                familyName = "Bicep Curl",
+                implement = Implement.BARBELL,
+                stance = Stance.STANDING
             ),
             Exercise(
                 id = "bicep_curl_dumbbell",
@@ -912,7 +1111,25 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Dumbbell curls with wrist supination.",
                 cues = listOf("Turn palms up as you lift", "Squeeze biceps at peak", "Control down"),
                 muscleGroups = listOf("Biceps", "Brachialis"),
-                equipment = listOf("Dumbbell")
+                equipment = listOf("Dumbbell"),
+                movementType = MovementType.ISOLATION_UPPER,
+                familyId = "bicep_curl",
+                familyName = "Bicep Curl",
+                implement = Implement.DUMBBELL,
+                stance = Stance.STANDING
+            ),
+            Exercise(
+                id = "curl_cable",
+                name = "Bicep Curl (Cable)",
+                description = "Standing cable curl providing continuous bicep tension throughout the ROM.",
+                cues = listOf("Pin elbows to sides", "Curl bar to chin level", "Slow 3s eccentric"),
+                muscleGroups = listOf("Biceps"),
+                equipment = listOf("Cable"),
+                movementType = MovementType.ISOLATION_UPPER,
+                familyId = "bicep_curl",
+                familyName = "Bicep Curl",
+                implement = Implement.CABLE,
+                stance = Stance.STANDING
             ),
             Exercise(
                 id = "preacher_curl_ezbar",
@@ -920,7 +1137,12 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "EZ-Bar preacher bench curls for strict bicep isolation.",
                 cues = listOf("Keep armpits snug to pad", "Slow controlled negative", "Squeeze at top"),
                 muscleGroups = listOf("Biceps", "Brachioradialis"),
-                equipment = listOf("EZ-Bar")
+                equipment = listOf("EZ-Bar"),
+                movementType = MovementType.ISOLATION_UPPER,
+                familyId = "preacher_curl",
+                familyName = "Preacher Curl",
+                implement = Implement.EZ_BAR,
+                stance = Stance.SEATED
             ),
             Exercise(
                 id = "jerry_curl",
@@ -930,7 +1152,12 @@ class WorkoutRepositoryImpl @Inject constructor(
                 muscleGroups = listOf("Biceps", "Brachialis"),
                 equipment = listOf("Dumbbell"),
                 movementType = MovementType.ISOLATION_UPPER,
- gifAssetPath = "exercises/jerry_curl.gif"
+                gifAssetPath = "exercises/jerry_curl.gif",
+                familyId = "jerry_curl",
+                familyName = "Jerry Curl",
+                implement = Implement.DUMBBELL,
+                stance = Stance.STANDING,
+                isPrimaryVariant = true
             ),
             Exercise(
                 id = "jerry_curl_kettlebell",
@@ -938,7 +1165,12 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Jerry Curl supination bicep curls utilizing kettlebells for enhanced bottom stretch.",
                 cues = listOf("Start with pronated grip", "Supinate wrist on ascend", "Squeeze bicep at peak"),
                 muscleGroups = listOf("Biceps", "Brachialis"),
-                equipment = listOf("Kettlebell")
+                equipment = listOf("Kettlebell"),
+                movementType = MovementType.ISOLATION_UPPER,
+                familyId = "jerry_curl",
+                familyName = "Jerry Curl",
+                implement = Implement.KETTLEBELL,
+                stance = Stance.STANDING
             ),
             Exercise(
                 id = "hammer_curl",
@@ -946,7 +1178,13 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Bicep curl with neutral grip.",
                 cues = listOf("Neutral grip", "No swinging", "Squeeze at top"),
                 muscleGroups = listOf("Biceps", "Forearms"),
-                equipment = listOf("Dumbbell")
+                equipment = listOf("Dumbbell"),
+                movementType = MovementType.ISOLATION_UPPER,
+                familyId = "hammer_curl",
+                familyName = "Hammer Curl",
+                implement = Implement.DUMBBELL,
+                stance = Stance.STANDING,
+                isPrimaryVariant = false
             ),
             Exercise(
                 id = "hammer_curl_kettlebell",
@@ -954,7 +1192,12 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Kettlebell hammer curl with a neutral grip for forearm and brachialis thickness.",
                 cues = listOf("Keep wrists locked", "Don't swing", "Control the negative"),
                 muscleGroups = listOf("Biceps", "Forearms"),
-                equipment = listOf("Kettlebell")
+                equipment = listOf("Kettlebell"),
+                movementType = MovementType.ISOLATION_UPPER,
+                familyId = "hammer_curl",
+                familyName = "Hammer Curl",
+                implement = Implement.KETTLEBELL,
+                stance = Stance.STANDING
             ),
             Exercise(
                 id = "tricep_pushdown_cable",
@@ -962,7 +1205,12 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Cable rope or bar tricep pushdown isolation.",
                 cues = listOf("Pin elbows to ribcage", "Push down and separate hands", "Full lockout squeeze"),
                 muscleGroups = listOf("Triceps"),
-                equipment = listOf("Cable")
+                equipment = listOf("Cable"),
+                movementType = MovementType.ISOLATION_UPPER,
+                familyId = "tricep_pushdown",
+                familyName = "Tricep Pushdown",
+                implement = Implement.CABLE,
+                stance = Stance.STANDING
             ),
             Exercise(
                 id = "db_tricep_extension",
@@ -971,7 +1219,25 @@ class WorkoutRepositoryImpl @Inject constructor(
                 cues = listOf("Elbow high", "Deep stretch at bottom", "Full lockout"),
                 muscleGroups = listOf("Triceps"),
                 equipment = listOf("Dumbbell"),
-                movementType = MovementType.ISOLATION_UPPER
+                movementType = MovementType.ISOLATION_UPPER,
+                familyId = "tricep_extension",
+                familyName = "Tricep Extension",
+                implement = Implement.DUMBBELL,
+                stance = Stance.SINGLE_ARM,
+                isPrimaryVariant = true
+            ),
+            Exercise(
+                id = "tricep_extension_cable_oh",
+                name = "Overhead Tricep Extension (Cable)",
+                description = "Overhead rope extension placing the triceps long head under loaded stretch.",
+                cues = listOf("Face away from stack", "Deep elbow flexion at bottom", "Punch hands forward and separate"),
+                muscleGroups = listOf("Triceps"),
+                equipment = listOf("Cable"),
+                movementType = MovementType.ISOLATION_UPPER,
+                familyId = "tricep_extension",
+                familyName = "Tricep Extension",
+                implement = Implement.CABLE,
+                stance = Stance.STANDING
             ),
             Exercise(
                 id = "skull_crusher",
@@ -980,48 +1246,110 @@ class WorkoutRepositoryImpl @Inject constructor(
                 cues = listOf("Elbows tucked", "Lower to forehead", "Full lockout"),
                 muscleGroups = listOf("Triceps"),
                 equipment = listOf("EZ-Bar"),
-                dangerousFor = listOf("Elbow Pain")
+                movementType = MovementType.ISOLATION_UPPER,
+                dangerousFor = listOf("Elbow Pain"),
+                familyId = "skull_crusher",
+                familyName = "Skull Crusher",
+                implement = Implement.EZ_BAR,
+                stance = Stance.STANDARD
+            ),
+
+            // --- Quads & Squat Family ---
+            Exercise(
+                id = "back_squat",
+                name = "Back Squat (Barbell)",
+                description = "King of leg exercises. Full body demand.",
+                cues = listOf("Brace core", "Hips back first", "Break parallel"),
+                muscleGroups = listOf("Quads", "Glutes", "Hamstrings", "Lower Back"),
+                equipment = listOf("Barbell"),
+                movementType = MovementType.QUAD_DOMINANT,
+                isLockedClassic = true,
+                dangerousFor = listOf("Knee Pain", "Lower Back Pain"),
+                familyId = "squat",
+                familyName = "Squat",
+                implement = Implement.BARBELL,
+                stance = Stance.BACK,
+                isPrimaryVariant = true
             ),
             Exercise(
-                id = "close_grip_smith_press",
-                name = "Close Grip Press (Smith Machine)",
-                description = "High-stability tricep focused press.",
-                cues = listOf("Grip shoulder-width", "Touch lower chest", "Full tricep lockout"),
-                muscleGroups = listOf("Triceps", "Chest"),
+                id = "front_squat",
+                name = "Front Squat (Barbell)",
+                description = "Barbell squat loaded in front, emphasizing the quads and upper back.",
+                cues = listOf("High elbows", "Brace core", "Upright torso"),
+                muscleGroups = listOf("Quads", "Glutes", "Core", "Upper Back"),
+                equipment = listOf("Barbell"),
+                movementType = MovementType.QUAD_DOMINANT,
+                dangerousFor = listOf("Knee Pain"),
+                familyId = "squat",
+                familyName = "Squat",
+                implement = Implement.BARBELL,
+                stance = Stance.FRONT
+            ),
+            Exercise(
+                id = "goblet_squat",
+                name = "Goblet Squat (Dumbbell)",
+                description = "A quad-dominant squat holding a single dumbbell in front.",
+                cues = listOf("Hold dumbbell close to chest", "Keep elbows tucked", "Sit deep into hips"),
+                muscleGroups = listOf("Quads", "Glutes", "Core"),
+                equipment = listOf("Dumbbell"),
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "squat",
+                familyName = "Squat",
+                implement = Implement.DUMBBELL,
+                stance = Stance.GOBLET
+            ),
+            Exercise(
+                id = "squat_bodyweight",
+                name = "Air Squat (Bodyweight)",
+                description = "Fundamental bodyweight squat targeting mobility, endurance, and neural groove.",
+                cues = listOf("Feet shoulder-width", "Reach hips back", "Knees track over toes"),
+                muscleGroups = listOf("Quads", "Glutes"),
+                equipment = listOf("Bodyweight"),
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "squat",
+                familyName = "Squat",
+                implement = Implement.BODYWEIGHT,
+                stance = Stance.STANDARD
+            ),
+            Exercise(
+                id = "squat_safety_bar",
+                name = "Safety-Bar Squat",
+                description = "Squat using safety squat bar to reduce shoulder and wrist strain while loading the anterior chain.",
+                cues = listOf("Hold handles lightly", "Stay upright against pad", "Drive through mid-foot"),
+                muscleGroups = listOf("Quads", "Glutes", "Upper Back"),
+                equipment = listOf("Specialty Bar"),
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "squat",
+                familyName = "Squat",
+                implement = Implement.SPECIALTY_BAR,
+                stance = Stance.BACK,
+                specialtyBar = "SAFETY"
+            ),
+            Exercise(
+                id = "squat_box",
+                name = "Box Squat (Barbell)",
+                description = "Barbell squat to a parallel box to build explosive hip drive and break the stretch reflex.",
+                cues = listOf("Sit back onto box", "Pause without relaxing core", "Explode off box"),
+                muscleGroups = listOf("Glutes", "Quads", "Hamstrings"),
+                equipment = listOf("Barbell"),
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "squat",
+                familyName = "Squat",
+                implement = Implement.BARBELL,
+                stance = Stance.BOX
+            ),
+            Exercise(
+                id = "squat_smith",
+                name = "Squat (Smith Machine)",
+                description = "Fixed track squat allowing targeted quad emphasis and feet-forward foot placements.",
+                cues = listOf("Feet placed slightly forward", "Squat deep into knees", "Drive through mid-foot"),
+                muscleGroups = listOf("Quads", "Glutes"),
                 equipment = listOf("Machine"),
-                movementType = MovementType.ISOLATION_UPPER
-            ),
-            Exercise(
-                id = "dip_bodyweight",
-                name = "Dip (Bodyweight)",
-                description = "Strict bodyweight dips.",
-                cues = listOf("Lower until arms hit 90 degrees", "Control the descent", "Squeeze triceps at top"),
-                muscleGroups = listOf("Triceps", "Chest", "Shoulders"),
-                equipment = listOf("Bodyweight")
-            ),
-            Exercise(
-                id = "weighted_dip",
-                name = "Dip (Weighted)",
-                description = "Powerful tricep and chest builder.",
-                cues = listOf("Lean forward for chest", "Upright for triceps", "Full lockout"),
-                muscleGroups = listOf("Triceps", "Chest", "Shoulders"),
-                equipment = listOf("Weighted")
-            ),
-            Exercise(
-                id = "cable_crunch",
-                name = "Cable Crunch (Cable)",
-                description = "Constant tension kneeling abdominal cable crunch.",
-                cues = listOf("Crunch with abs, not hips", "Touch elbows to knees", "Squeeze core hard"),
-                muscleGroups = listOf("Abs"),
-                equipment = listOf("Cable")
-            ),
-            Exercise(
-                id = "hanging_knee_raise",
-                name = "Hanging Leg Raise (Bodyweight)",
-                description = "Core exercise for lower abs.",
-                cues = listOf("No swinging", "Crunch with hips", "Slow descent"),
-                muscleGroups = listOf("Abs"),
-                equipment = listOf("Bodyweight")
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "squat",
+                familyName = "Squat",
+                implement = Implement.SMITH,
+                stance = Stance.BACK
             ),
             Exercise(
                 id = "cyber_cluster_squat",
@@ -1029,7 +1357,13 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "High-intensity squat protocol using rest-pause clusters.",
                 cues = listOf("Standard squat form", "15s rest between clusters", "Maintain brace"),
                 muscleGroups = listOf("Quads", "Glutes", "Core"),
-                equipment = listOf("Barbell")
+                equipment = listOf("Barbell"),
+                movementType = MovementType.QUAD_DOMINANT,
+                dangerousFor = listOf("Knee Pain", "Lower Back Pain"),
+                familyId = "squat",
+                familyName = "Squat",
+                implement = Implement.BARBELL,
+                stance = Stance.BACK
             ),
             Exercise(
                 id = "zercher_squat",
@@ -1037,7 +1371,661 @@ class WorkoutRepositoryImpl @Inject constructor(
                 description = "Squat with bar in the crooks of elbows. Brutal core demand.",
                 cues = listOf("Bar in elbows", "Clasp hands", "Upright torso"),
                 muscleGroups = listOf("Quads", "Core", "Upper Back"),
-                equipment = listOf("Barbell")
+                equipment = listOf("Barbell"),
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "squat",
+                familyName = "Squat",
+                implement = Implement.BARBELL,
+                stance = Stance.ZERCHER,
+                isPrimaryVariant = false
+            ),
+            Exercise(
+                id = "hack_squat_machine",
+                name = "Hack Squat (Machine)",
+                description = "Fixed-path squat focusing on the quadriceps with full back support.",
+                cues = listOf("Shoulders against pads", "Feet low on platform for quads", "Push up and release handles"),
+                muscleGroups = listOf("Quads", "Glutes"),
+                equipment = listOf("Machine"),
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "squat",
+                familyName = "Squat",
+                implement = Implement.MACHINE,
+                stance = Stance.STANDARD
+            ),
+            Exercise(
+                id = "hack_squat_plate_loaded",
+                name = "Hack Squat (Plate Loaded)",
+                description = "Sled machine squat emphasizing the quadriceps.",
+                cues = listOf("Back flat against backrest", "Feet shoulder-width on platform", "Drive through heels"),
+                muscleGroups = listOf("Quads", "Glutes"),
+                equipment = listOf("Plate Loaded"),
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "squat",
+                familyName = "Squat",
+                implement = Implement.PLATE_LOADED,
+                stance = Stance.STANDARD
+            ),
+            Exercise(
+                id = "belt_squat",
+                name = "Belt Squat",
+                description = "Lower body squat that removes all spinal loading. Ideal for lower back issues.",
+                cues = listOf("Secure belt to hips", "Stand tall to release weight", "Sit deep into the hole"),
+                muscleGroups = listOf("Quads", "Glutes"),
+                equipment = listOf("Machine"),
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "squat",
+                familyName = "Squat",
+                implement = Implement.MACHINE,
+                stance = Stance.STANDARD
+            ),
+            Exercise(
+                id = "pendulum_squat",
+                name = "Pendulum Squat",
+                description = "Arc-path machine squat that provides incredible quad stretch and stability.",
+                cues = listOf("Maintain back contact", "Slow controlled negative", "Drive through mid-foot"),
+                muscleGroups = listOf("Quads"),
+                equipment = listOf("Machine"),
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "squat",
+                familyName = "Squat",
+                implement = Implement.MACHINE,
+                stance = Stance.STANDARD
+            ),
+
+            // --- Leg Press Family ---
+            Exercise(
+                id = "leg_press_45",
+                name = "Leg Press (45° Plate Loaded)",
+                description = "Heavy 45-degree sled press maximizing quad loading without spinal compression.",
+                cues = listOf("Feet shoulder-width", "Do not allow lower back to round off pad", "Drive through heels/mid-foot"),
+                muscleGroups = listOf("Quads", "Glutes"),
+                equipment = listOf("Plate Loaded"),
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "leg_press",
+                familyName = "Leg Press",
+                implement = Implement.PLATE_LOADED,
+                stance = Stance.STANDARD,
+                isPrimaryVariant = true
+            ),
+            Exercise(
+                id = "leg_press_horizontal",
+                name = "Leg Press (Horizontal Machine)",
+                description = "Seated cable or selectorized horizontal leg press for controlled quad work.",
+                cues = listOf("Seat adjusted close", "Smooth tempo", "Full knee extension without hard lockout"),
+                muscleGroups = listOf("Quads", "Glutes"),
+                equipment = listOf("Machine"),
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "leg_press",
+                familyName = "Leg Press",
+                implement = Implement.MACHINE,
+                stance = Stance.SEATED
+            ),
+            Exercise(
+                id = "leg_press_single",
+                name = "Single-Leg Press (Plate Loaded)",
+                description = "Unilateral leg press to correct strength imbalances and protect hip symmetry.",
+                cues = listOf("Single foot on sled", "Keep knee tracking straight", "Controlled eccentric"),
+                muscleGroups = listOf("Quads", "Glutes"),
+                equipment = listOf("Plate Loaded"),
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "leg_press",
+                familyName = "Leg Press",
+                implement = Implement.PLATE_LOADED,
+                stance = Stance.SINGLE_LEG
+            ),
+
+            // --- Split Squats & Lunges & Step Ups ---
+            Exercise(
+                id = "split_squat_bulgarian_db",
+                name = "Bulgarian Split Squat (Dumbbell)",
+                description = "Rear-foot elevated split squat for quad hypertrophy and glute stretch.",
+                cues = listOf("Rear foot on bench", "Descend until front thigh is parallel", "Drive through front heel"),
+                muscleGroups = listOf("Quads", "Glutes"),
+                equipment = listOf("Dumbbell"),
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "split_squat",
+                familyName = "Bulgarian Split Squat",
+                implement = Implement.DUMBBELL,
+                stance = Stance.SINGLE_LEG
+            ),
+            Exercise(
+                id = "split_squat_bulgarian_bb",
+                name = "Bulgarian Split Squat (Barbell)",
+                description = "Barbell loaded rear-foot elevated split squat for heavy unilateral strength.",
+                cues = listOf("Bar on back", "Maintain upright torso", "Control descent smoothly"),
+                muscleGroups = listOf("Quads", "Glutes"),
+                equipment = listOf("Barbell"),
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "split_squat",
+                familyName = "Bulgarian Split Squat",
+                implement = Implement.BARBELL,
+                stance = Stance.SINGLE_LEG
+            ),
+            Exercise(
+                id = "split_squat_bulgarian_bw",
+                name = "Bulgarian Split Squat (Bodyweight)",
+                description = "Bodyweight Bulgarian split squat for high-rep quad burn and mobility.",
+                cues = listOf("Rear foot elevated", "Deep knee bend", "Torso tall"),
+                muscleGroups = listOf("Quads", "Glutes"),
+                equipment = listOf("Bodyweight"),
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "split_squat",
+                familyName = "Bulgarian Split Squat",
+                implement = Implement.BODYWEIGHT,
+                stance = Stance.SINGLE_LEG
+            ),
+            Exercise(
+                id = "step_up_db",
+                name = "Step-Up (Dumbbell)",
+                description = "Dumbbell step-up on box or bench emphasizing glute and quad drive.",
+                cues = listOf("Full foot on box", "Minimal push from back leg", "Stand tall at top"),
+                muscleGroups = listOf("Quads", "Glutes"),
+                equipment = listOf("Dumbbell"),
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "step_up",
+                familyName = "Step-Up",
+                implement = Implement.DUMBBELL,
+                stance = Stance.SINGLE_LEG
+            ),
+            Exercise(
+                id = "step_up_bb",
+                name = "Step-Up (Barbell)",
+                description = "Barbell loaded box step-up.",
+                cues = listOf("Bar secure on traps", "Step up forcefully", "Control descent down"),
+                muscleGroups = listOf("Quads", "Glutes"),
+                equipment = listOf("Barbell"),
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "step_up",
+                familyName = "Step-Up",
+                implement = Implement.BARBELL,
+                stance = Stance.SINGLE_LEG
+            ),
+            Exercise(
+                id = "step_up_bw",
+                name = "Step-Up (Bodyweight)",
+                description = "Bodyweight box step-up.",
+                cues = listOf("Stable tempo", "Push through front heel", "Squeeze glute at top"),
+                muscleGroups = listOf("Quads", "Glutes"),
+                equipment = listOf("Bodyweight"),
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "step_up",
+                familyName = "Step-Up",
+                implement = Implement.BODYWEIGHT,
+                stance = Stance.SINGLE_LEG
+            ),
+            Exercise(
+                id = "lunge_barbell",
+                name = "Lunge (Barbell)",
+                description = "Barbell loaded walking or stationary lunges.",
+                cues = listOf("Keep chest tall", "Take a big step forward", "Push off front heel"),
+                muscleGroups = listOf("Quads", "Glutes", "Hamstrings"),
+                equipment = listOf("Barbell"),
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "lunge",
+                familyName = "Lunge",
+                implement = Implement.BARBELL,
+                stance = Stance.STANDARD
+            ),
+            Exercise(
+                id = "lunge_dumbbell",
+                name = "Lunge (Dumbbell)",
+                description = "Dumbbell loaded walking or stationary lunges.",
+                cues = listOf("Dumbbells at sides", "Keep torso upright", "Control rear knee down"),
+                muscleGroups = listOf("Quads", "Glutes", "Hamstrings"),
+                equipment = listOf("Dumbbell"),
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "lunge",
+                familyName = "Lunge",
+                implement = Implement.DUMBBELL,
+                stance = Stance.STANDARD
+            ),
+            Exercise(
+                id = "lunge_bodyweight",
+                name = "Lunge (Bodyweight)",
+                description = "Unilateral bodyweight lunge.",
+                cues = listOf("Hands on hips or front", "Stable core", "Step back or forward cleanly"),
+                muscleGroups = listOf("Quads", "Glutes", "Hamstrings"),
+                equipment = listOf("Bodyweight"),
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "lunge",
+                familyName = "Lunge",
+                implement = Implement.BODYWEIGHT,
+                stance = Stance.STANDARD
+            ),
+            Exercise(
+                id = "leg_extension_cable",
+                name = "Leg Extension (Cable)",
+                description = "Machine isolation targeting the quadriceps.",
+                cues = listOf("Point toes slightly upward", "Hold handles for stability", "Squeeze quads at full extension"),
+                muscleGroups = listOf("Quads"),
+                equipment = listOf("Cable"),
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "leg_extension",
+                familyName = "Leg Extension",
+                implement = Implement.CABLE,
+                stance = Stance.SEATED
+            ),
+            Exercise(
+                id = "leg_extension_plate_loaded",
+                name = "Leg Extension (Plate Loaded)",
+                description = "Levered plate-loaded machine leg extension.",
+                cues = listOf("Keep hips pushed back", "Squeeze quads hard at the peak", "Lower slowly and in control"),
+                muscleGroups = listOf("Quads"),
+                equipment = listOf("Plate Loaded"),
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "leg_extension",
+                familyName = "Leg Extension",
+                implement = Implement.PLATE_LOADED,
+                stance = Stance.SEATED
+            ),
+
+            // --- Deadlift & Posterior Chain ---
+            Exercise(
+                id = "deadlift",
+                name = "Conventional Deadlift (Barbell)",
+                description = "Ultimate test of posterior chain strength.",
+                cues = listOf("Slack out of bar", "Drag up shins", "Lockout hips"),
+                muscleGroups = listOf("Hamstrings", "Glutes", "Back", "Forearms"),
+                equipment = listOf("Barbell"),
+                movementType = MovementType.DEADLIFT,
+                isLockedClassic = true,
+                dangerousFor = listOf("Lower Back Pain"),
+                familyId = "deadlift",
+                familyName = "Deadlift",
+                implement = Implement.BARBELL,
+                stance = Stance.STANDARD,
+                isPrimaryVariant = true
+            ),
+            Exercise(
+                id = "deadlift_sumo",
+                name = "Sumo Deadlift (Barbell)",
+                description = "Wide-stance deadlift emphasizing hip and adductor drive with a more upright torso.",
+                cues = listOf("Wide foot stance", "Knees pushed outward", "Keep torso upright and wedge hips in"),
+                muscleGroups = listOf("Glutes", "Quads", "Hamstrings", "Back"),
+                equipment = listOf("Barbell"),
+                movementType = MovementType.DEADLIFT,
+                dangerousFor = listOf("Lower Back Pain"),
+                familyId = "deadlift",
+                familyName = "Deadlift",
+                implement = Implement.BARBELL,
+                stance = Stance.SUMO
+            ),
+            Exercise(
+                id = "trap_bar_deadlift",
+                name = "Deadlift (Trap Bar)",
+                description = "High-stability deadlift that keeps the center of gravity aligned with the body.",
+                cues = listOf("Step inside bar", "Hips down, chest up", "Drive through floor"),
+                muscleGroups = listOf("Back", "Legs", "Traps"),
+                equipment = listOf("Specialty Bar"),
+                movementType = MovementType.POSTERIOR_CHAIN,
+                familyId = "deadlift",
+                familyName = "Deadlift",
+                implement = Implement.SPECIALTY_BAR,
+                stance = Stance.STANDARD,
+                specialtyBar = "TRAP"
+            ),
+            Exercise(
+                id = "romanian_deadlift",
+                name = "Romanian Deadlift (Barbell)",
+                description = "Hip hinge focusing on hamstrings.",
+                cues = listOf("Hips back", "Feel the stretch", "Don't touch floor"),
+                muscleGroups = listOf("Hamstrings", "Glutes"),
+                equipment = listOf("Barbell"),
+                movementType = MovementType.POSTERIOR_CHAIN,
+                familyId = "deadlift",
+                familyName = "Deadlift",
+                implement = Implement.BARBELL,
+                stance = Stance.STANDARD,
+                isPrimaryVariant = true
+            ),
+            Exercise(
+                id = "romanian_deadlift_dumbbell",
+                name = "Romanian Deadlift (Dumbbell)",
+                description = "Unilateral or bilateral dumbbell Romanian deadlift.",
+                cues = listOf("Hinged hips back", "Keep dumbbells close to shins", "Squeeze glutes to stand"),
+                muscleGroups = listOf("Hamstrings", "Glutes"),
+                equipment = listOf("Dumbbell"),
+                movementType = MovementType.POSTERIOR_CHAIN,
+                familyId = "deadlift",
+                familyName = "Deadlift",
+                implement = Implement.DUMBBELL,
+                stance = Stance.STANDARD
+            ),
+            Exercise(
+                id = "rdl_single_leg_db",
+                name = "Single-Leg RDL (Dumbbell)",
+                description = "Unilateral hip hinge building balance, hamstring loaded stretch, and ankle stability.",
+                cues = listOf("Hinge on one leg", "Extend back leg straight behind", "Keep hips square"),
+                muscleGroups = listOf("Hamstrings", "Glutes"),
+                equipment = listOf("Dumbbell"),
+                movementType = MovementType.POSTERIOR_CHAIN,
+                familyId = "deadlift",
+                familyName = "Deadlift",
+                implement = Implement.DUMBBELL,
+                stance = Stance.SINGLE_LEG
+            ),
+            Exercise(
+                id = "good_morning_bb",
+                name = "Good Morning (Barbell)",
+                description = "Barbell on back hip-hinge targeting the hamstrings, glutes, and spinal erectors.",
+                cues = listOf("Bar secure on traps", "Hinge back with soft knees", "Stop when torso reaches 45 degrees"),
+                muscleGroups = listOf("Hamstrings", "Glutes", "Lower Back"),
+                equipment = listOf("Barbell"),
+                movementType = MovementType.POSTERIOR_CHAIN,
+                dangerousFor = listOf("Lower Back Pain"),
+                familyId = "deadlift",
+                familyName = "Deadlift",
+                implement = Implement.BARBELL,
+                stance = Stance.STANDING
+            ),
+            Exercise(
+                id = "back_extension_bw",
+                name = "Back Extension (Bodyweight)",
+                description = "45-degree hyperextension for spinal erectors, glutes, and hamstrings.",
+                cues = listOf("Hinge at hip crease", "Round slightly for glutes or keep flat for erectors", "Squeeze top 1s"),
+                muscleGroups = listOf("Lower Back", "Glutes", "Hamstrings"),
+                equipment = listOf("Bodyweight"),
+                movementType = MovementType.POSTERIOR_CHAIN,
+                familyId = "deadlift",
+                familyName = "Deadlift",
+                implement = Implement.BODYWEIGHT,
+                stance = Stance.STANDARD
+            ),
+            Exercise(
+                id = "hip_thrust_barbell",
+                name = "Hip Thrust (Barbell)",
+                description = "Barbell loaded hip thrusts for absolute glute development.",
+                cues = listOf("Rest upper back on bench", "Drive hips upward", "Squeeze glutes fully at peak"),
+                muscleGroups = listOf("Glutes", "Hamstrings"),
+                equipment = listOf("Barbell"),
+                movementType = MovementType.POSTERIOR_CHAIN,
+                familyId = "deadlift",
+                familyName = "Deadlift",
+                implement = Implement.BARBELL,
+                stance = Stance.STANDARD
+            ),
+            Exercise(
+                id = "hip_thrust_plate_loaded",
+                name = "Hip Thrust (Plate Loaded)",
+                description = "Plate loaded belt or pad lever hip thrust machine.",
+                cues = listOf("Secure safety belt tightly", "Drive heels down", "Hold peak contraction for 1s"),
+                muscleGroups = listOf("Glutes", "Hamstrings"),
+                equipment = listOf("Plate Loaded"),
+                movementType = MovementType.POSTERIOR_CHAIN,
+                familyId = "deadlift",
+                familyName = "Deadlift",
+                implement = Implement.PLATE_LOADED,
+                stance = Stance.STANDARD
+            ),
+            Exercise(
+                id = "hip_abduction_machine",
+                name = "Hip Abduction (Machine)",
+                description = "Seated machine hip abduction targeting glute medius and upper glutes.",
+                cues = listOf("Lean slightly forward", "Push pads apart", "Hold peak contraction for 1s"),
+                muscleGroups = listOf("Glutes"),
+                equipment = listOf("Machine"),
+                movementType = MovementType.POSTERIOR_CHAIN,
+                familyId = "deadlift",
+                familyName = "Deadlift",
+                implement = Implement.MACHINE,
+                stance = Stance.SEATED
+            ),
+            Exercise(
+                id = "kettlebell_swings",
+                name = "Kettlebell Swing (Kettlebell)",
+                description = "Dynamic ballistic hip hinge.",
+                cues = listOf("Hinged at hips", "Squeeze glutes at peak", "Let arms act as ropes"),
+                muscleGroups = listOf("Glutes", "Hamstrings", "Lower Back", "Core"),
+                equipment = listOf("Kettlebell"),
+                movementType = MovementType.POSTERIOR_CHAIN,
+                familyId = "deadlift",
+                familyName = "Deadlift",
+                implement = Implement.KETTLEBELL,
+                stance = Stance.STANDING
+            ),
+            Exercise(
+                id = "leg_curl_cable",
+                name = "Leg Curl (Cable)",
+                description = "Cable machine hamstring isolation.",
+                cues = listOf("Keep hips on pad", "Pull heels to glutes", "Squeeze hamstrings at the bottom"),
+                muscleGroups = listOf("Hamstrings"),
+                equipment = listOf("Cable"),
+                movementType = MovementType.HAMSTRING_ISOLATION,
+                familyId = "leg_curl",
+                familyName = "Leg Curl",
+                implement = Implement.CABLE,
+                stance = Stance.STANDARD
+            ),
+            Exercise(
+                id = "leg_curl_plate_loaded",
+                name = "Leg Curl (Plate Loaded)",
+                description = "Levered plate-loaded machine leg curl.",
+                cues = listOf("Brace thighs tight against support pad", "Contract hamstring explosively", "Control the return stretch"),
+                muscleGroups = listOf("Hamstrings"),
+                equipment = listOf("Plate Loaded"),
+                movementType = MovementType.HAMSTRING_ISOLATION,
+                familyId = "leg_curl",
+                familyName = "Leg Curl",
+                implement = Implement.PLATE_LOADED,
+                stance = Stance.STANDARD
+            ),
+            Exercise(
+                id = "nordic_curl",
+                name = "Nordic Hamstring Curl (Bodyweight)",
+                description = "High-tension eccentric bodyweight hamstring curl.",
+                cues = listOf("Anchor ankles firmly", "Resist fall with hamstrings", "Catch smoothly and push back"),
+                muscleGroups = listOf("Hamstrings"),
+                equipment = listOf("Bodyweight"),
+                movementType = MovementType.HAMSTRING_ISOLATION,
+                familyId = "nordic",
+                familyName = "Nordic Curl",
+                implement = Implement.BODYWEIGHT,
+                stance = Stance.STANDARD
+            ),
+
+            // --- Calves ---
+            Exercise(
+                id = "calf_raise",
+                name = "Calf Raise (Plate Loaded)",
+                description = "Standing machine calf isolation for gastrocnemius development.",
+                cues = listOf("Full stretch at bottom", "Explosive up", "1s pause at top"),
+                muscleGroups = listOf("Calves"),
+                equipment = listOf("Plate Loaded"),
+                movementType = MovementType.CALVES,
+                familyId = "calves",
+                familyName = "Calf",
+                implement = Implement.PLATE_LOADED,
+                stance = Stance.STANDING,
+                isPrimaryVariant = true
+            ),
+            Exercise(
+                id = "calf_raise_bodyweight",
+                name = "Calf Raise (Bodyweight)",
+                description = "Standing bodyweight calf lifts.",
+                cues = listOf("Full range on floor/step", "Peak squeeze", "Control descent"),
+                muscleGroups = listOf("Calves"),
+                equipment = listOf("Bodyweight"),
+                movementType = MovementType.CALVES,
+                familyId = "calves",
+                familyName = "Calf",
+                implement = Implement.BODYWEIGHT,
+                stance = Stance.STANDING
+            ),
+            Exercise(
+                id = "calf_raise_seated",
+                name = "Seated Calf Raise (Machine)",
+                description = "Seated machine calf raise targeting the soleus muscle.",
+                cues = listOf("Deep stretch at bottom", "Push through balls of feet", "Hold peak contraction 2s"),
+                muscleGroups = listOf("Calves"),
+                equipment = listOf("Machine"),
+                movementType = MovementType.CALVES,
+                familyId = "calves",
+                familyName = "Calf",
+                implement = Implement.MACHINE,
+                stance = Stance.SEATED
+            ),
+
+            // --- Core & Carries ---
+            Exercise(
+                id = "cable_crunch",
+                name = "Cable Crunch (Cable)",
+                description = "Constant tension kneeling abdominal cable crunch.",
+                cues = listOf("Crunch with abs, not hips", "Touch elbows to knees", "Squeeze core hard"),
+                muscleGroups = listOf("Abs"),
+                equipment = listOf("Cable"),
+                movementType = MovementType.ABS,
+                familyId = "cable_crunch",
+                familyName = "Cable Crunch",
+                implement = Implement.CABLE,
+                stance = Stance.STANDARD
+            ),
+            Exercise(
+                id = "hanging_knee_raise",
+                name = "Hanging Leg Raise (Bodyweight)",
+                description = "Core exercise for lower abs.",
+                cues = listOf("No swinging", "Crunch with hips", "Slow descent"),
+                muscleGroups = listOf("Abs"),
+                equipment = listOf("Bodyweight"),
+                movementType = MovementType.ABS,
+                familyId = "hanging_leg_raise",
+                familyName = "Hanging Leg Raise",
+                implement = Implement.BODYWEIGHT,
+                stance = Stance.STANDARD
+            ),
+            Exercise(
+                id = "ab_wheel",
+                name = "Ab Wheel Rollout (Bodyweight)",
+                description = "Anti-extension abdominal rollout building tremendous core stiffness.",
+                cues = listOf("Tuck pelvis", "Roll out slowly with straight arms", "Pull back with abs, not hips"),
+                muscleGroups = listOf("Abs", "Core", "Lats"),
+                equipment = listOf("Bodyweight"),
+                movementType = MovementType.ABS,
+                familyId = "ab_wheel",
+                familyName = "Ab Wheel",
+                implement = Implement.BODYWEIGHT,
+                stance = Stance.STANDARD
+            ),
+            Exercise(
+                id = "farmer_carry_db",
+                name = "Farmer's Carry (Dumbbell)",
+                description = "Heavy bilateral dumbbell carry building grip, traps, and total-body posture.",
+                cues = listOf("Shoulders back and down", "Short fast steps", "Brace core tight"),
+                muscleGroups = listOf("Forearms", "Traps", "Core"),
+                equipment = listOf("Dumbbell"),
+                movementType = MovementType.POSTERIOR_CHAIN,
+                familyId = "farmer_carry",
+                familyName = "Farmer's Carry",
+                implement = Implement.DUMBBELL,
+                stance = Stance.STANDING
+            ),
+            Exercise(
+                id = "farmer_carry_kb",
+                name = "Farmer's Carry (Kettlebell)",
+                description = "Kettlebell carry testing grip endurance and trunk stabilization.",
+                cues = listOf("Chest tall", "Walk smooth and controlled", "Do not allow torso to sway"),
+                muscleGroups = listOf("Forearms", "Traps", "Core"),
+                equipment = listOf("Kettlebell"),
+                movementType = MovementType.POSTERIOR_CHAIN,
+                familyId = "farmer_carry",
+                familyName = "Farmer's Carry",
+                implement = Implement.KETTLEBELL,
+                stance = Stance.STANDING
+            ),
+            Exercise(
+                id = "kettlebell_goblet_squat",
+                name = "Goblet Squat (Kettlebell)",
+                description = "Quad-dominant squat holding a kettlebell in the goblet position.",
+                cues = listOf("Hold KB by handles", "Keep elbows tucked", "Deep squat"),
+                muscleGroups = listOf("Quads", "Glutes", "Core"),
+                equipment = listOf("Kettlebell"),
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "squat",
+                familyName = "Squat",
+                implement = Implement.KETTLEBELL,
+                stance = Stance.GOBLET
+            ),
+            Exercise(
+                id = "kettlebell_clean",
+                name = "Kettlebell Clean",
+                description = "Explosive movement pulling a kettlebell to the rack position.",
+                cues = listOf("Hinge and snap", "Keep KB close to body", "Soft landing in rack"),
+                muscleGroups = listOf("Hamstrings", "Glutes", "Shoulders", "Core"),
+                equipment = listOf("Kettlebell"),
+                movementType = MovementType.POSTERIOR_CHAIN,
+                familyId = "kettlebell_clean",
+                familyName = "Kettlebell Clean",
+                implement = Implement.KETTLEBELL,
+                stance = Stance.STANDING,
+                isPrimaryVariant = true
+            ),
+            Exercise(
+                id = "kettlebell_snatch",
+                name = "Kettlebell Snatch",
+                description = "High-velocity overhead kettlebell movement.",
+                cues = listOf("Powerful hip drive", "Punch through at top", "Control descent"),
+                muscleGroups = listOf("Shoulders", "Hamstrings", "Glutes", "Back"),
+                equipment = listOf("Kettlebell"),
+                movementType = MovementType.POSTERIOR_CHAIN,
+                familyId = "kettlebell_snatch",
+                familyName = "Kettlebell Snatch",
+                implement = Implement.KETTLEBELL,
+                stance = Stance.STANDING,
+                isPrimaryVariant = true
+            ),
+            Exercise(
+                id = "turkish_get_up_kb",
+                name = "Turkish Get-Up (Kettlebell)",
+                description = "Complex total-body stability and strength movement.",
+                cues = listOf("Eyes on KB", "Punch up constantly", "Control each transition"),
+                muscleGroups = listOf("Shoulders", "Core", "Hips", "Back"),
+                equipment = listOf("Kettlebell"),
+                movementType = MovementType.POSTERIOR_CHAIN,
+                familyId = "turkish_get_up",
+                familyName = "Turkish Get-Up",
+                implement = Implement.KETTLEBELL,
+                stance = Stance.STANDARD,
+                isPrimaryVariant = true
+            ),
+            Exercise(
+                id = "kettlebell_thruster",
+                name = "Kettlebell Thruster",
+                description = "Combined front squat and overhead press.",
+                cues = listOf("Deep squat", "Drive up explosively", "Finish with overhead press"),
+                muscleGroups = listOf("Quads", "Shoulders", "Glutes", "Triceps"),
+                equipment = listOf("Kettlebell"),
+                movementType = MovementType.QUAD_DOMINANT,
+                familyId = "kettlebell_thruster",
+                familyName = "Kettlebell Thruster",
+                implement = Implement.KETTLEBELL,
+                stance = Stance.STANDING,
+                isPrimaryVariant = true
+            ),
+            Exercise(
+                id = "kettlebell_halo",
+                name = "Kettlebell Halo",
+                description = "Circular shoulder mobility and core stability exercise.",
+                cues = listOf("KB bottom-up or by horns", "Rotate around head", "Keep core stable"),
+                muscleGroups = listOf("Shoulders", "Core"),
+                equipment = listOf("Kettlebell"),
+                movementType = MovementType.ISOLATION_UPPER,
+                familyId = "kettlebell_halo",
+                familyName = "Kettlebell Halo",
+                implement = Implement.KETTLEBELL,
+                stance = Stance.STANDING,
+                isPrimaryVariant = true
+            ),
+            Exercise(
+                id = "kettlebell_deadlift",
+                name = "Deadlift (Kettlebell)",
+                description = "Fundamental hip hinge using a kettlebell.",
+                cues = listOf("KB between feet", "Hinge at hips", "Squeeze glutes to stand"),
+                muscleGroups = listOf("Hamstrings", "Glutes", "Back"),
+                equipment = listOf("Kettlebell"),
+                movementType = MovementType.POSTERIOR_CHAIN,
+                familyId = "deadlift",
+                familyName = "Deadlift",
+                implement = Implement.KETTLEBELL,
+                stance = Stance.STANDARD
             )
         )
         

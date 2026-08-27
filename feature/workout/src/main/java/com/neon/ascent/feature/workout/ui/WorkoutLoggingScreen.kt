@@ -61,8 +61,7 @@ import com.neon.ascent.core.domain.workout.rules.RepRange
 fun WorkoutLoggingScreen(
     onBack: () -> Unit,
     onViewInCodex: (String) -> Unit = {},
-    viewModel: WorkoutViewModel = hiltViewModel(),
-    onRestTimerClick: () -> Unit = {}
+    viewModel: WorkoutViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showRoutineActionMenuFor by remember { mutableStateOf<WorkoutRoutine?>(null) }
@@ -1525,7 +1524,7 @@ fun CreateRoutineScreen(
 ) {
     var showExercisePicker by remember { mutableStateOf(false) }
     var showAugmentPicker by remember { mutableStateOf(false) }
-    val filteredExercises by viewModel.filteredExercises.collectAsState()
+    val exerciseFamilies by viewModel.exerciseFamilies.collectAsState()
 
     Column(
         modifier = Modifier
@@ -1678,13 +1677,15 @@ fun CreateRoutineScreen(
             Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
                 ExercisePicker(
                     uiState = uiState,
-                    exercises = filteredExercises,
+                    families = exerciseFamilies,
                     onSearchChange = { viewModel.updateExerciseSearch(it) },
                     onDetailClick = { viewModel.showExerciseDetail(it) },
                     onSelect = {
                         viewModel.addExerciseToNewRoutine(it)
                         showExercisePicker = false
                     },
+                    onSelectFamily = { viewModel.selectFamilyInPicker(it) },
+                    onToggleShowAll = { viewModel.toggleShowAllVariants(it) },
                     onSaveCustomExercise = { name: String, muscle: String, equip: String, desc: String ->
                         viewModel.saveCustomExercise(name, muscle, equip, desc)
                     },
@@ -1722,7 +1723,7 @@ fun CreateAugmentScreen(
     viewModel: WorkoutViewModel
 ) {
     var showExercisePicker by remember { mutableStateOf(false) }
-    val filteredExercises by viewModel.filteredExercises.collectAsState()
+    val exerciseFamilies by viewModel.exerciseFamilies.collectAsState()
 
     Column(
         modifier = Modifier
@@ -1868,13 +1869,15 @@ fun CreateAugmentScreen(
             ) {
                 ExercisePicker(
                     uiState = uiState,
-                    exercises = filteredExercises,
+                    families = exerciseFamilies,
                     onSearchChange = { viewModel.updateExerciseSearch(it) },
                     onDetailClick = { viewModel.showExerciseDetail(it) },
                     onSelect = {
                         viewModel.addExerciseToNewRoutine(it)
                         showExercisePicker = false
                     },
+                    onSelectFamily = { viewModel.selectFamilyInPicker(it) },
+                    onToggleShowAll = { viewModel.toggleShowAllVariants(it) },
                     onSaveCustomExercise = { name: String, muscle: String, equip: String, desc: String ->
                         viewModel.saveCustomExercise(name, muscle, equip, desc)
                     },
@@ -2044,7 +2047,7 @@ fun ActiveWorkoutContent(
     var exerciseToReplace by remember { mutableStateOf<WorkoutLog?>(null) }
     var showActionMenuFor by remember { mutableStateOf<WorkoutLog?>(null) }
     var showSupersetMenuFor by remember { mutableStateOf<WorkoutLog?>(null) }
-    val filteredExercises by viewModel.filteredExercises.collectAsState()
+    val exerciseFamilies by viewModel.exerciseFamilies.collectAsState()
     val codexNavigation = onViewInCodex
 
     LazyColumn(
@@ -2158,7 +2161,7 @@ fun ActiveWorkoutContent(
             ) {
                 ExercisePicker(
                     uiState = uiState,
-                    exercises = filteredExercises,
+                    families = exerciseFamilies,
                     onSearchChange = { viewModel.updateExerciseSearch(it) },
                     onDetailClick = { viewModel.showExerciseDetail(it) },
                     onSelect = {
@@ -2170,6 +2173,8 @@ fun ActiveWorkoutContent(
                         }
                         showExercisePicker = false
                     },
+                    onSelectFamily = { viewModel.selectFamilyInPicker(it) },
+                    onToggleShowAll = { viewModel.toggleShowAllVariants(it) },
                     onSaveCustomExercise = { name: String, muscle: String, equip: String, desc: String ->
                         viewModel.saveCustomExercise(name, muscle, equip, desc)
                     },
@@ -3057,13 +3062,16 @@ fun ActionMenuItem(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ExercisePicker(
     uiState: WorkoutUiState,
-    exercises: List<Exercise>,
+    families: List<ExerciseFamily>,
     onSearchChange: (String) -> Unit,
     onDetailClick: (Exercise) -> Unit,
     onSelect: (Exercise) -> Unit,
+    onSelectFamily: (String?) -> Unit,
+    onToggleShowAll: (Boolean) -> Unit,
     onSaveCustomExercise: (String, String, String, String) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -3079,7 +3087,11 @@ fun ExercisePicker(
         )
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
         // Header
         Row(
             modifier = Modifier
@@ -3089,12 +3101,15 @@ fun ExercisePicker(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "Cancel",
+                if (uiState.selectedFamilyIdInPicker != null) "Back" else "Cancel",
                 color = Color(0xFF007AFF),
-                modifier = Modifier.clickable { onDismiss() }
+                modifier = Modifier.clickable { 
+                    if (uiState.selectedFamilyIdInPicker != null) onSelectFamily(null) else onDismiss() 
+                },
+                fontSize = 16.sp
             )
             Text(
-                "Add Exercise",
+                if (uiState.selectedFamilyIdInPicker != null) "Select Variant" else "Add Exercise",
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
                 fontSize = 17.sp
@@ -3102,7 +3117,8 @@ fun ExercisePicker(
             Text(
                 "Create",
                 color = Color(0xFF007AFF),
-                modifier = Modifier.clickable { showCustomExerciseForm = true }
+                modifier = Modifier.clickable { showCustomExerciseForm = true },
+                fontSize = 16.sp
             )
         }
 
@@ -3114,7 +3130,7 @@ fun ExercisePicker(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
                 .heightIn(min = 44.dp),
-            placeholder = { Text("Search exercise", color = Color.Gray, fontSize = 15.sp) },
+            placeholder = { Text("Search family or variant...", color = Color.Gray, fontSize = 14.sp) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.Gray) },
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color(0xFF1C1C1E),
@@ -3126,57 +3142,216 @@ fun ExercisePicker(
             singleLine = true
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // Filters
+        // Mode Toggle
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            FilterButton(
-                label = uiState.selectedEquipment ?: "All Equipment",
-                onClick = { /* Equipment dialog/menu */ },
-                modifier = Modifier.weight(1f)
+            FilterChip(
+                selected = !uiState.isShowingAllVariants,
+                onClick = { onToggleShowAll(false) },
+                label = { Text("FAMILIES") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Color(0xFF007AFF).copy(alpha = 0.2f),
+                    selectedLabelColor = Color(0xFF007AFF)
+                )
             )
-            FilterButton(
-                label = uiState.selectedMuscleGroup ?: "All Muscles",
-                onClick = { /* Muscles dialog/menu */ },
-                modifier = Modifier.weight(1f)
+            FilterChip(
+                selected = uiState.isShowingAllVariants,
+                onClick = { onToggleShowAll(true) },
+                label = { Text("ALL VARIANTS") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Color(0xFF00FF9C).copy(alpha = 0.2f),
+                    selectedLabelColor = Color(0xFF00FF9C)
+                )
             )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
-            item {
-                Text(
-                    "Recent Exercises",
-                    color = Color.Gray,
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
-            }
-            items(exercises) { exercise ->
-                ExerciseListItem(
-                    exercise = exercise,
-                    onDetailClick = { onDetailClick(it) },
-                    onSelect = { onSelect(exercise) }
-                )
-            }
-            
-            item {
-                Text(
-                    "Custom Exercises",
-                    color = Color.Gray,
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)
-                )
-            }
-            // Mock custom exercises for now if needed, or just filtered list
+        val selectedFamily = remember(uiState.selectedFamilyIdInPicker, families) {
+            families.find { it.id == uiState.selectedFamilyIdInPicker }
         }
 
+        Box(modifier = Modifier.weight(1f)) {
+            if (selectedFamily != null) {
+                VariantSelector(
+                    family = selectedFamily,
+                    onSelect = onSelect,
+                    onDetailClick = onDetailClick
+                )
+            } else if (uiState.isShowingAllVariants || uiState.exerciseSearchQuery.length > 1) {
+                AllVariantsList(
+                    families = families,
+                    onSelect = onSelect,
+                    onDetailClick = onDetailClick
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 32.dp)
+                ) {
+                    items(families, key = { it.id }) { family ->
+                        ExerciseFamilyItem(
+                            family = family,
+                            onClick = { onSelectFamily(family.id) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ExerciseFamilyItem(family: ExerciseFamily, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val primary = family.variants.find { it.isPrimaryVariant } ?: family.variants.firstOrNull()
+            val exerciseIcon = when (primary?.equipment?.firstOrNull()) {
+                "Cable", "Plate Loaded" -> Icons.Default.SettingsInputComponent
+                "Bodyweight", "Weighted" -> Icons.AutoMirrored.Filled.DirectionsRun
+                else -> Icons.Default.FitnessCenter
+            }
+            Box(
+                modifier = Modifier.size(48.dp).background(Color.White.copy(alpha = 0.1f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(exerciseIcon, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(family.name.uppercase(), color = Color.White, fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 1.sp)
+                Text("${family.variants.size} implements", color = Color.Gray, fontSize = 12.sp)
+            }
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = Color.DarkGray)
+        }
+        HorizontalDivider(modifier = Modifier.padding(start = 80.dp), color = Color.DarkGray.copy(alpha = 0.5f), thickness = 0.5.dp)
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun VariantSelector(
+    family: ExerciseFamily,
+    onSelect: (Exercise) -> Unit,
+    onDetailClick: (Exercise) -> Unit
+) {
+    var selectedImplement by remember { mutableStateOf<Implement?>(family.variants.firstOrNull()?.implement) }
+    
+    val implements = remember(family) { family.variants.map { it.implement }.distinct() }
+    val variantsForImplement = remember(family, selectedImplement) {
+        family.variants.filter { it.implement == selectedImplement }
+    }
+    val stances = remember(variantsForImplement) { variantsForImplement.map { it.stance }.distinct() }
+    var selectedStance by remember(selectedImplement) { 
+        mutableStateOf<Stance?>(variantsForImplement.find { it.isPrimaryVariant }?.stance ?: stances.firstOrNull()) 
+    }
+    
+    val finalVariant = remember(variantsForImplement, selectedStance) {
+        variantsForImplement.find { it.stance == selectedStance } ?: variantsForImplement.firstOrNull()
+    }
+
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Text("1. CHOOSE IMPLEMENT", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+        Spacer(Modifier.height(8.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            implements.forEach { imp ->
+                val isSelected = selectedImplement == imp
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { selectedImplement = imp },
+                    label = { Text(imp.name.replace("_", " ")) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0xFF00FF9C).copy(alpha = 0.2f),
+                        selectedLabelColor = Color(0xFF00FF9C)
+                    )
+                )
+            }
+        }
+
+        if (stances.size > 1) {
+            Spacer(Modifier.height(24.dp))
+            Text("2. CHOOSE STANCE", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+            Spacer(Modifier.height(8.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                stances.forEach { stance ->
+                    val isSelected = selectedStance == stance
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { selectedStance = stance },
+                        label = { Text(stance.name.replace("_", " ")) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFF00CCFF).copy(alpha = 0.2f),
+                            selectedLabelColor = Color(0xFF00CCFF)
+                        )
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        if (finalVariant != null) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = Color(0xFF1C1C1E),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.3f))
+            ) {
+                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(finalVariant.name.uppercase(), color = Color.White, fontWeight = FontWeight.Black, fontSize = 16.sp)
+                        val details = buildString {
+                            append(finalVariant.stance.name.replace("_", " "))
+                            append(" · ")
+                            append(finalVariant.specialtyBar ?: finalVariant.implement.name.replace("_", " "))
+                        }
+                        Text(details, color = Color.Gray, fontSize = 12.sp)
+                    }
+                    IconButton(onClick = { onDetailClick(finalVariant) }) {
+                        Icon(Icons.Default.Info, contentDescription = "Info", tint = Color.Gray)
+                    }
+                    Button(
+                        onClick = { onSelect(finalVariant) },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("ADD TO SESSION", color = Color.Black, fontWeight = FontWeight.Black)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AllVariantsList(
+    families: List<ExerciseFamily>,
+    onSelect: (Exercise) -> Unit,
+    onDetailClick: (Exercise) -> Unit
+) {
+    val allVariants = remember(families) { families.flatMap { it.variants }.distinctBy { it.id }.sortedBy { it.name } }
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        items(allVariants, key = { it.id }) { variant ->
+            ExerciseListItem(
+                exercise = variant,
+                onDetailClick = { onDetailClick(it) },
+                onSelect = { onSelect(variant) }
+            )
+        }
     }
 }
 
@@ -3431,6 +3606,7 @@ fun WorkoutLogCard(
                         sets.any { it.goalReps != null }
     
     val augmentColor = log.augmentColor?.let { Color(android.graphics.Color.parseColor(it)) } ?: Color(0xFF007AFF)
+    val neonColor = Color(0xFF00FF9C)
 
     var notesText by remember(exercise?.notes) { mutableStateOf(exercise?.notes ?: "") }
     var isEditing by remember { mutableStateOf(false) }
@@ -3469,7 +3645,7 @@ fun WorkoutLogCard(
             ProgressionBanner(
                 text = "WEIGHT INCREASE DUE (+2.5-5 lb) ⚡",
                 color = Color(0xFF00FFCC),
-                icon = Icons.Default.TrendingUp
+                icon = Icons.AutoMirrored.Filled.TrendingUp
             )
         }
         
@@ -3528,11 +3704,38 @@ fun WorkoutLogCard(
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f, fill = false)) {
+                    val famName = exercise?.familyName ?: log.exerciseName
                     Text(
-                        log.exerciseName, 
-                        color = augmentColor, 
-                        fontSize = (18 * (if (uiState.zoomLevel >= 1.5f) 0.9f else 1.0f)).sp, 
-                        fontWeight = FontWeight.Bold,
+                        famName.uppercase(),
+                        color = Color.Gray,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.sp
+                    )
+
+                    val variantTitle = remember(exercise) {
+                        if (exercise != null) {
+                            buildString {
+                                if (exercise.stance != Stance.STANDARD) {
+                                    append(exercise.stance.name.replace("_", " "))
+                                }
+                                if (exercise.implement != Implement.BARBELL || exercise.specialtyBar != null) {
+                                    if (isNotEmpty()) append(" · ")
+                                    append(exercise.specialtyBar ?: exercise.implement.name.replace("_", " "))
+                                }
+                                if (isEmpty()) append("STANDARD")
+                            }
+                        } else {
+                            log.exerciseName
+                        }
+                    }
+
+                    Text(
+                        variantTitle.uppercase(), 
+                        color = neonColor, 
+                        fontSize = (16 * (if (uiState.zoomLevel >= 1.5f) 0.9f else 1.0f)).sp, 
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.sp,
                         maxLines = 2
                     )
 

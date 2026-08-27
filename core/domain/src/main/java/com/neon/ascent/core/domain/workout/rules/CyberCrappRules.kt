@@ -21,10 +21,10 @@ object CyberCrappRules {
         }
     }
 
-    fun getRepRangeString(movementType: MovementType): String {
+    fun getRepRangeString(movementType: MovementType, familyId: String? = null): String {
         val range = getRepRange(movementType)
-        return when (movementType) {
-            MovementType.QUAD_DOMINANT -> "${range.min}-${range.max} + 20"
+        return when {
+            familyId == "squat" && movementType == MovementType.QUAD_DOMINANT -> "${range.min}-${range.max} + 20"
             else -> "${range.min}-${range.max}"
         }
     }

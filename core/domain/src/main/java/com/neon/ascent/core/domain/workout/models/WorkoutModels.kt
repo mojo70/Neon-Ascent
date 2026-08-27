@@ -108,6 +108,17 @@ enum class MovementType {
     UNDEFINED
 }
 
+enum class Implement {
+    BARBELL, DUMBBELL, KETTLEBELL, EZ_BAR, SPECIALTY_BAR, MACHINE, SMITH,
+    PLATE_LOADED, CABLE, BODYWEIGHT, BAND, OTHER
+}
+
+enum class Stance {
+    STANDARD, INCLINE, DECLINE, SEATED, STANDING, CHEST_SUPPORTED, FRONT,
+    BACK, ZERCHER, GOBLET, SINGLE_ARM, SINGLE_LEG, DEFICIT, FLOOR,
+    CLOSE_GRIP, BOX, SUMO, BENT_OVER
+}
+
 data class Exercise(
     val id: String,
     val name: String,
@@ -120,7 +131,37 @@ data class Exercise(
     val injurySubstitutions: List<String> = emptyList(),
     val dangerousFor: List<String> = emptyList(),
     val movementType: MovementType = MovementType.UNDEFINED,
-    val notes: String? = null
+    val notes: String? = null,
+    val familyId: String,
+    val familyName: String,
+    val implement: Implement,
+    val stance: Stance = Stance.STANDARD,
+    val specialtyBar: String? = null,
+    val allowsAddedLoad: Boolean = false,
+    val isPrimaryVariant: Boolean = false
+) {
+    val displayLabel: String
+        get() = buildString {
+            append(familyName)
+            if (stance != Stance.STANDARD) {
+                append(" · ")
+                append(stance.name.lowercase().capitalizeWords())
+            }
+            if (implement != Implement.BARBELL || specialtyBar != null) {
+                append(" · ")
+                append(specialtyBar?.lowercase()?.capitalizeWords() ?: implement.name.lowercase().capitalizeWords())
+            }
+        }
+
+    private fun String.capitalizeWords(): String =
+        split("_").joinToString(" ") { it.lowercase().replaceFirstChar { char -> char.uppercase() } }
+}
+
+data class ExerciseFamily(
+    val id: String,
+    val name: String,
+    val movementType: MovementType,
+    val variants: List<Exercise>
 )
 
 data class WorkoutLog(

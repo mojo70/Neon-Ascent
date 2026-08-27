@@ -11,6 +11,9 @@ interface WorkoutRepository {
     
     fun getExerciseDefinitions(): Flow<List<Exercise>>
     suspend fun saveExerciseDefinition(exercise: Exercise)
+
+    fun getExerciseFamilies(): Flow<List<ExerciseFamily>>
+    fun getExercisesByFamily(familyId: String): Flow<List<Exercise>>
     
     fun getLogsForSession(sessionId: String): Flow<List<Pair<WorkoutLog, List<SetLog>>>>
     suspend fun saveWorkoutLog(log: WorkoutLog)

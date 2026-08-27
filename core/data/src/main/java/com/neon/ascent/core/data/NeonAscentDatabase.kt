@@ -45,7 +45,7 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_11_12
         BiomarkerSampleEntity::class,
         FuelSnapshotEntity::class
     ],
-    version = 45,
+    version = 47,
     exportSchema = true
 )
 @TypeConverters(

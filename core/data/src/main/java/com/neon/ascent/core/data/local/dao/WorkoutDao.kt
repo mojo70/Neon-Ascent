@@ -22,6 +22,9 @@ interface WorkoutDao {
     @Query("SELECT * FROM exercise_definitions")
     fun getExerciseDefinitions(): Flow<List<ExerciseDefinitionEntity>>
 
+    @Query("SELECT * FROM exercise_definitions WHERE familyId = :familyId")
+    fun getExercisesByFamily(familyId: String): Flow<List<ExerciseDefinitionEntity>>
+
     @Upsert
     suspend fun upsertWorkoutLog(log: WorkoutLogEntity)
 

@@ -46,7 +46,13 @@ fun ExerciseDefinitionEntity.toDomain() = Exercise(
     injurySubstitutions = injurySubstitutions,
     dangerousFor = dangerousFor,
     movementType = MovementType.valueOf(movementType),
-    notes = notes
+    notes = notes,
+    familyId = familyId,
+    familyName = familyName,
+    implement = Implement.valueOf(implement),
+    stance = Stance.valueOf(stance),
+    allowsAddedLoad = allowsAddedLoad,
+    isPrimaryVariant = isPrimaryVariant
 )
 
 fun Exercise.toEntity() = ExerciseDefinitionEntity(
@@ -61,7 +67,13 @@ fun Exercise.toEntity() = ExerciseDefinitionEntity(
     injurySubstitutions = injurySubstitutions,
     dangerousFor = dangerousFor,
     movementType = movementType.name,
-    notes = notes
+    notes = notes,
+    familyId = familyId,
+    familyName = familyName,
+    implement = implement.name,
+    stance = stance.name,
+    allowsAddedLoad = allowsAddedLoad,
+    isPrimaryVariant = isPrimaryVariant
 )
 
 fun WorkoutLogEntity.toDomain() = WorkoutLog(

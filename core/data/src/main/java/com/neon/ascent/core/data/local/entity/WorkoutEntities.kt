@@ -36,7 +36,14 @@ data class ExerciseDefinitionEntity(
     val injurySubstitutions: List<String>,
     val dangerousFor: List<String> = emptyList(),
     val movementType: String = "UNDEFINED",
-    val notes: String? = null
+    val notes: String? = null,
+    val familyId: String = "",
+    val familyName: String = "",
+    val implement: String = "OTHER",
+    val stance: String = "STANDARD",
+    val specialtyBar: String? = null,
+    val allowsAddedLoad: Boolean = false,
+    val isPrimaryVariant: Boolean = false
 )
 
 @Entity(tableName = "progression_states")

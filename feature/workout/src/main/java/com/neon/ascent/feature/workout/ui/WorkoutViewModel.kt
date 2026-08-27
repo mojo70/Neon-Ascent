@@ -19,7 +19,6 @@ import com.neon.ascent.feature.workout.services.WorkoutTimerService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -88,6 +87,8 @@ data class WorkoutUiState(
 
     // Exercise Picker State
     val exerciseSearchQuery: String = "",
+    val selectedFamilyIdInPicker: String? = null,
+    val isShowingAllVariants: Boolean = false,
     val selectedEquipment: String? = null,
     val selectedMuscleGroup: String? = null,
     val selectedExerciseForDetail: Exercise? = null,
@@ -151,15 +152,38 @@ class WorkoutViewModel @Inject constructor(
     private val updateJobs = mutableMapOf<String, kotlinx.coroutines.Job>()
     private val pendingUpdates = mutableMapOf<String, SetLog>()
 
-    val filteredExercises = _uiState.map { state ->
-        state.availableExercises.filter { exercise ->
-            val matchesQuery = exercise.name.contains(state.exerciseSearchQuery, ignoreCase = true) ||
-                               exercise.muscleGroups.any { it.contains(state.exerciseSearchQuery, ignoreCase = true) }
-            val matchesEquipment = state.selectedEquipment == null || exercise.equipment.contains(state.selectedEquipment)
-            val matchesMuscle = state.selectedMuscleGroup == null || exercise.muscleGroups.contains(state.selectedMuscleGroup)
-            
-            matchesQuery && matchesEquipment && matchesMuscle
-        }
+    val exerciseFamilies = _uiState.map { state ->
+        val query = state.exerciseSearchQuery.trim()
+        val allExercises = state.availableExercises
+        
+        allExercises
+            .groupBy { it.familyId }
+            .mapNotNull { (familyId, variants) ->
+                val primary = variants.find { it.isPrimaryVariant } ?: variants.firstOrNull() ?: return@mapNotNull null
+                val familyName = primary.familyName.ifBlank { primary.name }
+                
+                // Matches if search query is empty or matches family name, variant names, muscles or equipment
+                val matchesQuery = query.isEmpty() ||
+                        familyName.contains(query, ignoreCase = true) ||
+                        variants.any { v ->
+                            v.name.contains(query, ignoreCase = true) ||
+                            v.muscleGroups.any { it.contains(query, ignoreCase = true) } ||
+                            v.implement.name.contains(query, ignoreCase = true)
+                        }
+
+                val matchesEquipment = state.selectedEquipment == null || variants.any { it.equipment.contains(state.selectedEquipment) }
+                val matchesMuscle = state.selectedMuscleGroup == null || variants.any { it.muscleGroups.contains(state.selectedMuscleGroup) }
+
+                if (matchesQuery && matchesEquipment && matchesMuscle) {
+                    ExerciseFamily(
+                        id = familyId,
+                        name = familyName,
+                        movementType = primary.movementType,
+                        variants = variants.sortedWith(compareByDescending<Exercise> { it.isPrimaryVariant }.thenBy { it.name })
+                    )
+                } else null
+            }
+            .sortedBy { it.name }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private var workoutDurationJob: kotlinx.coroutines.Job? = null
@@ -366,13 +390,31 @@ class WorkoutViewModel @Inject constructor(
 
     fun saveCustomExercise(name: String, muscleGroup: String, equipment: String, description: String) {
         viewModelScope.launch {
+            val id = UUID.randomUUID().toString()
+            val imp = when {
+                equipment.contains("Dumbbell", ignoreCase = true) -> Implement.DUMBBELL
+                equipment.contains("Kettlebell", ignoreCase = true) -> Implement.KETTLEBELL
+                equipment.contains("Cable", ignoreCase = true) -> Implement.CABLE
+                equipment.contains("Machine", ignoreCase = true) -> Implement.MACHINE
+                equipment.contains("Smith", ignoreCase = true) -> Implement.SMITH
+                equipment.contains("Plate", ignoreCase = true) -> Implement.PLATE_LOADED
+                equipment.contains("Bodyweight", ignoreCase = true) -> Implement.BODYWEIGHT
+                equipment.contains("EZ", ignoreCase = true) -> Implement.EZ_BAR
+                equipment.contains("Band", ignoreCase = true) -> Implement.BAND
+                else -> Implement.BARBELL
+            }
             val exercise = Exercise(
-                id = UUID.randomUUID().toString(),
+                id = id,
                 name = name,
                 muscleGroups = listOf(muscleGroup),
                 equipment = listOf(equipment),
                 description = description,
-                cues = emptyList()
+                cues = emptyList(),
+                familyId = id,
+                familyName = name,
+                implement = imp,
+                stance = Stance.STANDARD,
+                isPrimaryVariant = true
             )
             repository.saveExerciseDefinition(exercise)
         }
@@ -645,7 +687,15 @@ class WorkoutViewModel @Inject constructor(
     }
 
     fun updateExerciseSearch(query: String) {
-        _uiState.update { it.copy(exerciseSearchQuery = query) }
+        _uiState.update { it.copy(exerciseSearchQuery = query, selectedFamilyIdInPicker = null) }
+    }
+
+    fun selectFamilyInPicker(familyId: String?) {
+        _uiState.update { it.copy(selectedFamilyIdInPicker = familyId) }
+    }
+
+    fun toggleShowAllVariants(show: Boolean) {
+        _uiState.update { it.copy(isShowingAllVariants = show, selectedFamilyIdInPicker = null) }
     }
 
     fun setEquipmentFilter(equipment: String?) {
@@ -1005,20 +1055,6 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
-    private fun getUserBodyweight(): Float {
-        val profile = _uiState.value.userProfile ?: return 0f
-        return if (profile.unitSystem == UnitSystem.IMPERIAL) {
-            profile.weightKg * 2.20462f
-        } else {
-            profile.weightKg
-        }
-    }
-
-    private fun isBodyweightExercise(exerciseId: String): Boolean {
-        val exercise = _uiState.value.availableExercises.find { it.id == exerciseId }
-        return exercise?.equipment?.contains("Bodyweight") == true || exercise?.equipment?.contains("Weighted") == true
-    }
-
     fun startRoutine(routine: WorkoutRoutine, isDeload: Boolean = false) {
         if (_uiState.value.session != null) {
             _uiState.update { it.copy(activeSessionError = "A workout session is already in progress. Please finish or discard it before starting a new one.") }
@@ -1065,7 +1101,7 @@ class WorkoutViewModel @Inject constructor(
                 repository.saveWorkoutLog(workoutLog)
 
                 val cyberCrappGoal = if (session.protocol == WorkoutProtocol.CYBER_CRAPP) {
-                    if (isDeload) "DELOAD (RIR 3-4)" else CyberCrappRules.getRepRangeString(routineExercise.exercise.movementType)
+                    if (isDeload) "DELOAD (RIR 3-4)" else CyberCrappRules.getRepRangeString(routineExercise.exercise.movementType, routineExercise.exercise.familyId)
                 } else null
 
                 routineExercise.sets.forEach { routineSet ->
@@ -1323,15 +1359,13 @@ class WorkoutViewModel @Inject constructor(
             type == SetType.WIDOWMAKER -> "20"
             type == SetType.REST_PAUSE -> {
                 val exercise = _uiState.value.availableExercises.find { it.id == workoutLog.exerciseId }
-                exercise?.let { CyberCrappRules.getRepRangeString(it.movementType) }
+                exercise?.let { CyberCrappRules.getRepRangeString(it.movementType, it.familyId) }
             }
             session.protocol == WorkoutProtocol.CYBER_CRAPP && type == SetType.WARMUP -> CyberCrappRules.WARMUP_REP_RANGE
             else -> null
         }
 
-        val setWeight = if (weight == 0f && isBodyweightExercise(workoutLog.exerciseId)) {
-            getUserBodyweight()
-        } else weight
+        val setWeight = weight
 
         val setLog = SetLog(
             id = UUID.randomUUID().toString(),
@@ -1536,7 +1570,7 @@ class WorkoutViewModel @Inject constructor(
         
         val goalReps = if (log != null) {
             val exercise = _uiState.value.availableExercises.find { it.id == log.exerciseId }
-            exercise?.let { CyberCrappRules.getRepRangeString(it.movementType) }
+            exercise?.let { CyberCrappRules.getRepRangeString(it.movementType, it.familyId) }
         } else setLog.goalReps
 
         // Update original to be index 1 (already done in updateSet, but ensure here too)
@@ -2088,11 +2122,17 @@ class WorkoutViewModel @Inject constructor(
 
     fun startSubstitution(exerciseId: String) {
         val exercise = _uiState.value.availableExercises.find { it.id == exerciseId } ?: return
-        val recommendations = _uiState.value.availableExercises.filter { 
-            it.id != exerciseId && 
-            it.movementType == exercise.movementType && 
-            it.movementType != MovementType.UNDEFINED
-        }.take(3)
+        val allOther = _uiState.value.availableExercises.filter { it.id != exerciseId }
+
+        // Sort rules:
+        // 1. Same familyId, different id
+        // 2. Same movementType
+        // 3. Everything else
+        val recommendations = allOther.sortedWith(
+            compareByDescending<Exercise> { it.familyId == exercise.familyId }
+                .thenByDescending { it.movementType == exercise.movementType && it.movementType != MovementType.UNDEFINED }
+                .thenBy { it.name }
+        ).take(3)
 
         _uiState.update { it.copy(
             showSubstitutionDialog = true,
@@ -2123,7 +2163,7 @@ class WorkoutViewModel @Inject constructor(
             
             val isCC = session.protocol == WorkoutProtocol.CYBER_CRAPP
             val goalReps = if (isCC) {
-                if (session.isDeload) "DELOAD (RIR 3-4)" else CyberCrappRules.getRepRangeString(newExercise.movementType)
+                if (session.isDeload) "DELOAD (RIR 3-4)" else CyberCrappRules.getRepRangeString(newExercise.movementType, newExercise.familyId)
             } else null
 
             var globalTimestamp = java.time.Instant.now()
