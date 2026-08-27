@@ -43,9 +43,10 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_11_12
         ProgressionStateEntity::class,
         ExerciseAccomplishmentsEntity::class,
         BiomarkerSampleEntity::class,
-        FuelSnapshotEntity::class
+        FuelSnapshotEntity::class,
+        ProtocolRepTargetEntity::class
     ],
-    version = 47,
+    version = 48,
     exportSchema = true
 )
 @TypeConverters(

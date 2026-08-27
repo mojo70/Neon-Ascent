@@ -62,5 +62,8 @@ interface WorkoutRepository {
     fun getFuelHistory(from: java.time.Instant, to: java.time.Instant): Flow<List<FuelSnapshot>>
     suspend fun saveFuelSnapshot(snapshot: FuelSnapshot)
 
+    fun getProtocolRepTargets(): Flow<List<ProtocolRepTarget>>
+    suspend fun saveProtocolRepTarget(target: ProtocolRepTarget)
+
     suspend fun seedStarterExercises()
 }

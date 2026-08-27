@@ -3705,17 +3705,10 @@ fun WorkoutLogCard(
                 Spacer(modifier = Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f, fill = false)) {
                     val famName = exercise?.familyName ?: log.exerciseName
-                    Text(
-                        famName.uppercase(),
-                        color = Color.Gray,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 1.sp
-                    )
-
                     val variantTitle = remember(exercise) {
                         if (exercise != null) {
-                            buildString {
+                            if (exercise.isPrimaryVariant) "" 
+                            else buildString {
                                 if (exercise.stance != Stance.STANDARD) {
                                     append(exercise.stance.name.replace("_", " "))
                                 }
@@ -3723,21 +3716,30 @@ fun WorkoutLogCard(
                                     if (isNotEmpty()) append(" · ")
                                     append(exercise.specialtyBar ?: exercise.implement.name.replace("_", " "))
                                 }
-                                if (isEmpty()) append("STANDARD")
                             }
                         } else {
-                            log.exerciseName
+                            "" // Fallback if no exercise metadata, but we'll show log.exerciseName as famName
                         }
                     }
 
                     Text(
-                        variantTitle.uppercase(), 
-                        color = neonColor, 
-                        fontSize = (16 * (if (uiState.zoomLevel >= 1.5f) 0.9f else 1.0f)).sp, 
+                        famName.uppercase(),
+                        color = neonColor,
+                        fontSize = (16 * (if (uiState.zoomLevel >= 1.5f) 0.9f else 1.0f)).sp,
                         fontWeight = FontWeight.Black,
                         letterSpacing = 1.sp,
                         maxLines = 2
                     )
+
+                    if (variantTitle.isNotEmpty()) {
+                        Text(
+                            variantTitle.uppercase(),
+                            color = Color.Gray,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 1.sp
+                        )
+                    }
 
                     Text(
                         "VIEW_IN_CODEX",

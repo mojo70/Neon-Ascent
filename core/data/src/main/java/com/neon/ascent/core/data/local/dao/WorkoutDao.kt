@@ -229,6 +229,12 @@ interface WorkoutDao {
 
     @Query("SELECT * FROM fuel_snapshots WHERE timestamp BETWEEN :from AND :to ORDER BY timestamp ASC")
     fun getFuelHistory(from: Instant, to: Instant): Flow<List<FuelSnapshotEntity>>
+
+    @Upsert
+    suspend fun upsertProtocolRepTarget(target: ProtocolRepTargetEntity)
+
+    @Query("SELECT * FROM protocol_rep_targets")
+    fun getAllProtocolRepTargets(): Flow<List<ProtocolRepTargetEntity>>
 }
 
 data class SessionDateAndDeload(

@@ -115,7 +115,8 @@ data class WorkoutUiState(
     val exerciseToSubstitute: String? = null, // exerciseId
     val recommendedSubstitutes: List<Exercise> = emptyList(),
     val activeCyberCrappLogId: String? = null,
-    val stagnantExerciseId: String? = null
+    val stagnantExerciseId: String? = null,
+    val repTargets: List<ProtocolRepTarget> = emptyList()
 )
 
 @HiltViewModel
@@ -199,6 +200,12 @@ class WorkoutViewModel @Inject constructor(
             loadAugments()
             loadUserProfile()
             checkForActiveSession()
+            
+            launch {
+                repository.getProtocolRepTargets().collect { targets ->
+                    _uiState.update { it.copy(repTargets = targets) }
+                }
+            }
             
             launch {
                 repository.getRecoveryScore().collect { score ->
@@ -1100,15 +1107,24 @@ class WorkoutViewModel @Inject constructor(
                 )
                 repository.saveWorkoutLog(workoutLog)
 
-                val cyberCrappGoal = if (session.protocol == WorkoutProtocol.CYBER_CRAPP) {
-                    if (isDeload) "DELOAD (RIR 3-4)" else CyberCrappRules.getRepRangeString(routineExercise.exercise.movementType, routineExercise.exercise.familyId)
-                } else null
+                val progressionState = _uiState.value.progressionStates[routineExercise.exercise.id]
+                // Detection: If bestReps is 0 but we have a weight, we just jumped or it's a brand new exercise.
+                // Protocol logic: show min only as the target to focus on the weight jump.
+                val afterWeightJump = progressionState != null && progressionState.bestClusterReps == 0 && progressionState.currentWeight > 0
 
                 routineExercise.sets.forEach { routineSet ->
-                    val goalReps = routineSet.goalReps ?: when {
-                        routineSet.type == SetType.REST_PAUSE -> cyberCrappGoal
-                        routineSet.type == SetType.WARMUP && session.protocol == WorkoutProtocol.CYBER_CRAPP -> CyberCrappRules.WARMUP_REP_RANGE
-                        else -> null
+                    val goalReps = if (routineSet.goalReps != null) {
+                        routineSet.goalReps
+                    } else if (isDeload && routineSet.type == SetType.REST_PAUSE) {
+                        "DELOAD (RIR 3-4)"
+                    } else {
+                        CyberCrappRules.resolve(
+                            protocol = session.protocol,
+                            exercise = routineExercise.exercise,
+                            setType = routineSet.type,
+                            afterWeightJump = afterWeightJump,
+                            targets = _uiState.value.repTargets
+                        ).label
                     }
                     
                     // Do not pre-fill weight with calculated progression or working weights. 
@@ -1355,14 +1371,22 @@ class WorkoutViewModel @Inject constructor(
             }
         } else null
 
-        val goalReps = when {
-            type == SetType.WIDOWMAKER -> "20"
-            type == SetType.REST_PAUSE -> {
-                val exercise = _uiState.value.availableExercises.find { it.id == workoutLog.exerciseId }
-                exercise?.let { CyberCrappRules.getRepRangeString(it.movementType, it.familyId) }
+        val exercise = _uiState.value.availableExercises.find { it.id == workoutLog.exerciseId }
+        val progressionState = _uiState.value.progressionStates[workoutLog.exerciseId]
+        val afterWeightJump = progressionState != null && progressionState.bestClusterReps == 0 && progressionState.currentWeight > 0
+
+        val goalReps = if (type == SetType.WIDOWMAKER) {
+            "20"
+        } else {
+            exercise?.let {
+                CyberCrappRules.resolve(
+                    protocol = session.protocol,
+                    exercise = it,
+                    setType = type,
+                    afterWeightJump = afterWeightJump,
+                    targets = _uiState.value.repTargets
+                ).label
             }
-            session.protocol == WorkoutProtocol.CYBER_CRAPP && type == SetType.WARMUP -> CyberCrappRules.WARMUP_REP_RANGE
-            else -> null
         }
 
         val setWeight = weight
@@ -1567,10 +1591,18 @@ class WorkoutViewModel @Inject constructor(
         if (setsForLog.count { it.clusterMiniSetIndex != null } >= 3) return
 
         val log = logPair?.first
+        val exercise = _uiState.value.availableExercises.find { it.id == log?.exerciseId }
+        val progressionState = exercise?.let { _uiState.value.progressionStates[it.id] }
+        val afterWeightJump = progressionState != null && progressionState.bestClusterReps == 0 && progressionState.currentWeight > 0
         
-        val goalReps = if (log != null) {
-            val exercise = _uiState.value.availableExercises.find { it.id == log.exerciseId }
-            exercise?.let { CyberCrappRules.getRepRangeString(it.movementType, it.familyId) }
+        val goalReps = if (log != null && exercise != null) {
+            CyberCrappRules.resolve(
+                protocol = _uiState.value.session?.protocol ?: WorkoutProtocol.GENERAL,
+                exercise = exercise,
+                setType = SetType.REST_PAUSE,
+                afterWeightJump = afterWeightJump,
+                targets = _uiState.value.repTargets
+            ).label
         } else setLog.goalReps
 
         // Update original to be index 1 (already done in updateSet, but ensure here too)
@@ -2162,15 +2194,23 @@ class WorkoutViewModel @Inject constructor(
             }
             
             val isCC = session.protocol == WorkoutProtocol.CYBER_CRAPP
-            val goalReps = if (isCC) {
-                if (session.isDeload) "DELOAD (RIR 3-4)" else CyberCrappRules.getRepRangeString(newExercise.movementType, newExercise.familyId)
-            } else null
+            
+            val progressionState = _uiState.value.progressionStates[newExercise.id]
+            val afterWeightJump = progressionState != null && progressionState.bestClusterReps == 0 && progressionState.currentWeight > 0
 
             var globalTimestamp = java.time.Instant.now()
 
             if (isCC) {
                 // For CyberCrapp, rebuild the standard structure: 2 Warmups + 1 Rest-Pause Cluster (3 mini-sets)
                 // or 3 Normal Sets if Deload
+                
+                val warmupGoal = CyberCrappRules.resolve(session.protocol, newExercise, SetType.WARMUP, false, _uiState.value.repTargets).label
+                val workingGoal = if (session.isDeload) {
+                    "DELOAD (RIR 3-4)"
+                } else {
+                    CyberCrappRules.resolve(session.protocol, newExercise, SetType.REST_PAUSE, afterWeightJump, _uiState.value.repTargets).label
+                }
+
                 // Warmup 1
                 globalTimestamp = globalTimestamp.plusMillis(1)
                 repository.saveSetLog(
@@ -2180,7 +2220,7 @@ class WorkoutViewModel @Inject constructor(
                         weight = 0f,
                         reps = 0,
                         type = SetType.WARMUP,
-                        goalReps = CyberCrappRules.WARMUP_REP_RANGE,
+                        goalReps = warmupGoal,
                         timestamp = globalTimestamp
                     )
                 )
@@ -2193,7 +2233,7 @@ class WorkoutViewModel @Inject constructor(
                         weight = 0f,
                         reps = 0,
                         type = SetType.WARMUP,
-                        goalReps = CyberCrappRules.WARMUP_REP_RANGE,
+                        goalReps = warmupGoal,
                         timestamp = globalTimestamp
                     )
                 )
@@ -2208,7 +2248,7 @@ class WorkoutViewModel @Inject constructor(
                             weight = 0f,
                             reps = 0,
                             type = typeToSave,
-                            goalReps = goalReps,
+                            goalReps = workingGoal,
                             clusterMiniSetIndex = if (session.isDeload) null else i,
                             timestamp = globalTimestamp,
                             rir = if (session.isDeload) 4 else null
@@ -2223,6 +2263,7 @@ class WorkoutViewModel @Inject constructor(
                     SetLog(id = UUID.randomUUID().toString(), workoutLogId = updatedLog.id, weight = 0f, reps = 0, type = SetType.NORMAL)
                 )
                 baseSets.forEach { oldSet ->
+                    val setGoal = CyberCrappRules.resolve(session.protocol, newExercise, oldSet.type, afterWeightJump, _uiState.value.repTargets).label
                     globalTimestamp = globalTimestamp.plusMillis(1)
                     repository.saveSetLog(
                         SetLog(
@@ -2231,7 +2272,7 @@ class WorkoutViewModel @Inject constructor(
                             weight = 0f,
                             reps = 0,
                             type = oldSet.type,
-                            goalReps = goalReps,
+                            goalReps = setGoal,
                             timestamp = globalTimestamp
                         )
                     )

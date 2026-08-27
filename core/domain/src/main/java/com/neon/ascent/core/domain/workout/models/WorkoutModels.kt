@@ -137,6 +137,8 @@ data class Exercise(
     val implement: Implement,
     val stance: Stance = Stance.STANDARD,
     val specialtyBar: String? = null,
+    val rangeOverrideMin: Int? = null,
+    val rangeOverrideMax: Int? = null,
     val allowsAddedLoad: Boolean = false,
     val isPrimaryVariant: Boolean = false
 ) {
@@ -162,6 +164,17 @@ data class ExerciseFamily(
     val name: String,
     val movementType: MovementType,
     val variants: List<Exercise>
+)
+
+data class ProtocolRepTarget(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val protocol: WorkoutProtocol,
+    val movementType: MovementType,
+    val setType: SetType,
+    val familyId: String? = null,
+    val minReps: Int,
+    val maxReps: Int,
+    val unit: String = "REPS" // REPS or SECONDS
 )
 
 data class WorkoutLog(

@@ -16,6 +16,7 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_11_12
 import com.neon.ascent.core.data.local.migration.MIGRATION_43_44
 import com.neon.ascent.core.data.local.migration.MIGRATION_45_46
 import com.neon.ascent.core.data.local.migration.MIGRATION_46_47
+import com.neon.ascent.core.data.local.migration.MIGRATION_47_48
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -77,7 +78,7 @@ object DatabaseModule {
             dbName
         )
         .openHelperFactory(factory)
-        .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_11_12, MIGRATION_43_44, MIGRATION_45_46, MIGRATION_46_47)
+        .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_11_12, MIGRATION_43_44, MIGRATION_45_46, MIGRATION_46_47, MIGRATION_47_48)
         .fallbackToDestructiveMigration()
         .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
         .build()

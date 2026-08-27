@@ -51,6 +51,9 @@ fun ExerciseDefinitionEntity.toDomain() = Exercise(
     familyName = familyName,
     implement = Implement.valueOf(implement),
     stance = Stance.valueOf(stance),
+    specialtyBar = specialtyBar,
+    rangeOverrideMin = rangeOverrideMin,
+    rangeOverrideMax = rangeOverrideMax,
     allowsAddedLoad = allowsAddedLoad,
     isPrimaryVariant = isPrimaryVariant
 )
@@ -72,6 +75,9 @@ fun Exercise.toEntity() = ExerciseDefinitionEntity(
     familyName = familyName,
     implement = implement.name,
     stance = stance.name,
+    specialtyBar = specialtyBar,
+    rangeOverrideMin = rangeOverrideMin,
+    rangeOverrideMax = rangeOverrideMax,
     allowsAddedLoad = allowsAddedLoad,
     isPrimaryVariant = isPrimaryVariant
 )
@@ -317,6 +323,28 @@ fun FuelSnapshot.toEntity() = FuelSnapshotEntity(
     fat = fat,
     activityFactor = activityFactor,
     somatotype = somatotype.name
+)
+
+fun ProtocolRepTargetEntity.toDomain() = ProtocolRepTarget(
+    id = id,
+    protocol = WorkoutProtocol.valueOf(protocol),
+    movementType = MovementType.valueOf(movementType),
+    setType = SetType.valueOf(setType),
+    familyId = familyId,
+    minReps = minReps,
+    maxReps = maxReps,
+    unit = unit
+)
+
+fun ProtocolRepTarget.toEntity() = ProtocolRepTargetEntity(
+    id = id,
+    protocol = protocol.name,
+    movementType = movementType.name,
+    setType = setType.name,
+    familyId = familyId,
+    minReps = minReps,
+    maxReps = maxReps,
+    unit = unit
 )
 
 

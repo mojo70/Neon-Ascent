@@ -42,6 +42,8 @@ data class ExerciseDefinitionEntity(
     val implement: String = "OTHER",
     val stance: String = "STANDARD",
     val specialtyBar: String? = null,
+    val rangeOverrideMin: Int? = null,
+    val rangeOverrideMax: Int? = null,
     val allowsAddedLoad: Boolean = false,
     val isPrimaryVariant: Boolean = false
 )
@@ -246,6 +248,21 @@ data class UserWorkoutProfileEntity(
     val customSequenceIds: String = "[]",
     val coachingHintsEnabled: Boolean = true,
     val lastBlastStartDate: Instant? = null
+)
+
+@Entity(
+    tableName = "protocol_rep_targets",
+    indices = [Index(value = ["protocol", "movementType", "setType", "familyId"], unique = true)]
+)
+data class ProtocolRepTargetEntity(
+    @PrimaryKey val id: String,
+    val protocol: String,
+    val movementType: String,
+    val setType: String,
+    val familyId: String? = null,
+    val minReps: Int,
+    val maxReps: Int,
+    val unit: String = "REPS"
 )
 
 @Entity(tableName = "workout_routines")

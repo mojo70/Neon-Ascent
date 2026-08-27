@@ -119,6 +119,13 @@ class WorkoutRepositoryImpl @Inject constructor(
         workoutDao.upsertFuelSnapshot(snapshot.toEntity())
     }
 
+    override fun getProtocolRepTargets(): Flow<List<ProtocolRepTarget>> =
+        workoutDao.getAllProtocolRepTargets().map { entities -> entities.map { it.toDomain() } }
+
+    override suspend fun saveProtocolRepTarget(target: ProtocolRepTarget) {
+        workoutDao.upsertProtocolRepTarget(target.toEntity())
+    }
+
     override fun getAllRoutines(): Flow<List<WorkoutRoutine>> =
         workoutDao.getAllRoutines().map { list ->
             list.map { it.routine.toDomain(it.exercisesWithOrder, it.routineSets, it.augmentsWithOrder) }
@@ -380,6 +387,7 @@ class WorkoutRepositoryImpl @Inject constructor(
     }
 
     override suspend fun seedStarterExercises() {
+        seedProtocolRepTargets()
         val exercises = listOf(
             // --- Push / Bench / Chest ---
             Exercise(
@@ -2226,6 +2234,43 @@ class WorkoutRepositoryImpl @Inject constructor(
                     )
                 }
             }
+        }
+    }
+
+    private suspend fun seedProtocolRepTargets() {
+        val targets = listOf(
+            // CYBER_CRAPP Wildcards
+            ProtocolRepTarget(protocol = WorkoutProtocol.CYBER_CRAPP, movementType = MovementType.UNDEFINED, setType = SetType.WARMUP, minReps = 5, maxReps = 10),
+            ProtocolRepTarget(protocol = WorkoutProtocol.CYBER_CRAPP, movementType = MovementType.UNDEFINED, setType = SetType.PARTIAL, minReps = 3, maxReps = 5),
+            ProtocolRepTarget(protocol = WorkoutProtocol.CYBER_CRAPP, movementType = MovementType.UNDEFINED, setType = SetType.STRETCH, minReps = 30, maxReps = 45, unit = "SECONDS"),
+
+            // CYBER_CRAPP Movement Specific (REST_PAUSE)
+            ProtocolRepTarget(protocol = WorkoutProtocol.CYBER_CRAPP, movementType = MovementType.COMPOUND_UPPER, setType = SetType.REST_PAUSE, minReps = 11, maxReps = 20),
+            ProtocolRepTarget(protocol = WorkoutProtocol.CYBER_CRAPP, movementType = MovementType.ISOLATION_UPPER, setType = SetType.REST_PAUSE, minReps = 11, maxReps = 20),
+            ProtocolRepTarget(protocol = WorkoutProtocol.CYBER_CRAPP, movementType = MovementType.BACK_WIDTH, setType = SetType.REST_PAUSE, minReps = 11, maxReps = 20),
+            ProtocolRepTarget(protocol = WorkoutProtocol.CYBER_CRAPP, movementType = MovementType.BACK_THICKNESS, setType = SetType.REST_PAUSE, minReps = 10, maxReps = 15),
+            ProtocolRepTarget(protocol = WorkoutProtocol.CYBER_CRAPP, movementType = MovementType.POSTERIOR_CHAIN, setType = SetType.REST_PAUSE, minReps = 10, maxReps = 15),
+            ProtocolRepTarget(protocol = WorkoutProtocol.CYBER_CRAPP, movementType = MovementType.QUAD_DOMINANT, setType = SetType.REST_PAUSE, minReps = 11, maxReps = 20),
+            ProtocolRepTarget(protocol = WorkoutProtocol.CYBER_CRAPP, movementType = MovementType.HAMSTRING_ISOLATION, setType = SetType.REST_PAUSE, minReps = 15, maxReps = 25),
+            ProtocolRepTarget(protocol = WorkoutProtocol.CYBER_CRAPP, movementType = MovementType.CALVES, setType = SetType.REST_PAUSE, minReps = 10, maxReps = 15),
+
+            // CYBER_CRAPP Movement Specific (NORMAL / DEADLIFT)
+            ProtocolRepTarget(protocol = WorkoutProtocol.CYBER_CRAPP, movementType = MovementType.DEADLIFT, setType = SetType.NORMAL, minReps = 6, maxReps = 9),
+            ProtocolRepTarget(protocol = WorkoutProtocol.CYBER_CRAPP, movementType = MovementType.ABS, setType = SetType.NORMAL, minReps = 15, maxReps = 30),
+
+            // CYBER_CRAPP Family Specific (SQUAT)
+            ProtocolRepTarget(protocol = WorkoutProtocol.CYBER_CRAPP, movementType = MovementType.QUAD_DOMINANT, setType = SetType.NORMAL, familyId = "squat", minReps = 6, maxReps = 10),
+            ProtocolRepTarget(protocol = WorkoutProtocol.CYBER_CRAPP, movementType = MovementType.QUAD_DOMINANT, setType = SetType.WIDOWMAKER, familyId = "squat", minReps = 20, maxReps = 20),
+
+            // GENERAL / STRAIGHT_SETS
+            ProtocolRepTarget(protocol = WorkoutProtocol.GENERAL, movementType = MovementType.UNDEFINED, setType = SetType.NORMAL, minReps = 8, maxReps = 12),
+            ProtocolRepTarget(protocol = WorkoutProtocol.GENERAL, movementType = MovementType.UNDEFINED, setType = SetType.WARMUP, minReps = 5, maxReps = 10),
+            ProtocolRepTarget(protocol = WorkoutProtocol.STRAIGHT_SETS, movementType = MovementType.UNDEFINED, setType = SetType.NORMAL, minReps = 8, maxReps = 12),
+            ProtocolRepTarget(protocol = WorkoutProtocol.STRAIGHT_SETS, movementType = MovementType.UNDEFINED, setType = SetType.WARMUP, minReps = 5, maxReps = 10)
+        )
+
+        targets.forEach { target ->
+            workoutDao.upsertProtocolRepTarget(target.toEntity())
         }
     }
 
