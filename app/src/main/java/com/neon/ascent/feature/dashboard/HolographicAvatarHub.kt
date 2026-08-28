@@ -70,7 +70,8 @@ fun HolographicAvatarHub(
     onUpgradeClick: (String) -> Unit,
     onNavigateToDiagnostics: () -> Unit,
     onLoreClick: () -> Unit = {},
-    onNavigateToForge: (SpecialType, String?, String?, String?) -> Unit = { _, _, _, _ -> }
+    onNavigateToForge: (SpecialType, String?, String?, String?) -> Unit = { _, _, _, _ -> },
+    onRedoAvatar: () -> Unit = {}
 ) {
     val userCharacter by viewModel.userCharacter.collectAsState()
     val state by viewModel.uiState.collectAsState()
@@ -255,24 +256,52 @@ fun HolographicAvatarHub(
                         .padding(16.dp)
                 )
 
-                // Share Button - Moved to top-right below HR badge
-                Box(
+                // Interactive Overlays (Share & Redo)
+                Column(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(top = 72.dp, end = 16.dp)
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.4f))
-                        .border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.4f), CircleShape)
-                        .clickable { showSnapshotPreview = true },
-                    contentAlignment = Alignment.Center
+                        .padding(top = 72.dp, end = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        Icons.Default.Share,
-                        contentDescription = "Share",
-                        tint = Color(0xFF00FF9C),
-                        modifier = Modifier.size(16.dp)
-                    )
+                    // Share Button
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.4f))
+                            .border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.4f), CircleShape)
+                            .clickable { showSnapshotPreview = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Share,
+                            contentDescription = "Share",
+                            tint = Color(0xFF00FF9C),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+
+                    // Redo Button
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.4f))
+                            .border(1.dp, NeonPink.copy(alpha = 0.4f), CircleShape)
+                            .clickable { 
+                                viewModel.logSystemEvent("AVATAR_RECALIBRATION_INITIATED")
+                                onRedoAvatar() 
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = "Redo Avatar",
+                            tint = NeonPink,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
 
                 // Live HR Badge (Top Right)

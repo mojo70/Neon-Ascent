@@ -368,6 +368,9 @@ fun AppNavigation(
                 onLoreClick = { navController.navigate(Screen.Lore) },
                 onNavigateToForge = { type, title, desc, biometrics ->
                     navController.navigate(Screen.AscensionForge(type.name, title, desc, biometrics = biometrics))
+                },
+                onRedoAvatar = {
+                    navController.navigate(Screen.AvatarCapture)
                 }
             )
         }

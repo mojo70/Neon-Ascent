@@ -1886,7 +1886,10 @@ class WorkoutViewModel @Inject constructor(
                             RoutineSet(
                                 type = setLog.type,
                                 weight = setLog.weight,
-                                reps = if (setLog.isCompleted) setLog.reps else (setLog.goalReps?.toIntOrNull() ?: 0),
+                                reps = if (setLog.isCompleted) setLog.reps else {
+                                    // If not completed, try to extract min from goalReps (e.g. "11-20" -> 11)
+                                    setLog.goalReps?.split("-")?.firstOrNull()?.filter { it.isDigit() }?.toIntOrNull() ?: 0
+                                },
                                 goalReps = setLog.goalReps
                             )
                         }
@@ -1898,7 +1901,8 @@ class WorkoutViewModel @Inject constructor(
         if (hadNonAugmentExercises && updatedExercises.isEmpty()) return
 
         val updatedRoutine = activeRoutine.copy(
-            exercises = updatedExercises
+            exercises = updatedExercises,
+            isAddedToLibrary = true // Ensure modified system routines persist in user library
         )
         
         viewModelScope.launch {
@@ -2186,6 +2190,19 @@ class WorkoutViewModel @Inject constructor(
                 exerciseId = newExercise.id,
                 exerciseName = newExercise.name
             )
+            
+            // Immediate UI feedback to avoid race conditions when finishing
+            _uiState.update { state ->
+                val newLogs = state.logs.map { (log, sets) ->
+                    if (log.id == updatedLog.id) {
+                        updatedLog to emptyList<SetLog>() // Sets will be updated below
+                    } else {
+                        log to sets
+                    }
+                }
+                state.copy(logs = newLogs)
+            }
+
             repository.saveWorkoutLog(updatedLog)
             
             // Delete existing sets for this log as it's a new exercise
@@ -2199,6 +2216,7 @@ class WorkoutViewModel @Inject constructor(
             val afterWeightJump = progressionState != null && progressionState.bestClusterReps == 0 && progressionState.currentWeight > 0
 
             var globalTimestamp = java.time.Instant.now()
+            val newSets = mutableListOf<SetLog>()
 
             if (isCC) {
                 // For CyberCrapp, rebuild the standard structure: 2 Warmups + 1 Rest-Pause Cluster (3 mini-sets)
@@ -2213,47 +2231,43 @@ class WorkoutViewModel @Inject constructor(
 
                 // Warmup 1
                 globalTimestamp = globalTimestamp.plusMillis(1)
-                repository.saveSetLog(
-                    SetLog(
-                        id = UUID.randomUUID().toString(),
-                        workoutLogId = updatedLog.id,
-                        weight = 0f,
-                        reps = 0,
-                        type = SetType.WARMUP,
-                        goalReps = warmupGoal,
-                        timestamp = globalTimestamp
-                    )
-                )
+                SetLog(
+                    id = UUID.randomUUID().toString(),
+                    workoutLogId = updatedLog.id,
+                    weight = 0f,
+                    reps = 0,
+                    type = SetType.WARMUP,
+                    goalReps = warmupGoal,
+                    timestamp = globalTimestamp
+                ).also { newSets.add(it) }
+                
                 // Warmup 2
                 globalTimestamp = globalTimestamp.plusMillis(1)
-                repository.saveSetLog(
-                    SetLog(
-                        id = UUID.randomUUID().toString(),
-                        workoutLogId = updatedLog.id,
-                        weight = 0f,
-                        reps = 0,
-                        type = SetType.WARMUP,
-                        goalReps = warmupGoal,
-                        timestamp = globalTimestamp
-                    )
-                )
+                SetLog(
+                    id = UUID.randomUUID().toString(),
+                    workoutLogId = updatedLog.id,
+                    weight = 0f,
+                    reps = 0,
+                    type = SetType.WARMUP,
+                    goalReps = warmupGoal,
+                    timestamp = globalTimestamp
+                ).also { newSets.add(it) }
+                
                 // Cluster sets (3 mini-sets) or deload sets
                 val typeToSave = if (session.isDeload) SetType.NORMAL else SetType.REST_PAUSE
                 for (i in 1..3) {
                     globalTimestamp = globalTimestamp.plusMillis(1)
-                    repository.saveSetLog(
-                        SetLog(
-                            id = UUID.randomUUID().toString(),
-                            workoutLogId = updatedLog.id,
-                            weight = 0f,
-                            reps = 0,
-                            type = typeToSave,
-                            goalReps = workingGoal,
-                            clusterMiniSetIndex = if (session.isDeload) null else i,
-                            timestamp = globalTimestamp,
-                            rir = if (session.isDeload) 4 else null
-                        )
-                    )
+                    SetLog(
+                        id = UUID.randomUUID().toString(),
+                        workoutLogId = updatedLog.id,
+                        weight = 0f,
+                        reps = 0,
+                        type = typeToSave,
+                        goalReps = workingGoal,
+                        clusterMiniSetIndex = if (session.isDeload) null else i,
+                        timestamp = globalTimestamp,
+                        rir = if (session.isDeload) 4 else null
+                    ).also { newSets.add(it) }
                 }
             } else {
                 // If old sets existed, preserve the count/types, otherwise add 3 standard sets
@@ -2265,25 +2279,36 @@ class WorkoutViewModel @Inject constructor(
                 baseSets.forEach { oldSet ->
                     val setGoal = CyberCrappRules.resolve(session.protocol, newExercise, oldSet.type, afterWeightJump, _uiState.value.repTargets).label
                     globalTimestamp = globalTimestamp.plusMillis(1)
-                    repository.saveSetLog(
-                        SetLog(
-                            id = UUID.randomUUID().toString(),
-                            workoutLogId = updatedLog.id,
-                            weight = 0f,
-                            reps = 0,
-                            type = oldSet.type,
-                            goalReps = setGoal,
-                            timestamp = globalTimestamp
-                        )
-                    )
+                    SetLog(
+                        id = UUID.randomUUID().toString(),
+                        workoutLogId = updatedLog.id,
+                        weight = 0f,
+                        reps = 0,
+                        type = oldSet.type,
+                        goalReps = setGoal,
+                        timestamp = globalTimestamp
+                    ).also { newSets.add(it) }
                 }
             }
 
-            _uiState.update { it.copy(
-                showSubstitutionDialog = false,
-                exerciseToSubstitute = null,
-                recommendedSubstitutes = emptyList()
-            ) }
+            newSets.forEach { repository.saveSetLog(it) }
+            
+            // Final UI update with all new sets to ensure consistency
+            _uiState.update { state ->
+                val finalizedLogs = state.logs.map { (log, sets) ->
+                    if (log.id == updatedLog.id) {
+                        updatedLog to newSets.sortedWith(compareBy({ it.timestamp }, { it.id }))
+                    } else {
+                        log to sets
+                    }
+                }
+                state.copy(
+                    logs = finalizedLogs,
+                    showSubstitutionDialog = false,
+                    exerciseToSubstitute = null,
+                    recommendedSubstitutes = emptyList()
+                )
+            }
 
             loadPreviousData(newExercise.id)
         }
