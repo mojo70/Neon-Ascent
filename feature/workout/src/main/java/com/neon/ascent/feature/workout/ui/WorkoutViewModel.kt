@@ -16,6 +16,7 @@ import com.neon.ascent.core.domain.goals.models.AscensionTask
 import com.neon.ascent.core.domain.goals.models.AscensionTaskType
 import com.neon.ascent.core.domain.workout.rules.CyberCrappRules
 import com.neon.ascent.feature.workout.services.WorkoutTimerService
+import com.neon.ascent.core.domain.workout.protocol.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
@@ -116,7 +117,12 @@ data class WorkoutUiState(
     val recommendedSubstitutes: List<Exercise> = emptyList(),
     val activeCyberCrappLogId: String? = null,
     val stagnantExerciseId: String? = null,
-    val repTargets: List<ProtocolRepTarget> = emptyList()
+    val repTargets: List<ProtocolRepTarget> = emptyList(),
+    val currentUiMode: ProtocolUiMode = ProtocolUiMode.LINEAR,
+    val protocolIntakeNeeded: WorkoutProtocol? = null,
+    val isStrategicDeconditioningActive: Boolean = false,
+    val showProtocolChangeReminderDialog: WorkoutProtocol? = null,
+    val allExerciseMaxes: List<ExerciseMax> = emptyList()
 )
 
 @HiltViewModel
@@ -192,6 +198,63 @@ class WorkoutViewModel @Inject constructor(
     private var sessionJob: kotlinx.coroutines.Job? = null
     private var zoomUpdateJob: kotlinx.coroutines.Job? = null
 
+    private val startingStrengthEngine by lazy { 
+        StartingStrengthEngine(_uiState.value.userProfile?.unitSystem ?: UnitSystem.IMPERIAL) 
+    }
+
+    private val hstEngine by lazy {
+        HSTEngine(
+            _uiState.value.userProfile?.unitSystem ?: UnitSystem.IMPERIAL,
+            _uiState.value.userProfile?.weightIncrementCompound ?: 2.5f
+        )
+    }
+
+    private val fiveThreeOneEngine by lazy {
+        FiveThreeOneEngine(_uiState.value.userProfile?.weightIncrementCompound ?: 2.5f)
+    }
+
+    private val dupEngine by lazy {
+        DUPEngine(_uiState.value.userProfile?.weightIncrementCompound ?: 2.5f)
+    }
+
+    private val westsideEngine by lazy {
+        WestsideEngine(_uiState.value.userProfile?.weightIncrementCompound ?: 2.5f)
+    }
+
+    private fun getEngine(protocol: WorkoutProtocol): ProtocolEngine? = when (protocol) {
+        WorkoutProtocol.STARTING_STRENGTH -> startingStrengthEngine
+        WorkoutProtocol.HST -> hstEngine
+        WorkoutProtocol.FIVE_THREE_ONE -> fiveThreeOneEngine
+        WorkoutProtocol.DUP -> dupEngine
+        WorkoutProtocol.WESTSIDE -> westsideEngine
+        WorkoutProtocol.CYBER_CRAPP -> CyberCrappEngine()
+        WorkoutProtocol.GENERAL, WorkoutProtocol.STRAIGHT_SETS, WorkoutProtocol.SUPERSETS -> GeneralEngine(protocol)
+        else -> null
+    }
+
+    fun isIntakeNeededForProtocol(protocol: WorkoutProtocol): Boolean {
+        val maxes = _uiState.value.allExerciseMaxes
+        val families = when (protocol) {
+            WorkoutProtocol.STARTING_STRENGTH -> listOf("squat", "bench_press", "overhead_press", "deadlift")
+            WorkoutProtocol.FIVE_THREE_ONE -> listOf("overhead_press", "deadlift", "bench_press", "squat")
+            WorkoutProtocol.WESTSIDE -> listOf("squat", "bench_press", "deadlift")
+            WorkoutProtocol.DUP -> listOf("squat", "bench_press", "rows")
+            WorkoutProtocol.HST -> listOf("squat", "bench_press", "rows", "overhead_press", "deadlift")
+            else -> emptyList()
+        }
+        
+        return families.any { familyId ->
+            val max = maxes.find { it.familyId == familyId }
+            if (protocol == WorkoutProtocol.HST) {
+                max?.rm15 == null || max.rm10 == null || max.rm5 == null
+            } else if (protocol == WorkoutProtocol.WESTSIDE) {
+                max?.oneRepMax == 0f
+            } else {
+                max?.trainingMax == null
+            }
+        }
+    }
+
     init {
         viewModelScope.launch {
             repository.seedStarterExercises()
@@ -207,6 +270,12 @@ class WorkoutViewModel @Inject constructor(
                 }
             }
             
+            launch {
+                repository.getAllExerciseMaxes().collect { maxes ->
+                    _uiState.update { it.copy(allExerciseMaxes = maxes) }
+                }
+            }
+
             launch {
                 repository.getRecoveryScore().collect { score ->
                     _uiState.update { it.copy(recoveryScore = score) }
@@ -279,6 +348,10 @@ class WorkoutViewModel @Inject constructor(
         viewModelScope.launch {
             healthPrefs.setAutoStartRestTimer(!_uiState.value.isAutoStartTimerEnabled)
         }
+    }
+
+    fun toggleSomatotypeInfluence() {
+        _uiState.update { it.copy(useSomatotypeInfluence = !it.useSomatotypeInfluence) }
     }
 
     fun startManualRestTimer() {
@@ -744,6 +817,7 @@ class WorkoutViewModel @Inject constructor(
         val profile = _uiState.value.tempSettingsProfile ?: return
         viewModelScope.launch {
             repository.saveUserProfile(profile)
+            syncWorkoutReminders(profile)
             _uiState.update { it.copy(userProfile = profile, isShowingSettings = false, tempSettingsProfile = null) }
         }
     }
@@ -757,11 +831,17 @@ class WorkoutViewModel @Inject constructor(
     }
 
     fun showProtocolDetail(protocol: WorkoutProtocol) {
-        _uiState.update { it.copy(selectedProtocolForDetail = protocol) }
+        _uiState.update { it.copy(
+            selectedProtocolForDetail = protocol,
+            isExploringProtocols = false
+        ) }
     }
 
     fun hideProtocolDetail() {
-        _uiState.update { it.copy(selectedProtocolForDetail = null) }
+        _uiState.update { it.copy(
+            selectedProtocolForDetail = null,
+            isExploringProtocols = true
+        ) }
     }
 
     fun showRoutinePreview(routine: WorkoutRoutine) {
@@ -878,9 +958,61 @@ class WorkoutViewModel @Inject constructor(
 
     fun addProtocolToLibrary(protocol: WorkoutProtocol) {
         val currentProfile = _uiState.value.userProfile ?: return
+        
+        if (currentProfile.activeProtocol != null && currentProfile.activeProtocol != protocol) {
+            _uiState.update { it.copy(showProtocolChangeReminderDialog = protocol) }
+        } else {
+            // Direct activation for new/same protocols
+            viewModelScope.launch {
+                val updatedProfile = currentProfile.copy(activeProtocol = protocol)
+                repository.saveUserProfile(updatedProfile)
+                
+                // Immediately update local state to avoid UI lag
+                _uiState.update { it.copy(userProfile = updatedProfile) }
+                
+                proceedWithProtocolConfig(protocol, resetReminders = true)
+            }
+        }
+    }
+
+    fun confirmProtocolChange(resetReminders: Boolean) {
+        val protocol = _uiState.value.showProtocolChangeReminderDialog ?: return
+        val currentProfile = _uiState.value.userProfile ?: return
+        
+        _uiState.update { it.copy(showProtocolChangeReminderDialog = null) }
+        
+        viewModelScope.launch {
+            val updatedProfile = currentProfile.copy(activeProtocol = protocol)
+            repository.saveUserProfile(updatedProfile)
+            
+            // Immediately update local state
+            _uiState.update { it.copy(userProfile = updatedProfile) }
+            
+            proceedWithProtocolConfig(protocol, resetReminders)
+        }
+    }
+
+    fun cancelProtocolChange() {
+        _uiState.update { it.copy(showProtocolChangeReminderDialog = null) }
+    }
+
+    private fun proceedWithProtocolConfig(protocol: WorkoutProtocol, resetReminders: Boolean) {
+        val currentProfile = _uiState.value.userProfile ?: return
+        val engine = getEngine(protocol)
+        
+        val newSchedule = if (resetReminders && engine != null) {
+            val baseTime = currentProfile.scheduledDays.firstOrNull()?.time ?: "09:00"
+            engine.defaultWeekdays.map { ScheduledDay(it, baseTime) }
+        } else {
+            currentProfile.scheduledDays
+        }
+
         _uiState.update { it.copy(
             configuringProtocol = protocol,
-            tempConfigProfile = currentProfile.copy(activeProtocol = protocol),
+            tempConfigProfile = currentProfile.copy(
+                activeProtocol = protocol,
+                scheduledDays = newSchedule
+            ),
             selectedProtocolForDetail = null,
             isExploringProtocols = false
         ) }
@@ -907,35 +1039,63 @@ class WorkoutViewModel @Inject constructor(
             // 2. Update user profile with new active protocol and schedule
             repository.saveUserProfile(profile)
 
-            // 3. Clear existing workout schedule/reminders to avoid duplicates
-            val existingTasks = ascensionRepository.getAllRecurringTasks().first()
-            existingTasks.filter { task ->
-                task.tags.contains("workout_session") || task.tags.any { it.startsWith("protocol_") }
-            }.forEach { task ->
-                ascensionRepository.deleteTask(task.id)
-            }
-
-            // 4. Schedule Recurring Tasks for training days
-            profile.scheduledDays.forEach { scheduled ->
-                val task = AscensionTask(
-                    id = UUID.randomUUID().toString(),
-                    parentId = null,
-                    title = "TRAINING SESSION: ${protocol.displayName}",
-                    description = "Sync with the next routine in your protocol rotation.",
-                    type = AscensionTaskType.RECURRING,
-                    recurrence = com.neon.ascent.core.domain.goals.models.RecurrenceV3(
-                        type = com.neon.ascent.core.domain.goals.models.RecurrenceTypeV3.DAYS_OF_WEEK,
-                        daysOfWeek = setOf(java.time.DayOfWeek.of(scheduled.dayOfWeek))
-                    ),
-                    timeWindows = listOf(scheduled.time),
-                    reminderEnabled = true,
-                    xpValue = 25,
-                    tags = listOf("workout_session", "protocol_${protocol.name}")
-                )
-                ascensionRepository.insertTask(task)
-            }
+            syncWorkoutReminders(profile)
 
             _uiState.update { it.copy(configuringProtocol = null, tempConfigProfile = null, userProfile = profile) }
+        }
+    }
+
+    private suspend fun syncWorkoutReminders(profile: UserWorkoutProfile) {
+        val protocol = profile.activeProtocol ?: return
+
+        // 1. Clear existing workout schedule/reminders to avoid duplicates
+        val existingTasks = ascensionRepository.getAllRecurringTasks().first()
+        existingTasks.filter { task ->
+            task.tags.contains("workout_session") || task.tags.any { it.startsWith("protocol_") }
+        }.forEach { task ->
+            ascensionRepository.deleteTask(task.id)
+        }
+
+        val activeCycle = repository.getActiveCycle(profile.userId).first()
+        
+        // 2. HST SD logic: disable or skip training reminders until sdUntil
+        if (protocol == WorkoutProtocol.HST && activeCycle != null && hstEngine.isSdActive(activeCycle)) {
+            val config = hstEngine.parseConfig(activeCycle.configJson)
+            if (config.sdUntil != null) {
+                val retestTask = AscensionTask(
+                    id = UUID.randomUUID().toString(),
+                    parentId = null,
+                    title = "RETEST WINDOW: HST NEURAL RECALIBRATION",
+                    description = "Neural recovery complete. Perform new RM testing today.",
+                    type = AscensionTaskType.ONE_TIME,
+                    timeWindows = listOf("09:00"),
+                    reminderEnabled = true,
+                    xpValue = 50,
+                    tags = listOf("workout_session", "protocol_HST", "sd_retest")
+                )
+                ascensionRepository.insertTask(retestTask)
+            }
+            return
+        }
+
+        // 3. Normal schedule reminders
+        profile.scheduledDays.forEach { scheduled ->
+            val task = AscensionTask(
+                id = UUID.randomUUID().toString(),
+                parentId = null,
+                title = "TRAINING SESSION: ${protocol.displayName}",
+                description = "Sync with the next routine in your protocol rotation.",
+                type = AscensionTaskType.RECURRING,
+                recurrence = com.neon.ascent.core.domain.goals.models.RecurrenceV3(
+                    type = com.neon.ascent.core.domain.goals.models.RecurrenceTypeV3.DAYS_OF_WEEK,
+                    daysOfWeek = setOf(java.time.DayOfWeek.of(scheduled.dayOfWeek))
+                ),
+                timeWindows = listOf(scheduled.time),
+                reminderEnabled = true,
+                xpValue = 25,
+                tags = listOf("workout_session", "protocol_${protocol.name}")
+            )
+            ascensionRepository.insertTask(task)
         }
     }
 
@@ -1062,6 +1222,797 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
+    fun startStartingStrengthCycle(initialWeights: Map<String, Float>) {
+        val userId = _uiState.value.userProfile?.userId ?: return
+        viewModelScope.launch {
+            // Deactivate any existing active cycles for this user
+            repository.getActiveCycle(userId).first()?.let {
+                repository.saveProtocolCycle(it.copy(status = CycleStatus.COMPLETED))
+            }
+
+            // 1. Create ExerciseMax entries
+            initialWeights.forEach { (familyId, weight) ->
+                repository.upsertExerciseMax(
+                    ExerciseMax(
+                        familyId = familyId,
+                        testedAt = java.time.Instant.now(),
+                        oneRepMax = 0f,
+                        trainingMax = weight,
+                        source = MaxSource.MANUAL
+                    )
+                )
+            }
+
+            // 2. Start Cycle
+            val cycle = ProtocolCycle(
+                id = UUID.randomUUID().toString(),
+                userId = userId,
+                protocol = WorkoutProtocol.STARTING_STRENGTH,
+                startedAt = java.time.Instant.now(),
+                status = CycleStatus.ACTIVE,
+                currentWeek = 1,
+                currentDayIndex = 0,
+                configJson = "{ \"strikes\": {} }"
+            )
+            repository.saveProtocolCycle(cycle)
+            
+            // 3. Update profile
+            _uiState.value.userProfile?.let {
+                repository.saveUserProfile(it.copy(activeProtocol = WorkoutProtocol.STARTING_STRENGTH))
+            }
+
+            kotlinx.coroutines.delay(100)
+            startStartingStrengthSession()
+        }
+    }
+
+    fun startHstCycle(rms: Map<String, Triple<Float?, Float?, Float?>>) {
+        val userId = _uiState.value.userProfile?.userId ?: return
+        viewModelScope.launch {
+            // Deactivate any existing active cycles for this user
+            repository.getActiveCycle(userId).first()?.let {
+                repository.saveProtocolCycle(it.copy(status = CycleStatus.COMPLETED))
+            }
+
+            rms.forEach { (familyId, rmValues) ->
+                repository.upsertExerciseMax(
+                    ExerciseMax(
+                        familyId = familyId,
+                        testedAt = java.time.Instant.now(),
+                        oneRepMax = 0f,
+                        rm15 = rmValues.first,
+                        rm10 = rmValues.second,
+                        rm5 = rmValues.third,
+                        source = MaxSource.MANUAL
+                    )
+                )
+            }
+
+            val cycle = ProtocolCycle(
+                id = UUID.randomUUID().toString(),
+                userId = userId,
+                protocol = WorkoutProtocol.HST,
+                startedAt = java.time.Instant.now(),
+                status = CycleStatus.ACTIVE,
+                currentWeek = 1,
+                currentDayIndex = 0,
+                configJson = "{ \"holds\": {} }"
+            )
+            repository.saveProtocolCycle(cycle)
+            
+            _uiState.value.userProfile?.let {
+                repository.saveUserProfile(it.copy(activeProtocol = WorkoutProtocol.HST))
+            }
+
+            kotlinx.coroutines.delay(100)
+            startHstSession()
+        }
+    }
+
+    fun startFiveThreeOneCycle(maxes: Map<String, Float>) {
+        val userId = _uiState.value.userProfile?.userId ?: return
+        viewModelScope.launch {
+            // Deactivate any existing active cycles for this user
+            repository.getActiveCycle(userId).first()?.let {
+                repository.saveProtocolCycle(it.copy(status = CycleStatus.COMPLETED))
+            }
+
+            maxes.forEach { (familyId, oneRM) ->
+                repository.upsertExerciseMax(
+                    ExerciseMax(
+                        familyId = familyId,
+                        testedAt = java.time.Instant.now(),
+                        oneRepMax = oneRM,
+                        trainingMax = oneRM * 0.9f,
+                        source = MaxSource.MANUAL
+                    )
+                )
+            }
+
+            val cycle = ProtocolCycle(
+                id = UUID.randomUUID().toString(),
+                userId = userId,
+                protocol = WorkoutProtocol.FIVE_THREE_ONE,
+                startedAt = java.time.Instant.now(),
+                status = CycleStatus.ACTIVE,
+                currentWeek = 1,
+                currentDayIndex = 0
+            )
+            repository.saveProtocolCycle(cycle)
+            
+            _uiState.value.userProfile?.let {
+                repository.saveUserProfile(it.copy(activeProtocol = WorkoutProtocol.FIVE_THREE_ONE))
+            }
+
+            // Small delay to ensure DB Flow propagation before gate check
+            kotlinx.coroutines.delay(100)
+            startFiveThreeOneSession()
+        }
+    }
+
+    fun startWestsideCycle(maxes: Map<String, Float>) {
+        val userId = _uiState.value.userProfile?.userId ?: return
+        viewModelScope.launch {
+            // Deactivate any existing active cycles for this user
+            repository.getActiveCycle(userId).first()?.let {
+                repository.saveProtocolCycle(it.copy(status = CycleStatus.COMPLETED))
+            }
+
+            maxes.forEach { (familyId, oneRM) ->
+                repository.upsertExerciseMax(
+                    ExerciseMax(
+                        familyId = familyId,
+                        testedAt = java.time.Instant.now(),
+                        oneRepMax = oneRM,
+                        trainingMax = oneRM, // TM is same as 1RM for Westside
+                        source = MaxSource.MANUAL
+                    )
+                )
+            }
+
+            val cycle = ProtocolCycle(
+                id = UUID.randomUUID().toString(),
+                userId = userId,
+                protocol = WorkoutProtocol.WESTSIDE,
+                startedAt = java.time.Instant.now(),
+                status = CycleStatus.ACTIVE,
+                currentWeek = 1,
+                currentDayIndex = 0,
+                configJson = "{ \"indices\": {} }"
+            )
+            repository.saveProtocolCycle(cycle)
+            
+            _uiState.value.userProfile?.let {
+                repository.saveUserProfile(it.copy(activeProtocol = WorkoutProtocol.WESTSIDE))
+            }
+
+            kotlinx.coroutines.delay(100)
+            startWestsideSession()
+        }
+    }
+
+    fun startWestsideSession(dayType: ProtocolDayType? = null) {
+        if (_uiState.value.session != null) return
+        
+        // Optimistically clear the intake gate to prevent flashing loops
+        _uiState.update { it.copy(protocolIntakeNeeded = null) }
+
+        viewModelScope.launch {
+            val userProfile = _uiState.value.userProfile ?: return@launch
+            val activeCycle = repository.getActiveCycle(userProfile.userId).first()
+            val engine = westsideEngine
+
+            // GATE: Check for missing data
+            val requiredFamilies = listOf("squat", "bench_press", "deadlift")
+            val missingData = requiredFamilies.any { familyId ->
+                repository.getExerciseMax(familyId).first()?.oneRepMax == 0f
+            }
+
+            if (activeCycle == null || missingData) {
+                _uiState.update { it.copy(protocolIntakeNeeded = WorkoutProtocol.WESTSIDE) }
+                return@launch
+            }
+
+            val actualDayType = dayType ?: when (activeCycle.currentDayIndex % 4) {
+                0 -> ProtocolDayType.WS_ME_LOWER
+                1 -> ProtocolDayType.WS_DE_UPPER
+                2 -> ProtocolDayType.WS_ME_UPPER
+                else -> ProtocolDayType.WS_DE_LOWER
+            }
+            
+            val exerciseId = engine.getCurrentVariant(activeCycle.configJson, actualDayType) ?: "back_squat"
+            val mainExercise = repository.getExerciseById(exerciseId) ?: return@launch
+            
+            val sessionId = UUID.randomUUID().toString()
+            val session = WorkoutSession(
+                id = sessionId,
+                protocol = WorkoutProtocol.WESTSIDE,
+                cycleId = activeCycle.id,
+                protocolDayType = actualDayType
+            )
+            
+            val uiMode = if (actualDayType == ProtocolDayType.WS_ME_LOWER || actualDayType == ProtocolDayType.WS_ME_UPPER) {
+                ProtocolUiMode.MAX_EFFORT
+            } else {
+                ProtocolUiMode.DYNAMIC
+            }
+            
+            repository.saveSession(session)
+            _uiState.update { it.copy(
+                session = session, 
+                previousLogs = emptyMap(), 
+                isLoading = true, 
+                currentUiMode = uiMode,
+                protocolIntakeNeeded = null
+            ) }
+
+            var currentOrder = 0
+            var globalSetTimestamp = java.time.Instant.now()
+
+            val workoutLog = WorkoutLog(
+                id = UUID.randomUUID().toString(),
+                sessionId = sessionId,
+                exerciseId = mainExercise.id,
+                order = currentOrder++,
+                exerciseName = mainExercise.name
+            )
+            repository.saveWorkoutLog(workoutLog)
+
+            val exerciseMax = repository.getExerciseMax(mainExercise.familyId).first()
+            
+            val prescribedSets = mutableListOf<PrescribedSet>()
+            if (uiMode == ProtocolUiMode.MAX_EFFORT) {
+                for (i in 0 until 6) {
+                    prescribedSets.add(engine.prescribe(activeCycle, actualDayType, mainExercise, i, false, exerciseMax))
+                }
+            } else {
+                val setCount = if (actualDayType == ProtocolDayType.WS_DE_LOWER) 10 else 9
+                // 3 Warmups
+                for (i in 0 until 3) {
+                    prescribedSets.add(engine.prescribe(activeCycle, actualDayType, mainExercise, i, false, exerciseMax))
+                }
+                // Work Sets
+                for (i in 0 until setCount) {
+                    prescribedSets.add(engine.prescribe(activeCycle, actualDayType, mainExercise, 3, false, exerciseMax))
+                }
+            }
+
+            prescribedSets.forEach { ps ->
+                globalSetTimestamp = globalSetTimestamp.plusMillis(1)
+                repository.saveSetLog(SetLog(
+                    id = UUID.randomUUID().toString(),
+                    workoutLogId = workoutLog.id,
+                    weight = ps.weight,
+                    reps = 0,
+                    type = ps.setType,
+                    goalReps = ps.reps.toString(),
+                    prescribedWeight = ps.weight,
+                    prescribedReps = ps.reps,
+                    percentOfMax = ps.percentOfMax,
+                    timestamp = globalSetTimestamp
+                ))
+            }
+
+            // Accessories for WS_RE day or as extras?
+            // Prompt says: WS_RE: 3 accessories straight sets 3x10-15.
+            if (actualDayType == ProtocolDayType.WS_RE) {
+                 // Build a session with just accessories
+            }
+
+            loadPreviousData(mainExercise.id)
+
+            sessionJob?.cancel()
+            sessionJob = viewModelScope.launch {
+                repository.getLogsForSession(sessionId).collect { logs ->
+                    _uiState.update { it.copy(logs = logs, isLoading = false) }
+                }
+            }
+            startWorkoutTimer()
+        }
+    }
+
+    fun startDupCycle(initialWeights: Map<String, Float>) {
+        val userId = _uiState.value.userProfile?.userId ?: return
+        viewModelScope.launch {
+            // Deactivate any existing active cycles for this user
+            repository.getActiveCycle(userId).first()?.let {
+                repository.saveProtocolCycle(it.copy(status = CycleStatus.COMPLETED))
+            }
+
+            initialWeights.forEach { (familyId, weight) ->
+                repository.upsertExerciseMax(
+                    ExerciseMax(
+                        familyId = familyId,
+                        testedAt = java.time.Instant.now(),
+                        oneRepMax = 0f,
+                        trainingMax = weight,
+                        source = MaxSource.MANUAL
+                    )
+                )
+            }
+
+            val cycle = ProtocolCycle(
+                id = UUID.randomUUID().toString(),
+                userId = userId,
+                protocol = WorkoutProtocol.DUP,
+                startedAt = java.time.Instant.now(),
+                status = CycleStatus.ACTIVE,
+                currentWeek = 1,
+                currentDayIndex = 0
+            )
+            repository.saveProtocolCycle(cycle)
+            
+            _uiState.value.userProfile?.let {
+                repository.saveUserProfile(it.copy(activeProtocol = WorkoutProtocol.DUP))
+            }
+
+            kotlinx.coroutines.delay(100)
+            startDupSession()
+        }
+    }
+
+    fun startDupSession(providedRoutine: WorkoutRoutine? = null) {
+        if (_uiState.value.session != null) return
+        
+        // Optimistically clear the intake gate to prevent flashing loops
+        _uiState.update { it.copy(protocolIntakeNeeded = null) }
+
+        viewModelScope.launch {
+            val userProfile = _uiState.value.userProfile ?: return@launch
+            val activeCycle = repository.getActiveCycle(userProfile.userId).first() ?: return@launch
+            val engine = dupEngine
+            
+            val nextDayType = engine.getDayType(activeCycle.currentDayIndex)
+            
+            // GATE: Check for missing data
+            val requiredFamilies = listOf("squat", "bench_press", "rows")
+            val missingData = requiredFamilies.any { familyId ->
+                repository.getExerciseMax(familyId).first()?.trainingMax == null
+            }
+            
+            if (missingData) {
+                _uiState.update { it.copy(protocolIntakeNeeded = WorkoutProtocol.DUP) }
+                return@launch
+            }
+
+            // Lifts: Use provided routine if present, else default DUP trio
+            val exercises = if (providedRoutine != null && providedRoutine.exercises.isNotEmpty()) {
+                providedRoutine.exercises.map { it.exercise }
+            } else {
+                listOf("back_squat", "bench_press", "bent_over_row").mapNotNull { repository.getExerciseById(it) }
+            }
+            
+            val sessionId = UUID.randomUUID().toString()
+            val session = WorkoutSession(
+                id = sessionId,
+                protocol = WorkoutProtocol.DUP,
+                cycleId = activeCycle.id,
+                protocolDayType = nextDayType
+            )
+            
+            val uiMode = if (nextDayType == ProtocolDayType.DUP_POWER) ProtocolUiMode.DYNAMIC else ProtocolUiMode.LINEAR
+            
+            repository.saveSession(session)
+            _uiState.update { it.copy(
+                session = session, 
+                previousLogs = emptyMap(), 
+                isLoading = true, 
+                currentUiMode = uiMode,
+                protocolIntakeNeeded = null
+            ) }
+
+            var globalSetTimestamp = java.time.Instant.now()
+
+            exercises.forEachIndexed { logIndex, exercise ->
+                val workoutLog = WorkoutLog(
+                    id = UUID.randomUUID().toString(),
+                    sessionId = sessionId,
+                    exerciseId = exercise.id,
+                    order = logIndex,
+                    exerciseName = exercise.name
+                )
+                repository.saveWorkoutLog(workoutLog)
+
+                val exerciseMax = repository.getExerciseMax(exercise.familyId).first()
+                val (setCount, defaultGoal) = when (nextDayType) {
+                    ProtocolDayType.DUP_HYPERTROPHY -> 3 to "8-12"
+                    ProtocolDayType.DUP_STRENGTH -> 4 to "3-5"
+                    ProtocolDayType.DUP_POWER -> 6 to "2-3"
+                    else -> 3 to "8"
+                }
+                
+                // Warmups (1-2)
+                for (i in 0 until 2) {
+                    val ps = engine.prescribe(activeCycle, nextDayType, exercise, i, false, exerciseMax)
+                    globalSetTimestamp = globalSetTimestamp.plusMillis(1)
+                    repository.saveSetLog(SetLog(
+                        id = UUID.randomUUID().toString(),
+                        workoutLogId = workoutLog.id,
+                        weight = ps.weight,
+                        reps = 0,
+                        type = SetType.WARMUP,
+                        goalReps = ps.reps.toString(),
+                        prescribedWeight = ps.weight,
+                        prescribedReps = ps.reps,
+                        timestamp = globalSetTimestamp
+                    ))
+                }
+
+                // Work Sets
+                for (i in 0 until setCount) {
+                    val ps = engine.prescribe(activeCycle, nextDayType, exercise, 2, false, exerciseMax)
+                    globalSetTimestamp = globalSetTimestamp.plusMillis(1)
+                    repository.saveSetLog(SetLog(
+                        id = UUID.randomUUID().toString(),
+                        workoutLogId = workoutLog.id,
+                        weight = ps.weight,
+                        reps = 0,
+                        type = ps.setType,
+                        goalReps = defaultGoal,
+                        prescribedWeight = ps.weight,
+                        prescribedReps = ps.reps,
+                        timestamp = globalSetTimestamp
+                    ))
+                }
+                loadPreviousData(exercise.id)
+            }
+
+            sessionJob?.cancel()
+            sessionJob = viewModelScope.launch {
+                repository.getLogsForSession(sessionId).collect { logs ->
+                    _uiState.update { it.copy(logs = logs, isLoading = false) }
+                }
+            }
+            startWorkoutTimer()
+        }
+    }
+
+    fun startFiveThreeOneSession() {
+        if (_uiState.value.session != null) return
+        
+        // Optimistically clear the intake gate to prevent flashing loops
+        _uiState.update { it.copy(protocolIntakeNeeded = null) }
+
+        viewModelScope.launch {
+            val userProfile = _uiState.value.userProfile ?: return@launch
+            val activeCycle = repository.getActiveCycle(userProfile.userId).first()
+
+            // GATE: Check for missing data
+            val requiredFamilies = listOf("overhead_press", "deadlift", "bench_press", "squat")
+            val missingData = requiredFamilies.any { familyId ->
+                repository.getExerciseMax(familyId).first()?.trainingMax == null
+            }
+
+            if (activeCycle == null || missingData) {
+                _uiState.update { it.copy(protocolIntakeNeeded = WorkoutProtocol.FIVE_THREE_ONE) }
+                return@launch
+            }
+
+            val engine = fiveThreeOneEngine
+            val nextDayType = engine.getDayType(activeCycle.currentDayIndex)
+            val mainExerciseId = engine.getMainExerciseId(activeCycle.currentDayIndex)
+            val mainExercise = repository.getExerciseById(mainExerciseId) ?: return@launch
+            
+            val sessionId = UUID.randomUUID().toString()
+            val session = WorkoutSession(
+                id = sessionId,
+                protocol = WorkoutProtocol.FIVE_THREE_ONE,
+                cycleId = activeCycle.id,
+                protocolDayType = nextDayType
+            )
+            
+            repository.saveSession(session)
+            _uiState.update { it.copy(
+                session = session, 
+                previousLogs = emptyMap(), 
+                isLoading = true, 
+                currentUiMode = ProtocolUiMode.LINEAR,
+                protocolIntakeNeeded = null
+            ) }
+
+            var currentOrder = 0
+            var globalSetTimestamp = java.time.Instant.now()
+
+            // 1. Main Lift
+            val workoutLog = WorkoutLog(
+                id = UUID.randomUUID().toString(),
+                sessionId = sessionId,
+                exerciseId = mainExercise.id,
+                order = currentOrder++,
+                exerciseName = mainExercise.name
+            )
+            repository.saveWorkoutLog(workoutLog)
+
+            val mainMax = repository.getExerciseMax(mainExercise.familyId).first()
+            
+            // 3 Warmups + 3 Work Sets
+            for (i in 0 until 6) {
+                val ps = engine.prescribe(activeCycle, nextDayType, mainExercise, i, false, mainMax)
+                globalSetTimestamp = globalSetTimestamp.plusMillis(1)
+                repository.saveSetLog(SetLog(
+                    id = UUID.randomUUID().toString(),
+                    workoutLogId = workoutLog.id,
+                    weight = ps.weight,
+                    reps = 0,
+                    type = ps.setType,
+                    goalReps = if (ps.isAmrap) "${ps.reps}+" else ps.reps.toString(),
+                    prescribedWeight = ps.weight,
+                    prescribedReps = ps.reps,
+                    percentOfMax = ps.percentOfMax,
+                    isAmrap = ps.isAmrap,
+                    timestamp = globalSetTimestamp
+                ))
+            }
+
+            // 2. BBB Assistance (Boring But Big)
+            val complementaryId = engine.getComplementaryExerciseId(mainExerciseId)
+            val compExercise = complementaryId?.let { repository.getExerciseById(it) }
+            val compMax = compExercise?.let { repository.getExerciseMax(it.familyId).first() }
+            
+            if (compExercise != null && compMax != null) {
+                val compLog = WorkoutLog(
+                    id = UUID.randomUUID().toString(),
+                    sessionId = sessionId,
+                    exerciseId = compExercise.id,
+                    order = currentOrder++,
+                    exerciseName = compExercise.name
+                )
+                repository.saveWorkoutLog(compLog)
+                
+                val bbbWeight = (compMax.trainingMax ?: (compMax.oneRepMax * 0.9f)) * 0.5f
+                val roundedBBB = (Math.round(bbbWeight / 2.5f) * 2.5f).toFloat()
+                
+                for (i in 0 until 5) {
+                    globalSetTimestamp = globalSetTimestamp.plusMillis(1)
+                    repository.saveSetLog(SetLog(
+                        id = UUID.randomUUID().toString(),
+                        workoutLogId = compLog.id,
+                        weight = roundedBBB,
+                        reps = 0,
+                        type = SetType.NORMAL,
+                        goalReps = "10",
+                        prescribedWeight = roundedBBB,
+                        prescribedReps = 10,
+                        percentOfMax = 0.5f,
+                        timestamp = globalSetTimestamp
+                    ))
+                }
+            }
+
+            loadPreviousData(mainExercise.id)
+            if (compExercise != null) loadPreviousData(compExercise.id)
+
+            sessionJob?.cancel()
+            sessionJob = viewModelScope.launch {
+                repository.getLogsForSession(sessionId).collect { logs ->
+                    _uiState.update { it.copy(logs = logs, isLoading = false) }
+                }
+            }
+            startWorkoutTimer()
+        }
+    }
+
+    fun startHstSession() {
+        if (_uiState.value.session != null) return
+        
+        // Optimistically clear the intake gate to prevent flashing loops
+        _uiState.update { it.copy(protocolIntakeNeeded = null) }
+
+        viewModelScope.launch {
+            val userProfile = _uiState.value.userProfile ?: return@launch
+            val activeCycle = repository.getActiveCycle(userProfile.userId).first()
+            val engine = hstEngine
+
+            // GATE: Check for missing data (use familyId, not exercise id)
+            val requiredFamilies = listOf("squat", "bench_press", "rows", "overhead_press", "deadlift")
+            val missingData = requiredFamilies.any { familyId ->
+                val max = repository.getExerciseMax(familyId).first()
+                max?.rm15 == null || max.rm10 == null || max.rm5 == null
+            }
+
+            if (activeCycle == null || missingData) {
+                _uiState.update { it.copy(protocolIntakeNeeded = WorkoutProtocol.HST) }
+                return@launch
+            }
+
+            val nextDayType = engine.getDayType(activeCycle.currentDayIndex)
+            
+            if (nextDayType == ProtocolDayType.HST_SD || engine.isSdActive(activeCycle)) {
+                _uiState.update { it.copy(isStrategicDeconditioningActive = true) }
+                return@launch
+            }
+
+            // Seeds for HST session
+            val exerciseIds = listOf("back_squat", "bench_press", "bent_over_row", "military_press", "romanian_deadlift")
+            val exercises = exerciseIds.mapNotNull { id -> repository.getExerciseById(id) }
+            
+            val sessionId = UUID.randomUUID().toString()
+            val session = WorkoutSession(
+                id = sessionId,
+                protocol = WorkoutProtocol.HST,
+                cycleId = activeCycle.id,
+                protocolDayType = nextDayType
+            )
+            
+            repository.saveSession(session)
+            _uiState.update { it.copy(
+                session = session, 
+                previousLogs = emptyMap(), 
+                isLoading = true, 
+                currentUiMode = ProtocolUiMode.LINEAR,
+                protocolIntakeNeeded = null // Clear gate
+            ) }
+
+            var currentOrder = 0
+            var globalSetTimestamp = java.time.Instant.now()
+
+            exercises.forEach { exercise ->
+                val workoutLog = WorkoutLog(
+                    id = UUID.randomUUID().toString(),
+                    sessionId = sessionId,
+                    exerciseId = exercise.id,
+                    order = currentOrder++,
+                    exerciseName = exercise.name
+                )
+                repository.saveWorkoutLog(workoutLog)
+
+                val exerciseMax = repository.getExerciseMax(exercise.familyId).first()
+                val workSetCount = if (exercise.familyId == "romanian_deadlift" || exercise.familyId == "deadlift") 1 else 2
+                
+                // Warmup
+                val warmupSet = engine.prescribe(activeCycle, nextDayType, exercise, 0, false, exerciseMax)
+                globalSetTimestamp = globalSetTimestamp.plusMillis(1)
+                repository.saveSetLog(SetLog(
+                    id = UUID.randomUUID().toString(),
+                    workoutLogId = workoutLog.id,
+                    weight = warmupSet.weight,
+                    reps = 0,
+                    type = SetType.WARMUP,
+                    goalReps = warmupSet.reps.toString(),
+                    prescribedWeight = warmupSet.weight,
+                    prescribedReps = warmupSet.reps,
+                    timestamp = globalSetTimestamp
+                ))
+
+                // Work Sets
+                for (i in 0 until workSetCount) {
+                    val ps = engine.prescribe(activeCycle, nextDayType, exercise, 2, false, exerciseMax)
+                    globalSetTimestamp = globalSetTimestamp.plusMillis(1)
+                    repository.saveSetLog(SetLog(
+                        id = UUID.randomUUID().toString(),
+                        workoutLogId = workoutLog.id,
+                        weight = ps.weight,
+                        reps = 0,
+                        type = SetType.NORMAL,
+                        goalReps = ps.reps.toString(),
+                        prescribedWeight = ps.weight,
+                        prescribedReps = ps.reps,
+                        timestamp = globalSetTimestamp
+                    ))
+                }
+                loadPreviousData(exercise.id)
+            }
+
+            sessionJob?.cancel()
+            sessionJob = viewModelScope.launch {
+                repository.getLogsForSession(sessionId).collect { logs ->
+                    _uiState.update { it.copy(logs = logs, isLoading = false) }
+                }
+            }
+            startWorkoutTimer()
+        }
+    }
+
+    fun startStartingStrengthSession() {
+        if (_uiState.value.session != null) return
+        
+        // Optimistically clear the intake gate to prevent flashing loops
+        _uiState.update { it.copy(protocolIntakeNeeded = null) }
+
+        viewModelScope.launch {
+            val userProfile = _uiState.value.userProfile ?: return@launch
+            val activeCycle = repository.getActiveCycle(userProfile.userId).first()
+            
+            // GATE: Check for missing data
+            val requiredFamilies = listOf("squat", "bench_press", "overhead_press", "deadlift")
+            val missingData = requiredFamilies.any { familyId ->
+                repository.getExerciseMax(familyId).first()?.trainingMax == null
+            }
+            
+            if (activeCycle == null || missingData) {
+                _uiState.update { it.copy(protocolIntakeNeeded = WorkoutProtocol.STARTING_STRENGTH) }
+                return@launch
+            }
+
+            val engine = startingStrengthEngine
+            val nextDayType = if (activeCycle.currentDayIndex % 2 == 0) ProtocolDayType.SS_A else ProtocolDayType.SS_B
+            
+            // Check last DL success
+            val lastSession = repository.getAllSessions().first().find { it.protocol == WorkoutProtocol.STARTING_STRENGTH }
+            val lastDlFailed = if (lastSession != null) {
+                val dlLog = repository.getLogsForSession(lastSession.id).first().find { it.first.exerciseId == "deadlift" }
+                dlLog?.let { !engine.sessionSucceeded(it.second) } ?: false
+            } else false
+
+            val exerciseIds = engine.getExercisesForDay(nextDayType, lastDlFailed)
+            val exercises = exerciseIds.mapNotNull { id -> repository.getExerciseById(id) }
+            
+            val sessionId = UUID.randomUUID().toString()
+            val session = WorkoutSession(
+                id = sessionId,
+                protocol = WorkoutProtocol.STARTING_STRENGTH,
+                cycleId = activeCycle.id,
+                protocolDayType = nextDayType
+            )
+            
+            repository.saveSession(session)
+            _uiState.update { it.copy(
+                session = session, 
+                previousLogs = emptyMap(), 
+                isLoading = true, 
+                currentUiMode = ProtocolUiMode.LINEAR,
+                protocolIntakeNeeded = null
+            ) }
+
+            var currentOrder = 0
+            var globalSetTimestamp = java.time.Instant.now()
+
+            exercises.forEach { exercise ->
+                val workoutLog = WorkoutLog(
+                    id = UUID.randomUUID().toString(),
+                    sessionId = sessionId,
+                    exerciseId = exercise.id,
+                    order = currentOrder++,
+                    exerciseName = exercise.name
+                )
+                repository.saveWorkoutLog(workoutLog)
+
+                val exerciseMax = repository.getExerciseMax(exercise.familyId).first()
+                val workSetCount = if (exercise.familyId == "deadlift") 1 else 3
+                
+                for (i in 0 until 4) {
+                    val ps = engine.prescribe(activeCycle, nextDayType, exercise, i, false, exerciseMax)
+                    globalSetTimestamp = globalSetTimestamp.plusMillis(1)
+                    repository.saveSetLog(SetLog(
+                        id = UUID.randomUUID().toString(),
+                        workoutLogId = workoutLog.id,
+                        weight = ps.weight,
+                        reps = 0,
+                        type = ps.setType,
+                        goalReps = ps.reps.toString(),
+                        prescribedWeight = ps.weight,
+                        prescribedReps = ps.reps,
+                        timestamp = globalSetTimestamp
+                    ))
+                }
+                for (i in 0 until workSetCount) {
+                    val ps = engine.prescribe(activeCycle, nextDayType, exercise, 4, false, exerciseMax)
+                    globalSetTimestamp = globalSetTimestamp.plusMillis(1)
+                    repository.saveSetLog(SetLog(
+                        id = UUID.randomUUID().toString(),
+                        workoutLogId = workoutLog.id,
+                        weight = ps.weight,
+                        reps = 0,
+                        type = ps.setType,
+                        goalReps = ps.reps.toString(),
+                        prescribedWeight = ps.weight,
+                        prescribedReps = ps.reps,
+                        timestamp = globalSetTimestamp
+                    ))
+                }
+                loadPreviousData(exercise.id)
+            }
+
+            sessionJob?.cancel()
+            sessionJob = viewModelScope.launch {
+                repository.getLogsForSession(sessionId).collect { logs ->
+                    _uiState.update { it.copy(logs = logs, isLoading = false) }
+                }
+            }
+            startWorkoutTimer()
+        }
+    }
+
     fun startRoutine(routine: WorkoutRoutine, isDeload: Boolean = false) {
         if (_uiState.value.session != null) {
             _uiState.update { it.copy(activeSessionError = "A workout session is already in progress. Please finish or discard it before starting a new one.") }
@@ -1083,10 +2034,23 @@ class WorkoutViewModel @Inject constructor(
             }
 
             val sessionId = UUID.randomUUID().toString()
+            val userProfile = _uiState.value.userProfile
+
+            // Determine Day Type for Protocols
+            val activeCycle = userProfile?.let { repository.getActiveCycle(it.userId).first() }
+            val engine = getEngine(fullRoutine.protocol)
+            val dayType = if (engine != null && activeCycle != null && activeCycle.protocol == fullRoutine.protocol) {
+                (engine as? StartingStrengthEngine)?.let { ss ->
+                    ss.getNextDayType(null) // Simple for now: just start with A if we don't track well
+                }
+            } else null
+
             val session = WorkoutSession(
                 id = sessionId, 
                 protocol = fullRoutine.protocol,
-                isDeload = isDeload
+                isDeload = isDeload,
+                cycleId = activeCycle?.id,
+                protocolDayType = dayType
             )
 
             // 1. Create the session first in DB and UI state
@@ -1108,60 +2072,87 @@ class WorkoutViewModel @Inject constructor(
                 repository.saveWorkoutLog(workoutLog)
 
                 val progressionState = _uiState.value.progressionStates[routineExercise.exercise.id]
-                // Detection: If bestReps is 0 but we have a weight, we just jumped or it's a brand new exercise.
-                // Protocol logic: show min only as the target to focus on the weight jump.
                 val afterWeightJump = progressionState != null && progressionState.bestClusterReps == 0 && progressionState.currentWeight > 0
 
-                routineExercise.sets.forEach { routineSet ->
-                    val goalReps = if (routineSet.goalReps != null) {
-                        routineSet.goalReps
-                    } else if (isDeload && routineSet.type == SetType.REST_PAUSE) {
-                        "DELOAD (RIR 3-4)"
-                    } else {
-                        CyberCrappRules.resolve(
-                            protocol = session.protocol,
-                            exercise = routineExercise.exercise,
-                            setType = routineSet.type,
-                            afterWeightJump = afterWeightJump,
-                            targets = _uiState.value.repTargets
-                        ).label
-                    }
-                    
-                    // Do not pre-fill weight with calculated progression or working weights. 
-                    // Weight input starts at 0 (or custom explicitly defined routine set weight)
-                    // so suggestions appear purely as background placeholders.
-                    val setWeight = routineSet.weight
+                val exerciseMax = repository.getExerciseMax(routineExercise.exercise.familyId).first()
 
-                    // Transformation: REST_PAUSE -> 3 Straight Sets if Deload
-                    if (session.protocol == WorkoutProtocol.CYBER_CRAPP && routineSet.type == SetType.REST_PAUSE) {
-                        val typeToSave = if (isDeload) SetType.NORMAL else SetType.REST_PAUSE
-                        for (i in 1..3) {
+                // Engine-based set generation
+                if (engine != null && !isDeload) {
+                    val prescribedSets = mutableListOf<PrescribedSet>()
+                    // Generate 4 warmups + 3 work sets (or 1 for DL)
+                    val workSetCount = if (routineExercise.exercise.familyId == "deadlift") 1 else 3
+                    
+                    for (i in 0 until 4) {
+                        prescribedSets.add(engine.prescribe(activeCycle, dayType, routineExercise.exercise, i, afterWeightJump, exerciseMax))
+                    }
+                    for (i in 0 until workSetCount) {
+                        prescribedSets.add(engine.prescribe(activeCycle, dayType, routineExercise.exercise, 4, afterWeightJump, exerciseMax))
+                    }
+
+                    prescribedSets.forEach { ps ->
+                        globalSetTimestamp = globalSetTimestamp.plusMillis(1)
+                        val setLog = SetLog(
+                            id = UUID.randomUUID().toString(),
+                            workoutLogId = workoutLog.id,
+                            weight = ps.weight,
+                            reps = 0,
+                            type = ps.setType,
+                            goalReps = ps.reps.toString(),
+                            prescribedWeight = ps.weight,
+                            prescribedReps = ps.reps,
+                            timestamp = globalSetTimestamp
+                        )
+                        repository.saveSetLog(setLog)
+                    }
+                } else {
+                    // Fallback to manual routine sets or CC logic
+                    routineExercise.sets.forEach { routineSet ->
+                        val goalReps = if (routineSet.goalReps != null) {
+                            routineSet.goalReps
+                        } else if (isDeload && routineSet.type == SetType.REST_PAUSE) {
+                            "DELOAD (RIR 3-4)"
+                        } else {
+                            CyberCrappRules.resolve(
+                                protocol = session.protocol,
+                                exercise = routineExercise.exercise,
+                                setType = routineSet.type,
+                                afterWeightJump = afterWeightJump,
+                                targets = _uiState.value.repTargets
+                            ).label
+                        }
+                        
+                        val setWeight = routineSet.weight
+
+                        if (session.protocol == WorkoutProtocol.CYBER_CRAPP && routineSet.type == SetType.REST_PAUSE) {
+                            val typeToSave = if (isDeload) SetType.NORMAL else SetType.REST_PAUSE
+                            for (i in 1..3) {
+                                globalSetTimestamp = globalSetTimestamp.plusMillis(1)
+                                val setLog = SetLog(
+                                    id = UUID.randomUUID().toString(),
+                                    workoutLogId = workoutLog.id,
+                                    weight = setWeight,
+                                    reps = if (isDeload) 0 else routineSet.reps,
+                                    type = typeToSave,
+                                    goalReps = goalReps,
+                                    clusterMiniSetIndex = if (isDeload) null else i,
+                                    timestamp = globalSetTimestamp,
+                                    rir = if (isDeload) 4 else null
+                                )
+                                repository.saveSetLog(setLog)
+                            }
+                        } else {
                             globalSetTimestamp = globalSetTimestamp.plusMillis(1)
                             val setLog = SetLog(
                                 id = UUID.randomUUID().toString(),
                                 workoutLogId = workoutLog.id,
                                 weight = setWeight,
-                                reps = if (isDeload) 0 else routineSet.reps,
-                                type = typeToSave,
+                                reps = routineSet.reps,
+                                type = routineSet.type,
                                 goalReps = goalReps,
-                                clusterMiniSetIndex = if (isDeload) null else i,
-                                timestamp = globalSetTimestamp,
-                                rir = if (isDeload) 4 else null
+                                timestamp = globalSetTimestamp
                             )
                             repository.saveSetLog(setLog)
                         }
-                    } else {
-                        globalSetTimestamp = globalSetTimestamp.plusMillis(1)
-                        val setLog = SetLog(
-                            id = UUID.randomUUID().toString(),
-                            workoutLogId = workoutLog.id,
-                            weight = setWeight,
-                            reps = routineSet.reps,
-                            type = routineSet.type,
-                            goalReps = goalReps,
-                            timestamp = globalSetTimestamp
-                        )
-                        repository.saveSetLog(setLog)
                     }
                 }
                 loadPreviousData(routineExercise.exercise.id)
@@ -1169,7 +2160,7 @@ class WorkoutViewModel @Inject constructor(
 
             // 3. Start collecting logs
             sessionJob?.cancel()
-            sessionJob = launch {
+            sessionJob = viewModelScope.launch {
                 repository.getLogsForSession(sessionId).collect { logs ->
                     _uiState.update { it.copy(logs = logs, isLoading = false) }
                 }
@@ -1768,6 +2759,26 @@ class WorkoutViewModel @Inject constructor(
     }
 
     fun handleRoutineSelection(routine: WorkoutRoutine, isDeload: Boolean = false) {
+        if (routine.protocol == WorkoutProtocol.STARTING_STRENGTH) {
+            startStartingStrengthSession()
+            return
+        }
+        if (routine.protocol == WorkoutProtocol.HST) {
+            startHstSession()
+            return
+        }
+        if (routine.protocol == WorkoutProtocol.FIVE_THREE_ONE) {
+            startFiveThreeOneSession()
+            return
+        }
+        if (routine.protocol == WorkoutProtocol.DUP) {
+            startDupSession(routine)
+            return
+        }
+        if (routine.protocol == WorkoutProtocol.WESTSIDE) {
+            startWestsideSession()
+            return
+        }
         val state = _uiState.value
         val profile = state.userProfile
         
@@ -1952,12 +2963,29 @@ class WorkoutViewModel @Inject constructor(
                 if (updatedProfile != profile) {
                     repository.saveUserProfile(updatedProfile)
                 }
+
+                // Advance Protocol Cycle
+                if (session.cycleId != null) {
+                    repository.getActiveCycle(profile.userId).first()?.let { cycle ->
+                        repository.saveProtocolCycle(cycle.copy(currentDayIndex = cycle.currentDayIndex + 1))
+                    }
+                }
             }
 
             // Update progression states and accomplishments for all exercises
             currentLogs.forEach { (log, sets) ->
                 if (session.protocol == WorkoutProtocol.CYBER_CRAPP) {
                     updateProgressionForExercise(log, sets)
+                } else if (session.protocol == WorkoutProtocol.STARTING_STRENGTH) {
+                    updateStartingStrengthProgression(log, sets, session)
+                } else if (session.protocol == WorkoutProtocol.HST) {
+                    updateHstProgression(log, sets, session)
+                } else if (session.protocol == WorkoutProtocol.FIVE_THREE_ONE) {
+                    updateFiveThreeOneProgression(log, sets, session)
+                } else if (session.protocol == WorkoutProtocol.DUP) {
+                    updateDupProgression(log, sets, session)
+                } else if (session.protocol == WorkoutProtocol.WESTSIDE) {
+                    updateWestsideProgression(log, sets, session)
                 }
                 updateAccomplishmentsForExercise(log.exerciseId, sets, session.date)
             }
@@ -1975,9 +3003,12 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
-    fun toggleSomatotypeInfluence() {
-        _uiState.update { it.copy(useSomatotypeInfluence = !it.useSomatotypeInfluence) }
-        updateSomatotypeNudge()
+    fun dismissProtocolIntake() {
+        _uiState.update { it.copy(protocolIntakeNeeded = null) }
+    }
+
+    fun dismissSdWindow() {
+        _uiState.update { it.copy(isStrategicDeconditioningActive = false) }
     }
 
     fun getBlastWeek(): Int? {
@@ -1985,6 +3016,175 @@ class WorkoutViewModel @Inject constructor(
         val now = java.time.Instant.now()
         val days = java.time.Duration.between(startDate, now).toDays()
         return (days / 7).toInt() + 1
+    }
+
+    private fun updateWestsideProgression(log: WorkoutLog, sets: List<SetLog>, session: WorkoutSession) {
+        val engine = westsideEngine
+        val exerciseId = log.exerciseId
+        val uiMode = _uiState.value.currentUiMode
+        
+        if (uiMode != ProtocolUiMode.MAX_EFFORT) return
+
+        val workSets = sets.filter { it.type == SetType.MAX_EFFORT }
+        if (workSets.isEmpty()) return
+
+        val bestMEWeight = workSets.filter { it.isCompleted }.maxOfOrNull { it.weight } ?: 0f
+        
+        viewModelScope.launch {
+            val exercise = repository.getExerciseById(exerciseId) ?: return@launch
+            val familyId = exercise.familyId
+            val activeCycle = repository.getActiveCycle(_uiState.value.userProfile?.userId ?: "").first()
+            
+            if (activeCycle != null && activeCycle.protocol == WorkoutProtocol.WESTSIDE) {
+                val currentMax = repository.getExerciseMax(familyId).first()
+                if (currentMax != null && bestMEWeight > currentMax.oneRepMax) {
+                    repository.upsertExerciseMax(currentMax.copy(oneRepMax = bestMEWeight, trainingMax = bestMEWeight, testedAt = java.time.Instant.now()))
+                }
+                
+                // Rotate variant in config for next time
+                val newConfig = engine.rotateVariant(activeCycle.configJson, session.protocolDayType ?: ProtocolDayType.WS_ME_LOWER)
+                repository.saveProtocolCycle(activeCycle.copy(configJson = newConfig))
+            }
+        }
+    }
+
+    private fun updateDupProgression(log: WorkoutLog, sets: List<SetLog>, session: WorkoutSession) {
+        val engine = dupEngine
+        val workSets = sets.filter { it.type != SetType.WARMUP }
+        if (workSets.isEmpty()) return
+
+        val succeeded = engine.sessionSucceeded(workSets)
+        val exerciseId = log.exerciseId
+        
+        viewModelScope.launch {
+            val exercise = repository.getExerciseById(exerciseId) ?: return@launch
+            val familyId = exercise.familyId
+            val activeCycle = repository.getActiveCycle(_uiState.value.userProfile?.userId ?: "").first()
+            
+            // Progression only on STRENGTH day
+            if (activeCycle != null && activeCycle.protocol == WorkoutProtocol.DUP && 
+                session.protocolDayType == ProtocolDayType.DUP_STRENGTH) {
+                
+                if (succeeded) {
+                    val currentMax = repository.getExerciseMax(familyId).first()
+                    if (currentMax != null) {
+                        val currentWeight = workSets.first().prescribedWeight ?: workSets.first().weight
+                        val nextWeight = engine.nextLoad(currentWeight, true, exercise)
+                        repository.upsertExerciseMax(currentMax.copy(trainingMax = nextWeight, testedAt = java.time.Instant.now()))
+                    }
+                }
+            }
+        }
+    }
+
+    private fun updateFiveThreeOneProgression(log: WorkoutLog, sets: List<SetLog>, session: WorkoutSession) {
+        val engine = fiveThreeOneEngine
+        val amrapSet = sets.find { it.isAmrap }
+        if (amrapSet == null || !amrapSet.isCompleted) return
+
+        val exerciseId = log.exerciseId
+        val extras = amrapSet.reps - (amrapSet.prescribedReps ?: 0)
+        
+        viewModelScope.launch {
+            val exercise = repository.getExerciseById(exerciseId) ?: return@launch
+            val activeCycle = repository.getActiveCycle(_uiState.value.userProfile?.userId ?: "").first()
+            
+            // Progression only after Week 3 (FTV_W3)
+            if (activeCycle != null && activeCycle.protocol == WorkoutProtocol.FIVE_THREE_ONE && 
+                session.protocolDayType == ProtocolDayType.FTV_W3) {
+                
+                if (extras >= 5) {
+                    val currentMax = repository.getExerciseMax(exercise.familyId).first()
+                    if (currentMax != null) {
+                        val increment = when (exercise.movementType) {
+                            MovementType.QUAD_DOMINANT, MovementType.DEADLIFT -> 10f
+                            else -> 5f
+                        }
+                        val newTM = (currentMax.trainingMax ?: (currentMax.oneRepMax * 0.9f)) + increment
+                        repository.upsertExerciseMax(currentMax.copy(trainingMax = newTM, testedAt = java.time.Instant.now()))
+                    }
+                }
+            }
+        }
+    }
+
+    private fun updateHstProgression(log: WorkoutLog, sets: List<SetLog>, session: WorkoutSession) {
+        val engine = hstEngine
+        val workSets = sets.filter { it.type == SetType.NORMAL }
+        if (workSets.isEmpty()) return
+
+        val succeeded = engine.sessionSucceeded(workSets)
+        val exerciseId = log.exerciseId
+        
+        viewModelScope.launch {
+            val exercise = repository.getExerciseById(exerciseId) ?: return@launch
+            val familyId = exercise.familyId
+            val activeCycle = repository.getActiveCycle(_uiState.value.userProfile?.userId ?: "").first()
+            
+            if (activeCycle != null && activeCycle.protocol == WorkoutProtocol.HST) {
+                val newConfig = engine.updateConfigWithMiss(activeCycle.configJson, familyId, !succeeded)
+                
+                // Advance day index globally happens in performFinalFinish, but let's check SD end of cycle
+                // currentDayIndex at this point is before the increment in performFinalFinish.
+                // If it's session 17 (last of 5s), trigger SD.
+                if (activeCycle.currentDayIndex >= 17 && session.protocolDayType == ProtocolDayType.HST_5) {
+                    val sdConfig = engine.startSd(newConfig)
+                    val updatedCycle = activeCycle.copy(configJson = sdConfig)
+                    repository.saveProtocolCycle(updatedCycle)
+                    
+                    _uiState.value.userProfile?.let { syncWorkoutReminders(it) }
+                } else {
+                    repository.saveProtocolCycle(activeCycle.copy(configJson = newConfig))
+                }
+            }
+        }
+    }
+
+    private fun updateStartingStrengthProgression(log: WorkoutLog, sets: List<SetLog>, session: WorkoutSession) {
+        val engine = startingStrengthEngine
+        val workSets = sets.filter { it.type == SetType.NORMAL }
+        if (workSets.isEmpty()) return
+
+        val succeeded = engine.sessionSucceeded(workSets)
+        val exerciseId = log.exerciseId
+        
+        viewModelScope.launch {
+            val exercise = repository.getExerciseById(exerciseId) ?: return@launch
+            val familyId = exercise.familyId
+            val activeCycle = repository.getActiveCycle(_uiState.value.userProfile?.userId ?: "").first()
+            
+            if (activeCycle != null && activeCycle.protocol == WorkoutProtocol.STARTING_STRENGTH) {
+                val config = activeCycle.configJson
+                val strikes = engine.parseStrikes(config).toMutableMap()
+                val currentStrikes = strikes[familyId] ?: 0
+                
+                val currentWeight = workSets.first().prescribedWeight ?: workSets.first().weight
+
+                if (!succeeded) {
+                    val newStrikes = currentStrikes + 1
+                    if (newStrikes >= 3) {
+                        // Stall: 10% deload
+                        val newWeight = (currentWeight * 0.9f).let { (Math.round(it / 2.5f) * 2.5f).toFloat() }
+                        repository.upsertExerciseMax(
+                            ExerciseMax(familyId, java.time.Instant.now(), 0f, trainingMax = newWeight, source = MaxSource.ESTIMATED)
+                        )
+                        val newConfig = engine.updateStrikes(config, familyId, false)
+                        repository.saveProtocolCycle(activeCycle.copy(configJson = newConfig))
+                    } else {
+                        val newConfig = engine.updateStrikes(config, familyId, true)
+                        repository.saveProtocolCycle(activeCycle.copy(configJson = newConfig))
+                    }
+                } else {
+                    // Success: Increment
+                    val nextWeight = engine.nextLoad(currentWeight, true, exercise)
+                    repository.upsertExerciseMax(
+                        ExerciseMax(familyId, java.time.Instant.now(), 0f, trainingMax = nextWeight, source = MaxSource.ESTIMATED)
+                    )
+                    val newConfig = engine.updateStrikes(config, familyId, false)
+                    repository.saveProtocolCycle(activeCycle.copy(configJson = newConfig))
+                }
+            }
+        }
     }
 
     private fun handleRestPauseLogic(set: SetLog) {

@@ -10,6 +10,7 @@ interface WorkoutRepository {
     suspend fun exportHistoryToJson(): String
     
     fun getExerciseDefinitions(): Flow<List<Exercise>>
+    suspend fun getExerciseById(id: String): Exercise?
     suspend fun saveExerciseDefinition(exercise: Exercise)
 
     fun getExerciseFamilies(): Flow<List<ExerciseFamily>>
@@ -64,6 +65,13 @@ interface WorkoutRepository {
 
     fun getProtocolRepTargets(): Flow<List<ProtocolRepTarget>>
     suspend fun saveProtocolRepTarget(target: ProtocolRepTarget)
+
+    fun getActiveCycle(userId: String): Flow<ProtocolCycle?>
+    suspend fun saveProtocolCycle(cycle: ProtocolCycle)
+
+    fun getExerciseMax(familyId: String): Flow<ExerciseMax?>
+    fun getAllExerciseMaxes(): Flow<List<ExerciseMax>>
+    suspend fun upsertExerciseMax(max: ExerciseMax)
 
     suspend fun seedStarterExercises()
 }

@@ -85,10 +85,16 @@ fun SlimChromeHeader(
     onSettingsClick: () -> Unit,
     systemColor: Color
 ) {
-    Box(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top
+    ) {
         // Left Section: Avatar and Info
         Row(
-            modifier = Modifier.align(Alignment.CenterStart),
+            modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Bracketed Avatar
@@ -118,7 +124,9 @@ fun SlimChromeHeader(
                     fontSize = 14.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp
+                    letterSpacing = 1.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = "RANK_0${character?.level ?: 1}",
@@ -130,9 +138,10 @@ fun SlimChromeHeader(
             }
         }
 
+        Spacer(Modifier.width(8.dp))
+
         // Right: Status Cluster
         Row(
-            modifier = Modifier.align(Alignment.TopEnd),
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.End
         ) {

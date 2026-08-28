@@ -18,7 +18,9 @@ fun WorkoutSessionEntity.toDomain() = WorkoutSession(
     somatotype = Somatotype.valueOf(somatotype),
     sessionRpe = sessionRpe,
     jointHealth = jointHealth,
-    isDeload = isDeload
+    isDeload = isDeload,
+    cycleId = cycleId,
+    protocolDayType = protocolDayType?.let { ProtocolDayType.valueOf(it) }
 )
 
 fun WorkoutSession.toEntity() = WorkoutSessionEntity(
@@ -31,7 +33,55 @@ fun WorkoutSession.toEntity() = WorkoutSessionEntity(
     somatotype = somatotype.name,
     sessionRpe = sessionRpe,
     jointHealth = jointHealth,
-    isDeload = isDeload
+    isDeload = isDeload,
+    cycleId = cycleId,
+    protocolDayType = protocolDayType?.name
+)
+
+fun ProtocolCycleEntity.toDomain() = ProtocolCycle(
+    id = id,
+    userId = userId,
+    protocol = WorkoutProtocol.valueOf(protocol),
+    startedAt = startedAt,
+    endedAt = endedAt,
+    status = CycleStatus.valueOf(status),
+    currentWeek = currentWeek,
+    currentDayIndex = currentDayIndex,
+    configJson = configJson
+)
+
+fun ProtocolCycle.toEntity() = ProtocolCycleEntity(
+    id = id,
+    userId = userId,
+    protocol = protocol.name,
+    startedAt = startedAt,
+    endedAt = endedAt,
+    status = status.name,
+    currentWeek = currentWeek,
+    currentDayIndex = currentDayIndex,
+    configJson = configJson
+)
+
+fun ExerciseMaxEntity.toDomain() = ExerciseMax(
+    familyId = familyId,
+    testedAt = testedAt,
+    oneRepMax = oneRepMax,
+    rm15 = rm15,
+    rm10 = rm10,
+    rm5 = rm5,
+    trainingMax = trainingMax,
+    source = MaxSource.valueOf(source)
+)
+
+fun ExerciseMax.toEntity() = ExerciseMaxEntity(
+    familyId = familyId,
+    testedAt = testedAt,
+    oneRepMax = oneRepMax,
+    rm15 = rm15,
+    rm10 = rm10,
+    rm5 = rm5,
+    trainingMax = trainingMax,
+    source = source.name
 )
 
 fun ExerciseDefinitionEntity.toDomain() = Exercise(
@@ -161,7 +211,12 @@ fun SetLogEntity.toDomain() = SetLog(
     clusterMiniSetIndex = clusterMiniSetIndex,
     isLengthenedPartial = isLengthenedPartial,
     isLoadedStretch = isLoadedStretch,
-    stretchDurationSeconds = stretchDurationSeconds
+    stretchDurationSeconds = stretchDurationSeconds,
+    prescribedWeight = prescribedWeight,
+    prescribedReps = prescribedReps,
+    percentOfMax = percentOfMax,
+    isAmrap = isAmrap,
+    accommodatingLoad = accommodatingLoad
 )
 
 fun SetLog.toEntity() = SetLogEntity(
@@ -178,7 +233,12 @@ fun SetLog.toEntity() = SetLogEntity(
     clusterMiniSetIndex = clusterMiniSetIndex,
     isLengthenedPartial = isLengthenedPartial,
     isLoadedStretch = isLoadedStretch,
-    stretchDurationSeconds = stretchDurationSeconds
+    stretchDurationSeconds = stretchDurationSeconds,
+    prescribedWeight = prescribedWeight,
+    prescribedReps = prescribedReps,
+    percentOfMax = percentOfMax,
+    isAmrap = isAmrap,
+    accommodatingLoad = accommodatingLoad
 )
 
 fun UserWorkoutProfileEntity.toDomain() = UserWorkoutProfile(

@@ -41,6 +41,9 @@ class WorkoutRepositoryImpl @Inject constructor(
     override fun getExerciseDefinitions(): Flow<List<Exercise>> =
         workoutDao.getExerciseDefinitions().map { entities -> entities.map { it.toDomain() } }
 
+    override suspend fun getExerciseById(id: String): Exercise? =
+        workoutDao.getExerciseDefinitions().first().find { it.id == id }?.toDomain()
+
     override suspend fun saveExerciseDefinition(exercise: Exercise) {
         workoutDao.insertExerciseDefinition(exercise.toEntity())
     }
@@ -124,6 +127,23 @@ class WorkoutRepositoryImpl @Inject constructor(
 
     override suspend fun saveProtocolRepTarget(target: ProtocolRepTarget) {
         workoutDao.upsertProtocolRepTarget(target.toEntity())
+    }
+
+    override fun getActiveCycle(userId: String): Flow<ProtocolCycle?> =
+        workoutDao.getActiveCycle(userId).map { it?.toDomain() }
+
+    override suspend fun saveProtocolCycle(cycle: ProtocolCycle) {
+        workoutDao.upsertProtocolCycle(cycle.toEntity())
+    }
+
+    override fun getExerciseMax(familyId: String): Flow<ExerciseMax?> =
+        workoutDao.getExerciseMax(familyId).map { it?.toDomain() }
+
+    override fun getAllExerciseMaxes(): Flow<List<ExerciseMax>> =
+        workoutDao.getAllExerciseMaxes().map { list -> list.map { it.toDomain() } }
+
+    override suspend fun upsertExerciseMax(max: ExerciseMax) {
+        workoutDao.upsertExerciseMax(max.toEntity())
     }
 
     override fun getAllRoutines(): Flow<List<WorkoutRoutine>> =
@@ -2177,6 +2197,80 @@ class WorkoutRepositoryImpl @Inject constructor(
         )
         seedRoutine(cyberCrappC)
 
+        // Seed Starting Strength Routine
+        val startingStrength = WorkoutRoutine(
+            id = "routine_starting_strength",
+            name = "Starting Strength (Novice)",
+            description = "PROTOCOL: STARTING STRENGTH\nGOAL: Maximum Linear Novice Strength\n\nMETHOD: \n- 3 Sets of 5 Reps (3x5) on major compounds.\n- Linear progression every single session.\n- Alternate Day A and Day B.\n\nFOCUS: Whole Body Compound Power.",
+            protocol = WorkoutProtocol.STARTING_STRENGTH,
+            isSystem = true,
+            isAddedToLibrary = false,
+            exercises = listOf(
+                RoutineExercise(
+                    exercise = exercises.find { it.id == "back_squat" }!!,
+                    sets = listOf(RoutineSet(type = SetType.NORMAL, reps = 5))
+                ),
+                RoutineExercise(
+                    exercise = exercises.find { it.id == "bench_press" }!!,
+                    sets = listOf(RoutineSet(type = SetType.NORMAL, reps = 5))
+                ),
+                RoutineExercise(
+                    exercise = exercises.find { it.id == "deadlift" }!!,
+                    sets = listOf(RoutineSet(type = SetType.NORMAL, reps = 5))
+                )
+            )
+        )
+        seedRoutine(startingStrength)
+
+        // Seed HST Routine
+        val hstRoutine = WorkoutRoutine(
+            id = "routine_hst",
+            name = "Hypertrophy Specific Training (HST)",
+            description = "PROTOCOL: HST\nGOAL: Maximum Hypertrophy via Load Waving\n\nMETHOD: \n- 2 Weeks of 15 reps.\n- 2 Weeks of 10 reps.\n- 2 Weeks of 5 reps.\n- 9-14 days Strategic Deconditioning (SD).\n\nFOCUS: Full Body Hypertrophy.",
+            protocol = WorkoutProtocol.HST,
+            isSystem = true,
+            isAddedToLibrary = false,
+            exercises = listOf(
+                RoutineExercise(exercise = exercises.find { it.id == "back_squat" }!!, sets = listOf(RoutineSet(type = SetType.NORMAL))),
+                RoutineExercise(exercise = exercises.find { it.id == "bench_press" }!!, sets = listOf(RoutineSet(type = SetType.NORMAL))),
+                RoutineExercise(exercise = exercises.find { it.id == "bent_over_row" }!!, sets = listOf(RoutineSet(type = SetType.NORMAL))),
+                RoutineExercise(exercise = exercises.find { it.id == "military_press" }!!, sets = listOf(RoutineSet(type = SetType.NORMAL))),
+                RoutineExercise(exercise = exercises.find { it.id == "romanian_deadlift" }!!, sets = listOf(RoutineSet(type = SetType.NORMAL)))
+            )
+        )
+        seedRoutine(hstRoutine)
+
+        // Seed 5/3/1 Routine
+        val fiveThreeOneRoutine = WorkoutRoutine(
+            id = "routine_531",
+            name = "5/3/1 (Boring But Big)",
+            description = "PROTOCOL: 5/3/1\nGOAL: Sustainable Long-term Strength\n\nMETHOD: \n- Cycle through 3-rep, 5-rep, and 1-rep waves.\n- Last set AMRAP (As Many Reps As Possible).\n- Includes 5x10 BBB assistance work.\n\nFOCUS: Compound Strength + Volume.",
+            protocol = WorkoutProtocol.FIVE_THREE_ONE,
+            isSystem = true,
+            isAddedToLibrary = false,
+            exercises = listOf(
+                RoutineExercise(exercise = exercises.find { it.id == "military_press" }!!, sets = listOf(RoutineSet(type = SetType.NORMAL))),
+                RoutineExercise(exercise = exercises.find { it.id == "deadlift" }!!, sets = listOf(RoutineSet(type = SetType.NORMAL))),
+                RoutineExercise(exercise = exercises.find { it.id == "bench_press" }!!, sets = listOf(RoutineSet(type = SetType.NORMAL))),
+                RoutineExercise(exercise = exercises.find { it.id == "back_squat" }!!, sets = listOf(RoutineSet(type = SetType.NORMAL)))
+            )
+        )
+        seedRoutine(fiveThreeOneRoutine)
+
+        // Seed Westside Routine
+        val westsideRoutine = WorkoutRoutine(
+            id = "routine_westside",
+            name = "Westside Conjugate",
+            description = "PROTOCOL: WESTSIDE\nGOAL: Absolute Power + Explosive Speed\n\nMETHOD: \n- Max Effort (ME): Work up to a 1-3RM on a variant.\n- Dynamic Effort (DE): Explosive sub-maximal speed work.\n- Repetition Effort (RE): High-volume accessory work.\n\nFOCUS: Powerlifting Peak Performance.",
+            protocol = WorkoutProtocol.WESTSIDE,
+            isSystem = true,
+            isAddedToLibrary = false,
+            exercises = listOf(
+                RoutineExercise(exercise = exercises.find { it.id == "back_squat" }!!, sets = listOf(RoutineSet(type = SetType.NORMAL)))
+            )
+        )
+        seedRoutine(westsideRoutine)
+
         // Ensure old default routines are removed as requested
         workoutDao.deleteRoutine("routine_strength")
         workoutDao.deleteRoutine("routine_strength_2")
@@ -2266,7 +2360,26 @@ class WorkoutRepositoryImpl @Inject constructor(
             ProtocolRepTarget(protocol = WorkoutProtocol.GENERAL, movementType = MovementType.UNDEFINED, setType = SetType.NORMAL, minReps = 8, maxReps = 12),
             ProtocolRepTarget(protocol = WorkoutProtocol.GENERAL, movementType = MovementType.UNDEFINED, setType = SetType.WARMUP, minReps = 5, maxReps = 10),
             ProtocolRepTarget(protocol = WorkoutProtocol.STRAIGHT_SETS, movementType = MovementType.UNDEFINED, setType = SetType.NORMAL, minReps = 8, maxReps = 12),
-            ProtocolRepTarget(protocol = WorkoutProtocol.STRAIGHT_SETS, movementType = MovementType.UNDEFINED, setType = SetType.WARMUP, minReps = 5, maxReps = 10)
+            ProtocolRepTarget(protocol = WorkoutProtocol.STRAIGHT_SETS, movementType = MovementType.UNDEFINED, setType = SetType.WARMUP, minReps = 5, maxReps = 10),
+
+            // STARTING_STRENGTH
+            ProtocolRepTarget(protocol = WorkoutProtocol.STARTING_STRENGTH, movementType = MovementType.UNDEFINED, setType = SetType.NORMAL, minReps = 5, maxReps = 5),
+            ProtocolRepTarget(protocol = WorkoutProtocol.STARTING_STRENGTH, movementType = MovementType.UNDEFINED, setType = SetType.WARMUP, minReps = 5, maxReps = 5),
+
+            // HST
+            ProtocolRepTarget(protocol = WorkoutProtocol.HST, movementType = MovementType.UNDEFINED, setType = SetType.NORMAL, minReps = 5, maxReps = 15),
+
+            // FIVE_THREE_ONE
+            ProtocolRepTarget(protocol = WorkoutProtocol.FIVE_THREE_ONE, movementType = MovementType.UNDEFINED, setType = SetType.NORMAL, minReps = 1, maxReps = 5),
+
+            // WESTSIDE
+            ProtocolRepTarget(protocol = WorkoutProtocol.WESTSIDE, movementType = MovementType.UNDEFINED, setType = SetType.POWER, minReps = 1, maxReps = 3),
+            ProtocolRepTarget(protocol = WorkoutProtocol.WESTSIDE, movementType = MovementType.UNDEFINED, setType = SetType.NORMAL, minReps = 1, maxReps = 3),
+
+            // DUP
+            ProtocolRepTarget(protocol = WorkoutProtocol.DUP, movementType = MovementType.UNDEFINED, setType = SetType.NORMAL, familyId = "DUP_HYPERTROPHY", minReps = 8, maxReps = 12),
+            ProtocolRepTarget(protocol = WorkoutProtocol.DUP, movementType = MovementType.UNDEFINED, setType = SetType.NORMAL, familyId = "DUP_STRENGTH", minReps = 3, maxReps = 5),
+            ProtocolRepTarget(protocol = WorkoutProtocol.DUP, movementType = MovementType.UNDEFINED, setType = SetType.NORMAL, familyId = "DUP_POWER", minReps = 2, maxReps = 3)
         )
 
         targets.forEach { target ->

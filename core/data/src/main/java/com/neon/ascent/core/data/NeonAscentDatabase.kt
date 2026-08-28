@@ -10,6 +10,7 @@ import com.neon.ascent.core.data.local.entity.*
 import com.neon.ascent.core.data.local.converter.*
 import com.neon.ascent.core.data.local.migration.MIGRATION_3_4
 import com.neon.ascent.core.data.local.migration.MIGRATION_11_12
+import com.neon.ascent.core.data.local.migration.MIGRATION_48_49
 
 @Database(
     entities = [
@@ -44,9 +45,11 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_11_12
         ExerciseAccomplishmentsEntity::class,
         BiomarkerSampleEntity::class,
         FuelSnapshotEntity::class,
-        ProtocolRepTargetEntity::class
+        ProtocolRepTargetEntity::class,
+        ProtocolCycleEntity::class,
+        ExerciseMaxEntity::class
     ],
-    version = 48,
+    version = 50,
     exportSchema = true
 )
 @TypeConverters(

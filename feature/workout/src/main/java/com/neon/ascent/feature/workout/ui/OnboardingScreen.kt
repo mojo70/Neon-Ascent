@@ -189,12 +189,13 @@ fun StepExperience(state: OnboardingUiState, onSelect: (ExperienceLevel) -> Unit
         Text("NEURAL EXPERIENCE", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
         Text("Calibrate complexity based on training history.", color = Color.Gray, modifier = Modifier.padding(top = 8.dp, bottom = 32.dp))
 
-        ExperienceLevel.entries.forEach { level ->
+        ExperienceLevel.entries.filter { it != ExperienceLevel.ANY }.forEach { level ->
             val isSelected = state.profile.experienceLevel == level
             val description = when (level) {
                 ExperienceLevel.NOVICE -> "Learning fundamental patterns. Focus on form and neural adaptation."
                 ExperienceLevel.INTERMEDIATE -> "Established base. Familiar with progressive overload and core protocols."
                 ExperienceLevel.ADVANCED -> "High-level operative. Mastery of complex movements and intensity techniques."
+                else -> ""
             }
             Surface(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp).clickable { onSelect(level) },
@@ -286,9 +287,50 @@ fun StepChronosCalibration(state: OnboardingUiState, onUpdateSchedule: (List<Sch
     val days = listOf("M", "T", "W", "T", "F", "S", "S")
     var showTimePickerForDay by remember { mutableStateOf<Int?>(null) }
 
+    val protocol = state.profile.activeProtocol
+    val title = if (protocol != null) {
+        "REMINDERS · ${protocol.displayName} · ${protocol.defaultWeekdays.size}× / WEEK"
+    } else {
+        "CHRONOS CALIBRATION"
+    }
+
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-        Text("CHRONOS CALIBRATION", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
-        Text("Schedule training within your neural windows.", color = Color.Gray, modifier = Modifier.padding(top = 8.dp, bottom = 32.dp))
+        Text(title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
+        
+        if (protocol != null) {
+            val selectedCount = state.profile.scheduledDays.size
+            val recommendedDays = protocol.defaultWeekdays.size
+            
+            val warnText = when {
+                protocol == WorkoutProtocol.HST && selectedCount > recommendedDays -> "LADDER ASSUMES 3×. EXTRA DAYS COMPRESS THE WAVE."
+                protocol == WorkoutProtocol.STARTING_STRENGTH && selectedCount != recommendedDays -> "3× IS THE LINEAR PROGRESSION CADENCE."
+                protocol == WorkoutProtocol.FIVE_THREE_ONE && selectedCount < recommendedDays -> "4TH MAIN WILL LAG THIS CYCLE."
+                protocol == WorkoutProtocol.WESTSIDE && selectedCount != recommendedDays -> "MISSING A ME OR DE DAY."
+                else -> null
+            }
+            
+            warnText?.let {
+                Surface(
+                    color = Color(0xFFFF006E).copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, Color(0xFFFF006E).copy(alpha = 0.5f)),
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFFF006E), modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(it, color = Color(0xFFFF006E), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        } else {
+            Text("Schedule training within your neural windows.", color = Color.Gray, modifier = Modifier.padding(top = 8.dp))
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("APPLY SAME TIME TO ALL", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -436,13 +478,7 @@ fun StepProtocolSynthesis(state: OnboardingUiState) {
         )
         
         state.recommendation?.let { routine ->
-            val protocolName = when (routine.protocol) {
-                WorkoutProtocol.CYBER_CRAPP -> "CYBERCRAPP"
-                WorkoutProtocol.STRAIGHT_SETS -> "STRAIGHT SETS"
-                WorkoutProtocol.DUP -> "D.U.P."
-                WorkoutProtocol.SUPERSETS -> "SUPERSETS"
-                WorkoutProtocol.GENERAL -> "GENERAL"
-            }
+            val protocolName = routine.protocol.displayName
             
             Surface(
                 modifier = Modifier

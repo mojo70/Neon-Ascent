@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTransformGestures
@@ -82,6 +83,26 @@ fun WorkoutLoggingScreen(
                     .fillMaxSize()
                     .background(Color.Black)
             ) {
+                if (uiState.showProtocolChangeReminderDialog != null) {
+                    val newProtocol = uiState.showProtocolChangeReminderDialog!!
+                    AlertDialog(
+                        onDismissRequest = { viewModel.cancelProtocolChange() },
+                        title = { Text("RESET REMINDERS?", color = Color.White, fontWeight = FontWeight.Black) },
+                        text = { Text("Replace training reminders with the ${newProtocol.displayName} recommended pattern?", color = Color.Gray) },
+                        confirmButton = {
+                            TextButton(onClick = { viewModel.confirmProtocolChange(true) }) {
+                                Text("YES, RESET", color = Color(0xFF00FF9C), fontWeight = FontWeight.Bold)
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { viewModel.confirmProtocolChange(false) }) {
+                                Text("NO, KEEP CUSTOM", color = Color.White)
+                            }
+                        },
+                        containerColor = Color(0xFF1C1C1E)
+                    )
+                }
+
                 if (uiState.isExploringProtocols) {
                     WorkoutExploreScreen(
                         uiState = uiState,
@@ -115,9 +136,11 @@ fun WorkoutLoggingScreen(
                             onUpdateBodyPart = { viewModel.updateNewAugmentBodyPart(it) },
                             viewModel = viewModel
                         )
-                    } else if (uiState.configuringProtocol != null) {
+                        val dossier = uiState.configuringProtocol!!.dossier
                         ProtocolConfigScreen(
                             protocol = uiState.configuringProtocol!!,
+                            recommendedDays = dossier.daysPerWeek,
+                            frequencyCopy = dossier.frequencyCopy,
                             tempProfile = uiState.tempConfigProfile!!,
                             onUpdateSchedule = { viewModel.updateConfigSchedule(it) },
                             onSave = { viewModel.saveProtocolConfiguration() },
@@ -149,6 +172,7 @@ fun WorkoutLoggingScreen(
                         ProtocolDetailScreen(
                             protocol = uiState.selectedProtocolForDetail!!,
                             uiState = uiState,
+                            viewModel = viewModel,
                             onBack = { viewModel.hideProtocolDetail() },
                             onStartProtocol = { 
                                 viewModel.startSession(it)
@@ -157,6 +181,36 @@ fun WorkoutLoggingScreen(
                             onAddProtocol = { viewModel.addProtocolToLibrary(it) },
                             onAddRoutine = { viewModel.toggleRoutineLibrary(it) },
                             onRoutineClick = { viewModel.showRoutinePreview(it) }
+                        )
+                    } else if (uiState.protocolIntakeNeeded != null) {
+                        if (uiState.protocolIntakeNeeded == WorkoutProtocol.HST) {
+                            HstIntakeScreen(
+                                onDismiss = { viewModel.dismissProtocolIntake() },
+                                onSubmit = { 
+                                    viewModel.startHstCycle(it)
+                                    viewModel.dismissProtocolIntake()
+                                },
+                                uiState = uiState
+                            )
+                        } else {
+                            ProtocolIntakeScreen(
+                                protocol = uiState.protocolIntakeNeeded!!,
+                                onDismiss = { viewModel.dismissProtocolIntake() },
+                                onSubmit = { weights -> 
+                                    when (uiState.protocolIntakeNeeded) {
+                                        WorkoutProtocol.STARTING_STRENGTH -> viewModel.startStartingStrengthCycle(weights)
+                                        WorkoutProtocol.FIVE_THREE_ONE -> viewModel.startFiveThreeOneCycle(weights)
+                                        WorkoutProtocol.DUP -> viewModel.startDupCycle(weights)
+                                        WorkoutProtocol.WESTSIDE -> viewModel.startWestsideCycle(weights)
+                                        else -> {}
+                                    }
+                                    viewModel.dismissProtocolIntake()
+                                }
+                            )
+                        }
+                    } else if (uiState.isStrategicDeconditioningActive) {
+                        StrategicDeconditioningWindow(
+                            onDismiss = { viewModel.dismissSdWindow() }
                         )
                     } else {
                         WorkoutIntakeScreen(
@@ -240,17 +294,19 @@ fun WorkoutLoggingScreen(
                         CompositionLocalProvider(LocalDensity provides scaledDensity) {
                             Column(modifier = Modifier.fillMaxSize()) {
                                 ActiveWorkoutHeader(
-                                duration = durationFormatted,
-                                zoomLevel = uiState.zoomLevel,
-                                onBack = onBack,
-                                onFinish = { viewModel.finishWorkout() },
-                                isPaused = uiState.isPaused,
-                                onPauseToggle = {
-                                    if (uiState.isPaused) viewModel.resumeWorkout() else viewModel.pauseWorkout()
-                                },
-                                onDiscard = { viewModel.discardWorkout() },
-                                onViewInCodex = { onViewInCodex("") }
-                            )
+                                    duration = durationFormatted,
+                                    zoomLevel = uiState.zoomLevel,
+                                    onBack = onBack,
+                                    onFinish = { viewModel.finishWorkout() },
+                                    isPaused = uiState.isPaused,
+                                    onPauseToggle = {
+                                        if (uiState.isPaused) viewModel.resumeWorkout() else viewModel.pauseWorkout()
+                                    },
+                                    onDiscard = { viewModel.discardWorkout() },
+                                    onViewInCodex = { onViewInCodex("") },
+                                    protocol = uiState.session?.protocol,
+                                    dayType = uiState.session?.protocolDayType
+                                )
                             WorkoutSummaryBar(uiState, viewModel, onToggleSomatotype = { viewModel.toggleSomatotypeInfluence() })
                             
                             if (uiState.somatotypeNudgeText != null) {
@@ -312,7 +368,7 @@ fun WorkoutLoggingScreen(
                     }
                 },
                 confirmButton = {
-                    Column {
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         Button(
                             onClick = { viewModel.confirmDeactivateProtocol(removeRoutines = true) },
                             modifier = Modifier.fillMaxWidth(),
@@ -320,20 +376,27 @@ fun WorkoutLoggingScreen(
                         ) {
                             Text("DEACTIVATE & REMOVE ROUTINES", fontSize = 12.sp, fontWeight = FontWeight.Black)
                         }
+                        
                         Spacer(Modifier.height(8.dp))
+                        
                         TextButton(
                             onClick = { viewModel.confirmDeactivateProtocol(removeRoutines = false) },
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text("DEACTIVATE ONLY (KEEP ROUTINES)", color = Color(0xFF00FF9C), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
+
+                        Spacer(Modifier.height(8.dp))
+
+                        TextButton(
+                            onClick = { viewModel.cancelDeactivateProtocol() },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("CANCEL", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 },
-                dismissButton = {
-                    TextButton(onClick = { viewModel.cancelDeactivateProtocol() }) {
-                        Text("CANCEL", color = Color.Gray)
-                    }
-                },
+                dismissButton = null,
                 containerColor = Color(0xFF1C1C1E)
             )
         }
@@ -607,7 +670,9 @@ fun ActiveWorkoutHeader(
     isPaused: Boolean,
     onPauseToggle: () -> Unit,
     onDiscard: () -> Unit,
-    onViewInCodex: () -> Unit = {}
+    onViewInCodex: () -> Unit = {},
+    protocol: WorkoutProtocol? = null,
+    dayType: ProtocolDayType? = null
 ) {
     var showDiscardDialog by remember { mutableStateOf(false) }
 
@@ -651,11 +716,22 @@ fun ActiveWorkoutHeader(
             if (zoom < 1.25f) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    if (zoom <= 0.8f) "ASCENT NEURAL LINK" else "Log Workout", 
+                    if (zoom <= 0.8f) "ASCENT NEURAL LINK" else if (protocol != null) {
+                        if (protocol == WorkoutProtocol.DUP) "UNDULATION" else protocol.displayName
+                    } else "Log Workout", 
                     color = Color.White, 
                     fontSize = 18.sp, 
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Black
                 )
+                if (dayType != null && zoom < 1.0f) {
+                    Text(
+                        dayType.name,
+                        color = Color(0xFF00FF9C),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
             }
         }
         
@@ -1959,6 +2035,7 @@ fun RoutineExerciseItem(
                         SetType.GS -> "GS"
                         SetType.PARTIAL -> "PAR"
                         SetType.STRETCH -> "STR"
+                        SetType.MAX_EFFORT -> "ME"
                     }
                     val color = when (set.type) {
                         SetType.WARMUP -> Color(0xFFFFA500)
@@ -1970,6 +2047,7 @@ fun RoutineExerciseItem(
                         SetType.GS -> Color(0xFF00CCFF)
                         SetType.PARTIAL -> Color(0xFF00FF9C)
                         SetType.STRETCH -> Color(0xFFFF006E)
+                        SetType.MAX_EFFORT -> Color(0xFFFF0000)
                         else -> Color.White
                     }
                     Text(label, color = color, fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -2788,13 +2866,20 @@ fun WorkoutExerciseActionMenu(
                 }
             )
             ActionMenuItem(
-                icon = Icons.Default.Add,
-                label = "Add To Superset",
+                icon = Icons.Default.Link,
+                label = "PAIR LIFTS",
                 onClick = {
                     onAddSuperset()
                     onDismiss()
                 }
             )
+            Text(
+                "Pair two lifts. Not a program.",
+                color = Color.Gray,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(horizontal = 64.dp, vertical = 0.dp)
+            )
+            Spacer(Modifier.height(16.dp))
 
             if (!isMandatoryGoal) {
                 ActionMenuItem(
@@ -3564,6 +3649,7 @@ fun CustomExerciseForm(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun WorkoutLogCard(
     log: WorkoutLog,
@@ -3579,6 +3665,7 @@ fun WorkoutLogCard(
     val progressionState = uiState.progressionStates[log.exerciseId]
     var showSetTypeSelector by remember { mutableStateOf<SetLog?>(null) }
     var showClusterDialogFor by remember { mutableStateOf<List<SetLog>?>(null) }
+    var warmupsCollapsed by remember { mutableStateOf(true) }
     
     val exercise = remember(uiState.availableExercises, log.exerciseId) {
         uiState.availableExercises.find { it.id == log.exerciseId }
@@ -3600,10 +3687,8 @@ fun WorkoutLogCard(
         log.augmentId != null && (uiState.augments + uiState.exploreAugments).any { it.id == log.augmentId && (it.isSystem) }
     }
     
-    val showGoalColumn = uiState.session?.protocol == WorkoutProtocol.CYBER_CRAPP || 
-                        isPrescriptiveAugment ||
-                        log.showGoalReps ||
-                        sets.any { it.goalReps != null }
+    val isCC = uiState.currentUiMode == ProtocolUiMode.CLUSTER
+    val showGoalColumn = isCC || log.showGoalReps || sets.any { it.goalReps != null || it.prescribedReps != null }
     
     val augmentColor = log.augmentColor?.let { Color(android.graphics.Color.parseColor(it)) } ?: Color(0xFF007AFF)
     val neonColor = Color(0xFF00FF9C)
@@ -3641,7 +3726,7 @@ fun WorkoutLogCard(
                 }
             )
     ) {
-        if (showWeightIncrease) {
+        if (showWeightIncrease && isCC) {
             ProgressionBanner(
                 text = "WEIGHT INCREASE DUE (+2.5-5 lb) ⚡",
                 color = Color(0xFF00FFCC),
@@ -3649,7 +3734,7 @@ fun WorkoutLogCard(
             )
         }
         
-        if (showStall) {
+        if (showStall && isCC) {
             ProgressionBanner(
                 text = "STALL DETECTED: ROTATION RECOMMENDED ⚠️",
                 color = Color(0xFFFF0066),
@@ -3994,11 +4079,13 @@ fun WorkoutLogCard(
         Spacer(modifier = Modifier.height(8.dp))
 
         // Grouping sets for display
-        val displayItems = remember(sets) {
+        val displayItems = remember(sets, uiState.currentUiMode) {
             val items = mutableListOf<Any>()
             var handledCluster = false
+            val isCCMode = uiState.currentUiMode == ProtocolUiMode.CLUSTER
+            
             sets.forEach { set ->
-                if (set.clusterMiniSetIndex != null || set.type == SetType.PARTIAL || set.type == SetType.STRETCH) {
+                if (isCCMode && (set.clusterMiniSetIndex != null || set.type == SetType.PARTIAL || set.type == SetType.STRETCH)) {
                     if (!handledCluster) {
                         items.add(sets.filter { it.clusterMiniSetIndex != null || it.type == SetType.PARTIAL || it.type == SetType.STRETCH })
                         handledCluster = true
@@ -4010,82 +4097,126 @@ fun WorkoutLogCard(
             items
         }
 
-        displayItems.forEachIndexed { index, item ->
-            if (item is List<*>) {
-                @Suppress("UNCHECKED_CAST")
-                val clusterSets = item as List<SetLog>
-                val clusterKey = clusterSets.firstOrNull()?.workoutLogId ?: "cluster_$index"
-                key(clusterKey) {
-                    val prevClusterSets = previousSets.filter { it.clusterMiniSetIndex != null }
-                    val prevW = prevClusterSets.firstOrNull()?.weight ?: progressionState?.currentWeight
-                    ClusterSetRow(
-                        sets = clusterSets,
-                        previousSets = prevClusterSets,
-                        previousWeight = if (prevW != null && prevW > 0) prevW else null,
-                        zoomLevel = zoom,
-                        onUpdateWeight = { weight -> clusterSets.forEach { viewModel.updateSet(it, weight = weight) } },
-                        onUpdateGoal = { goal -> clusterSets.forEach { viewModel.updateSet(it, goalReps = goal) } },
-                        onClick = { showClusterDialogFor = clusterSets },
-                        onSetLabelClick = { showSetTypeSelector = clusterSets.first() }
-                    )
-                }
-            } else if (item is SetLog) {
-                val set = item
-                key(set.id) {
-                    val currentTypeSets = sets.filter { it.type == set.type && it.clusterMiniSetIndex == null }
-                    val setIndexInType = currentTypeSets.indexOf(set)
-                    val prevTypeSets = previousSets.filter { it.type == set.type && it.clusterMiniSetIndex == null }
-                    val prevSet = prevTypeSets.getOrNull(setIndexInType)
-                    
-                    val hasPrevData = prevSet != null && (prevSet.weight > 0 || prevSet.reps > 0)
-                    
-                    // Realistic Warmup vs Working Set Suggestion:
-                    // For Bodyweight exercises, the user enters added weight (0 if bodyweight only).
-                    // Bodyweight is handled in the background calculations, not shown/entered by user.
-                    val prevWeight = when {
-                        prevSet != null && prevSet.weight > 0 -> prevSet.weight
-                        set.type == SetType.WARMUP -> null
-                        else -> progressionState?.currentWeight
-                    }
+        val isDynamicMode = uiState.currentUiMode == ProtocolUiMode.DYNAMIC
+        val workSets = displayItems.filterIsInstance<SetLog>().filter { it.type != SetType.WARMUP }
+        val warmupSets = displayItems.filterIsInstance<SetLog>().filter { it.type == SetType.WARMUP }
 
-                    SetLogRow(
-                        setNumber = index + 1,
-                        set = set,
-                        showGoal = showGoalColumn,
-                        previousData = if (hasPrevData) "${if (prevSet!!.weight % 1 == 0f) prevSet.weight.toInt() else prevSet.weight}lbs x ${prevSet.reps}" else if (prevSet != null) "0lbs x 0" else "0",
-                        previousWeight = if (prevWeight != null && prevWeight > 0) prevWeight else null,
-                        zoomLevel = zoom,
-                        onUpdateWeight = { viewModel.updateSet(set, weight = it) },
-                        onUpdateReps = { viewModel.updateSet(set, reps = it) },
-                        onUpdateGoal = { viewModel.updateSet(set, goalReps = it) },
-                        onCompleteToggle = { viewModel.updateSet(set, isCompleted = !set.isCompleted) },
-                        onSetLabelClick = { 
-                            if (set.type != SetType.PARTIAL && set.type != SetType.STRETCH) {
-                                showSetTypeSelector = set 
-                            }
-                        }
-                    )
-                }
-            }
-            
-            // Inline Rest Timer Injection
-            val isMatch = if (item is SetLog) {
-                item.id == uiState.lastCompletedSetId
-            } else {
-                (item as? List<SetLog>)?.any { it.id == uiState.lastCompletedSetId } == true
-            }
-            
-            if (uiState.isResting && isMatch && 
-                (uiState.restTimerMode == RestTimerMode.INLINE || uiState.restTimerMode == RestTimerMode.BOTH)) {
-                InlineRestTimer(
-                    remaining = uiState.restTimeRemaining,
-                    total = uiState.restTimerTotalSeconds,
-                    onAdjust = { viewModel.adjustRestTimer(it) },
-                    onSkip = { viewModel.skipRestTimer() }
+        // Render Warmups
+        if (uiState.currentUiMode == ProtocolUiMode.MAX_EFFORT && warmupSets.isNotEmpty() && warmupsCollapsed) {
+            Text(
+                "${warmupSets.size} WARMUPS COLLAPSED", 
+                color = Color.Gray, 
+                fontSize = 10.sp, 
+                fontWeight = FontWeight.Bold, 
+                modifier = Modifier.fillMaxWidth().clickable { warmupsCollapsed = false }.padding(vertical = 8.dp), 
+                textAlign = TextAlign.Center
+            )
+        } else {
+            warmupSets.forEachIndexed { i, s -> 
+                SetLogRow(
+                    setNumber = i + 1,
+                    set = s,
+                    showGoal = showGoalColumn,
+                    previousData = "-",
+                    zoomLevel = uiState.zoomLevel,
+                    prescribedWeight = s.prescribedWeight,
+                    prescribedReps = s.prescribedReps,
+                    percentOfMax = s.percentOfMax,
+                    isAmrap = s.isAmrap,
+                    onUpdateWeight = { viewModel.updateSet(s, weight = it) },
+                    onUpdateReps = { viewModel.updateSet(s, reps = it) },
+                    onUpdateGoal = { viewModel.updateSet(s, goalReps = it) },
+                    onCompleteToggle = { viewModel.updateSet(s, isCompleted = !s.isCompleted) },
+                    onSetLabelClick = { showSetTypeSelector = s }
                 )
             }
-            
-            Spacer(modifier = Modifier.height(4.dp))
+        }
+
+        // Render Work Sets
+        if (isDynamicMode) {
+            FlowRow(modifier = Modifier.fillMaxWidth(), maxItemsInEachRow = 2) {
+                workSets.forEachIndexed { i, s -> 
+                    Box(modifier = Modifier.fillMaxWidth(0.5f)) {
+                        SetLogRow(
+                            setNumber = i + warmupSets.size + 1,
+                            set = s,
+                            showGoal = showGoalColumn,
+                            previousData = "-",
+                            zoomLevel = uiState.zoomLevel,
+                            prescribedWeight = s.prescribedWeight,
+                            prescribedReps = s.prescribedReps,
+                            percentOfMax = s.percentOfMax,
+                            isAmrap = s.isAmrap,
+                            onUpdateWeight = { viewModel.updateSet(s, weight = it) },
+                            onUpdateReps = { viewModel.updateSet(s, reps = it) },
+                            onUpdateGoal = { viewModel.updateSet(s, goalReps = it) },
+                            onCompleteToggle = { viewModel.updateSet(s, isCompleted = !s.isCompleted) },
+                            onSetLabelClick = { showSetTypeSelector = s }
+                        )
+                    }
+                }
+            }
+        } else {
+            displayItems.filter { it !in warmupSets }.forEachIndexed { index, item ->
+                if (item is List<*>) {
+                    @Suppress("UNCHECKED_CAST")
+                    val clusterSets = item as List<SetLog>
+                    val clusterKey = clusterSets.firstOrNull()?.workoutLogId ?: "cluster_$index"
+                    key(clusterKey) {
+                        val prevClusterSets = previousSets.filter { it.clusterMiniSetIndex != null }
+                        val prevW = prevClusterSets.firstOrNull()?.weight ?: progressionState?.currentWeight
+                        ClusterSetRow(
+                            sets = clusterSets,
+                            previousSets = prevClusterSets,
+                            previousWeight = if (prevW != null && prevW > 0) prevW else null,
+                            zoomLevel = zoom,
+                            onUpdateWeight = { weight -> clusterSets.forEach { viewModel.updateSet(it, weight = weight) } },
+                            onUpdateGoal = { goal -> clusterSets.forEach { viewModel.updateSet(it, goalReps = goal) } },
+                            onClick = { showClusterDialogFor = clusterSets },
+                            onSetLabelClick = { showSetTypeSelector = clusterSets.first() }
+                        )
+                    }
+                } else if (item is SetLog) {
+                    val s = item
+                    key(s.id) {
+                        SetLogRow(
+                            setNumber = index + warmupSets.size + 1,
+                            set = s,
+                            showGoal = showGoalColumn,
+                            previousData = "-",
+                            zoomLevel = uiState.zoomLevel,
+                            prescribedWeight = s.prescribedWeight,
+                            prescribedReps = s.prescribedReps,
+                            percentOfMax = s.percentOfMax,
+                            isAmrap = s.isAmrap,
+                            onUpdateWeight = { viewModel.updateSet(s, weight = it) },
+                            onUpdateReps = { viewModel.updateSet(s, reps = it) },
+                            onUpdateGoal = { viewModel.updateSet(s, goalReps = it) },
+                            onCompleteToggle = { viewModel.updateSet(s, isCompleted = !s.isCompleted) },
+                            onSetLabelClick = { showSetTypeSelector = s }
+                        )
+                    }
+                }
+                
+                // Inline Rest Timer Injection
+                val isMatch = if (item is SetLog) {
+                    item.id == uiState.lastCompletedSetId
+                } else {
+                    (item as? List<SetLog>)?.any { it.id == uiState.lastCompletedSetId } == true
+                }
+                
+                if (uiState.isResting && isMatch && 
+                    (uiState.restTimerMode == RestTimerMode.INLINE || uiState.restTimerMode == RestTimerMode.BOTH)) {
+                    InlineRestTimer(
+                        remaining = uiState.restTimeRemaining,
+                        total = uiState.restTimerTotalSeconds,
+                        onAdjust = { viewModel.adjustRestTimer(it) },
+                        onSkip = { viewModel.skipRestTimer() }
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(4.dp))
+            }
         }
 
         Button(
@@ -5134,6 +5265,7 @@ fun SetLogRow(
         SetType.GS -> "GS"
         SetType.PARTIAL -> "PAR"
         SetType.STRETCH -> "STR"
+        SetType.MAX_EFFORT -> "ME"
     }
     val labelColor = when (set.type) {
         SetType.WARMUP -> Color(0xFFFFA500)
@@ -5145,6 +5277,7 @@ fun SetLogRow(
         SetType.GS -> Color(0xFF00CCFF)
         SetType.PARTIAL -> Color(0xFF00FF9C)
         SetType.STRETCH -> Color(0xFFFF006E)
+        SetType.MAX_EFFORT -> Color(0xFFFF0000)
         else -> Color.White
     }
 
@@ -5261,6 +5394,7 @@ fun SetLogRow(
 fun EditableValueBox(
     value: String,
     onValueChange: (String) -> Unit,
+    onCommit: () -> Unit = {},
     modifier: Modifier = Modifier,
     keyboardType: KeyboardType = KeyboardType.Number,
     placeholder: String = "0",
@@ -5315,7 +5449,11 @@ fun EditableValueBox(
             ),
             keyboardOptions = KeyboardOptions(
                 keyboardType = keyboardType,
-                autoCorrectEnabled = false
+                autoCorrectEnabled = false,
+                imeAction = androidx.compose.ui.text.input.ImeAction.Done
+            ),
+            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                onDone = { onCommit() }
             ),
             cursorBrush = SolidColor(Color(0xFF007AFF)),
             singleLine = true,
@@ -5325,11 +5463,7 @@ fun EditableValueBox(
                     val wasFocused = isFocused
                     isFocused = it.isFocused
                     if (wasFocused && !it.isFocused) {
-                        if (text.isEmpty()) {
-                            onValueChange("0")
-                        } else {
-                            onValueChange(text)
-                        }
+                        onCommit()
                     } else if (!wasFocused && it.isFocused) {
                         if (text == "0" || text == "0.0") {
                             text = ""
@@ -5337,7 +5471,6 @@ fun EditableValueBox(
                     }
                 }
         )
-
     }
 }
 
@@ -5417,6 +5550,7 @@ fun SetTypeOption(label: String, description: String, color: Color, onClick: () 
     HorizontalDivider(color = Color.Gray.copy(alpha = 0.1f))
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun WorkoutExploreScreen(
     uiState: WorkoutUiState,
@@ -5426,6 +5560,19 @@ fun WorkoutExploreScreen(
     onAddAugment: (WorkoutAugment) -> Unit,
     onAddRoutine: (WorkoutRoutine) -> Unit
 ) {
+    val sortedProtocols = remember {
+        WorkoutProtocol.entries
+            .filter { it.isSelectableEngine }
+            .sortedBy { protocol ->
+                when (protocol.dossier.recommendedLevel) {
+                    ExperienceLevel.ANY -> 0
+                    ExperienceLevel.NOVICE -> 1
+                    ExperienceLevel.INTERMEDIATE -> 2
+                    ExperienceLevel.ADVANCED -> 3
+                }
+            }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -5467,54 +5614,108 @@ fun WorkoutExploreScreen(
                 )
             }
 
-            items(WorkoutProtocol.entries) { protocol ->
-                val protocolRoutines = uiState.exploreRoutines.filter { it.protocol == protocol }
-                val allRoutinesAdded = protocolRoutines.isNotEmpty() && protocolRoutines.all { it.isAddedToLibrary }
-
+            items(sortedProtocols) { protocol ->
+                val isActive = uiState.userProfile?.activeProtocol == protocol
+                val dossier = protocol.dossier
+                
                 Surface(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onProtocolClick(protocol) },
+                        .fillMaxWidth(),
                     color = Color(0xFF1C1C1E),
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                    border = BorderStroke(1.dp, if (isActive) Color(0xFF00FF9C) else Color.White.copy(alpha = 0.1f))
                 ) {
                     Row(
-                        modifier = Modifier.padding(20.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onProtocolClick(protocol) }
+                            .padding(20.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                protocol.displayName,
-                                color = Color.White,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Black
-                            )
-                            Text(
-                                protocol.description,
-                                color = Color.Gray,
-                                fontSize = 12.sp,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    protocol.displayName,
+                                    color = Color.White,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Black
+                                )
+                                if (isActive) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Surface(
+                                        color = Color(0xFF00FF9C),
+                                        shape = RoundedCornerShape(4.dp)
+                                    ) {
+                                        Text(
+                                            "ACTIVE",
+                                            color = Color.Black,
+                                            fontSize = 8.sp,
+                                            fontWeight = FontWeight.Black,
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            
+                            Row(
+                                modifier = Modifier.padding(top = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Text(
+                                    protocol.loreName,
+                                    color = Color(0xFF00FF9C).copy(alpha = 0.7f),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                                
+                                Text(
+                                    protocol.frequencyCaption,
+                                    color = Color.White.copy(alpha = 0.6f),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                
+                                val levelColor = when (dossier.recommendedLevel) {
+                                    ExperienceLevel.ADVANCED -> Color(0xFFFF006E) // Cyber Red
+                                    ExperienceLevel.INTERMEDIATE -> Color(0xFFFFA500) // Hazard Orange
+                                    else -> Color(0xFF00FF9C) // Cyber Green
+                                }
+
+                                Surface(
+                                    color = levelColor.copy(alpha = 0.1f),
+                                    shape = RoundedCornerShape(4.dp),
+                                    border = BorderStroke(0.5.dp, levelColor.copy(alpha = 0.5f))
+                                ) {
+                                    Text(
+                                        dossier.recommendedLevel.name,
+                                        color = levelColor,
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.Black,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
                         }
                         
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(
-                                onClick = { onAddProtocol(protocol) },
-                                modifier = Modifier.size(32.dp).background(if (allRoutinesAdded) Color(0xFF00FF9C).copy(alpha = 0.1f) else Color(0xFF00FF9C).copy(alpha = 0.2f), CircleShape)
-                            ) {
-                                Icon(
-                                    if (allRoutinesAdded) Icons.Default.CheckCircle else Icons.Default.Add,
-                                    contentDescription = "Add Protocol", 
-                                    tint = Color(0xFF00FF9C), 
-                                    modifier = Modifier.size(20.dp)
-                                )
+                            if (!isActive) {
+                                IconButton(
+                                    onClick = { onAddProtocol(protocol) },
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .background(Color(0xFF00FF9C).copy(alpha = 0.2f), CircleShape)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Add, 
+                                        contentDescription = "Set Protocol Active", 
+                                        tint = Color(0xFF00FF9C), 
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
-                            Spacer(Modifier.width(12.dp))
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = Color.Gray)
                         }
                     }
                 }
@@ -5588,6 +5789,8 @@ fun WorkoutExploreScreen(
 @Composable
 fun ProtocolConfigScreen(
     protocol: WorkoutProtocol,
+    recommendedDays: Int,
+    frequencyCopy: String,
     tempProfile: UserWorkoutProfile,
     onUpdateSchedule: (List<ScheduledDay>) -> Unit,
     onSave: () -> Unit,
@@ -5609,7 +5812,7 @@ fun ProtocolConfigScreen(
                 Icon(Icons.Default.Close, contentDescription = "Cancel", tint = Color.White)
             }
             Text(
-                "PROTOCOL INITIALIZATION",
+                "REMINDERS · ${protocol.displayName} · ${recommendedDays}× / WEEK",
                 color = Color.White,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Black,
@@ -5630,13 +5833,42 @@ fun ProtocolConfigScreen(
                 )
                 
                 Text(
-                    "Configure your training window and neural reminders for ${protocol.displayName}.",
+                    frequencyCopy,
                     color = Color.Gray,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(top = 8.dp)
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
+
+                val selectedCount = tempProfile.scheduledDays.size
+                if (selectedCount != recommendedDays) {
+                    val warnText = when {
+                        protocol == WorkoutProtocol.HST && selectedCount > recommendedDays -> "LADDER ASSUMES 3×. EXTRA DAYS COMPRESS THE WAVE."
+                        protocol == WorkoutProtocol.STARTING_STRENGTH && selectedCount != recommendedDays -> "3× IS THE LINEAR PROGRESSION CADENCE."
+                        protocol == WorkoutProtocol.FIVE_THREE_ONE && selectedCount < recommendedDays -> "4TH MAIN WILL LAG THIS CYCLE."
+                        protocol == WorkoutProtocol.WESTSIDE && selectedCount != recommendedDays -> "MISSING A ME OR DE DAY."
+                        else -> null
+                    }
+                    
+                    warnText?.let {
+                        Surface(
+                            color = Color(0xFFFF006E).copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, Color(0xFFFF006E).copy(alpha = 0.5f)),
+                            modifier = Modifier.padding(bottom = 24.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFFF006E), modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(it, color = Color(0xFFFF006E), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
 
                 Text(
                     "TRAINING SCHEDULE",
@@ -5805,14 +6037,16 @@ fun ProtocolConfigScreen(
 fun ProtocolDetailScreen(
     protocol: WorkoutProtocol,
     uiState: WorkoutUiState,
+    viewModel: WorkoutViewModel,
     onBack: () -> Unit,
     onStartProtocol: (WorkoutProtocol) -> Unit,
     onAddProtocol: (WorkoutProtocol) -> Unit,
     onAddRoutine: (WorkoutRoutine) -> Unit,
     onRoutineClick: (WorkoutRoutine) -> Unit
 ) {
-    val protocolRoutines = uiState.exploreRoutines.filter { it.protocol == protocol }
-    val allRoutinesAdded = protocolRoutines.isNotEmpty() && protocolRoutines.all { it.isAddedToLibrary }
+    val dossier = protocol.dossier
+    val isIntakeNeeded = viewModel.isIntakeNeededForProtocol(protocol)
+    val isActive = uiState.userProfile?.activeProtocol == protocol
 
     Column(
         modifier = Modifier
@@ -5826,167 +6060,139 @@ fun ProtocolDetailScreen(
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
             }
             Text(
-                "PROTOCOL DETAIL",
+                "PROTOCOL DOSSIER",
                 color = Color.White,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 2.sp,
-                modifier = Modifier.align(Alignment.Center)
+                modifier = Modifier.align(Alignment.Center),
+                fontFamily = FontFamily.Monospace
             )
         }
 
         LazyColumn(
-            modifier = Modifier.weight(1f).padding(horizontal = 24.dp)
+            modifier = Modifier.weight(1f).padding(horizontal = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(32.dp),
+            contentPadding = PaddingValues(bottom = 32.dp)
         ) {
             item {
-                Text(
-                    protocol.displayName,
-                    color = Color.White,
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Black
-                )
-                
-                Text(
-                    protocol.description,
-                    color = Color.Gray,
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(top = 16.dp)
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = Color(0xFF1C1C1E),
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.3f))
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("METHODOLOGY", color = Color(0xFF00FF9C), fontSize = 10.sp, fontWeight = FontWeight.Black)
-                        Text(
-                            protocol.methodology,
-                            color = Color.White.copy(alpha = 0.9f),
-                            fontSize = 13.sp,
-                            lineHeight = 18.sp,
-                            modifier = Modifier.padding(top = 8.dp)
-                        )
-                    }
+                Column {
+                    Text(
+                        dossier.displayName,
+                        color = Color.White,
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Black
+                    )
+                    Text(
+                        dossier.loreName,
+                        color = Color(0xFF00FF9C),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        letterSpacing = 1.sp
+                    )
                 }
-
-                Spacer(modifier = Modifier.height(32.dp))
-                
-                Text(
-                    "PROTOCOL TENANTS",
-                    color = Color(0xFF00FF9C),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 1.sp
-                )
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                protocol.tenants.forEach { tenant ->
-                    Row(modifier = Modifier.padding(vertical = 8.dp)) {
-                        Text("•", color = Color(0xFF00FF9C), modifier = Modifier.padding(end = 12.dp))
-                        Text(
-                            tenant,
-                            color = Color.White.copy(alpha = 0.8f),
-                            fontSize = 14.sp,
-                            lineHeight = 20.sp
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                Text(
-                    "INTEGRATED ROUTINES",
-                    color = Color(0xFF00FF9C),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 1.sp
-                )
-                
-                Spacer(modifier = Modifier.height(16.dp))
             }
 
-            items(protocolRoutines) { routine ->
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 12.dp)
-                        .clickable { onRoutineClick(routine) },
-                    color = Color(0xFF1C1C1E),
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+            item { DossierSection("FOCUS", dossier.focus) }
+
+            item { 
+                DossierSection("RECOMMENDED", "") {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            color = Color(0xFF00FF9C).copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(4.dp),
+                            border = BorderStroke(1.dp, Color(0xFF00FF9C))
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(routine.name, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                                Text(
-                                    routine.exercises.joinToString(", ") { it.exercise.name },
-                                    color = Color.Gray,
-                                    fontSize = 11.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(top = 4.dp)
-                                )
-                            }
-                            IconButton(
-                                onClick = { onAddRoutine(routine) },
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(
-                                    if (routine.isAddedToLibrary) Icons.Default.CheckCircle else Icons.Default.Add,
-                                    contentDescription = "Add Routine", 
-                                    tint = if (routine.isAddedToLibrary) Color(0xFF00FF9C) else Color(0xFF00CCFF)
-                                )
+                            Text(
+                                dossier.recommendedLevel.name,
+                                color = Color(0xFF00FF9C),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Black,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Text(dossier.alsoFits, color = Color.Gray, fontSize = 13.sp)
+                    }
+                }
+            }
+
+            item { DossierSection("FREQUENCY", "${dossier.daysPerWeek}× / WEEK") }
+
+            item { DossierSection("CONTRACT", dossier.loggingContract) }
+
+            item { DossierSection("INTAKE", dossier.intake) }
+
+            item {
+                DossierSection("TENETS", "") {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        dossier.tenets.forEachIndexed { index, tenet ->
+                            Row {
+                                Text("0", color = Color(0xFF00FF9C), fontSize = 13.sp, fontFamily = FontFamily.Monospace)
+                                Text("${index + 1}", color = Color(0xFF00FF9C), fontSize = 13.sp, fontFamily = FontFamily.Monospace)
+                                Spacer(Modifier.width(12.dp))
+                                Text(tenet, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
                             }
                         }
                     }
                 }
             }
+
+            item { DossierSection("SESSION", dossier.sessionAnatomy) }
+
+            item { DossierSection("NOT THIS", dossier.notThis) }
         }
 
-        // Bottom Actions
-        Column(modifier = Modifier.padding(24.dp).navigationBarsPadding()) {
-            Button(
-                onClick = { onAddProtocol(protocol) },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = if (allRoutinesAdded) Color.DarkGray else Color(0xFF1C1C1E)),
-                shape = RoundedCornerShape(12.dp),
-                border = if (!allRoutinesAdded) BorderStroke(1.dp, Color(0xFF00FF9C)) else null
-            ) {
-                Icon(
-                    if (allRoutinesAdded) Icons.Default.CheckCircle else Icons.Default.Download,
-                    contentDescription = null,
-                    tint = if (allRoutinesAdded) Color(0xFF00FF9C) else Color.White
-                )
-                Spacer(Modifier.width(12.dp))
-                Text(
-                    if (allRoutinesAdded) "PROTOCOL ARCHIVED" else "ADD PROTOCOL TO UPLINK",
-                    color = if (allRoutinesAdded) Color(0xFF00FF9C) else Color.White,
-                    fontWeight = FontWeight.Black
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Button(
-                onClick = { onStartProtocol(protocol) },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text("INITIALIZE PROTOCOL SESSION", color = Color.Black, fontWeight = FontWeight.Black)
+        // Footer
+        Box(modifier = Modifier.padding(24.dp).navigationBarsPadding()) {
+            if (isActive) {
+                Button(
+                    onClick = onBack,
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C1C1E)),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color(0xFF00FF9C))
+                ) {
+                    Text("CURRENTLY ACTIVE", color = Color(0xFF00FF9C), fontWeight = FontWeight.Black)
+                }
+            } else {
+                val cta = if (isIntakeNeeded) "CALIBRATE ENGINE" else "SET ACTIVE"
+                Button(
+                    onClick = { onAddProtocol(protocol) },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(cta, color = Color.Black, fontWeight = FontWeight.Black)
+                }
             }
         }
+    }
+}
 
+@Composable
+fun DossierSection(label: String, content: String, customContent: @Composable () -> Unit = {}) {
+    Column {
+        Text(
+            label,
+            color = Color(0xFF00FF9C),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = 2.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        Spacer(Modifier.height(8.dp))
+        if (content.isNotEmpty()) {
+            Text(
+                content,
+                color = Color.White.copy(alpha = 0.9f),
+                fontSize = 15.sp,
+                lineHeight = 22.sp
+            )
+        } else {
+            customContent()
+        }
     }
 }
 
@@ -6626,6 +6832,420 @@ fun StagnationBadge(exerciseName: String, onRotate: () -> Unit) {
                 shape = RoundedCornerShape(4.dp)
             ) {
                 Text("ROTATE MISSION", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Black)
+            }
+        }
+    }
+}
+
+data class HstFamilyState(
+    val rm15: String = "",
+    val rm10: String = "",
+    val rm5: String = "",
+    val rm1: String = "",
+    val manualFields: Set<String> = emptySet()
+)
+
+@Composable
+fun HstIntakeScreen(
+    onDismiss: () -> Unit,
+    onSubmit: (Map<String, Triple<Float?, Float?, Float?>>) -> Unit,
+    uiState: WorkoutUiState
+) {
+    val families = listOf(
+        "squat" to "SQUAT",
+        "bench_press" to "BENCH PRESS",
+        "rows" to "ROW",
+        "overhead_press" to "OVERHEAD PRESS",
+        "deadlift" to "RDL"
+    )
+
+    var familyStates by remember { 
+        mutableStateOf(families.associate { it.first to HstFamilyState() }) 
+    }
+
+    LaunchedEffect(uiState.accomplishments) {
+        val newState = familyStates.toMutableMap()
+        var changed = false
+        families.forEach { (id, _) ->
+            val acc = uiState.accomplishments[id]
+            if (acc != null && acc.maxEstimatedOneRepMax > 0f && newState[id]?.rm1.isNullOrEmpty()) {
+                val current = newState[id] ?: HstFamilyState()
+                newState[id] = current.copy(rm1 = acc.maxEstimatedOneRepMax.toInt().toString())
+                changed = true
+            }
+        }
+        if (changed) familyStates = newState
+    }
+
+    fun updateField(familyId: String, field: String, value: String) {
+        val current = familyStates[familyId] ?: HstFamilyState()
+        val nextManual = if (value.isEmpty()) current.manualFields - field else current.manualFields + field
+        
+        val nextState = current.copy(
+            rm1 = if (field == "rm1") value else current.rm1,
+            rm15 = if (field == "rm15") value else current.rm15,
+            rm10 = if (field == "rm10") value else current.rm10,
+            rm5 = if (field == "rm5") value else current.rm5,
+            manualFields = nextManual
+        )
+
+        val nextMap = familyStates.toMutableMap()
+        nextMap[familyId] = nextState
+        familyStates = nextMap
+    }
+
+    fun performEstimation(familyId: String, sourceField: String) {
+        val current = familyStates[familyId] ?: return
+        val sourceVal = when(sourceField) {
+            "rm1" -> current.rm1
+            "rm15" -> current.rm15
+            "rm10" -> current.rm10
+            "rm5" -> current.rm5
+            else -> ""
+        }.toFloatOrNull() ?: 0f
+
+        if (sourceVal < 20f) return 
+
+        val pivot = when (sourceField) {
+            "rm1" -> sourceVal
+            "rm15" -> sourceVal / 0.65f
+            "rm10" -> sourceVal / 0.75f
+            "rm5" -> sourceVal / 0.86f
+            else -> 0f
+        }
+
+        if (pivot <= 0) return
+
+        fun roundToHst(v: Float) = Math.round(v).toString()
+
+        val nextState = current.copy(
+            rm1 = if (!current.manualFields.contains("rm1") || sourceField == "rm1") Math.round(pivot).toString() else current.rm1,
+            rm15 = if (!current.manualFields.contains("rm15") || sourceField == "rm15") roundToHst(pivot * 0.65f) else current.rm15,
+            rm10 = if (!current.manualFields.contains("rm10") || sourceField == "rm10") roundToHst(pivot * 0.75f) else current.rm10,
+            rm5 = if (!current.manualFields.contains("rm5") || sourceField == "rm5") roundToHst(pivot * 0.86f) else current.rm5
+        )
+
+        val nextMap = familyStates.toMutableMap()
+        nextMap[familyId] = nextState
+        familyStates = nextMap
+    }
+
+    fun estimateEmpty(familyId: String) {
+        val current = familyStates[familyId] ?: return
+        val sourceField = when {
+            current.rm1.isNotEmpty() -> "rm1"
+            current.rm5.isNotEmpty() -> "rm5"
+            current.rm10.isNotEmpty() -> "rm10"
+            current.rm15.isNotEmpty() -> "rm15"
+            else -> null
+        } ?: return
+        performEstimation(familyId, sourceField)
+    }
+
+    var showPreview by remember { mutableStateOf(false) }
+
+    if (showPreview) {
+        HstLadderPreview(
+            rms = families.associate { (id, label) ->
+                label to Triple(
+                    familyStates[id]?.rm15?.toFloatOrNull() ?: 0f,
+                    familyStates[id]?.rm10?.toFloatOrNull() ?: 0f,
+                    familyStates[id]?.rm5?.toFloatOrNull() ?: 0f
+                )
+            },
+            onConfirm = {
+                onSubmit(families.associate { (id, _) ->
+                    id to Triple(
+                        familyStates[id]?.rm15?.toFloatOrNull(),
+                        familyStates[id]?.rm10?.toFloatOrNull(),
+                        familyStates[id]?.rm5?.toFloatOrNull()
+                    )
+                })
+            },
+            onBack = { showPreview = false }
+        )
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .statusBarsPadding()
+                .padding(24.dp)
+        ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("INITIALIZATION", color = Color(0xFF00FF9C), fontSize = 12.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
+                IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Gray) }
+            }
+
+            Text("HST", color = Color.White, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black)
+            Text("ENTER 15 / 10 / 5 RMS. WE BUILD THE LADDER.", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                items(families) { (id, label) ->
+                    val state = familyStates[id] ?: HstFamilyState()
+                    HstFamilyInput(
+                        label = label,
+                        state = state,
+                        onUpdate = { field, value -> updateField(id, field, value) },
+                        onCommit = { field -> performEstimation(id, field) },
+                        onEstimateEmpty = { estimateEmpty(id) }
+                    )
+                }
+            }
+
+            val allFilled = families.all { (id, _) ->
+                val s = familyStates[id]
+                s != null && s.rm15.isNotEmpty() && s.rm10.isNotEmpty() && s.rm5.isNotEmpty()
+            }
+
+            Button(
+                onClick = { showPreview = true },
+                enabled = allFilled,
+                modifier = Modifier.fillMaxWidth().height(56.dp).padding(top = 16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF00FF9C),
+                    disabledContainerColor = Color.DarkGray
+                )
+            ) {
+                Text("CALIBRATE ENGINE", color = if (allFilled) Color.Black else Color.Gray, fontWeight = FontWeight.Black)
+            }
+        }
+    }
+}
+
+@Composable
+fun HstFamilyInput(
+    label: String,
+    state: HstFamilyState,
+    onUpdate: (String, String) -> Unit,
+    onCommit: (String) -> Unit,
+    onEstimateEmpty: () -> Unit
+) {
+    Column {
+        Text(label, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Black)
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            val isEst = !state.manualFields.contains("rm1")
+            Column(modifier = Modifier.weight(1f)) {
+                Text(if (isEst && state.rm1.isNotEmpty()) "1RM (EST)" else "1RM", color = if (isEst && state.rm1.isNotEmpty()) Color(0xFF00FF9C).copy(alpha = 0.6f) else Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                EditableValueBox(
+                    value = state.rm1,
+                    onValueChange = { onUpdate("rm1", it) },
+                    onCommit = { onCommit("rm1") },
+                    placeholder = "1RM",
+                    keyboardType = KeyboardType.Number
+                )
+            }
+            Button(
+                onClick = onEstimateEmpty,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C1C1E)),
+                shape = RoundedCornerShape(4.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp),
+                modifier = Modifier.align(Alignment.Bottom)
+            ) {
+                Text("ESTIMATE EMPTY", color = Color(0xFF00FF9C), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            RmInputField("15RM", state.rm15, !state.manualFields.contains("rm15"), { onUpdate("rm15", it) }, { onCommit("rm15") }, Modifier.weight(1f))
+            RmInputField("10RM", state.rm10, !state.manualFields.contains("rm10"), { onUpdate("rm10", it) }, { onCommit("rm10") }, Modifier.weight(1f))
+            RmInputField("5RM", state.rm5, !state.manualFields.contains("rm5"), { onUpdate("rm5", it) }, { onCommit("rm5") }, Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+fun RmInputField(label: String, value: String, isEstimated: Boolean, onValueChange: (String) -> Unit, onCommit: () -> Unit, modifier: Modifier) {
+    Column(modifier = modifier) {
+        Text(
+            text = if (isEstimated && value.isNotEmpty()) "$label (EST)" else label, 
+            color = if (isEstimated && value.isNotEmpty()) Color(0xFF00FF9C).copy(alpha = 0.6f) else Color.Gray, 
+            fontSize = 10.sp, 
+            fontWeight = FontWeight.Bold, 
+            modifier = Modifier.fillMaxWidth(), 
+            textAlign = TextAlign.Center
+        )
+        EditableValueBox(
+            value = value,
+            onValueChange = onValueChange,
+            onCommit = onCommit,
+            placeholder = "0",
+            keyboardType = KeyboardType.Number
+        )
+    }
+}
+
+@Composable
+fun HstLadderPreview(
+    rms: Map<String, Triple<Float, Float, Float>>,
+    onConfirm: () -> Unit,
+    onBack: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .statusBarsPadding()
+            .padding(24.dp)
+    ) {
+        Text("LADDER PREVIEW", color = Color(0xFF00FF9C), fontSize = 12.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
+        Text("6 SESSIONS PER BLOCK", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Black)
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        val previewFamilies = rms.keys.toList()
+        
+        LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            items(previewFamilies) { familyLabel ->
+                val rmsValue = rms[familyLabel] ?: Triple(0f, 0f, 0f)
+                Column(modifier = Modifier.background(Color(0xFF1C1C1E), RoundedCornerShape(8.dp)).padding(16.dp)) {
+                    Text(familyLabel, color = Color(0xFF00FF9C), fontWeight = FontWeight.Black, fontSize = 14.sp)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        LadderBlockPreview("15s", rmsValue.first)
+                        LadderBlockPreview("10s", rmsValue.second)
+                        LadderBlockPreview("5s", rmsValue.third)
+                    }
+                }
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        Button(
+            onClick = onConfirm,
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C))
+        ) {
+            Text("START CYCLE", color = Color.Black, fontWeight = FontWeight.Black)
+        }
+        
+        TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
+            Text("BACK TO EDIT", color = Color.Gray)
+        }
+    }
+}
+
+@Composable
+fun LadderBlockPreview(label: String, rm: Float) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(4.dp)) {
+        Text(label, color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        val start = rm * 0.8f
+        val step = (rm - start) / 5f
+        (0 until 6).forEach { i ->
+            val weight = Math.round(start + i * step)
+            Text("$weight", color = if (i == 5) Color(0xFF00FF9C) else Color.White, fontSize = 11.sp, fontWeight = if (i == 5) FontWeight.Black else FontWeight.Normal)
+        }
+    }
+}
+
+@Composable
+fun ProtocolIntakeScreen(
+    protocol: WorkoutProtocol,
+    onDismiss: () -> Unit,
+    onSubmit: (Map<String, Float>) -> Unit
+) {
+    val families = when (protocol) {
+        WorkoutProtocol.STARTING_STRENGTH -> listOf("squat", "bench_press", "overhead_press", "deadlift")
+        WorkoutProtocol.FIVE_THREE_ONE -> listOf("overhead_press", "deadlift", "bench_press", "squat")
+        WorkoutProtocol.WESTSIDE -> listOf("squat", "bench_press", "deadlift")
+        WorkoutProtocol.DUP -> listOf("squat", "bench_press", "rows")
+        else -> emptyList()
+    }
+
+    var weights by remember { mutableStateOf(families.associateWith { "" }) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .statusBarsPadding()
+            .padding(24.dp)
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("INITIALIZATION", color = Color(0xFF00FF9C), fontSize = 12.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
+            IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Gray) }
+        }
+
+        Text(
+            protocol.displayName,
+            color = Color.White,
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.Black
+        )
+        
+        val intakeNote = when (protocol) {
+            WorkoutProtocol.FIVE_THREE_ONE, WorkoutProtocol.WESTSIDE -> "ENTER CURRENT 1RM (ESTIMATED OK)"
+            else -> "ENTER CURRENT WORKING WEIGHT (STRENGTH DAY)"
+        }
+        
+        Text(intakeNote, color = Color.Gray, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            items(families) { familyId ->
+                val label = familyId.replace("_", " ").uppercase()
+                Column {
+                    Text(label, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    EditableValueBox(
+                        value = weights[familyId] ?: "",
+                        onValueChange = { val newMap = weights.toMutableMap(); newMap[familyId] = it; weights = newMap },
+                        placeholder = "0.0",
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardType = KeyboardType.Decimal
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        Button(
+            onClick = { 
+                val results = weights.mapValues { it.value.toFloatOrNull() ?: 0f }
+                onSubmit(results)
+            },
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C))
+        ) {
+            Text("CALIBRATE ENGINE", color = Color.Black, fontWeight = FontWeight.Black)
+        }
+    }
+}
+
+@Composable
+fun StrategicDeconditioningWindow(onDismiss: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.9f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
+            Icon(Icons.Default.HourglassEmpty, contentDescription = null, tint = Color(0xFF00CCFF), modifier = Modifier.size(64.dp))
+            Spacer(modifier = Modifier.height(24.dp))
+            Text("STRATEGIC DECONDITIONING", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Black)
+            Text(
+                "Neural recovery in progress. System is purging systemic fatigue to restore hypertrophy sensitivity.",
+                color = Color.Gray,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 16.dp)
+            )
+            Spacer(modifier = Modifier.height(48.dp))
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00CCFF))
+            ) {
+                Text("UNDERSTOOD", color = Color.Black, fontWeight = FontWeight.Black)
             }
         }
     }

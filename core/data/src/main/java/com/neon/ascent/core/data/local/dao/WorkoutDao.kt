@@ -235,6 +235,24 @@ interface WorkoutDao {
 
     @Query("SELECT * FROM protocol_rep_targets")
     fun getAllProtocolRepTargets(): Flow<List<ProtocolRepTargetEntity>>
+
+    @Upsert
+    suspend fun upsertProtocolCycle(cycle: ProtocolCycleEntity)
+
+    @Query("SELECT * FROM protocol_cycles WHERE userId = :userId AND status = 'ACTIVE' LIMIT 1")
+    fun getActiveCycle(userId: String): Flow<ProtocolCycleEntity?>
+
+    @Query("SELECT * FROM protocol_cycles WHERE id = :id")
+    suspend fun getProtocolCycleById(id: String): ProtocolCycleEntity?
+
+    @Upsert
+    suspend fun upsertExerciseMax(max: ExerciseMaxEntity)
+
+    @Query("SELECT * FROM exercise_maxes WHERE familyId = :familyId")
+    fun getExerciseMax(familyId: String): Flow<ExerciseMaxEntity?>
+
+    @Query("SELECT * FROM exercise_maxes")
+    fun getAllExerciseMaxes(): Flow<List<ExerciseMaxEntity>>
 }
 
 data class SessionDateAndDeload(

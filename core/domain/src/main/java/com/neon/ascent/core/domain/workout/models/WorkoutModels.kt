@@ -12,67 +12,293 @@ data class WorkoutSession(
     val somatotype: Somatotype = Somatotype.MESOMORPH,
     val sessionRpe: Int? = null,
     val jointHealth: Int? = null,
-    val isDeload: Boolean = false
+    val isDeload: Boolean = false,
+    val cycleId: String? = null,
+    val protocolDayType: ProtocolDayType? = null
 )
 
 enum class WorkoutProtocol {
-    GENERAL, CYBER_CRAPP, STRAIGHT_SETS, DUP, SUPERSETS;
+    GENERAL, CYBER_CRAPP, STRAIGHT_SETS, DUP, SUPERSETS,
+    HST, STARTING_STRENGTH, FIVE_THREE_ONE, WESTSIDE;
 
     val displayName: String
         get() = when (this) {
-            GENERAL -> "GENERAL"
+            GENERAL, STRAIGHT_SETS, SUPERSETS -> "OPS / FREE"
             CYBER_CRAPP -> "CYBERCRAPP"
-            STRAIGHT_SETS -> "STRAIGHT SETS"
             DUP -> "D.U.P."
-            SUPERSETS -> "SUPERSETS"
+            HST -> "HST"
+            STARTING_STRENGTH -> "STARTING STRENGTH"
+            FIVE_THREE_ONE -> "5/3/1"
+            WESTSIDE -> "WESTSIDE"
         }
+
+    val oneLineContract: String
+        get() = when (this) {
+            CYBER_CRAPP -> "Chase cluster reps. Weight holds."
+            STARTING_STRENGTH -> "We prescribe 3x5. Hit all sets, add weight."
+            HST -> "We prescribe the load. You hit 15s / 10s / 5s."
+            FIVE_THREE_ONE -> "Training max waves. Last set AMRAP."
+            WESTSIDE -> "ME / DE / RE days. Rotate the main lift."
+            DUP -> "Same lifts. Strength / hypertrophy / power rotate."
+            STRAIGHT_SETS, GENERAL -> "You pick sets and reps."
+            SUPERSETS -> "Pair two lifts. Not a program."
+        }
+
+    val isSelectableEngine: Boolean
+        get() = when (this) {
+            STRAIGHT_SETS, SUPERSETS -> false
+            else -> true
+        }
+
+    val recommendation: String?
+        get() = when (this) {
+            STARTING_STRENGTH -> "Recommended for Novices"
+            CYBER_CRAPP, FIVE_THREE_ONE -> "Recommended for Intermediates"
+            WESTSIDE -> "Available for Advanced Operatives"
+            else -> null
+        }
+
+    val frequencyCaption: String
+        get() = when (this) {
+            FIVE_THREE_ONE, WESTSIDE -> "4× / WEEK"
+            else -> "3× / WEEK"
+        }
+
+    val defaultWeekdays: List<Int>
+        get() = when (this) {
+            FIVE_THREE_ONE -> listOf(1, 2, 4, 5)
+            WESTSIDE -> listOf(1, 3, 5, 6)
+            else -> listOf(1, 3, 5)
+        }
+
+    val loreName: String
+        get() = dossier.loreName
 
     val description: String
         get() = when (this) {
-            GENERAL -> "Versatile foundational programming for overall athletic performance and hypertrophy."
             CYBER_CRAPP -> "High-intensity rest-pause protocol designed for maximum effective reps and time efficiency."
-            STRAIGHT_SETS -> "Classical volume-based training focusing on steady progression and form mastery."
             DUP -> "Daily Undulating Periodization: varying intensity and volume daily to optimize strength and muscle gain."
-            SUPERSETS -> "Paired exercises to maximize training density and metabolic stress."
+            HST -> "Hypertrophy Specific Training: strategic deconditioning followed by progressive load waves."
+            STARTING_STRENGTH -> "The gold standard for novice linear progression on big compound lifts."
+            FIVE_THREE_ONE -> "Jim Wendler's multi-wave system for sustainable long-term strength gains."
+            WESTSIDE -> "Conjugate system alternating Max Effort and Dynamic Effort for elite-level power."
+            else -> "Versatile foundational programming for overall athletic performance and hypertrophy."
         }
 
     val tenants: List<String>
-        get() = when (this) {
-            GENERAL -> listOf(
-                "Progressive overload across multiple rep ranges",
-                "Balanced focus on strength and hypertrophy",
-                "Adaptive recovery based on biometrics"
-            )
-            CYBER_CRAPP -> listOf(
-                "1 Main Set to failure + 2 rest-pause 'mini-sets'",
-                "Mandatory 10-second loaded stretch for hypertrophy",
-                "Maximum 'Effective Rep' density in under 45 mins"
-            )
-            STRAIGHT_SETS -> listOf(
-                "Standardized set/rep schemes (e.g., 3x10)",
-                "Focus on 'perfect' neural execution",
-                "Linear weight progression session-to-session"
-            )
-            DUP -> listOf(
-                "Alternating 'Hypertrophy', 'Power', and 'Strength' days",
-                "Prevents neural adaptation through variety",
-                "Optimized for advanced operatives"
-            )
-            SUPERSETS -> listOf(
-                "Antagonist muscle pairing for efficiency",
-                "Elevated heart rate for cardiovascular benefit",
-                "Minimal rest between paired movements"
-            )
-        }
+        get() = dossier.tenets
 
     val methodology: String
+        get() = dossier.sessionAnatomy
+
+    val dossier: ProtocolDossier
         get() = when (this) {
-            CYBER_CRAPP -> "REST-PAUSE CLUSTERS: After warmups, perform one set to failure. Rest 15 seconds. Perform a second mini-set to failure. Rest 15 seconds. Perform a third mini-set. Follow with a 10s finisher and a loaded stretch."
-            STRAIGHT_SETS -> "LINEAR PROGRESSION: Perform all sets for the prescribed reps. If successful, increase weight next session. Rest 2-3 minutes between sets."
-            DUP -> "DAILY UNDULATION: Volume and intensity fluctuate every session. Focus on explosive power on Power days, and mind-muscle connection on Hypertrophy days."
-            else -> "STANDARD OVERLOAD: Focus on consistent form and incremental increases in resistance or volume."
+            CYBER_CRAPP -> ProtocolDossier(
+                protocol = this,
+                displayName = "CYBERCRAPP",
+                loreName = "REST_PAUSE_CLUSTERS",
+                focus = "Hypertrophy / Efficiency",
+                recommendedLevel = ExperienceLevel.INTERMEDIATE,
+                alsoFits = "Time-crunched operatives, density seekers.",
+                daysPerWeek = 3,
+                loggingContract = "1 Work Set + 2 Rest-Pause Minis + Stretch.",
+                intake = "Current cluster weight Best.",
+                tenets = listOf(
+                    "1 Main Set to failure + 2 rest-pause 'mini-sets'",
+                    "Mandatory 10-second loaded stretch for hypertrophy",
+                    "Maximum 'Effective Rep' density in under 45 mins"
+                ),
+                frequencyCopy = "CYBERCRAPP RUNS 3 DAYS. A/B/C ROTATION.",
+                sessionAnatomy = "REST-PAUSE CLUSTERS: After warmups, perform one set to failure. Rest 15 seconds. Perform a second mini-set to failure. Rest 15 seconds. Perform a third mini-set. Follow with a 10s finisher and a loaded stretch.",
+                notThis = "Not for pure 1RM powerlifting peaks.",
+                ctaLabel = "SET ACTIVE"
+            )
+            STARTING_STRENGTH -> ProtocolDossier(
+                protocol = this,
+                displayName = "STARTING STRENGTH",
+                loreName = "LINEAR_NOVICE",
+                focus = "Absolute Strength (Novice)",
+                recommendedLevel = ExperienceLevel.NOVICE,
+                alsoFits = "Returning operatives, baseline calibration.",
+                daysPerWeek = 3,
+                loggingContract = "3 Sets of 5 Reps. Add weight every session.",
+                intake = "Starting working weights (5-rep).",
+                tenets = listOf(
+                    "Novice linear progression (weight added every time)",
+                    "3x5 rep scheme for absolute strength",
+                    "Prioritizes recovery over variety"
+                ),
+                frequencyCopy = "LINEAR NOVICE IS 3 DAYS. A/B ALTERNATE.",
+                sessionAnatomy = "NOVICE LINEAR: Add 5lbs to upper body and 10lbs to lower body every session for 3 sets of 5 reps.",
+                notThis = "Not a high-volume aesthetic program.",
+                ctaLabel = "CALIBRATE ENGINE"
+            )
+            HST -> ProtocolDossier(
+                protocol = this,
+                displayName = "HST",
+                loreName = "WAVE_HYPERTROPHY",
+                focus = "Hypertrophy Waves",
+                recommendedLevel = ExperienceLevel.INTERMEDIATE,
+                alsoFits = "Bodybuilding enthusiasts, wave periodization fans.",
+                daysPerWeek = 3,
+                loggingContract = "15 / 10 / 5 rep blocks. Pre-calculated loads.",
+                intake = "15RM, 10RM, 5RM testing.",
+                tenets = listOf(
+                    "Strategic Deconditioning (9-14 days off)",
+                    "Every session is full body",
+                    "Weight increases every single workout"
+                ),
+                frequencyCopy = "HST IS FULL BODY 3×. LADDER ASSUMES THIS.",
+                sessionAnatomy = "WAVING VOLUME: Cycle through 2 weeks of 15s, 10s, 5s, and Negatives. Weight increases linearly while reps decrease every block.",
+                notThis = "Not a daily RPE-based protocol.",
+                ctaLabel = "CALIBRATE ENGINE"
+            )
+            FIVE_THREE_ONE -> ProtocolDossier(
+                protocol = this,
+                displayName = "5/3/1",
+                loreName = "WAVE_531",
+                focus = "Long-term Strength",
+                recommendedLevel = ExperienceLevel.INTERMEDIATE,
+                alsoFits = "Sub-maximal training, consistency seekers.",
+                daysPerWeek = 4,
+                loggingContract = "TM-based wave loading. Final set AMRAP.",
+                intake = "Current 1RM estimates.",
+                tenets = listOf(
+                    "Training Max based prescription (sub-maximal)",
+                    "AMRAP final sets to determine session volume",
+                    "4-week waves with strategic deloading"
+                ),
+                frequencyCopy = "5/3/1 IS 4 MAINS. ONE LIFT PER DAY.",
+                sessionAnatomy = "WAVE LOADING: Week 1 (3x5), Week 2 (3x3), Week 3 (3x5-3-1), Week 4 (Deload). Based on 90% of your True 1RM.",
+                notThis = "Not a rapid-gain novice program.",
+                ctaLabel = "CALIBRATE ENGINE"
+            )
+            WESTSIDE -> ProtocolDossier(
+                protocol = this,
+                displayName = "WESTSIDE",
+                loreName = "CONJUGATE",
+                focus = "Peak Power / Conjugate",
+                recommendedLevel = ExperienceLevel.ADVANCED,
+                alsoFits = "Powerlifters, variant specialists.",
+                daysPerWeek = 4,
+                loggingContract = "ME (1-3RM) / DE (Explosive) rotation.",
+                intake = "Variant 1RMs.",
+                tenets = listOf(
+                    "Conjugate method: Strength + Speed concurrently",
+                    "Max Effort: 1-3 Rep Max on a variant",
+                    "Dynamic Effort: Explosive sub-maximal speed work"
+                ),
+                frequencyCopy = "CONJUGATE IS 4 DAYS. ME / DE / ME / DE.",
+                sessionAnatomy = "CONJUGATE: Two Max Effort days (Heavy) and two Dynamic Effort days (Fast) per week. Variants rotate weekly.",
+                notThis = "Not for metabolic conditioning or high-rep pumps.",
+                ctaLabel = "CALIBRATE ENGINE"
+            )
+            DUP -> ProtocolDossier(
+                protocol = this,
+                displayName = "D.U.P.",
+                loreName = "UNDULATION",
+                focus = "Daily Undulation",
+                recommendedLevel = ExperienceLevel.ADVANCED,
+                alsoFits = "Multi-modal strength/size seekers.",
+                daysPerWeek = 3,
+                loggingContract = "Hypertrophy / Strength / Power rotation.",
+                intake = "Strength working weights.",
+                tenets = listOf(
+                    "Alternating 'Hypertrophy', 'Power', and 'Strength' days",
+                    "Prevents neural adaptation through variety",
+                    "Optimized for advanced operatives"
+                ),
+                frequencyCopy = "UNDULATION IS 3 DAYS. HYP / STR / PWR.",
+                sessionAnatomy = "DAILY UNDULATION: Volume and intensity fluctuate every session. Focus on explosive power on Power days, and mind-muscle connection on Hypertrophy days.",
+                notThis = "Not a fixed-load linear program.",
+                ctaLabel = "CALIBRATE ENGINE"
+            )
+            else -> ProtocolDossier(
+                protocol = this,
+                displayName = "OPS / FREE",
+                loreName = "GENERAL_STRENGTH",
+                focus = "Customization / Testing",
+                recommendedLevel = ExperienceLevel.ANY,
+                alsoFits = "Experienced specialists, hybrid athletes.",
+                daysPerWeek = 3,
+                loggingContract = "Manual set/rep entry. No prescriptive logic.",
+                intake = "None.",
+                tenets = listOf(
+                    "Progressive overload across multiple rep ranges",
+                    "Balanced focus on strength and hypertrophy",
+                    "Adaptive recovery based on biometrics"
+                ),
+                frequencyCopy = "DEFAULT 3 DAYS. CHANGE IF YOU WANT.",
+                sessionAnatomy = "STANDARD OVERLOAD: Focus on consistent form and incremental increases in resistance or volume.",
+                notThis = "Not an automated progression system.",
+                ctaLabel = "SET ACTIVE"
+            )
         }
 }
+
+data class ProtocolDossier(
+    val protocol: WorkoutProtocol,
+    val displayName: String,
+    val loreName: String,
+    val focus: String,
+    val recommendedLevel: ExperienceLevel,
+    val alsoFits: String,
+    val daysPerWeek: Int,
+    val loggingContract: String,
+    val intake: String,
+    val tenets: List<String>,
+    val frequencyCopy: String,
+    val sessionAnatomy: String,
+    val notThis: String,
+    val ctaLabel: String
+)
+
+enum class ProtocolUiMode { CLUSTER, LINEAR, PRESCRIBED, MAX_EFFORT, DYNAMIC }
+
+enum class ProtocolDayType {
+    CC_A, CC_B, CC_C,
+    SS_A, SS_B,
+    HST_15, HST_10, HST_5, HST_NEG, HST_SD,
+    FTV_W1, FTV_W2, FTV_W3, FTV_DELOAD,
+    DUP_HYPERTROPHY, DUP_STRENGTH, DUP_POWER,
+    WS_ME_LOWER, WS_ME_UPPER, WS_DE_LOWER, WS_DE_UPPER, WS_RE
+}
+
+data class ProtocolCycle(
+    val id: String,
+    val userId: String,
+    val protocol: WorkoutProtocol,
+    val startedAt: Instant,
+    val endedAt: Instant? = null,
+    val status: CycleStatus = CycleStatus.ACTIVE,
+    val currentWeek: Int = 1,
+    val currentDayIndex: Int = 0,
+    val configJson: String? = null
+)
+
+enum class CycleStatus { ACTIVE, COMPLETED, ABANDONED }
+
+enum class MaxSource { TESTED, ESTIMATED, MANUAL }
+
+data class ExerciseMax(
+    val familyId: String,
+    val testedAt: Instant,
+    val oneRepMax: Float,
+    val rm15: Float? = null,
+    val rm10: Float? = null,
+    val rm5: Float? = null,
+    val trainingMax: Float? = null,
+    val source: MaxSource = MaxSource.ESTIMATED
+)
+
+data class PrescribedSet(
+    val weight: Float,
+    val reps: Int,
+    val setType: SetType = SetType.NORMAL,
+    val percentOfMax: Float? = null,
+    val isAmrap: Boolean = false,
+    val accommodatingLoad: Float? = null
+)
 
 enum class RestPausePhase {
     NOT_ACTIVE, MINI_SET_1, MINI_SET_2, MINI_SET_3, FINISHER, LOADED_STRETCH
@@ -83,7 +309,7 @@ enum class RestTimerMode {
 }
 
 enum class ExperienceLevel {
-    NOVICE, INTERMEDIATE, ADVANCED
+    NOVICE, INTERMEDIATE, ADVANCED, ANY
 }
 
 enum class Somatotype {
@@ -91,7 +317,7 @@ enum class Somatotype {
 }
 
 enum class SetType {
-    NORMAL, WARMUP, DROP, FAILURE, REST_PAUSE, WIDOWMAKER, POWER, GS, PARTIAL, STRETCH
+    NORMAL, WARMUP, DROP, FAILURE, REST_PAUSE, WIDOWMAKER, POWER, GS, PARTIAL, STRETCH, MAX_EFFORT
 }
 
 enum class MovementType {
@@ -219,7 +445,14 @@ data class SetLog(
     val clusterMiniSetIndex: Int? = null, // 1, 2, or 3 for rest-pause
     val isLengthenedPartial: Boolean = false,
     val isLoadedStretch: Boolean = false,
-    val stretchDurationSeconds: Int? = null
+    val stretchDurationSeconds: Int? = null,
+
+    // Engine specific fields
+    val prescribedWeight: Float? = null,
+    val prescribedReps: Int? = null,
+    val percentOfMax: Float? = null,
+    val isAmrap: Boolean = false,
+    val accommodatingLoad: Float? = null
 )
 
 enum class Gender {

@@ -14,6 +14,7 @@ android {
 
 dependencies {
     implementation(libs.hilt.android)
+    implementation(libs.gson)
     implementation(libs.androidx.health.connect.client)
     ksp(libs.hilt.compiler)
 }

@@ -180,9 +180,16 @@ class OnboardingViewModel @Inject constructor(
                     ExperienceLevel.NOVICE -> routines.find { it.id == "routine_linear_fullbody" } ?: routines.firstOrNull()
                     else -> routines.find { it.id == "routine_cybercrapp_a" }
                 }
+
+                val protocol = recommended?.protocol ?: WorkoutProtocol.GENERAL
+                val defaultDays = protocol.defaultWeekdays.map { ScheduledDay(it, "09:00") }
+
                 _uiState.update { it.copy(
                     recommendation = recommended,
-                    profile = it.profile.copy(activeProtocol = recommended?.protocol)
+                    profile = it.profile.copy(
+                        activeProtocol = protocol,
+                        scheduledDays = defaultDays
+                    )
                 ) }
             }
         }
@@ -209,7 +216,7 @@ class OnboardingViewModel @Inject constructor(
                 val task = AscensionTask(
                     id = UUID.randomUUID().toString(),
                     parentId = null,
-                    title = "TRAINING SESSION: ${profile.activeProtocol ?: "GENERAL"}",
+                    title = "TRAINING SESSION: ${profile.activeProtocol?.displayName ?: "GENERAL"}",
                     description = "Sync with the next routine in your protocol rotation.",
                     type = AscensionTaskType.RECURRING,
                     recurrence = com.neon.ascent.core.domain.goals.models.RecurrenceV3(

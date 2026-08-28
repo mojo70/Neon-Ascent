@@ -20,7 +20,34 @@ data class WorkoutSessionEntity(
     val somatotype: String,
     val sessionRpe: Int? = null,
     val jointHealth: Int? = null,
-    val isDeload: Boolean = false
+    val isDeload: Boolean = false,
+    val cycleId: String? = null,
+    val protocolDayType: String? = null
+)
+
+@Entity(tableName = "protocol_cycles")
+data class ProtocolCycleEntity(
+    @PrimaryKey val id: String,
+    val userId: String,
+    val protocol: String,
+    val startedAt: Instant,
+    val endedAt: Instant? = null,
+    val status: String,
+    val currentWeek: Int,
+    val currentDayIndex: Int,
+    val configJson: String?
+)
+
+@Entity(tableName = "exercise_maxes")
+data class ExerciseMaxEntity(
+    @PrimaryKey val familyId: String,
+    val testedAt: Instant,
+    val oneRepMax: Float,
+    val rm15: Float? = null,
+    val rm10: Float? = null,
+    val rm5: Float? = null,
+    val trainingMax: Float? = null,
+    val source: String
 )
 
 @Entity(tableName = "exercise_definitions")
@@ -220,7 +247,12 @@ data class SetLogEntity(
     val clusterMiniSetIndex: Int?,
     val isLengthenedPartial: Boolean,
     val isLoadedStretch: Boolean,
-    val stretchDurationSeconds: Int?
+    val stretchDurationSeconds: Int?,
+    val prescribedWeight: Float? = null,
+    val prescribedReps: Int? = null,
+    val percentOfMax: Float? = null,
+    val isAmrap: Boolean = false,
+    val accommodatingLoad: Float? = null
 )
 
 @Entity(tableName = "user_workout_profiles")
