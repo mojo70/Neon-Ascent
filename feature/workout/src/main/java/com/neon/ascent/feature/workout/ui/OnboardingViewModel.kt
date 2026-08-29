@@ -104,7 +104,7 @@ class OnboardingViewModel @Inject constructor(
         val current = _uiState.value.currentStep
         if (current < 6) {
             _uiState.update { it.copy(currentStep = current + 1) }
-            if (current + 1 == 6) {
+            if (current + 1 == 5) {
                 generateRecommendation()
             }
         } else {
@@ -177,20 +177,47 @@ class OnboardingViewModel @Inject constructor(
         viewModelScope.launch {
             workoutRepository.getAllRoutines().collect { routines ->
                 val recommended = when (level) {
-                    ExperienceLevel.NOVICE -> routines.find { it.id == "routine_linear_fullbody" } ?: routines.firstOrNull()
-                    else -> routines.find { it.id == "routine_cybercrapp_a" }
+                    ExperienceLevel.NOVICE -> {
+                        routines.find { it.id == "routine_starting_strength" } 
+                            ?: routines.find { it.id == "routine_linear_fullbody" } 
+                            ?: routines.firstOrNull()
+                    }
+                    else -> {
+                        val str = state.scanStrength ?: 50
+                        val end = state.scanEndurance ?: 50
+                        val agi = state.scanAgility ?: 50
+
+                        when {
+                            // High Agility Advanced profile
+                            agi > 70 && level == ExperienceLevel.ADVANCED -> {
+                                routines.find { it.id == "routine_westside" } ?: routines.find { it.id == "routine_cybercrapp_a" }
+                            }
+                            // Strength focused
+                            str > end + 15 && str > agi + 15 -> {
+                                routines.find { it.id == "routine_531" } ?: routines.find { it.id == "routine_cybercrapp_a" }
+                            }
+                            // Endurance/Volume focused
+                            end > str + 15 && end > agi + 15 -> {
+                                routines.find { it.id == "routine_hst" } ?: routines.find { it.id == "routine_cybercrapp_a" }
+                            }
+                            // Default to Cybercrapp (the priority protocol)
+                            else -> routines.find { it.id == "routine_cybercrapp_a" }
+                        } ?: routines.firstOrNull()
+                    }
                 }
 
                 val protocol = recommended?.protocol ?: WorkoutProtocol.GENERAL
                 val defaultDays = protocol.defaultWeekdays.map { ScheduledDay(it, "09:00") }
 
-                _uiState.update { it.copy(
-                    recommendation = recommended,
-                    profile = it.profile.copy(
-                        activeProtocol = protocol,
-                        scheduledDays = defaultDays
+                _uiState.update { state ->
+                    state.copy(
+                        recommendation = recommended,
+                        profile = state.profile.copy(
+                            activeProtocol = protocol,
+                            scheduledDays = defaultDays
+                        )
                     )
-                ) }
+                }
             }
         }
     }

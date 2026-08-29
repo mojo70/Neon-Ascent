@@ -37,7 +37,26 @@ fun AugmentActivationDialog(
     onAdHoc: (WorkoutAugment) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var mode by remember { mutableStateOf(existingActivation?.mode ?: AugmentRunMode.INDEPENDENT) }
+    var runMode by remember { 
+        mutableStateOf(
+            when (existingActivation?.mode) {
+                AugmentRunMode.AD_HOC -> "JUST_TODAY"
+                AugmentRunMode.ATTACHED_ONGOING, AugmentRunMode.ATTACHED_WINDOW -> "BOLT_ON"
+                else -> "SOLO"
+            }
+        ) 
+    }
+    
+    // Window Duration Option: "30_DAYS", "ONGOING", "CUSTOM"
+    var durationOption by remember { 
+        mutableStateOf(
+            if (existingActivation == null) "30_DAYS"
+            else if (existingActivation.windowEnd == null) "ONGOING"
+            else "30_DAYS"
+        ) 
+    }
+    var customDays by remember { mutableStateOf(30) }
+
     var loggingStyle by remember { 
         mutableStateOf(existingActivation?.loggingStyle ?: 
             if (augment.id == "augment_gorilla_arms") AugmentLoggingStyle.CYBER_CRAPP else AugmentLoggingStyle.INHERIT) 
@@ -50,7 +69,6 @@ fun AugmentActivationDialog(
     }
     var scheduledDays by remember { mutableStateOf(initialScheduledDays) }
     
-    var durationDays by remember { mutableStateOf(30) }
     var hostProtocolFilter by remember { mutableStateOf(existingActivation?.hostProtocolFilter) }
     var dayTypeFilter by remember { mutableStateOf(existingActivation?.dayTypeFilter) }
 
@@ -87,33 +105,57 @@ fun AugmentActivationDialog(
                 ModeSelectionItem(
                     title = "SOLO",
                     description = "Own session. Own alarms. Main protocol untouched.",
-                    isSelected = mode == AugmentRunMode.INDEPENDENT,
-                    onClick = { mode = AugmentRunMode.INDEPENDENT }
+                    isSelected = runMode == "SOLO",
+                    onClick = { runMode = "SOLO" }
                 )
                 ModeSelectionItem(
                     title = "BOLT ON",
                     description = "Adds to the main workout when you start OPS.",
-                    isSelected = mode == AugmentRunMode.ATTACHED_ONGOING,
-                    onClick = { mode = AugmentRunMode.ATTACHED_ONGOING }
-                )
-                ModeSelectionItem(
-                    title = "BOLT ON · 30 DAYS",
-                    description = "Temporary attachment to main protocol.",
-                    isSelected = mode == AugmentRunMode.ATTACHED_WINDOW,
-                    onClick = { mode = AugmentRunMode.ATTACHED_WINDOW }
+                    isSelected = runMode == "BOLT_ON",
+                    onClick = { runMode = "BOLT_ON" }
                 )
                 ModeSelectionItem(
                     title = "JUST TODAY",
                     description = "One-time ad hoc execution.",
-                    isSelected = mode == AugmentRunMode.AD_HOC,
-                    onClick = { mode = AugmentRunMode.AD_HOC }
+                    isSelected = runMode == "JUST_TODAY",
+                    onClick = { runMode = "JUST_TODAY" }
                 )
+            }
+
+            if (runMode != "JUST_TODAY") {
+                Spacer(modifier = Modifier.height(24.dp))
+                Text("FOCUS WINDOW. DEFAULT 30 DAYS. THEN REEVALUATE.", color = Color(0xFF00FF9C), fontSize = 11.sp, fontWeight = FontWeight.Black)
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LoggingStyleChip("30 DAYS", durationOption == "30_DAYS") { durationOption = "30_DAYS" }
+                    LoggingStyleChip("ONGOING", durationOption == "ONGOING") { durationOption = "ONGOING" }
+                    LoggingStyleChip("CUSTOM N", durationOption == "CUSTOM") { durationOption = "CUSTOM" }
+                }
+
+                if (durationOption == "30_DAYS" || durationOption == "CUSTOM") {
+                    val days = if (durationOption == "30_DAYS") 30 else customDays
+                    if (durationOption == "CUSTOM") {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Slider(
+                                value = customDays.toFloat(),
+                                onValueChange = { customDays = it.toInt() },
+                                valueRange = 1f..90f,
+                                modifier = Modifier.weight(1f),
+                                colors = SliderDefaults.colors(thumbColor = Color(0xFF00FF9C), activeTrackColor = Color(0xFF00FF9C))
+                            )
+                            Text("$customDays DAYS", color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(start = 12.dp))
+                        }
+                    }
+                    val endDate = LocalDate.now().plusDays(days.toLong())
+                    Text("ENDS ${endDate.format(DateTimeFormatter.ofPattern("dd MMM"))}", color = Color.Gray, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            when (mode) {
-                AugmentRunMode.INDEPENDENT -> {
+            when (runMode) {
+                "SOLO" -> {
                     Text("OWN CALENDAR", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Black)
                     Spacer(modifier = Modifier.height(12.dp))
                     DaySelectionRow(
@@ -121,7 +163,7 @@ fun AugmentActivationDialog(
                         onDaysChanged = { scheduledDays = it }
                     )
                 }
-                AugmentRunMode.ATTACHED_ONGOING, AugmentRunMode.ATTACHED_WINDOW -> {
+                "BOLT_ON" -> {
                     if (userProfile?.activeProtocol != null) {
                         Text("ATTACH TO DAYS", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Black)
                         Spacer(modifier = Modifier.height(12.dp))
@@ -131,25 +173,8 @@ fun AugmentActivationDialog(
                             onDayTypeSelected = { dayTypeFilter = it }
                         )
                     }
-
-                    if (mode == AugmentRunMode.ATTACHED_WINDOW) {
-                        Spacer(modifier = Modifier.height(20.dp))
-                        Text("DURATION", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Black)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Slider(
-                                value = durationDays.toFloat(),
-                                onValueChange = { durationDays = it.toInt() },
-                                valueRange = 1f..90f,
-                                modifier = Modifier.weight(1f),
-                                colors = SliderDefaults.colors(thumbColor = Color(0xFF00FF9C), activeTrackColor = Color(0xFF00FF9C))
-                            )
-                            Text("$durationDays DAYS", color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(start = 12.dp))
-                        }
-                        val endDate = LocalDate.now().plusDays(durationDays.toLong())
-                        Text("ENDS ${endDate.format(DateTimeFormatter.ofPattern("dd MMM"))}", color = Color.Gray, fontSize = 11.sp)
-                    }
                 }
-                AugmentRunMode.AD_HOC -> {
+                "JUST_TODAY" -> {
                     Text("No schedule required for ad hoc runs.", color = Color.Gray, fontSize = 12.sp)
                 }
             }
@@ -166,37 +191,101 @@ fun AugmentActivationDialog(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            Button(
-                onClick = {
-                    if (mode == AugmentRunMode.AD_HOC) {
-                        onAdHoc(augment)
-                        onDismiss()
-                    } else {
-                        val activation = AugmentActivation(
-                            id = existingActivation?.id ?: UUID.randomUUID().toString(),
-                            augmentId = augment.id,
-                            mode = mode,
-                            loggingStyle = loggingStyle,
-                            scheduledDays = if (mode == AugmentRunMode.INDEPENDENT) scheduledDays else emptyList(),
-                            windowStart = if (mode == AugmentRunMode.ATTACHED_WINDOW) Instant.now() else null,
-                            windowEnd = if (mode == AugmentRunMode.ATTACHED_WINDOW) Instant.now().plusSeconds(durationDays * 24L * 3600L) else null,
-                            hostProtocolFilter = if (mode != AugmentRunMode.INDEPENDENT) userProfile?.activeProtocol else null,
-                            dayTypeFilter = dayTypeFilter,
-                            status = AugmentActivationStatus.ACTIVE
-                        )
-                        onActivate(activation)
-                        onDismiss()
+            val isSoloWithTime = runMode == "SOLO" && scheduledDays.isNotEmpty()
+
+            if (isSoloWithTime) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            val finalDays = if (durationOption == "30_DAYS") 30 else if (durationOption == "CUSTOM") customDays else null
+                            val activation = AugmentActivation(
+                                id = existingActivation?.id ?: UUID.randomUUID().toString(),
+                                augmentId = augment.id,
+                                mode = AugmentRunMode.INDEPENDENT,
+                                loggingStyle = loggingStyle,
+                                scheduledDays = scheduledDays,
+                                windowStart = if (finalDays != null) Instant.now() else null,
+                                windowEnd = if (finalDays != null) Instant.now().plusSeconds(finalDays * 24L * 3600L) else null,
+                                status = AugmentActivationStatus.ACTIVE
+                            )
+                            onActivate(activation)
+                            onAdHoc(augment) // Start session immediately while keeping window + reminders
+                            onDismiss()
+                        },
+                        modifier = Modifier.weight(1f).height(56.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("START NOW", color = Color.Black, fontWeight = FontWeight.Black, fontSize = 13.sp)
                     }
-                },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(
-                    if (mode == AugmentRunMode.AD_HOC) "START AD HOC NOW" else "ACTIVATE SUB-PROTOCOL",
-                    color = Color.Black,
-                    fontWeight = FontWeight.Black
-                )
+
+                    Button(
+                        onClick = {
+                            val finalDays = if (durationOption == "30_DAYS") 30 else if (durationOption == "CUSTOM") customDays else null
+                            val activation = AugmentActivation(
+                                id = existingActivation?.id ?: UUID.randomUUID().toString(),
+                                augmentId = augment.id,
+                                mode = AugmentRunMode.INDEPENDENT,
+                                loggingStyle = loggingStyle,
+                                scheduledDays = scheduledDays,
+                                windowStart = if (finalDays != null) Instant.now() else null,
+                                windowEnd = if (finalDays != null) Instant.now().plusSeconds(finalDays * 24L * 3600L) else null,
+                                status = AugmentActivationStatus.ACTIVE
+                            )
+                            onActivate(activation)
+                            onDismiss()
+                        },
+                        modifier = Modifier.weight(1f).height(56.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C1C1E)),
+                        border = BorderStroke(1.dp, Color(0xFF00FF9C)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("WAIT FOR ALARM", color = Color(0xFF00FF9C), fontWeight = FontWeight.Black, fontSize = 13.sp)
+                    }
+                }
+            } else {
+                Button(
+                    onClick = {
+                        if (runMode == "JUST_TODAY") {
+                            onAdHoc(augment)
+                            onDismiss()
+                        } else {
+                            val finalMode = when (runMode) {
+                                "SOLO" -> AugmentRunMode.INDEPENDENT
+                                "BOLT_ON" -> if (durationOption == "ONGOING") AugmentRunMode.ATTACHED_ONGOING else AugmentRunMode.ATTACHED_WINDOW
+                                else -> AugmentRunMode.INDEPENDENT
+                            }
+                            val finalDays = if (durationOption == "30_DAYS") 30 else if (durationOption == "CUSTOM") customDays else null
+
+                            val activation = AugmentActivation(
+                                id = existingActivation?.id ?: UUID.randomUUID().toString(),
+                                augmentId = augment.id,
+                                mode = finalMode,
+                                loggingStyle = loggingStyle,
+                                scheduledDays = if (finalMode == AugmentRunMode.INDEPENDENT) scheduledDays else emptyList(),
+                                windowStart = if (finalDays != null) Instant.now() else null,
+                                windowEnd = if (finalDays != null) Instant.now().plusSeconds(finalDays * 24L * 3600L) else null,
+                                hostProtocolFilter = if (finalMode != AugmentRunMode.INDEPENDENT) userProfile?.activeProtocol else null,
+                                dayTypeFilter = dayTypeFilter,
+                                status = AugmentActivationStatus.ACTIVE
+                            )
+                            onActivate(activation)
+                            onDismiss()
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        if (runMode == "JUST_TODAY") "START AD HOC NOW" else "ACTIVATE SUB-PROTOCOL",
+                        color = Color.Black,
+                        fontWeight = FontWeight.Black
+                    )
+                }
             }
         }
     }

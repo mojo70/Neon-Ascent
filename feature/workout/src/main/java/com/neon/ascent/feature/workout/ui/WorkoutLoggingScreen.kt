@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.lazy.items
@@ -75,6 +76,7 @@ fun WorkoutLoggingScreen(
     var showRoutineActionMenuFor by remember { mutableStateOf<WorkoutRoutine?>(null) }
     var showAugmentActionMenuFor by remember { mutableStateOf<WorkoutAugment?>(null) }
     var showAugmentScheduleDialogFor by remember { mutableStateOf<WorkoutAugment?>(null) }
+    var showAugmentDossierFor by remember { mutableStateOf<WorkoutAugment?>(null) }
     var showRestTimerAdjustment by remember { mutableStateOf(false) }
 
     Box(
@@ -116,13 +118,10 @@ fun WorkoutLoggingScreen(
                         onBack = { viewModel.hideExploreProtocols() },
                         onProtocolClick = { viewModel.showProtocolDetail(it) },
                         onAddProtocol = { viewModel.addProtocolToLibrary(it) },
-                        onAddAugment = { 
-                            viewModel.toggleAugmentLibrary(it) 
-                            if (uiState.session != null) {
-                                viewModel.injectAugment(it)
-                                viewModel.hideExploreProtocols()
-                            }
-                        },
+                        onActivateAugment = { showAugmentScheduleDialogFor = it },
+                        onLaunchSoloAugment = { viewModel.startIndependentAugmentSession(it) },
+                        onAugmentDossier = { showAugmentDossierFor = it },
+                        onAugmentActionClick = { showAugmentActionMenuFor = it },
                         onAddRoutine = { viewModel.toggleRoutineLibrary(it) }
                     )
                 } else if (uiState.session == null) {
@@ -226,7 +225,9 @@ fun WorkoutLoggingScreen(
                             onShowArchive = { onViewInCodex("") },
                             onStartProtocol = { protocol, deload -> viewModel.startSession(protocol, deload) },
                             onStartRoutine = { routine, deload -> viewModel.handleRoutineSelection(routine, deload) },
-                            onStartAugment = { viewModel.handleAdHocAugment(it) },
+                            onStartSoloActivation = { viewModel.startIndependentAugmentSession(it) },
+                            onActivateAugment = { showAugmentScheduleDialogFor = it },
+                            onAugmentDossier = { showAugmentDossierFor = it },
                             onCreateRoutine = { viewModel.startCreateRoutine() },
                             onCreateAugment = { viewModel.startCreateAugment() },
                             onRoutineActionClick = { showRoutineActionMenuFor = it },
@@ -455,6 +456,29 @@ fun WorkoutLoggingScreen(
                 onEnd = { viewModel.endAugmentActivation(it) },
                 onDelete = { viewModel.deleteAugment(showAugmentActionMenuFor!!) },
                 onDismiss = { showAugmentActionMenuFor = null }
+            )
+        }
+
+        if (showAugmentDossierFor != null) {
+            val dossierAugment = showAugmentDossierFor!!
+            val dossierActivation = uiState.augmentActivations.find { it.augmentId == dossierAugment.id }
+            AugmentDossierSheet(
+                augment = dossierAugment,
+                activation = dossierActivation,
+                onActivate = {
+                    showAugmentDossierFor = null
+                    showAugmentScheduleDialogFor = dossierAugment
+                },
+                onLaunchSolo = {
+                    if (dossierActivation != null) {
+                        viewModel.startIndependentAugmentSession(dossierActivation)
+                    }
+                },
+                onActionClick = {
+                    showAugmentDossierFor = null
+                    showAugmentActionMenuFor = dossierAugment
+                },
+                onDismiss = { showAugmentDossierFor = null }
             )
         }
 
@@ -895,7 +919,9 @@ fun WorkoutIntakeScreen(
     onShowArchive: () -> Unit,
     onStartProtocol: (WorkoutProtocol, Boolean) -> Unit,
     onStartRoutine: (WorkoutRoutine, Boolean) -> Unit,
-    onStartAugment: (WorkoutAugment) -> Unit,
+    onStartSoloActivation: (AugmentActivation) -> Unit,
+    onActivateAugment: (WorkoutAugment) -> Unit,
+    onAugmentDossier: (WorkoutAugment) -> Unit,
     onCreateRoutine: () -> Unit,
     onCreateAugment: () -> Unit,
     onRoutineActionClick: (WorkoutRoutine) -> Unit,
@@ -970,6 +996,18 @@ fun WorkoutIntakeScreen(
             ActiveProtocolCard(
                 protocol = protocol,
                 onDeactivate = onDeactivateProtocol
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+
+        // OPS HUB: SUB-PROTOCOLS HORIZONTAL RAIL (Live Activations)
+        val liveActivations = uiState.augmentActivations.filter { it.status == AugmentActivationStatus.ACTIVE }
+        if (liveActivations.isNotEmpty()) {
+            SubProtocolsHubRail(
+                activations = liveActivations,
+                allAugments = uiState.augments + uiState.exploreAugments,
+                onLaunchSolo = onStartSoloActivation,
+                onDossierClick = onAugmentDossier
             )
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -1131,7 +1169,11 @@ fun WorkoutIntakeScreen(
                 AugmentCard(
                     augment = augment,
                     activation = activation,
-                    onStart = { onStartAugment(augment) },
+                    onCardClick = { onAugmentDossier(augment) },
+                    onActivate = { onActivateAugment(augment) },
+                    onLaunchSolo = { 
+                        if (activation != null) onStartSoloActivation(activation)
+                    },
                     onActionClick = { onAugmentActionClick(augment) }
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -1551,15 +1593,21 @@ fun RoutineCard(routine: WorkoutRoutine, onStart: () -> Unit, onActionClick: () 
 fun AugmentCard(
     augment: WorkoutAugment, 
     activation: AugmentActivation? = null,
-    onStart: () -> Unit, 
+    onCardClick: () -> Unit,
+    onActivate: () -> Unit,
+    onLaunchSolo: () -> Unit,
     onActionClick: () -> Unit
 ) {
     val color = Color(android.graphics.Color.parseColor(augment.colorHex))
+    val isLive = activation?.status == AugmentActivationStatus.ACTIVE
+
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCardClick() },
         color = Color(0xFF1C1C1E),
         shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, color.copy(alpha = 0.3f))
+        border = BorderStroke(1.dp, if (isLive) Color(0xFF00FF9C).copy(alpha = 0.5f) else color.copy(alpha = 0.3f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -1586,9 +1634,10 @@ fun AugmentCard(
                 }
             }
 
-            if (activation != null) {
+            if (activation != null && isLive) {
+                val modeLabel = if (activation.mode == AugmentRunMode.INDEPENDENT) "SOLO" else "BOLT"
                 val statusText = buildString {
-                    append(activation.mode.name)
+                    append("ACTIVE · $modeLabel")
                     if (activation.mode == AugmentRunMode.INDEPENDENT && activation.scheduledDays.isNotEmpty()) {
                         val days = activation.scheduledDays.map { it.dayOfWeek }
                         val daysText = when {
@@ -1601,17 +1650,23 @@ fun AugmentCard(
                     if (activation.windowEnd != null) {
                         val formatter = java.time.format.DateTimeFormatter.ofPattern("dd MMM")
                         append(" · ENDS ${java.time.LocalDateTime.ofInstant(activation.windowEnd, java.time.ZoneId.systemDefault()).format(formatter).uppercase()}")
-                    } else if (activation.status == AugmentActivationStatus.ACTIVE) {
-                        append(" · ONGOING")
                     } else {
-                        append(" · ${activation.status.name}")
+                        append(" · ONGOING")
                     }
                 }
                 Text(
                     statusText,
                     color = Color(0xFF00FF9C),
                     fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.Black,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            } else if (activation != null && activation.status == AugmentActivationStatus.PAUSED) {
+                Text(
+                    "PAUSED",
+                    color = Color(0xFFFFB800),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Black,
                     modifier = Modifier.padding(top = 4.dp)
                 )
             }
@@ -1628,18 +1683,291 @@ fun AugmentCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Button(
-                onClick = onStart,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = color.copy(alpha = 0.8f)),
-                shape = RoundedCornerShape(6.dp)
-            ) {
-                Text("Start Protocol", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            if (isLive) {
+                if (activation != null && activation.mode == AugmentRunMode.INDEPENDENT) {
+                    Button(
+                        onClick = onLaunchSolo,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.Black)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("LAUNCH", color = Color.Black, fontWeight = FontWeight.Black, fontSize = 15.sp)
+                        }
+                    }
+                } else {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().height(40.dp),
+                        color = Color(0xFF2C2C2E),
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("ON DECK · ADDS TO MAIN", color = Color.Gray, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                    }
+                }
+            } else {
+                Button(
+                    onClick = onActivate,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text("ACTIVATE", color = Color.Black, fontWeight = FontWeight.Black, fontSize = 15.sp)
+                }
             }
         }
+    }
+}
 
+@Composable
+fun SubProtocolsHubRail(
+    activations: List<AugmentActivation>,
+    allAugments: List<WorkoutAugment>,
+    onLaunchSolo: (AugmentActivation) -> Unit,
+    onDossierClick: (WorkoutAugment) -> Unit
+) {
+    val currentDayOfWeek = java.time.LocalDate.now().dayOfWeek.value // 1 = Monday .. 7 = Sunday
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            "SUB-PROTOCOLS",
+            color = Color(0xFF00FF9C),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = 1.5.sp,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            items(activations) { act ->
+                val augment = allAugments.find { it.id == act.augmentId }
+                if (augment != null) {
+                    val isSolo = act.mode == AugmentRunMode.INDEPENDENT
+                    val isDueToday = isSolo && act.scheduledDays.any { it.dayOfWeek == currentDayOfWeek }
+                    val color = Color(android.graphics.Color.parseColor(augment.colorHex))
+
+                    Surface(
+                        modifier = Modifier
+                            .clickable {
+                                if (isSolo) {
+                                    onLaunchSolo(act)
+                                } else {
+                                    onDossierClick(augment)
+                                }
+                            },
+                        color = if (isSolo) Color(0xFF1C1C1E) else Color(0xFF141416),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(
+                            1.dp,
+                            if (isDueToday) Color(0xFF00FF9C)
+                            else if (isSolo) color.copy(alpha = 0.5f)
+                            else Color(0xFF2C2C2E)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (isSolo) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .background(if (isDueToday) Color(0xFF00FF9C) else color.copy(alpha = 0.2f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.PlayArrow,
+                                        contentDescription = "Launch",
+                                        tint = if (isDueToday) Color.Black else Color.White,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+
+                            Column {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        augment.name.uppercase(),
+                                        color = if (isSolo) Color.White else Color.Gray,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Black
+                                    )
+                                    if (isDueToday) {
+                                        Surface(
+                                            color = Color(0xFF00FF9C),
+                                            shape = RoundedCornerShape(3.dp)
+                                        ) {
+                                            Text(
+                                                "DUE",
+                                                color = Color.Black,
+                                                fontSize = 8.sp,
+                                                fontWeight = FontWeight.Black,
+                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                val subText = if (isSolo) {
+                                    if (act.scheduledDays.isNotEmpty()) {
+                                        val matchDay = act.scheduledDays.find { it.dayOfWeek == currentDayOfWeek }
+                                        matchDay?.time ?: act.scheduledDays.first().time
+                                    } else "SOLO"
+                                } else {
+                                    "ON DECK · MAIN"
+                                }
+
+                                Text(
+                                    subText,
+                                    color = if (isDueToday) Color(0xFF00FF9C) else Color.Gray,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AugmentDossierSheet(
+    augment: WorkoutAugment,
+    activation: AugmentActivation? = null,
+    onActivate: () -> Unit,
+    onLaunchSolo: () -> Unit,
+    onActionClick: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val color = Color(android.graphics.Color.parseColor(augment.colorHex))
+    val isLive = activation?.status == AugmentActivationStatus.ACTIVE
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF0D0D0D),
+        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.Gray) }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 36.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        augment.name.uppercase(),
+                        color = Color.White,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.sp
+                    )
+                    Text(
+                        augment.focusBodyPart.uppercase(),
+                        color = color,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+                IconButton(onClick = onActionClick) {
+                    Icon(Icons.Default.MoreHoriz, contentDescription = "Actions", tint = Color.Gray)
+                }
+            }
+
+            val desc = augment.description
+            if (!desc.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(desc, color = Color.LightGray, fontSize = 13.sp)
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+            Text("EXERCISES & PROTOCOL SCHEME", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                augment.exercises.forEachIndexed { idx, ex ->
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = Color(0xFF1C1C1E),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("${idx + 1}. ${ex.exercise.name}", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Text("${ex.sets.size} SETS", color = color, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            if (isLive) {
+                if (activation != null && activation.mode == AugmentRunMode.INDEPENDENT) {
+                    Button(
+                        onClick = {
+                            onDismiss()
+                            onLaunchSolo()
+                        },
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.Black)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("LAUNCH SOLO SESSION", color = Color.Black, fontWeight = FontWeight.Black)
+                        }
+                    }
+                } else {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        color = Color(0xFF1C1C1E),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("ON DECK · ADDS TO MAIN WORKOUT", color = Color.Gray, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+                    }
+                }
+            } else {
+                Button(
+                    onClick = {
+                        onDismiss()
+                        onActivate()
+                    },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("ACTIVATE SUB-PROTOCOL", color = Color.Black, fontWeight = FontWeight.Black)
+                }
+            }
+        }
     }
 }
 
@@ -3697,26 +4025,33 @@ fun WorkoutLogCard(
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f, fill = false)) {
-                    val famName = exercise?.familyName ?: log.exerciseName
-                    val variantTitle = remember(exercise) {
+                    val displayName = exercise?.name ?: log.exerciseName
+                    val variantTitle = remember(exercise, displayName) {
                         if (exercise != null) {
                             if (exercise.isPrimaryVariant) "" 
-                            else buildString {
-                                if (exercise.stance != Stance.STANDARD) {
-                                    append(exercise.stance.name.replace("_", " "))
+                            else {
+                                val title = buildString {
+                                    if (exercise.stance != Stance.STANDARD) {
+                                        append(exercise.stance.name.replace("_", " "))
+                                    }
+                                    if ((exercise.implement != Implement.BARBELL && exercise.implement != Implement.OTHER) || 
+                                        exercise.specialtyBar != null) {
+                                        if (isNotEmpty()) append(" · ")
+                                        append(exercise.specialtyBar ?: exercise.implement.name.replace("_", " "))
+                                    }
                                 }
-                                if (exercise.implement != Implement.BARBELL || exercise.specialtyBar != null) {
-                                    if (isNotEmpty()) append(" · ")
-                                    append(exercise.specialtyBar ?: exercise.implement.name.replace("_", " "))
-                                }
+                                // If the exercise name already contains the variant info (e.g. "Neck Extension"),
+                                // don't show the subtitle.
+                                if (title.isEmpty() || displayName.contains(title, ignoreCase = true)) ""
+                                else title
                             }
                         } else {
-                            "" // Fallback if no exercise metadata, but we'll show log.exerciseName as famName
+                            ""
                         }
                     }
 
                     Text(
-                        famName.uppercase(),
+                        displayName.uppercase(),
                         color = neonColor,
                         fontSize = (16 * (if (uiState.zoomLevel >= 1.5f) 0.9f else 1.0f)).sp,
                         fontWeight = FontWeight.Black,
@@ -5465,7 +5800,10 @@ fun WorkoutExploreScreen(
     onBack: () -> Unit,
     onProtocolClick: (WorkoutProtocol) -> Unit,
     onAddProtocol: (WorkoutProtocol) -> Unit,
-    onAddAugment: (WorkoutAugment) -> Unit,
+    onActivateAugment: (WorkoutAugment) -> Unit,
+    onLaunchSoloAugment: (AugmentActivation) -> Unit,
+    onAugmentDossier: (WorkoutAugment) -> Unit,
+    onAugmentActionClick: (WorkoutAugment) -> Unit,
     onAddRoutine: (WorkoutRoutine) -> Unit
 ) {
     val sortedProtocols = remember {
@@ -5642,49 +5980,19 @@ fun WorkoutExploreScreen(
             }
 
             items(uiState.exploreAugments) { augment ->
-                val color = Color(android.graphics.Color.parseColor(augment.colorHex))
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = Color(0xFF1C1C1E),
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, color.copy(alpha = 0.3f))
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(augment.name, color = Color.White, fontWeight = FontWeight.Bold)
-                                Text(augment.focusBodyPart.uppercase(), color = color, fontSize = 10.sp, fontWeight = FontWeight.Black)
-                            }
-                            
-                            IconButton(
-                                onClick = { onAddAugment(augment) },
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .background(color.copy(alpha = 0.2f), CircleShape)
-                            ) {
-                                Icon(
-                                    if (augment.isAddedToLibrary) Icons.Default.CheckCircle else Icons.Default.Add,
-                                    contentDescription = "Add to Library", 
-                                    tint = color, 
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                val activation = uiState.augmentActivations.find { it.augmentId == augment.id }
+                AugmentCard(
+                    augment = augment,
+                    activation = activation,
+                    onCardClick = { onAugmentDossier(augment) },
+                    onActivate = { onActivateAugment(augment) },
+                    onLaunchSolo = {
+                        if (activation != null) {
+                            onLaunchSoloAugment(activation)
                         }
-                        
-                        Spacer(modifier = Modifier.height(8.dp))
-                        
-                        Text(
-                            augment.exercises.joinToString(", ") { it.exercise.name },
-                            color = Color.Gray,
-                            fontSize = 12.sp,
-                            maxLines = 2
-                        )
-                    }
-                }
+                    },
+                    onActionClick = { onAugmentActionClick(augment) }
+                )
             }
         }
 
