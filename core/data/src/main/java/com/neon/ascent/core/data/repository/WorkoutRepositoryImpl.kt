@@ -406,6 +406,20 @@ class WorkoutRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun getAugmentActivations(userId: String): Flow<List<AugmentActivation>> =
+        workoutDao.getActivationsByUserId(userId).map { entities -> entities.map { it.toDomain() } }
+
+    override fun getActiveAugmentActivations(): Flow<List<AugmentActivation>> =
+        workoutDao.getActiveActivations().map { entities -> entities.map { it.toDomain() } }
+
+    override suspend fun saveAugmentActivation(activation: AugmentActivation) {
+        workoutDao.upsertAugmentActivation(activation.toEntity())
+    }
+
+    override suspend fun endAugmentActivation(id: String) {
+        workoutDao.endActivation(id)
+    }
+
     override suspend fun seedStarterExercises() {
         seedProtocolRepTargets()
         val exercises = listOf(
@@ -2054,6 +2068,140 @@ class WorkoutRepositoryImpl @Inject constructor(
                 familyName = "Deadlift",
                 implement = Implement.KETTLEBELL,
                 stance = Stance.STANDARD
+            ),
+            Exercise(
+                id = "neck_extension",
+                name = "Neck Extension",
+                description = "Slow, controlled neck extension to build posterior neck strength.",
+                cues = listOf("Slow and controlled", "No jerking", "Stop short of pain"),
+                muscleGroups = listOf("Neck"),
+                equipment = listOf("Other"),
+                movementType = MovementType.ISOLATION_UPPER,
+                dangerousFor = listOf("Neck Pain"),
+                familyId = "neck",
+                familyName = "Neck",
+                implement = Implement.OTHER,
+                stance = Stance.STANDARD
+            ),
+            Exercise(
+                id = "neck_flexion",
+                name = "Neck Flexion (Front)",
+                description = "Slow, controlled neck flexion to build anterior neck strength.",
+                cues = listOf("Slow and controlled", "No jerking", "Stop short of pain"),
+                muscleGroups = listOf("Neck"),
+                equipment = listOf("Other"),
+                movementType = MovementType.ISOLATION_UPPER,
+                dangerousFor = listOf("Neck Pain"),
+                familyId = "neck",
+                familyName = "Neck",
+                implement = Implement.OTHER,
+                stance = Stance.STANDARD
+            ),
+            Exercise(
+                id = "neck_lateral",
+                name = "Neck Lateral Flexion",
+                description = "Unilateral neck lateral flexion to build neck stability.",
+                cues = listOf("Slow and controlled", "No jerking", "Stop short of pain"),
+                muscleGroups = listOf("Neck"),
+                equipment = listOf("Other"),
+                movementType = MovementType.ISOLATION_UPPER,
+                dangerousFor = listOf("Neck Pain"),
+                familyId = "neck",
+                familyName = "Neck",
+                implement = Implement.OTHER,
+                stance = Stance.SINGLE_ARM
+            ),
+            Exercise(
+                id = "dead_hang",
+                name = "Dead Hang",
+                description = "Time-based hang to build grip strength and decompress the spine.",
+                cues = listOf("Active shoulders", "Tight core", "Breathe deeply"),
+                muscleGroups = listOf("Forearms", "Lats"),
+                equipment = listOf("Bodyweight"),
+                movementType = MovementType.BACK_WIDTH,
+                familyId = "dead_hang",
+                familyName = "Dead Hang",
+                implement = Implement.BODYWEIGHT,
+                stance = Stance.STANDARD
+            ),
+            Exercise(
+                id = "wrist_curl",
+                name = "Wrist Curl",
+                description = "Dumbbell wrist curls for forearm flexor isolation.",
+                cues = listOf("Full range of motion", "Squeeze at peak", "Controlled eccentric"),
+                muscleGroups = listOf("Forearms"),
+                equipment = listOf("Dumbbell"),
+                movementType = MovementType.ISOLATION_UPPER,
+                familyId = "wrist_curl",
+                familyName = "Wrist Curl",
+                implement = Implement.DUMBBELL,
+                stance = Stance.SEATED
+            ),
+            Exercise(
+                id = "reverse_wrist_curl",
+                name = "Reverse Wrist Curl",
+                description = "Dumbbell reverse wrist curls for forearm extensor isolation.",
+                cues = listOf("Full range of motion", "Squeeze at peak", "Controlled eccentric"),
+                muscleGroups = listOf("Forearms"),
+                equipment = listOf("Dumbbell"),
+                movementType = MovementType.ISOLATION_UPPER,
+                familyId = "wrist_curl",
+                familyName = "Wrist Curl",
+                implement = Implement.DUMBBELL,
+                stance = Stance.SEATED
+            ),
+            Exercise(
+                id = "cuff_external_rotation",
+                name = "Side-Lying External Rotation",
+                description = "Dumbbell external rotation for rotator cuff health.",
+                cues = listOf("Keep elbow tucked", "Small range of motion", "Focus on control"),
+                muscleGroups = listOf("Shoulders", "Rotator Cuff"),
+                equipment = listOf("Dumbbell"),
+                movementType = MovementType.ISOLATION_UPPER,
+                dangerousFor = listOf("Shoulder Pain"),
+                familyId = "cuff",
+                familyName = "Rotator Cuff",
+                implement = Implement.DUMBBELL,
+                stance = Stance.STANDARD
+            ),
+            Exercise(
+                id = "prone_y",
+                name = "Prone Y",
+                description = "Dumbbell Y-raises for lower trap and shoulder stability.",
+                cues = listOf("Thumbs up", "Keep arms straight", "Squeeze shoulder blades"),
+                muscleGroups = listOf("Shoulders", "Upper Back"),
+                equipment = listOf("Dumbbell"),
+                movementType = MovementType.ISOLATION_UPPER,
+                familyId = "cuff",
+                familyName = "Rotator Cuff",
+                implement = Implement.DUMBBELL,
+                stance = Stance.STANDARD
+            ),
+            Exercise(
+                id = "pallof_press",
+                name = "Pallof Press",
+                description = "Anti-rotation core stability exercise using a cable stack.",
+                cues = listOf("Don't let cable pull you", "Exhale on press", "Tight core"),
+                muscleGroups = listOf("Abs", "Core"),
+                equipment = listOf("Cable"),
+                movementType = MovementType.ABS,
+                familyId = "pallof",
+                familyName = "Pallof Press",
+                implement = Implement.CABLE,
+                stance = Stance.STANDING
+            ),
+            Exercise(
+                id = "side_plank",
+                name = "Side Plank",
+                description = "Static side core stability exercise.",
+                cues = listOf("Hips high", "Elbow under shoulder", "Straight line from head to feet"),
+                muscleGroups = listOf("Abs", "Core"),
+                equipment = listOf("Bodyweight"),
+                movementType = MovementType.ABS,
+                familyId = "side_plank",
+                familyName = "Side Plank",
+                implement = Implement.BODYWEIGHT,
+                stance = Stance.STANDARD
             )
         )
         
@@ -2085,6 +2233,220 @@ class WorkoutRepositoryImpl @Inject constructor(
             isAddedToLibrary = false // Don't show on main screen by default
         )
         seedAugment(gorillaArms)
+
+        // Bull Neck
+        val bullNeck = WorkoutAugment(
+            id = "augment_bull_neck",
+            name = "Bull Neck",
+            description = "30-day neck block. 3–4×/week. 2–3 RIR. Never fail.",
+            focusBodyPart = "Neck",
+            exercises = listOfNotNull(
+                exercises.find { it.id == "neck_extension" },
+                exercises.find { it.id == "neck_flexion" },
+                exercises.find { it.id == "neck_lateral" }
+            ).map { 
+                val sets = if (it.id == "neck_lateral") 1 else 2
+                RoutineExercise(
+                    exercise = it,
+                    sets = List(sets) { 
+                        RoutineSet(type = SetType.NORMAL, reps = 10) 
+                    }
+                ) 
+            },
+            colorHex = "#00FF00",
+            isSystem = true,
+            isAddedToLibrary = false,
+            scheduledDays = listOf(1, 3, 5).map { ScheduledDay(it, "18:00") }
+        )
+        seedAugment(bullNeck)
+
+        // Cyber Calves
+        val cyberCalves = WorkoutAugment(
+            id = "augment_cyber_calves",
+            name = "Cyber Calves",
+            description = "Track A shock: start 200 bilateral quality reps, add ~100/session to 1000 bilateral, then single-leg cap 200/leg. Track B is the seeded loaded sets.",
+            focusBodyPart = "Calves",
+            exercises = listOfNotNull(
+                exercises.find { it.id == "calf_raise" },
+                exercises.find { it.id == "calf_raise_seated" }
+            ).map { 
+                val sets = if (it.id == "calf_raise") 3 else 2
+                val reps = if (it.id == "calf_raise") 20 else 15
+                val goal = if (it.id == "calf_raise") "15-30" else null
+                RoutineExercise(
+                    exercise = it,
+                    sets = List(sets) { 
+                        RoutineSet(type = SetType.NORMAL, reps = reps, goalReps = goal) 
+                    }
+                ) 
+            },
+            colorHex = "#00FF9C",
+            isSystem = true,
+            isAddedToLibrary = false,
+            scheduledDays = listOf(1, 3, 5).map { ScheduledDay(it, "09:00") }
+        )
+        seedAugment(cyberCalves)
+
+        // Bionic Shoulders
+        val bionicShoulders = WorkoutAugment(
+            id = "augment_bionic_shoulders",
+            name = "Bionic Shoulders",
+            description = "Bolt onto Push or run solo. Cuff Care is separate. Focus on side and rear delts.",
+            focusBodyPart = "Shoulders",
+            exercises = listOfNotNull(
+                exercises.find { it.id == "lateral_raise" },
+                exercises.find { it.id == "rear_delt_fly_dumbbell" },
+                exercises.find { it.id == "facepull_cable" }
+            ).map { exercise ->
+                RoutineExercise(
+                    exercise = exercise,
+                    sets = List(3) { 
+                        RoutineSet(type = SetType.NORMAL, reps = 15, goalReps = if (exercise.id == "lateral_raise") "12-20" else null) 
+                    }
+                ) 
+            },
+            colorHex = "#00CCFF",
+            isSystem = true,
+            isAddedToLibrary = false,
+            scheduledDays = listOf(1, 3, 5).map { ScheduledDay(it, "09:00") }
+        )
+        seedAugment(bionicShoulders)
+
+        // Chest Blaster
+        val chestBlaster = WorkoutAugment(
+            id = "augment_chest_blaster",
+            name = "Chest Blaster",
+            description = "Isolation pump. If attached to Push, still no extra barbell bench.",
+            focusBodyPart = "Chest",
+            exercises = listOfNotNull(
+                exercises.find { it.id == "pec_deck" },
+                exercises.find { it.id == "atlas_pushup_bodyweight" } ?: exercises.find { it.id == "dip_bodyweight" },
+                exercises.find { it.id == "pullover_db" }
+            ).map { 
+                val sets = if (it.id == "pullover_db") 2 else 3
+                val reps = if (it.id == "pullover_db") 12 else if (it.id == "pec_deck") 15 else 10
+                RoutineExercise(
+                    exercise = it,
+                    sets = List(sets) { 
+                        RoutineSet(type = SetType.NORMAL, reps = reps) 
+                    }
+                ) 
+            },
+            colorHex = "#00FF9C",
+            isSystem = true,
+            isAddedToLibrary = false,
+            scheduledDays = listOf(2, 6).map { ScheduledDay(it, "09:00") }
+        )
+        seedAugment(chestBlaster)
+
+        // Ass Blaster
+        val assBlaster = WorkoutAugment(
+            id = "augment_ass_blaster",
+            name = "Ass Blaster",
+            description = "SOLO default 2×/week. Do not default-attach to CC Legs. Absolute glute development.",
+            focusBodyPart = "Glutes",
+            exercises = listOfNotNull(
+                exercises.find { it.id == "hip_thrust_barbell" },
+                exercises.find { it.id == "split_squat_bulgarian_db" },
+                exercises.find { it.id == "romanian_deadlift" }
+            ).map { exercise ->
+                RoutineExercise(
+                    exercise = exercise,
+                    sets = List(3) { 
+                        RoutineSet(type = SetType.NORMAL, reps = 10, goalReps = if (exercise.id == "romanian_deadlift") "8-12" else null) 
+                    }
+                ) 
+            },
+            colorHex = "#FF006E",
+            isSystem = true,
+            isAddedToLibrary = false,
+            scheduledDays = listOf(2, 6).map { ScheduledDay(it, "09:00") }
+        )
+        seedAugment(assBlaster)
+
+        // Vice Grip
+        val viceGrip = WorkoutAugment(
+            id = "augment_vice_grip",
+            name = "Vice Grip",
+            description = "Ongoing. Skip the day before a heavy DL. Focus on grip and forearm strength.",
+            focusBodyPart = "Grip",
+            exercises = listOfNotNull(
+                exercises.find { it.id == "farmer_carry_db" },
+                exercises.find { it.id == "dead_hang" },
+                exercises.find { it.id == "wrist_curl" },
+                exercises.find { it.id == "reverse_wrist_curl" }
+            ).map { 
+                val sets = if (it.id == "dead_hang") 2 else 3
+                val reps = if (it.id == "farmer_carry_db") 30 else if (it.id == "dead_hang") 30 else 15
+                val goal = if (it.id == "farmer_carry_db") "30-40m" else if (it.id == "dead_hang") "30s" else null
+                RoutineExercise(
+                    exercise = it,
+                    sets = List(sets) { 
+                        RoutineSet(type = SetType.NORMAL, reps = reps, goalReps = goal) 
+                    }
+                ) 
+            },
+            colorHex = "#00FF9C",
+            isSystem = true,
+            isAddedToLibrary = false,
+            scheduledDays = listOf(1, 3, 5).map { ScheduledDay(it, "18:00") }
+        )
+        seedAugment(viceGrip)
+
+        // Iron Core
+        val ironCore = WorkoutAugment(
+            id = "augment_iron_core",
+            name = "Iron Core",
+            description = "Ongoing 10-minute core. Not sit-up cardio.",
+            focusBodyPart = "Abs",
+            exercises = listOfNotNull(
+                exercises.find { it.id == "ab_wheel" } ?: exercises.find { it.id == "cable_crunch" },
+                exercises.find { it.id == "hanging_knee_raise" },
+                exercises.find { it.id == "pallof_press" },
+                exercises.find { it.id == "side_plank" }
+            ).map { 
+                val sets = if (it.id == "pallof_press" || it.id == "side_plank") 2 else 3
+                val reps = if (it.id == "side_plank") 30 else if (it.id == "hanging_knee_raise") 10 else 12
+                val goal = if (it.id == "side_plank") "30s" else null
+                RoutineExercise(
+                    exercise = it,
+                    sets = List(sets) { 
+                        RoutineSet(type = SetType.NORMAL, reps = reps, goalReps = goal) 
+                    }
+                ) 
+            },
+            colorHex = "#00FF9C",
+            isSystem = true,
+            isAddedToLibrary = false,
+            scheduledDays = listOf(1, 3, 5).map { ScheduledDay(it, "18:00") }
+        )
+        seedAugment(ironCore)
+
+        // Cuff Care
+        val cuffCare = WorkoutAugment(
+            id = "augment_cuff_care",
+            name = "Cuff Care",
+            description = "Prehab. Light. Pain-free. Ongoing.",
+            focusBodyPart = "Shoulders",
+            exercises = listOfNotNull(
+                exercises.find { it.id == "cuff_external_rotation" },
+                exercises.find { it.id == "facepull_cable" },
+                exercises.find { it.id == "prone_y" }
+            ).map { 
+                val reps = if (it.id == "prone_y") 12 else 15
+                RoutineExercise(
+                    exercise = it,
+                    sets = List(2) { 
+                        RoutineSet(type = SetType.NORMAL, reps = reps) 
+                    }
+                ) 
+            },
+            colorHex = "#00CCFF",
+            isSystem = true,
+            isAddedToLibrary = false,
+            scheduledDays = listOf(1, 2, 4, 5).map { ScheduledDay(it, "18:00") }
+        )
+        seedAugment(cuffCare)
 
         // Seed CyberCrapp A Routine
         val cyberCrappA = WorkoutRoutine(

@@ -20,7 +20,8 @@ fun WorkoutSessionEntity.toDomain() = WorkoutSession(
     jointHealth = jointHealth,
     isDeload = isDeload,
     cycleId = cycleId,
-    protocolDayType = protocolDayType?.let { ProtocolDayType.valueOf(it) }
+    protocolDayType = protocolDayType?.let { ProtocolDayType.valueOf(it) },
+    primaryAugmentId = primaryAugmentId
 )
 
 fun WorkoutSession.toEntity() = WorkoutSessionEntity(
@@ -35,7 +36,8 @@ fun WorkoutSession.toEntity() = WorkoutSessionEntity(
     jointHealth = jointHealth,
     isDeload = isDeload,
     cycleId = cycleId,
-    protocolDayType = protocolDayType?.name
+    protocolDayType = protocolDayType?.name,
+    primaryAugmentId = primaryAugmentId
 )
 
 fun ProtocolCycleEntity.toDomain() = ProtocolCycle(
@@ -130,6 +132,38 @@ fun Exercise.toEntity() = ExerciseDefinitionEntity(
     rangeOverrideMax = rangeOverrideMax,
     allowsAddedLoad = allowsAddedLoad,
     isPrimaryVariant = isPrimaryVariant
+)
+
+fun AugmentActivationEntity.toDomain() = AugmentActivation(
+    id = id,
+    augmentId = augmentId,
+    userId = userId,
+    mode = AugmentRunMode.valueOf(mode),
+    status = AugmentActivationStatus.valueOf(status),
+    loggingStyle = AugmentLoggingStyle.valueOf(loggingStyle),
+    scheduledDays = gson.fromJson(scheduledDays, object : TypeToken<List<ScheduledDay>>() {}.type),
+    createdAt = createdAt,
+    windowStart = windowStart,
+    windowEnd = windowEnd,
+    hostProtocolFilter = hostProtocolFilter?.let { WorkoutProtocol.valueOf(it) },
+    dayTypeFilter = dayTypeFilter?.let { ProtocolDayType.valueOf(it) },
+    reminderEnabled = reminderEnabled
+)
+
+fun AugmentActivation.toEntity() = AugmentActivationEntity(
+    id = id,
+    augmentId = augmentId,
+    userId = userId,
+    mode = mode.name,
+    status = status.name,
+    loggingStyle = loggingStyle.name,
+    scheduledDays = gson.toJson(scheduledDays),
+    createdAt = createdAt,
+    windowStart = windowStart,
+    windowEnd = windowEnd,
+    hostProtocolFilter = hostProtocolFilter?.name,
+    dayTypeFilter = dayTypeFilter?.name,
+    reminderEnabled = reminderEnabled
 )
 
 fun WorkoutLogEntity.toDomain() = WorkoutLog(

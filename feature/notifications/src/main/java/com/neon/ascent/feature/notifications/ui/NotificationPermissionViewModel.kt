@@ -24,10 +24,18 @@ class NotificationPermissionViewModel @Inject constructor(
     private val _pendingNotification = MutableStateFlow<Pair<String, String>?>(null)
     val pendingNotification: StateFlow<Pair<String, String>?> = _pendingNotification.asStateFlow()
 
-    fun setPendingNotification(title: String?, message: String?) {
+    private val _pendingTaskId = MutableStateFlow<String?>(null)
+    val pendingTaskId: StateFlow<String?> = _pendingTaskId.asStateFlow()
+
+    fun setPendingNotification(title: String?, message: String?, taskId: String? = null) {
         if (title != null && message != null) {
             _pendingNotification.value = title to message
         }
+        _pendingTaskId.value = taskId
+    }
+
+    fun dismissTaskId() {
+        _pendingTaskId.value = null
     }
 
     fun dismissNotification() {

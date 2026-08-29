@@ -155,6 +155,18 @@ interface WorkoutDao {
     @Query("DELETE FROM workout_augments WHERE id = :augmentId")
     suspend fun deleteAugment(augmentId: String)
 
+    @Upsert
+    suspend fun upsertAugmentActivation(activation: AugmentActivationEntity)
+
+    @Query("SELECT * FROM augment_activations WHERE userId = :userId")
+    fun getActivationsByUserId(userId: String): Flow<List<AugmentActivationEntity>>
+
+    @Query("SELECT * FROM augment_activations WHERE status = 'ACTIVE'")
+    fun getActiveActivations(): Flow<List<AugmentActivationEntity>>
+
+    @Query("UPDATE augment_activations SET status = 'ENDED' WHERE id = :id")
+    suspend fun endActivation(id: String)
+
     @Query("DELETE FROM workout_routines WHERE id = :routineId")
     suspend fun deleteRoutine(routineId: String)
 

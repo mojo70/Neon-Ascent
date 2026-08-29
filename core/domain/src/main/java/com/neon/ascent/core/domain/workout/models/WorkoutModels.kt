@@ -14,7 +14,8 @@ data class WorkoutSession(
     val jointHealth: Int? = null,
     val isDeload: Boolean = false,
     val cycleId: String? = null,
-    val protocolDayType: ProtocolDayType? = null
+    val protocolDayType: ProtocolDayType? = null,
+    val primaryAugmentId: String? = null
 )
 
 enum class WorkoutProtocol {
@@ -428,6 +429,42 @@ data class WorkoutAugment(
     val isAddedToLibrary: Boolean = true,
     val scheduledDays: List<ScheduledDay> = emptyList()
 )
+
+enum class AugmentRunMode { INDEPENDENT, ATTACHED_ONGOING, ATTACHED_WINDOW, AD_HOC }
+enum class AugmentLoggingStyle { INHERIT, GENERAL, CYBER_CRAPP }
+enum class AugmentActivationStatus { ACTIVE, PAUSED, ENDED }
+
+data class AugmentActivation(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val augmentId: String,
+    val userId: String = "default_user",
+    val mode: AugmentRunMode,
+    val status: AugmentActivationStatus = AugmentActivationStatus.ACTIVE,
+    val loggingStyle: AugmentLoggingStyle = AugmentLoggingStyle.INHERIT,
+    val scheduledDays: List<ScheduledDay> = emptyList(),
+    val createdAt: Instant = Instant.now(),
+    val windowStart: Instant? = null,
+    val windowEnd: Instant? = null,
+    val hostProtocolFilter: WorkoutProtocol? = null,
+    val dayTypeFilter: ProtocolDayType? = null,
+    val reminderEnabled: Boolean = true
+) {
+    fun isLive(now: Instant, hostProtocol: WorkoutProtocol? = null, dayType: ProtocolDayType? = null): Boolean {
+        if (status != AugmentActivationStatus.ACTIVE) return false
+        
+        // Window check
+        if (windowStart != null && now.isBefore(windowStart)) return false
+        if (windowEnd != null && now.isAfter(windowEnd)) return false
+        
+        // Protocol filter
+        if (hostProtocolFilter != null && hostProtocol != hostProtocolFilter) return false
+        
+        // Day type filter
+        if (dayTypeFilter != null && dayType != dayTypeFilter) return false
+        
+        return true
+    }
+}
 
 data class SetLog(
     val id: String,

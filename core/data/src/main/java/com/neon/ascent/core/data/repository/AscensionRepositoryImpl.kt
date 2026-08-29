@@ -45,6 +45,9 @@ class AscensionRepositoryImpl @Inject constructor(
     override fun getTasksForParent(parentId: String): Flow<List<AscensionTask>> =
         dao.getTasksForParent(parentId).map { list -> list.map { it.toDomain() } }
 
+    override fun getTaskById(id: String): Flow<AscensionTask?> =
+        dao.getTaskById(id).map { it?.toDomain() }
+
     override fun getAllRecurringTasks(): Flow<List<AscensionTask>> =
         dao.getAllRecurringTasks().map { list -> list.map { it.toDomain() } }
 

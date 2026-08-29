@@ -44,6 +44,7 @@ class NeuralPingManager @Inject constructor(
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             putExtra(EXTRA_NOTIFICATION_TITLE, title)
             putExtra(EXTRA_NOTIFICATION_MESSAGE, message)
+            putExtra(EXTRA_TASK_ID, taskId)
         }
         val contentIntent = PendingIntent.getActivity(
             context, notificationId, mainIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -103,5 +104,6 @@ class NeuralPingManager @Inject constructor(
         const val SYSTEM_BRIEF_ID = 9999
         const val EXTRA_NOTIFICATION_TITLE = "notification_title"
         const val EXTRA_NOTIFICATION_MESSAGE = "notification_message"
+        const val EXTRA_TASK_ID = "notification_task_id"
     }
 }

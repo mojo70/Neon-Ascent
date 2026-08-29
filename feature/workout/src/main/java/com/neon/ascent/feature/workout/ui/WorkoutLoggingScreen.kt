@@ -60,11 +60,18 @@ import com.neon.ascent.core.domain.workout.rules.RepRange
 
 @Composable
 fun WorkoutLoggingScreen(
+    taskId: String? = null,
     onBack: () -> Unit,
     onViewInCodex: (String) -> Unit = {},
     viewModel: WorkoutViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    
+    LaunchedEffect(taskId) {
+        if (taskId != null) {
+            viewModel.handleTaskLaunch(taskId)
+        }
+    }
     var showRoutineActionMenuFor by remember { mutableStateOf<WorkoutRoutine?>(null) }
     var showAugmentActionMenuFor by remember { mutableStateOf<WorkoutAugment?>(null) }
     var showAugmentScheduleDialogFor by remember { mutableStateOf<WorkoutAugment?>(null) }
@@ -219,7 +226,7 @@ fun WorkoutLoggingScreen(
                             onShowArchive = { onViewInCodex("") },
                             onStartProtocol = { protocol, deload -> viewModel.startSession(protocol, deload) },
                             onStartRoutine = { routine, deload -> viewModel.handleRoutineSelection(routine, deload) },
-                            onStartAugment = { viewModel.startAugment(it) },
+                            onStartAugment = { viewModel.handleAdHocAugment(it) },
                             onCreateRoutine = { viewModel.startCreateRoutine() },
                             onCreateAugment = { viewModel.startCreateAugment() },
                             onRoutineActionClick = { showRoutineActionMenuFor = it },
@@ -433,6 +440,7 @@ fun WorkoutLoggingScreen(
         if (showAugmentActionMenuFor != null) {
             WorkoutAugmentActionMenu(
                 augment = showAugmentActionMenuFor!!,
+                activation = uiState.augmentActivations.find { it.augmentId == showAugmentActionMenuFor!!.id },
                 onShare = { viewModel.shareAugment(showAugmentActionMenuFor!!) },
                 onDuplicate = { viewModel.duplicateAugment(showAugmentActionMenuFor!!) },
                 onEdit = { 
@@ -443,16 +451,24 @@ fun WorkoutLoggingScreen(
                     showAugmentScheduleDialogFor = showAugmentActionMenuFor
                     showAugmentActionMenuFor = null
                 },
+                onPause = { viewModel.pauseAugmentActivation(it) },
+                onEnd = { viewModel.endAugmentActivation(it) },
                 onDelete = { viewModel.deleteAugment(showAugmentActionMenuFor!!) },
                 onDismiss = { showAugmentActionMenuFor = null }
             )
         }
 
         if (showAugmentScheduleDialogFor != null) {
-            AugmentScheduleDialog(
+            AugmentActivationDialog(
                 augment = showAugmentScheduleDialogFor!!,
-                onSave = { updatedDays ->
-                    viewModel.updateAugmentSchedule(showAugmentScheduleDialogFor!!, updatedDays)
+                existingActivation = uiState.augmentActivations.find { it.augmentId == showAugmentScheduleDialogFor!!.id },
+                userProfile = uiState.userProfile,
+                onActivate = { activation ->
+                    viewModel.saveAugmentActivation(activation)
+                    showAugmentScheduleDialogFor = null
+                },
+                onAdHoc = { augment ->
+                    viewModel.handleAdHocAugment(augment)
                     showAugmentScheduleDialogFor = null
                 },
                 onDismiss = { showAugmentScheduleDialogFor = null }
@@ -1111,8 +1127,10 @@ fun WorkoutIntakeScreen(
         if (isAugmentsExpanded) {
             Spacer(modifier = Modifier.height(8.dp))
             uiState.augments.forEach { augment ->
+                val activation = uiState.augmentActivations.find { it.augmentId == augment.id }
                 AugmentCard(
                     augment = augment,
+                    activation = activation,
                     onStart = { onStartAugment(augment) },
                     onActionClick = { onAugmentActionClick(augment) }
                 )
@@ -1530,7 +1548,12 @@ fun RoutineCard(routine: WorkoutRoutine, onStart: () -> Unit, onActionClick: () 
 }
 
 @Composable
-fun AugmentCard(augment: WorkoutAugment, onStart: () -> Unit, onActionClick: () -> Unit) {
+fun AugmentCard(
+    augment: WorkoutAugment, 
+    activation: AugmentActivation? = null,
+    onStart: () -> Unit, 
+    onActionClick: () -> Unit
+) {
     val color = Color(android.graphics.Color.parseColor(augment.colorHex))
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -1561,6 +1584,36 @@ fun AugmentCard(augment: WorkoutAugment, onStart: () -> Unit, onActionClick: () 
                 IconButton(onClick = onActionClick, modifier = Modifier.size(24.dp)) {
                     Icon(Icons.Default.MoreHoriz, contentDescription = "Augment Actions", tint = Color.Gray)
                 }
+            }
+
+            if (activation != null) {
+                val statusText = buildString {
+                    append(activation.mode.name)
+                    if (activation.mode == AugmentRunMode.INDEPENDENT && activation.scheduledDays.isNotEmpty()) {
+                        val days = activation.scheduledDays.map { it.dayOfWeek }
+                        val daysText = when {
+                            days.containsAll(listOf(1, 2, 3, 4, 5)) -> "MON–FRI"
+                            days.containsAll(listOf(1, 2, 3, 4, 5, 6, 7)) -> "DAILY"
+                            else -> days.joinToString(",") { listOf("M", "T", "W", "T", "F", "S", "S")[it - 1] }
+                        }
+                        append(" · $daysText ${activation.scheduledDays.first().time}")
+                    }
+                    if (activation.windowEnd != null) {
+                        val formatter = java.time.format.DateTimeFormatter.ofPattern("dd MMM")
+                        append(" · ENDS ${java.time.LocalDateTime.ofInstant(activation.windowEnd, java.time.ZoneId.systemDefault()).format(formatter).uppercase()}")
+                    } else if (activation.status == AugmentActivationStatus.ACTIVE) {
+                        append(" · ONGOING")
+                    } else {
+                        append(" · ${activation.status.name}")
+                    }
+                }
+                Text(
+                    statusText,
+                    color = Color(0xFF00FF9C),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
             }
             
             Spacer(modifier = Modifier.height(8.dp))
@@ -2568,10 +2621,13 @@ fun WorkoutRoutineActionMenu(
 @Composable
 fun WorkoutAugmentActionMenu(
     augment: WorkoutAugment,
+    activation: AugmentActivation? = null,
     onShare: () -> Unit,
     onDuplicate: () -> Unit,
     onEdit: () -> Unit,
     onSchedule: () -> Unit,
+    onPause: (AugmentActivation) -> Unit,
+    onEnd: (AugmentActivation) -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -2595,6 +2651,38 @@ fun WorkoutAugmentActionMenu(
                 )
             }
             
+            if (activation != null) {
+                if (activation.status == AugmentActivationStatus.ACTIVE) {
+                    ActionMenuItem(
+                        icon = Icons.Default.Pause,
+                        label = "Pause Activation",
+                        onClick = {
+                            onPause(activation)
+                            onDismiss()
+                        }
+                    )
+                } else if (activation.status == AugmentActivationStatus.PAUSED) {
+                    ActionMenuItem(
+                        icon = Icons.Default.PlayArrow,
+                        label = "Resume Activation",
+                        onClick = {
+                            onSchedule() // Re-use schedule/setup sheet to resume
+                            onDismiss()
+                        }
+                    )
+                }
+                
+                ActionMenuItem(
+                    icon = Icons.Default.Stop,
+                    label = "End Activation",
+                    onClick = {
+                        onEnd(activation)
+                        onDismiss()
+                    }
+                )
+                HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f))
+            }
+
             ActionMenuItem(
                 icon = Icons.Default.Share,
                 label = "Share Sub Protocol",
@@ -2621,7 +2709,7 @@ fun WorkoutAugmentActionMenu(
             )
             ActionMenuItem(
                 icon = Icons.Default.CalendarMonth,
-                label = "Schedule & Reminders",
+                label = if (activation == null) "Setup & Activate" else "Update Schedule",
                 onClick = {
                     onSchedule()
                     onDismiss()
@@ -2642,186 +2730,6 @@ fun WorkoutAugmentActionMenu(
         }
     }
 }
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AugmentScheduleDialog(
-    augment: WorkoutAugment,
-    onSave: (List<ScheduledDay>) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val days = listOf("M", "T", "W", "T", "F", "S", "S")
-    var scheduledDays by remember(augment.scheduledDays) { mutableStateOf(augment.scheduledDays) }
-    var applyTimeToAll by remember { mutableStateOf(true) }
-    var showTimePickerForDay by remember { mutableStateOf<Int?>(null) }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            modifier = Modifier.fillMaxWidth().padding(8.dp),
-            color = Color(0xFF0D0D0D),
-            shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.4f))
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text(
-                    "SUB-PROTOCOL SCHEDULE",
-                    color = Color(0xFF00FF9C),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 1.sp
-                )
-                Text(
-                    "Schedule independent training & reminders for ${augment.name}.",
-                    color = Color.Gray,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("APPLY SAME TIME TO ALL", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    Switch(
-                        checked = applyTimeToAll,
-                        onCheckedChange = { applyTimeToAll = it },
-                        colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF00FF9C))
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    days.forEachIndexed { index, label ->
-                        val dayId = index + 1
-                        val scheduled = scheduledDays.find { it.dayOfWeek == dayId }
-                        val isSelected = scheduled != null
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.padding(horizontal = 2.dp)
-                        ) {
-                            Surface(
-                                modifier = Modifier
-                                    .size(42.dp)
-                                    .clickable {
-                                        scheduledDays = if (isSelected) {
-                                            scheduledDays.filter { it.dayOfWeek != dayId }
-                                        } else {
-                                            val baseTime = scheduledDays.firstOrNull()?.time ?: "18:00"
-                                            scheduledDays + ScheduledDay(dayId, baseTime)
-                                        }
-                                    },
-                                color = if (isSelected) Color(0xFF00FF9C).copy(alpha = 0.15f) else Color(0xFF1C1C1E),
-                                shape = CircleShape,
-                                border = BorderStroke(1.5.dp, if (isSelected) Color(0xFF00FF9C) else Color.DarkGray)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text(
-                                        label,
-                                        color = if (isSelected) Color(0xFF00FF9C) else Color.Gray,
-                                        fontWeight = FontWeight.Black,
-                                        fontSize = 15.sp
-                                    )
-                                }
-                            }
-                            if (scheduled != null) {
-                                Surface(
-                                    modifier = Modifier
-                                        .padding(top = 6.dp)
-                                        .clickable { showTimePickerForDay = dayId },
-                                    color = Color(0xFF2C2C2E),
-                                    shape = RoundedCornerShape(4.dp)
-                                ) {
-                                    Text(
-                                        scheduled.time,
-                                        color = Color(0xFF00FF9C),
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onDismiss) {
-                        Text("CANCEL", color = Color.Gray)
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Button(
-                        onClick = { onSave(scheduledDays) },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("SAVE SCHEDULE", color = Color.Black, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-    }
-
-    if (showTimePickerForDay != null) {
-        val initialTime = scheduledDays.find { it.dayOfWeek == showTimePickerForDay }?.time ?: "18:00"
-        val initialHour = initialTime.split(":")[0].toIntOrNull() ?: 18
-        val initialMinute = initialTime.split(":")[1].toIntOrNull() ?: 0
-
-        val timePickerState = rememberTimePickerState(
-            initialHour = initialHour,
-            initialMinute = initialMinute
-        )
-
-        AlertDialog(
-            onDismissRequest = { showTimePickerForDay = null },
-            confirmButton = {
-                TextButton(onClick = {
-                    val newTime = "%02d:%02d".format(timePickerState.hour, timePickerState.minute)
-                    scheduledDays = if (applyTimeToAll) {
-                        scheduledDays.map { it.copy(time = newTime) }
-                    } else {
-                        scheduledDays.map { if (it.dayOfWeek == showTimePickerForDay) it.copy(time = newTime) else it }
-                    }
-                    showTimePickerForDay = null
-                }) {
-                    Text("CONFIRM", color = Color(0xFF00FF9C), fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showTimePickerForDay = null }) {
-                    Text("CANCEL", color = Color.Gray)
-                }
-            },
-            title = {
-                Text(
-                    "TRAINING TIME WINDOW",
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 1.sp
-                )
-            },
-            text = {
-                Box(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    TimePicker(state = timePickerState)
-                }
-            },
-            containerColor = Color(0xFF1C1C1E),
-            shape = RoundedCornerShape(16.dp)
-        )
-    }
-}
-
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

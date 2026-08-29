@@ -72,12 +72,12 @@ fun OnboardingScreen(
                         onRemindLater = { viewModel.showReminderDialog() }
                     )
                     4 -> StepHardwareCheck(uiState, onToggle = { viewModel.toggleInjury(it) })
-                    5 -> StepChronosCalibration(
+                    5 -> StepProtocolSynthesis(uiState)
+                    6 -> StepChronosCalibration(
                         state = uiState,
                         onUpdateSchedule = { viewModel.updateSchedule(it) },
                         onToggleApplyToAll = { viewModel.toggleApplyTimeToAll() }
                     )
-                    6 -> StepProtocolSynthesis(uiState)
                 }
             }
         }

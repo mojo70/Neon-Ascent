@@ -38,6 +38,7 @@ data class WorkoutUiState(
     val exploreRoutines: List<WorkoutRoutine> = emptyList(),
     val augments: List<WorkoutAugment> = emptyList(),
     val exploreAugments: List<WorkoutAugment> = emptyList(),
+    val augmentActivations: List<AugmentActivation> = emptyList(),
     val isLoading: Boolean = true,
     val isResting: Boolean = false,
     val restTimeRemaining: Int = 0,
@@ -281,6 +282,12 @@ class WorkoutViewModel @Inject constructor(
                     _uiState.update { it.copy(recoveryScore = score) }
                 }
             }
+
+            launch {
+                repository.getAugmentActivations("default_user").collect { activations ->
+                    _uiState.update { it.copy(augmentActivations = activations) }
+                }
+            }
             
             launch {
                 healthPrefs.workoutZoomLevel.collect { zoom ->
@@ -448,6 +455,15 @@ class WorkoutViewModel @Inject constructor(
 
     private fun checkForActiveSession() {
         viewModelScope.launch {
+            // Cleanup expired activations
+            val now = java.time.Instant.now()
+            val activations = repository.getActiveAugmentActivations().first()
+            activations.forEach { act ->
+                if (act.windowEnd != null && now.isAfter(act.windowEnd)) {
+                    endAugmentActivation(act)
+                }
+            }
+
             repository.getActiveSession().collect { session ->
                 if (session != null && _uiState.value.session == null) {
                     resumeExistingSession(session)
@@ -908,6 +924,208 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
+    fun saveAugmentActivation(activation: AugmentActivation) {
+        viewModelScope.launch {
+            repository.saveAugmentActivation(activation)
+            syncAugmentReminders(activation)
+        }
+    }
+
+    fun pauseAugmentActivation(activation: AugmentActivation) {
+        viewModelScope.launch {
+            repository.saveAugmentActivation(activation.copy(status = AugmentActivationStatus.PAUSED))
+            syncAugmentReminders(activation.copy(status = AugmentActivationStatus.PAUSED))
+        }
+    }
+
+    fun endAugmentActivation(activation: AugmentActivation) {
+        viewModelScope.launch {
+            repository.endAugmentActivation(activation.id)
+            // Clear reminders
+            val existingTasks = ascensionRepository.getAllRecurringTasks().first()
+            existingTasks.filter { task ->
+                task.tags.contains("augment_act_${activation.id}")
+            }.forEach { task ->
+                ascensionRepository.deleteTask(task.id)
+            }
+        }
+    }
+
+    private suspend fun syncAugmentReminders(activation: AugmentActivation) {
+        val augment = (uiState.value.augments + uiState.value.exploreAugments).find { it.id == activation.augmentId } ?: return
+
+        // 1. Clear existing tasks for THIS activation
+        val existingTasks = ascensionRepository.getAllRecurringTasks().first()
+        existingTasks.filter { task ->
+            task.tags.contains("augment_act_${activation.id}")
+        }.forEach { task ->
+            ascensionRepository.deleteTask(task.id)
+        }
+
+        if (activation.status != AugmentActivationStatus.ACTIVE || activation.mode != AugmentRunMode.INDEPENDENT || !activation.reminderEnabled) {
+            return
+        }
+
+        // 2. Write new tasks
+        activation.scheduledDays.forEach { scheduled ->
+            val task = AscensionTask(
+                id = UUID.randomUUID().toString(),
+                parentId = null,
+                title = "SUB-PROTOCOL: ${augment.name}",
+                description = "Dedicated training window for ${augment.focusBodyPart}.",
+                type = AscensionTaskType.RECURRING,
+                recurrence = com.neon.ascent.core.domain.goals.models.RecurrenceV3(
+                    type = com.neon.ascent.core.domain.goals.models.RecurrenceTypeV3.DAYS_OF_WEEK,
+                    daysOfWeek = setOf(java.time.DayOfWeek.of(scheduled.dayOfWeek))
+                ),
+                timeWindows = listOf(scheduled.time),
+                reminderEnabled = true,
+                xpValue = 15,
+                tags = listOf("workout_session", "augment_act_${activation.id}", "independent_start")
+            )
+            ascensionRepository.insertTask(task)
+        }
+    }
+
+    fun startIndependentAugmentSession(activation: AugmentActivation) {
+        val augment = (uiState.value.augments + uiState.value.exploreAugments).find { it.id == activation.augmentId } ?: return
+        
+        if (_uiState.value.session != null) {
+            _uiState.update { it.copy(activeSessionError = "A workout session is already in progress.") }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val sessionId = UUID.randomUUID().toString()
+            
+            // INDEPENDENT sessions use mapped protocol or GENERAL
+            val sessionProtocol = when (activation.loggingStyle) {
+                AugmentLoggingStyle.CYBER_CRAPP -> WorkoutProtocol.CYBER_CRAPP
+                AugmentLoggingStyle.GENERAL -> WorkoutProtocol.GENERAL
+                AugmentLoggingStyle.INHERIT -> WorkoutProtocol.GENERAL // No host to inherit from
+            }
+
+            val session = WorkoutSession(
+                id = sessionId,
+                protocol = sessionProtocol,
+                primaryAugmentId = activation.augmentId
+            )
+            repository.saveSession(session)
+
+            var globalSetTimestamp = java.time.Instant.now()
+            augment.exercises.forEachIndexed { index, routineExercise ->
+                val workoutLog = WorkoutLog(
+                    id = UUID.randomUUID().toString(),
+                    sessionId = sessionId,
+                    exerciseId = routineExercise.exercise.id,
+                    order = index,
+                    exerciseName = routineExercise.exercise.name,
+                    augmentId = augment.id,
+                    augmentName = augment.name,
+                    augmentColor = augment.colorHex,
+                    showGoalReps = true,
+                    // If loggingStyle is CYBER_CRAPP, we force it on the log too
+                    protocolOverride = if (activation.loggingStyle == AugmentLoggingStyle.CYBER_CRAPP) WorkoutProtocol.CYBER_CRAPP else null
+                )
+                repository.saveWorkoutLog(workoutLog)
+
+                // Build sets. If loggingStyle or protocol is CYBER_CRAPP and type is REST_PAUSE, expand.
+                routineExercise.sets.forEach { routineSet ->
+                    val isClusterType = (sessionProtocol == WorkoutProtocol.CYBER_CRAPP || activation.loggingStyle == AugmentLoggingStyle.CYBER_CRAPP) && 
+                                       routineSet.type == SetType.REST_PAUSE
+                    
+                    if (isClusterType) {
+                        for (i in 1..3) {
+                            globalSetTimestamp = globalSetTimestamp.plusMillis(1)
+                            val setLog = SetLog(
+                                id = UUID.randomUUID().toString(),
+                                workoutLogId = workoutLog.id,
+                                weight = routineSet.weight,
+                                reps = 0,
+                                type = SetType.REST_PAUSE,
+                                goalReps = routineSet.goalReps,
+                                clusterMiniSetIndex = i,
+                                timestamp = globalSetTimestamp
+                            )
+                            repository.saveSetLog(setLog)
+                        }
+                    } else {
+                        globalSetTimestamp = globalSetTimestamp.plusMillis(1)
+                        val setLog = SetLog(
+                            id = UUID.randomUUID().toString(),
+                            workoutLogId = workoutLog.id,
+                            weight = routineSet.weight,
+                            reps = routineSet.reps,
+                            type = routineSet.type,
+                            goalReps = routineSet.goalReps,
+                            timestamp = globalSetTimestamp
+                        )
+                        repository.saveSetLog(setLog)
+                    }
+                }
+                loadPreviousData(routineExercise.exercise.id)
+            }
+
+            _uiState.update { it.copy(
+                session = session,
+                workoutDurationSeconds = 0,
+                isPaused = false,
+                previousLogs = emptyMap(),
+                workoutPhase = if (sessionProtocol == WorkoutProtocol.CYBER_CRAPP) RestPausePhase.MINI_SET_1 else RestPausePhase.NOT_ACTIVE,
+                isLoading = false
+            ) }
+            startWorkoutTimer()
+        }
+    }
+
+    fun handleAdHocAugment(augment: WorkoutAugment) {
+        val currentSession = _uiState.value.session
+        if (currentSession != null) {
+            // BOLT ON to open session
+            injectAugment(augment)
+        } else {
+            // Start independent ad hoc session
+            val tempActivation = AugmentActivation(
+                augmentId = augment.id,
+                mode = AugmentRunMode.AD_HOC,
+                loggingStyle = if (augment.name == "Gorilla Arms") AugmentLoggingStyle.CYBER_CRAPP else AugmentLoggingStyle.INHERIT
+            )
+            startIndependentAugmentSession(tempActivation)
+        }
+    }
+
+    fun handleTaskLaunch(taskId: String) {
+        viewModelScope.launch {
+            val task = ascensionRepository.getTaskById(taskId).first() ?: return@launch
+            
+            // Check for independent augment start
+            val actTag = task.tags.find { it.startsWith("augment_act_") }
+            val isIndependent = task.tags.contains("independent_start")
+            
+            if (isIndependent && actTag != null) {
+                val actId = actTag.removePrefix("augment_act_")
+                val activation = _uiState.value.augmentActivations.find { it.id == actId }
+                if (activation != null) {
+                    startIndependentAugmentSession(activation)
+                    return@launch
+                }
+            }
+            
+            // Fallback: Start normal session or resume
+            if (_uiState.value.session == null) {
+                // If the task has a protocol tag, start that session
+                val protocolTag = task.tags.find { it.startsWith("protocol_") }
+                if (protocolTag != null) {
+                    val protocolName = protocolTag.removePrefix("protocol_")
+                    runCatching { WorkoutProtocol.valueOf(protocolName) }.getOrNull()?.let { protocol ->
+                        startSession(protocol)
+                    }
+                }
+            }
+        }
+    }
+
     fun updateAugmentSchedule(augment: WorkoutAugment, scheduledDays: List<ScheduledDay>) {
         viewModelScope.launch {
             val updatedAugment = augment.copy(scheduledDays = scheduledDays)
@@ -1043,6 +1261,73 @@ class WorkoutViewModel @Inject constructor(
 
             _uiState.update { it.copy(configuringProtocol = null, tempConfigProfile = null, userProfile = profile) }
         }
+    }
+
+    private suspend fun appendAttachedAugments(sessionId: String, protocol: WorkoutProtocol, dayType: ProtocolDayType?, startingOrder: Int): Int {
+        val now = java.time.Instant.now()
+        val activations = repository.getActiveAugmentActivations().first().filter { 
+            it.isLive(now, protocol, dayType) && 
+            (it.mode == AugmentRunMode.ATTACHED_ONGOING || it.mode == AugmentRunMode.ATTACHED_WINDOW)
+        }
+        
+        var currentOrder = startingOrder
+        var globalTimestamp = java.time.Instant.now()
+
+        activations.forEach { activation ->
+            val augment = (uiState.value.augments + uiState.value.exploreAugments).find { it.id == activation.augmentId } ?: return@forEach
+            val groupSupersetId = if (augment.exercises.size > 1) java.util.UUID.randomUUID().toString() else null
+            
+            augment.exercises.forEach { routineExercise ->
+                val workoutLog = WorkoutLog(
+                    id = java.util.UUID.randomUUID().toString(),
+                    sessionId = sessionId,
+                    exerciseId = routineExercise.exercise.id,
+                    order = currentOrder++,
+                    exerciseName = routineExercise.exercise.name,
+                    augmentId = augment.id,
+                    augmentName = augment.name,
+                    augmentColor = augment.colorHex,
+                    supersetId = groupSupersetId,
+                    showGoalReps = true,
+                    protocolOverride = if (activation.loggingStyle == AugmentLoggingStyle.CYBER_CRAPP) WorkoutProtocol.CYBER_CRAPP else null
+                )
+                repository.saveWorkoutLog(workoutLog)
+
+                routineExercise.sets.forEach { routineSet ->
+                    val isClusterType = (activation.loggingStyle == AugmentLoggingStyle.CYBER_CRAPP || (activation.loggingStyle == AugmentLoggingStyle.INHERIT && protocol == WorkoutProtocol.CYBER_CRAPP)) && 
+                                       routineSet.type == SetType.REST_PAUSE
+                    
+                    if (isClusterType) {
+                         for (i in 1..3) {
+                            globalTimestamp = globalTimestamp.plusMillis(1)
+                            repository.saveSetLog(SetLog(
+                                id = java.util.UUID.randomUUID().toString(),
+                                workoutLogId = workoutLog.id,
+                                weight = routineSet.weight,
+                                reps = 0,
+                                type = SetType.REST_PAUSE,
+                                goalReps = routineSet.goalReps,
+                                clusterMiniSetIndex = i,
+                                timestamp = globalTimestamp
+                            ))
+                        }
+                    } else {
+                        globalTimestamp = globalTimestamp.plusMillis(1)
+                        repository.saveSetLog(SetLog(
+                            id = java.util.UUID.randomUUID().toString(),
+                            workoutLogId = workoutLog.id,
+                            weight = routineSet.weight,
+                            reps = routineSet.reps,
+                            type = routineSet.type,
+                            goalReps = routineSet.goalReps,
+                            timestamp = globalTimestamp
+                        ))
+                    }
+                }
+                loadPreviousData(routineExercise.exercise.id)
+            }
+        }
+        return currentOrder
     }
 
     private suspend fun syncWorkoutReminders(profile: UserWorkoutProfile) {
@@ -1493,6 +1778,8 @@ class WorkoutViewModel @Inject constructor(
                 ))
             }
 
+            appendAttachedAugments(sessionId, session.protocol, session.protocolDayType, currentOrder)
+
             // Accessories for WS_RE day or as extras?
             // Prompt says: WS_RE: 3 accessories straight sets 3x10-15.
             if (actualDayType == ProtocolDayType.WS_RE) {
@@ -1657,6 +1944,8 @@ class WorkoutViewModel @Inject constructor(
                 loadPreviousData(exercise.id)
             }
 
+            appendAttachedAugments(sessionId, session.protocol, session.protocolDayType, exercises.size)
+
             sessionJob?.cancel()
             sessionJob = viewModelScope.launch {
                 repository.getLogsForSession(sessionId).collect { logs ->
@@ -1779,8 +2068,12 @@ class WorkoutViewModel @Inject constructor(
                 }
             }
 
+            appendAttachedAugments(sessionId, session.protocol, session.protocolDayType, currentOrder)
+
             loadPreviousData(mainExercise.id)
             if (compExercise != null) loadPreviousData(compExercise.id)
+
+            appendAttachedAugments(sessionId, session.protocol, session.protocolDayType, currentOrder)
 
             sessionJob?.cancel()
             sessionJob = viewModelScope.launch {
@@ -1893,6 +2186,8 @@ class WorkoutViewModel @Inject constructor(
                 loadPreviousData(exercise.id)
             }
 
+            appendAttachedAugments(sessionId, session.protocol, session.protocolDayType, exercises.size)
+
             sessionJob?.cancel()
             sessionJob = viewModelScope.launch {
                 repository.getLogsForSession(sessionId).collect { logs ->
@@ -2002,6 +2297,8 @@ class WorkoutViewModel @Inject constructor(
                 }
                 loadPreviousData(exercise.id)
             }
+
+            appendAttachedAugments(sessionId, session.protocol, session.protocolDayType, exercises.size)
 
             sessionJob?.cancel()
             sessionJob = viewModelScope.launch {
@@ -2157,6 +2454,9 @@ class WorkoutViewModel @Inject constructor(
                 }
                 loadPreviousData(routineExercise.exercise.id)
             }
+
+            // 2b. Append attached augments
+            appendAttachedAugments(sessionId, session.protocol, dayType, currentOrder)
 
             // 3. Start collecting logs
             sessionJob?.cancel()

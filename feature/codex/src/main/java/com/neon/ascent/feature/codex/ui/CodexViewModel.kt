@@ -91,7 +91,10 @@ data class VitalsPoint(
 data class SessionSummary(
     val date: LocalDate,
     val isDeload: Boolean,
-    val volume: Long = 0
+    val volume: Long = 0,
+    val protocol: com.neon.ascent.core.domain.workout.models.WorkoutProtocol? = null,
+    val primaryAugmentName: String? = null,
+    val dayType: com.neon.ascent.core.domain.workout.models.ProtocolDayType? = null
 )
 
 data class ExerciseDossier(
@@ -367,8 +370,18 @@ class CodexViewModel @Inject constructor(
                     val vol = logs.sumOf { (_, sets) -> 
                         sets.sumOf { (it.weight * it.reps).toLong() }
                     }
-                    SessionSummary(session.date.atZone(zone).toLocalDate(), session.isDeload, vol)
-                }.sortedBy { it.date }
+                    val augmentName = logs.firstOrNull { it.first.augmentId == session.primaryAugmentId }?.first?.augmentName
+                        ?: logs.firstOrNull { it.first.augmentName != null }?.first?.augmentName
+                    
+                    SessionSummary(
+                        date = session.date.atZone(zone).toLocalDate(), 
+                        isDeload = session.isDeload, 
+                        volume = vol,
+                        protocol = session.protocol,
+                        primaryAugmentName = augmentName,
+                        dayType = session.protocolDayType
+                    )
+                }.sortedByDescending { it.date }
 
                 val exerciseIds = sessions.flatMap { it.second }.map { it.first.exerciseId }.toSet()
                 

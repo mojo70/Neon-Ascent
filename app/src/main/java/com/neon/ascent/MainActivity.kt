@@ -94,9 +94,10 @@ class MainActivity : FragmentActivity() {
 
                 val notificationTitle = intent.getStringExtra(NeuralBriefManager.EXTRA_NOTIFICATION_TITLE)
                 val notificationMessage = intent.getStringExtra(NeuralBriefManager.EXTRA_NOTIFICATION_MESSAGE)
+                val notificationTaskId = intent.getStringExtra(com.neon.ascent.feature.notifications.data.NeuralPingManager.EXTRA_TASK_ID)
                 
-                LaunchedEffect(notificationTitle, notificationMessage) {
-                    notificationViewModel.setPendingNotification(notificationTitle, notificationMessage)
+                LaunchedEffect(notificationTitle, notificationMessage, notificationTaskId) {
+                    notificationViewModel.setPendingNotification(notificationTitle, notificationMessage, notificationTaskId)
                 }
 
                 LaunchedEffect(Unit) {
@@ -166,7 +167,8 @@ class MainActivity : FragmentActivity() {
         
         val notificationTitle = intent.getStringExtra(NeuralBriefManager.EXTRA_NOTIFICATION_TITLE)
         val notificationMessage = intent.getStringExtra(NeuralBriefManager.EXTRA_NOTIFICATION_MESSAGE)
-        notificationViewModel.setPendingNotification(notificationTitle, notificationMessage)
+        val notificationTaskId = intent.getStringExtra(com.neon.ascent.feature.notifications.data.NeuralPingManager.EXTRA_TASK_ID)
+        notificationViewModel.setPendingNotification(notificationTitle, notificationMessage, notificationTaskId)
     }
 
     private fun checkAndRequestBluetoothPermissions(launcher: androidx.activity.result.ActivityResultLauncher<Array<String>>) {

@@ -61,6 +61,9 @@ interface AscensionDao {
     @Query("DELETE FROM ascension_tasks WHERE id = :id")
     suspend fun deleteTask(id: String)
 
+    @Query("SELECT * FROM ascension_tasks WHERE id = :id")
+    fun getTaskById(id: String): Flow<AscensionTaskEntity?>
+
     @Query("UPDATE ascension_directives SET notes = :notes WHERE id = :id")
     suspend fun updateDirectiveNotes(id: String, notes: String)
 

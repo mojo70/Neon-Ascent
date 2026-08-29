@@ -31,6 +31,11 @@ interface WorkoutRepository {
     suspend fun saveAugment(augment: WorkoutAugment)
     suspend fun deleteAugment(augmentId: String)
 
+    fun getAugmentActivations(userId: String): Flow<List<AugmentActivation>>
+    fun getActiveAugmentActivations(): Flow<List<AugmentActivation>>
+    suspend fun saveAugmentActivation(activation: AugmentActivation)
+    suspend fun endAugmentActivation(id: String)
+
     suspend fun deleteSession(sessionId: String)
     
     fun getLatestSetsForExercise(exerciseId: String, excludedSessionId: String): Flow<List<SetLog>>

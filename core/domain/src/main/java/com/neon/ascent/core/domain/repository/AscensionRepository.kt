@@ -16,6 +16,7 @@ interface AscensionRepository {
     suspend fun updateMission(mission: AscensionMission)
 
     fun getTasksForParent(parentId: String): Flow<List<AscensionTask>>
+    fun getTaskById(id: String): Flow<AscensionTask?>
     fun getAllRecurringTasks(): Flow<List<AscensionTask>>
     suspend fun insertTask(task: AscensionTask)
     suspend fun updateTask(task: AscensionTask)

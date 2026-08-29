@@ -11,6 +11,7 @@ import com.neon.ascent.core.data.local.converter.*
 import com.neon.ascent.core.data.local.migration.MIGRATION_3_4
 import com.neon.ascent.core.data.local.migration.MIGRATION_11_12
 import com.neon.ascent.core.data.local.migration.MIGRATION_48_49
+import com.neon.ascent.core.data.local.migration.MIGRATION_50_51
 
 @Database(
     entities = [
@@ -47,9 +48,10 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_48_49
         FuelSnapshotEntity::class,
         ProtocolRepTargetEntity::class,
         ProtocolCycleEntity::class,
-        ExerciseMaxEntity::class
+        ExerciseMaxEntity::class,
+        AugmentActivationEntity::class
     ],
-    version = 50,
+    version = 51,
     exportSchema = true
 )
 @TypeConverters(

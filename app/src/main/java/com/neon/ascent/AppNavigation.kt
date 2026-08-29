@@ -114,6 +114,7 @@ fun AppNavigation(
     val workoutState by workoutViewModel.uiState.collectAsState()
     val showRationale by notificationViewModel.showRationale.collectAsState()
     val pendingNotification by notificationViewModel.pendingNotification.collectAsState()
+    val pendingTaskId by notificationViewModel.pendingTaskId.collectAsState()
     var pendingGuideMessage by remember { mutableStateOf<String?>(null) }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -138,6 +139,13 @@ fun AppNavigation(
     LaunchedEffect(showRationale) {
         if (showRationale) {
             navController.navigate(Screen.NotificationPermission)
+        }
+    }
+
+    LaunchedEffect(pendingTaskId) {
+        if (pendingTaskId != null) {
+            navController.navigate(Screen.WorkoutLog(pendingTaskId))
+            notificationViewModel.dismissTaskId()
         }
     }
 
@@ -950,6 +958,7 @@ fun AppNavigation(
         composable<Screen.WorkoutLog> { backStackEntry ->
             val args = backStackEntry.toRoute<Screen.WorkoutLog>()
             WorkoutLoggingScreen(
+                taskId = args.taskId,
                 onBack = { navController.popBackStack() },
                 onViewInCodex = { exerciseId ->
                     navController.navigate(Screen.CodexDossier(exerciseId))

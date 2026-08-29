@@ -344,6 +344,15 @@ fun OpsLogWing(
         if (uiState.prs.isNotEmpty()) {
             SectionHeader("PERSONAL_RECORDS // ARCHIVE")
             PrRail(uiState.prs, onSelect = onExerciseSelected)
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+
+        // Session History List
+        if (uiState.sessionSummaries.isNotEmpty()) {
+            SectionHeader("SESSION_HISTORY // ACTIVITY_LOG")
+            uiState.sessionSummaries.forEach { summary ->
+                SessionRow(summary)
+            }
         }
 
         if (sessionCount == 0) {
@@ -917,6 +926,79 @@ fun AddSampleQuickDialog(
                 ) {
                     Text("SAVE_SAMPLE", fontWeight = FontWeight.Black)
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun SessionRow(summary: SessionSummary) {
+    val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        color = Color(0xFF0A0A0A),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)),
+        shape = RoundedCornerShape(4.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    summary.date.format(formatter).uppercase(),
+                    color = Color.Gray,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val protocolName = summary.protocol?.displayName ?: "OPS / FREE"
+                    Text(
+                        protocolName,
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    if (summary.dayType != null) {
+                        Text(
+                            " · ${summary.dayType.name}",
+                            color = Color(0xFF00FF9C),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
+                    }
+                }
+                
+                if (summary.primaryAugmentName != null) {
+                    Text(
+                        "SUB-PROTOCOL: ${summary.primaryAugmentName}",
+                        color = Color(0xFF00CCFF),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
+            }
+            
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    "${formatVolume(summary.volume)}",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Black,
+                    fontFamily = FontFamily.Monospace
+                )
+                Text(
+                    "VOLUME (LBS)",
+                    color = Color.DarkGray,
+                    fontSize = 8.sp,
+                    fontFamily = FontFamily.Monospace
+                )
             }
         }
     }

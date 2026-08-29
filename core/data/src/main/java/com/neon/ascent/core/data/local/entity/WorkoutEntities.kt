@@ -22,7 +22,8 @@ data class WorkoutSessionEntity(
     val jointHealth: Int? = null,
     val isDeload: Boolean = false,
     val cycleId: String? = null,
-    val protocolDayType: String? = null
+    val protocolDayType: String? = null,
+    val primaryAugmentId: String? = null
 )
 
 @Entity(tableName = "protocol_cycles")
@@ -219,6 +220,34 @@ data class RoutineAugmentCrossRef(
     val routineId: String,
     val augmentId: String,
     val order: Int
+)
+
+@Entity(
+    tableName = "augment_activations",
+    foreignKeys = [
+        ForeignKey(
+            entity = WorkoutAugmentEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["augmentId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("augmentId"), Index("userId")]
+)
+data class AugmentActivationEntity(
+    @PrimaryKey val id: String,
+    val augmentId: String,
+    val userId: String,
+    val mode: String,
+    val status: String,
+    val loggingStyle: String,
+    val scheduledDays: String, // JSON serialized List<ScheduledDay>
+    val createdAt: Instant,
+    val windowStart: Instant?,
+    val windowEnd: Instant?,
+    val hostProtocolFilter: String?,
+    val dayTypeFilter: String?,
+    val reminderEnabled: Boolean
 )
 
 @Entity(
