@@ -30,6 +30,9 @@ data class OnboardingUiState(
     val scanAgility: Int? = null,
     val isComplete: Boolean = false,
     val recommendation: WorkoutRoutine? = null,
+    val availableRoutines: List<WorkoutRoutine> = emptyList(),
+    val isManualSelection: Boolean = false,
+    val showAlternateProtocols: Boolean = false,
     val showReminderDialog: Boolean = false,
     val applyTimeToAll: Boolean = true
 )
@@ -143,6 +146,29 @@ class OnboardingViewModel @Inject constructor(
         _uiState.update { it.copy(profile = it.profile.copy(unitSystem = system)) }
     }
 
+    fun showAlternateProtocols() {
+        _uiState.update { it.copy(showAlternateProtocols = true) }
+    }
+
+    fun hideAlternateProtocols() {
+        _uiState.update { it.copy(showAlternateProtocols = false) }
+    }
+
+    fun selectProtocol(routine: WorkoutRoutine) {
+        val defaultDays = routine.protocol.defaultWeekdays.map { ScheduledDay(it, "09:00") }
+        _uiState.update { state ->
+            state.copy(
+                recommendation = routine,
+                isManualSelection = true,
+                profile = state.profile.copy(
+                    activeProtocol = routine.protocol,
+                    scheduledDays = defaultDays
+                ),
+                showAlternateProtocols = false
+            )
+        }
+    }
+
     fun showReminderDialog() {
         _uiState.update { it.copy(showReminderDialog = true) }
     }
@@ -171,42 +197,67 @@ class OnboardingViewModel @Inject constructor(
     }
 
     private fun generateRecommendation() {
-        val state = _uiState.value
-        val level = state.profile.experienceLevel
-        
         viewModelScope.launch {
-            workoutRepository.getAllRoutines().collect { routines ->
+            workoutRepository.getAllRoutines().collect { routinesFromRepo ->
+                // Always use latest state for decision making
+                val currentState = _uiState.value
+                val level = currentState.profile.experienceLevel
+                
+                val routines = routinesFromRepo.toMutableList()
+                
+                // Ensure "Do my own thing" (GENERAL) is in the search pool
+                if (routines.none { it.protocol == WorkoutProtocol.GENERAL }) {
+                    routines.add(
+                        WorkoutRoutine(
+                            id = "routine_general",
+                            name = "Free Training / Ops",
+                            description = "No strict protocol. Log your own sets and reps as you go. Ideal for experienced operatives with custom programming.",
+                            protocol = WorkoutProtocol.GENERAL
+                        )
+                    )
+                }
+
+                // Filter to distinct protocols for the selection list
+                val distinctProtocols = routines.distinctBy { it.protocol.name }
+                
+                _uiState.update { it.copy(availableRoutines = distinctProtocols) }
+                
+                // If user already picked one (manually), don't override with auto-rec
+                if (_uiState.value.isManualSelection) return@collect
+
                 val recommended = when (level) {
                     ExperienceLevel.NOVICE -> {
-                        routines.find { it.id == "routine_starting_strength" } 
-                            ?: routines.find { it.id == "routine_linear_fullbody" } 
-                            ?: routines.firstOrNull()
+                        routines.find { it.protocol == WorkoutProtocol.STARTING_STRENGTH }
+                            ?: routines.find { it.protocol == WorkoutProtocol.GENERAL }
+                            ?: return@collect // Wait for routines to load
                     }
-                    else -> {
-                        val str = state.scanStrength ?: 50
-                        val end = state.scanEndurance ?: 50
-                        val agi = state.scanAgility ?: 50
+                    ExperienceLevel.ADVANCED -> {
+                        val str = currentState.scanStrength ?: 50
+                        val end = currentState.scanEndurance ?: 50
+                        val agi = currentState.scanAgility ?: 50
 
                         when {
-                            // High Agility Advanced profile
-                            agi > 70 && level == ExperienceLevel.ADVANCED -> {
-                                routines.find { it.id == "routine_westside" } ?: routines.find { it.id == "routine_cybercrapp_a" }
-                            }
-                            // Strength focused
-                            str > end + 15 && str > agi + 15 -> {
-                                routines.find { it.id == "routine_531" } ?: routines.find { it.id == "routine_cybercrapp_a" }
-                            }
-                            // Endurance/Volume focused
-                            end > str + 15 && end > agi + 15 -> {
-                                routines.find { it.id == "routine_hst" } ?: routines.find { it.id == "routine_cybercrapp_a" }
-                            }
-                            // Default to Cybercrapp (the priority protocol)
-                            else -> routines.find { it.id == "routine_cybercrapp_a" }
-                        } ?: routines.firstOrNull()
+                            agi > 70 -> routines.find { it.protocol == WorkoutProtocol.WESTSIDE }
+                            str > end + 15 -> routines.find { it.protocol == WorkoutProtocol.FIVE_THREE_ONE }
+                            else -> routines.find { it.protocol == WorkoutProtocol.CYBER_CRAPP }
+                        } ?: routines.find { it.protocol == WorkoutProtocol.WESTSIDE }
+                          ?: routines.find { it.protocol == WorkoutProtocol.CYBER_CRAPP }
+                          ?: return@collect
+                    }
+                    else -> { // Intermediate or any
+                        val str = currentState.scanStrength ?: 50
+                        val end = currentState.scanEndurance ?: 50
+
+                        when {
+                            str > end + 15 -> routines.find { it.protocol == WorkoutProtocol.FIVE_THREE_ONE }
+                            end > str + 15 -> routines.find { it.protocol == WorkoutProtocol.HST }
+                            else -> routines.find { it.protocol == WorkoutProtocol.CYBER_CRAPP }
+                        } ?: routines.find { it.protocol == WorkoutProtocol.CYBER_CRAPP }
+                          ?: return@collect
                     }
                 }
 
-                val protocol = recommended?.protocol ?: WorkoutProtocol.GENERAL
+                val protocol = recommended.protocol
                 val defaultDays = protocol.defaultWeekdays.map { ScheduledDay(it, "09:00") }
 
                 _uiState.update { state ->

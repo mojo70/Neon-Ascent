@@ -115,6 +115,10 @@ class WorkoutRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun deleteUserProfile(userId: String) {
+        workoutDao.deleteUserProfile(userId)
+    }
+
     override fun getFuelHistory(from: java.time.Instant, to: java.time.Instant): Flow<List<FuelSnapshot>> =
         workoutDao.getFuelHistory(from, to).map { entities -> entities.map { it.toDomain() } }
 

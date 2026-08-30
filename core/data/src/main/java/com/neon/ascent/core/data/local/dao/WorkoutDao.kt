@@ -44,6 +44,9 @@ interface WorkoutDao {
     @Query("SELECT * FROM user_workout_profiles WHERE userId = :userId")
     fun getUserProfile(userId: String): Flow<UserWorkoutProfileEntity?>
 
+    @Query("DELETE FROM user_workout_profiles WHERE userId = :userId")
+    suspend fun deleteUserProfile(userId: String)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertProgressionState(state: ProgressionStateEntity)
 

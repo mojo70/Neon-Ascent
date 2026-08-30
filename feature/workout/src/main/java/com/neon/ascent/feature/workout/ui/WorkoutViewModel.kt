@@ -473,7 +473,13 @@ class WorkoutViewModel @Inject constructor(
     }
 
     private fun resumeExistingSession(session: WorkoutSession) {
-        _uiState.update { it.copy(session = session, isLoading = true) }
+        val uiMode = when (session.protocol) {
+            WorkoutProtocol.CYBER_CRAPP -> ProtocolUiMode.CLUSTER
+            WorkoutProtocol.DUP -> if (session.protocolDayType == ProtocolDayType.DUP_POWER) ProtocolUiMode.DYNAMIC else ProtocolUiMode.LINEAR
+            WorkoutProtocol.WESTSIDE -> if (session.protocolDayType == ProtocolDayType.WS_ME_LOWER || session.protocolDayType == ProtocolDayType.WS_ME_UPPER) ProtocolUiMode.MAX_EFFORT else ProtocolUiMode.DYNAMIC
+            else -> ProtocolUiMode.LINEAR
+        }
+        _uiState.update { it.copy(session = session, isLoading = true, currentUiMode = uiMode) }
         sessionJob?.cancel()
         sessionJob = viewModelScope.launch {
             repository.getLogsForSession(session.id).collect { logs ->
@@ -835,6 +841,36 @@ class WorkoutViewModel @Inject constructor(
             repository.saveUserProfile(profile)
             syncWorkoutReminders(profile)
             _uiState.update { it.copy(userProfile = profile, isShowingSettings = false, tempSettingsProfile = null) }
+        }
+    }
+
+    fun resetWorkoutProfile() {
+        viewModelScope.launch {
+            repository.deleteUserProfile("default_user")
+            
+            // 1. Delete old training tasks from Ascension Forge
+            try {
+                ascensionRepository.getAllRecurringTasks().first()
+                    .filter { it.tags.contains("workout_session") }
+                    .forEach { task ->
+                        ascensionRepository.deleteTask(task.id)
+                    }
+            } catch (e: Exception) {
+                android.util.Log.e("WorkoutViewModel", "Failed to clear training tasks during reset", e)
+            }
+
+            // 2. Clear routines from library (reset to system defaults)
+            try {
+                repository.getAllRoutines().first()
+                    .filter { it.isAddedToLibrary }
+                    .forEach { routine ->
+                        repository.saveRoutine(routine.copy(isAddedToLibrary = false))
+                    }
+            } catch (e: Exception) {
+                android.util.Log.e("WorkoutViewModel", "Failed to clear routine library during reset", e)
+            }
+
+            _uiState.update { it.copy(userProfile = null, isShowingSettings = false, tempSettingsProfile = null) }
         }
     }
 
@@ -2352,7 +2388,8 @@ class WorkoutViewModel @Inject constructor(
 
             // 1. Create the session first in DB and UI state
             repository.saveSession(session)
-            _uiState.update { it.copy(session = session, previousLogs = emptyMap()) }
+            val uiMode = if (fullRoutine.protocol == WorkoutProtocol.CYBER_CRAPP) ProtocolUiMode.CLUSTER else ProtocolUiMode.LINEAR
+            _uiState.update { it.copy(session = session, previousLogs = emptyMap(), currentUiMode = uiMode) }
 
             var currentOrder = 0
             var globalSetTimestamp = java.time.Instant.now()
@@ -2373,8 +2410,8 @@ class WorkoutViewModel @Inject constructor(
 
                 val exerciseMax = repository.getExerciseMax(routineExercise.exercise.familyId).first()
 
-                // Engine-based set generation
-                if (engine != null && !isDeload) {
+                // Engine-based set generation (Excluding CyberCrapp which uses manual expansion below)
+                if (engine != null && !isDeload && fullRoutine.protocol != WorkoutProtocol.CYBER_CRAPP) {
                     val prescribedSets = mutableListOf<PrescribedSet>()
                     // Generate 4 warmups + 3 work sets (or 1 for DL)
                     val workSetCount = if (routineExercise.exercise.familyId == "deadlift") 1 else 3

@@ -64,6 +64,7 @@ fun WorkoutLoggingScreen(
     taskId: String? = null,
     onBack: () -> Unit,
     onViewInCodex: (String) -> Unit = {},
+    onPerformScan: () -> Unit = {},
     viewModel: WorkoutViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -85,7 +86,10 @@ fun WorkoutLoggingScreen(
             .background(Color(0xFF000000))
     ) {
         if (uiState.userProfile == null && !uiState.isLoading) {
-            OnboardingScreen(onComplete = { viewModel.resumeUserProfile() })
+            OnboardingScreen(
+                onComplete = { viewModel.resumeUserProfile() },
+                onPerformScan = onPerformScan
+            )
         } else {
             Column(
                 modifier = Modifier
@@ -172,7 +176,8 @@ fun WorkoutLoggingScreen(
                             uiState = uiState,
                             onBack = { viewModel.hideSettings() },
                             onSave = { viewModel.saveWorkoutSettings() },
-                            onUpdateProfile = { viewModel.updateTempSettingsProfile(it) }
+                            onUpdateProfile = { viewModel.updateTempSettingsProfile(it) },
+                            onResetProfile = { viewModel.resetWorkoutProfile() }
                         )
                     } else if (uiState.selectedProtocolForDetail != null) {
                         ProtocolDetailScreen(

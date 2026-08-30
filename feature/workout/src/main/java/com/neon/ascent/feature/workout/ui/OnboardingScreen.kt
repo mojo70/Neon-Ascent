@@ -30,6 +30,7 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun OnboardingScreen(
     onComplete: () -> Unit,
+    onPerformScan: () -> Unit,
     viewModel: OnboardingViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -69,10 +70,14 @@ fun OnboardingScreen(
                     2 -> StepExperience(uiState, onSelect = { viewModel.updateExperience(it) })
                     3 -> StepAttributeCalibration(
                         state = uiState,
-                        onRemindLater = { viewModel.showReminderDialog() }
+                        onRemindLater = { viewModel.showReminderDialog() },
+                        onPerformScan = onPerformScan
                     )
                     4 -> StepHardwareCheck(uiState, onToggle = { viewModel.toggleInjury(it) })
-                    5 -> StepProtocolSynthesis(uiState)
+                    5 -> StepProtocolSynthesis(
+                        state = uiState,
+                        onViewAlternate = { viewModel.showAlternateProtocols() }
+                    )
                     6 -> StepChronosCalibration(
                         state = uiState,
                         onUpdateSchedule = { viewModel.updateSchedule(it) },
@@ -86,6 +91,14 @@ fun OnboardingScreen(
             AttributeReminderDialog(
                 onDismiss = { viewModel.hideReminderDialog() },
                 onSchedule = { viewModel.scheduleAttributeScanReminder(it) }
+            )
+        }
+
+        if (uiState.showAlternateProtocols) {
+            AlternateProtocolsDialog(
+                routines = uiState.availableRoutines,
+                onDismiss = { viewModel.hideAlternateProtocols() },
+                onSelect = { viewModel.selectProtocol(it) }
             )
         }
 
@@ -217,7 +230,7 @@ fun StepExperience(state: OnboardingUiState, onSelect: (ExperienceLevel) -> Unit
 }
 
 @Composable
-fun StepAttributeCalibration(state: OnboardingUiState, onRemindLater: () -> Unit) {
+fun StepAttributeCalibration(state: OnboardingUiState, onRemindLater: () -> Unit, onPerformScan: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text("ATTRIBUTE CALIBRATION", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black, modifier = Modifier.fillMaxWidth())
         Text("Analyzing performance markers...", color = Color.Gray, modifier = Modifier.padding(top = 8.dp, bottom = 32.dp).fillMaxWidth())
@@ -231,13 +244,13 @@ fun StepAttributeCalibration(state: OnboardingUiState, onRemindLater: () -> Unit
                 }
             }
         } else {
-            NoScanPanel(onRemindLater)
+            NoScanPanel(onRemindLater, onPerformScan)
         }
     }
 }
 
 @Composable
-fun NoScanPanel(onRemindLater: () -> Unit) {
+fun NoScanPanel(onRemindLater: () -> Unit, onPerformScan: () -> Unit) {
     Surface(modifier = Modifier.fillMaxWidth(), color = Color(0xFF1C1C1E), shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, Color.Red.copy(alpha = 0.2f))) {
         Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(Icons.Default.Warning, contentDescription = null, tint = Color.Red.copy(alpha = 0.7f))
@@ -246,7 +259,7 @@ fun NoScanPanel(onRemindLater: () -> Unit) {
         }
     }
     Spacer(modifier = Modifier.height(32.dp))
-    Button(onClick = { /* Navigate to Scan */ }, modifier = Modifier.fillMaxWidth().height(56.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00CCFF))) {
+    Button(onClick = onPerformScan, modifier = Modifier.fillMaxWidth().height(56.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00CCFF))) {
         Text("PERFORM ATTRIBUTE SCAN", color = Color.Black, fontWeight = FontWeight.Black)
     }
     TextButton(onClick = onRemindLater, modifier = Modifier.padding(top = 16.dp)) {
@@ -459,7 +472,7 @@ fun StepChronosCalibration(state: OnboardingUiState, onUpdateSchedule: (List<Sch
 }
 
 @Composable
-fun StepProtocolSynthesis(state: OnboardingUiState) {
+fun StepProtocolSynthesis(state: OnboardingUiState, onViewAlternate: () -> Unit) {
     var showTenantsOverview by remember { mutableStateOf(false) }
 
     Column(
@@ -556,6 +569,18 @@ fun StepProtocolSynthesis(state: OnboardingUiState) {
                         lineHeight = 18.sp
                     )
                 }
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            TextButton(onClick = onViewAlternate, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    "VIEW ALTERNATE PROTOCOLS",
+                    color = Color(0xFF00CCFF),
+                    fontWeight = FontWeight.Black,
+                    fontSize = 12.sp,
+                    letterSpacing = 1.sp
+                )
             }
         }
     }
@@ -740,6 +765,107 @@ fun ModifierBadge(text: String, color: Color) {
         Box(modifier = Modifier.size(6.dp).background(color, CircleShape))
         Spacer(modifier = Modifier.width(12.dp))
         Text(text, color = color, fontSize = 11.sp, fontWeight = FontWeight.Black)
+    }
+}
+
+@Composable
+fun AlternateProtocolsDialog(
+    routines: List<WorkoutRoutine>,
+    onDismiss: () -> Unit,
+    onSelect: (WorkoutRoutine) -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 24.dp),
+            color = Color(0xFF0D0D0D),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, Color(0xFF00CCFF).copy(alpha = 0.5f))
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(20.dp)
+                    .fillMaxHeight(0.8f)
+            ) {
+                Text(
+                    "PROTOCOL REPLACEMENT",
+                    color = Color(0xFF00CCFF),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp
+                )
+                Text(
+                    "Select a different operational core for your frame.",
+                    color = Color.Gray,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
+                )
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    routines.forEach { routine ->
+                        ProtocolSelectionCard(routine) { onSelect(routine) }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("CANCEL", color = Color.Gray, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ProtocolSelectionCard(routine: WorkoutRoutine, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        color = Color(0xFF1C1C1E),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, Color(0xFF2C2C2E))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    routine.protocol.displayName,
+                    color = Color.White,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 16.sp
+                )
+                val level = routine.protocol.recommendation
+                if (level != null) {
+                    Text(
+                        level.uppercase(),
+                        color = Color(0xFF00CCFF),
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                routine.protocol.description,
+                color = Color.Gray,
+                fontSize = 11.sp,
+                lineHeight = 14.sp
+            )
+        }
     }
 }
 

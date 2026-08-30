@@ -27,9 +27,11 @@ fun WorkoutSettingsScreen(
     uiState: WorkoutUiState,
     onBack: () -> Unit,
     onSave: () -> Unit,
-    onUpdateProfile: (UserWorkoutProfile) -> Unit
+    onUpdateProfile: (UserWorkoutProfile) -> Unit,
+    onResetProfile: () -> Unit
 ) {
     val tempProfile = uiState.tempSettingsProfile ?: uiState.userProfile ?: return
+    var showResetConfirmation by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -215,6 +217,56 @@ fun WorkoutSettingsScreen(
                     onCheckedChange = { onUpdateProfile(tempProfile.copy(coachingHintsEnabled = it)) }
                 )
             }
+
+            // Category: DANGER ZONE
+            item {
+                SettingsCategoryHeader("DANGER ZONE", Color.Red)
+                
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showResetConfirmation = true },
+                    color = Color.Red.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, Color.Red.copy(alpha = 0.3f))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.DeleteForever, contentDescription = null, tint = Color.Red)
+                            Spacer(Modifier.width(16.dp))
+                            Text("RESET UPLINK / REDO INTAKE", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                        Text(
+                            "This will clear your physical operational profile and trigger a fresh intake sequence. History and custom routines are preserved.",
+                            color = Color.Gray,
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        if (showResetConfirmation) {
+            AlertDialog(
+                onDismissRequest = { showResetConfirmation = false },
+                title = { Text("CONFIRM RESET?", color = Color.White, fontWeight = FontWeight.Black) },
+                text = { Text("This will wipe your current biometrics and protocol settings. You will need to redo the neural onboarding.", color = Color.Gray) },
+                confirmButton = {
+                    TextButton(onClick = { 
+                        showResetConfirmation = false
+                        onResetProfile() 
+                    }) {
+                        Text("RESET EVERYTHING", color = Color.Red, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showResetConfirmation = false }) {
+                        Text("CANCEL", color = Color.White)
+                    }
+                },
+                containerColor = Color(0xFF1C1C1E)
+            )
         }
     }
 }

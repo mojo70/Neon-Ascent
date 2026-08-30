@@ -963,6 +963,9 @@ fun AppNavigation(
                 onViewInCodex = { exerciseId ->
                     navController.navigate(Screen.CodexDossier(exerciseId))
                 },
+                onPerformScan = {
+                    navController.navigate(Screen.AttributeScan)
+                },
                 viewModel = workoutViewModel
             )
         }
