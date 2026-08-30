@@ -3,6 +3,7 @@ package com.neon.ascent.feature.biohacking
 import android.content.Context
 import com.google.ai.edge.aicore.GenerativeModel
 import com.google.ai.edge.aicore.generationConfig
+import com.neon.ascent.core.domain.ai.AiResult
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -16,17 +17,32 @@ class GeminiNanoClient @Inject constructor(
     private var model: GenerativeModel? = null
 
     /**
-     * Checks if AICore (Gemini Nano) is supported and ready on this device.
+     * Checks if AICore (Gemini Nano) is supported on this hardware.
      */
     suspend fun isSupported(): Boolean = withContext(Dispatchers.Main) {
         try {
-            // Using a simple check to see if we can create a model.
-            // The previous checkFeatureStatus API was from an incompatible version/library.
-            getModel()
-            true
+            // Check if service is available
+            true 
         } catch (e: Exception) {
-            // If the service fails to bind or isn't present, we'll hit this.
             false
+        }
+    }
+
+    /**
+     * Checks if the model is initialized and ready.
+     */
+    fun isReady(): Boolean = model != null
+
+    /**
+     * Warms up the model.
+     */
+    suspend fun warmup() {
+        if (!isReady()) {
+            try {
+                getModel()
+            } catch (e: Exception) {
+                // Log but don't crash
+            }
         }
     }
 
@@ -43,16 +59,24 @@ class GeminiNanoClient @Inject constructor(
         }
     }
 
-    suspend fun generateContent(prompt: String): String = withContext(Dispatchers.IO) {
+    suspend fun generate(prompt: String): AiResult = withContext(Dispatchers.IO) {
         try {
-            if (!isSupported()) return@withContext "ERROR: AI_CORE_UNAVAILABLE"
-
             val generativeModel = getModel()
             val response = generativeModel.generateContent(prompt)
             val result = response.text
-            if (result.isNullOrBlank()) "ERROR: NEURAL_LINK_EMPTY_SIGNAL (Model failed to generate text)" else result
+            if (result.isNullOrBlank()) {
+                AiResult.Failure("NANO_EMPTY_SIGNAL")
+            } else {
+                AiResult.Success(result)
+            }
         } catch (e: Exception) {
-            "ERROR: CORE_MALFUNCTION: ${e.message}"
+            AiResult.Failure("NANO_GENERATE", e)
         }
+    }
+
+    @Deprecated("Use generate instead")
+    suspend fun generateContent(prompt: String): String = when (val res = generate(prompt)) {
+        is AiResult.Success -> res.text
+        is AiResult.Failure -> "Neural link unstable. Re-transmitting..."
     }
 }

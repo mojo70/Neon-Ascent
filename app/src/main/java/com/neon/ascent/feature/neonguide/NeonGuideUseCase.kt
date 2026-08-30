@@ -8,6 +8,7 @@ import com.neon.ascent.core.domain.repository.ProtocolRepository
 import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.UserCharacterDao
 import com.neon.ascent.feature.biohacking.AiProvider
+import com.neon.ascent.core.domain.ai.AiResult
 import com.neon.ascent.model.ChatAction
 import com.neon.ascent.model.ChatMessage
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -103,7 +104,14 @@ class NeonGuideUseCase @Inject constructor(
             Types allowed: MISSION, DOPAMINE, LOG.
         """.trimIndent()
 
-        val aiResponse = aiProvider.generateContent(fullPrompt, forceLocal = false)
+        val aiResult = aiProvider.generate(fullPrompt, forceLocal = false)
+        val aiResponse = when (aiResult) {
+            is AiResult.Success -> aiResult.text
+            is AiResult.Failure -> {
+                // Log the reason internally if needed
+                "" // parseAiResponse will handle blank by returning "Neural link silent..."
+            }
+        }
         
         return parseAiResponse(aiResponse, contactName)
     }

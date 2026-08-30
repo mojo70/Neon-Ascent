@@ -47,9 +47,12 @@ class NotificationPermissionViewModel @Inject constructor(
     }
 
     fun onPermissionResult(granted: Boolean) {
+        val wasAlreadyGranted = _hasPermission.value
         _hasPermission.value = granted
         _showRationale.value = false
-        if (granted) {
+        
+        // Only send the welcome ping if this is the transition from 'false' to 'true'
+        if (granted && !wasAlreadyGranted) {
             neuralPingManager.sendNeuralPing(
                 title = "NEURAL LINK ESTABLISHED",
                 message = "Welcome to the deck. Daily pings enabled."

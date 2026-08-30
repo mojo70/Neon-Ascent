@@ -241,6 +241,28 @@ fun NotificationPreferencesScreen(
                         enabled = state.systemPingsEnabled,
                         onToggle = viewModel::toggleSystemPings
                     )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Text(text = "NEURAL_BRIEF_CONFIGURATION", fontWeight = FontWeight.Bold, color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 13.sp)
+                    
+                    NotificationCategoryRow(
+                        title = "Neural Brief Protocol",
+                        enabled = true,
+                        onToggle = { }
+                    )
+                    Text(
+                        text = "Morning pulse is once per day. Opening the app does not ping.",
+                        fontSize = 11.sp,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(start = 8.dp, bottom = 4.dp)
+                    )
+
+                    NotificationCategoryRow(
+                        title = "Adaptive Wake Anchor",
+                        enabled = state.adaptiveWakeDefault,
+                        onToggle = viewModel::toggleAdaptiveWake
+                    )
                 }
             }
 

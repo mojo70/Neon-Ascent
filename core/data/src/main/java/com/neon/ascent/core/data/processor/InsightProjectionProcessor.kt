@@ -6,6 +6,7 @@ import com.neon.ascent.core.data.local.entity.ActionEventEntity
 import com.neon.ascent.core.data.local.entity.BiometricEventEntity
 import com.neon.ascent.core.data.local.entity.SocraticInsightEntity
 import com.neon.ascent.core.domain.ai.AiCore
+import com.neon.ascent.core.domain.ai.AiResult
 import kotlinx.coroutines.flow.first
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -98,6 +99,13 @@ class InsightProjectionProcessor @Inject constructor(
         actions: List<ActionEventEntity>,
         ruleFindings: List<String>
     ): String {
+        val fallback = "DATA_LINK_STABLE: System processing ongoing. " + (ruleFindings.firstOrNull() ?: "Maintain protocol.")
+        
+        if (!aiCore.isReady()) {
+            Log.d("InsightProcessor", "AI Core not ready, using heuristic fallback.")
+            return fallback
+        }
+
         val prompt = StringBuilder()
         prompt.append("Analyze the following biometric and action data for a cyberpunk high-performer.\n")
         prompt.append("Return a concise, Socratic insight (1-2 sentences) about their current state.\n\n")
@@ -115,10 +123,12 @@ class InsightProjectionProcessor @Inject constructor(
 
         prompt.append("\nInsight Protocol:")
 
-        return try {
-            aiCore.generateContent(prompt.toString(), forceLocal = true)
-        } catch (e: Exception) {
-            "DATA_LINK_STABLE: System processing ongoing. " + (ruleFindings.firstOrNull() ?: "Maintain protocol.")
+        return when (val result = aiCore.generate(prompt.toString(), forceLocal = true)) {
+            is AiResult.Success -> result.text
+            is AiResult.Failure -> {
+                Log.w("InsightProcessor", "AI Synthesis failed: ${result.reason}")
+                fallback
+            }
         }
     }
 

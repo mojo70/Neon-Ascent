@@ -21,6 +21,7 @@ dependencies {
     implementation(project(":core:domain"))
     implementation(project(":core:data"))
     implementation(project(":feature:goals"))
+    implementation(project(":feature:notifications"))
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

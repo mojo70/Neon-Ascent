@@ -205,7 +205,8 @@ fun NeuralBriefCard(
     primaryActionTask: AscensionTask?,
     onActionClick: (String) -> Unit,
     onWorkoutClick: (String) -> Unit,
-    systemColor: Color
+    systemColor: Color,
+    briefActive: Boolean = false
 ) {
     val isWorkout = primaryActionTask?.tags?.any { 
         it.contains("workout", ignoreCase = true) || it.contains("lift", ignoreCase = true) 
@@ -288,6 +289,27 @@ fun NeuralBriefCard(
                 ) {
                     Text(
                         text = buttonText,
+                        color = systemColor,
+                        fontSize = 13.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.2.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            } else if (briefActive) {
+                Spacer(Modifier.height(24.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 52.dp)
+                        .border(1.dp, systemColor, CyberCutShape)
+                        .clickable { onActionClick("DASHBOARD") }
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "OPEN OPS // BREACH_LINK",
                         color = systemColor,
                         fontSize = 13.sp,
                         fontFamily = FontFamily.Monospace,
@@ -458,6 +480,8 @@ fun DashboardScreen(
     val weatherState by viewModel.weatherState.collectAsState()
     val systemAdvice by viewModel.systemAdvice.collectAsState()
     val state by viewModel.uiState.collectAsState()
+    val briefTitle by viewModel.briefTitle.collectAsState()
+    val briefBody by viewModel.briefBody.collectAsState()
     val liveMetrics by healthViewModel.liveMetrics.collectAsState()
     val currentTime = remember { mutableStateOf(LocalDateTime.now()) }
     
@@ -509,12 +533,13 @@ fun DashboardScreen(
             Spacer(Modifier.height(24.dp))
 
             NeuralBriefCard(
-                insight = systemAdvice,
+                insight = if (briefTitle != null) "$briefTitle // $briefBody" else "Pulse sends after wake or 07:00.",
                 neuralLoad = neuralLoad,
                 primaryActionTask = state.todayPulses.firstOrNull(),
                 onActionClick = { id -> viewModel.completePulse(id) },
                 onWorkoutClick = { id -> onNavigateToWorkout(id) },
-                systemColor = systemColor
+                systemColor = systemColor,
+                briefActive = briefTitle != null
             )
 
             Spacer(Modifier.height(24.dp))

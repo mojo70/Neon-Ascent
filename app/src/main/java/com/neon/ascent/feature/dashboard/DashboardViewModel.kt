@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.location.Location
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.neon.ascent.core.data.datastore.BriefPreferencesDataStore
 import com.neon.ascent.core.data.local.dao.InsightDao
 import com.neon.ascent.core.data.local.entity.ActionEventEntity
 import com.neon.ascent.core.data.processor.InsightProjectionProcessor
@@ -72,7 +73,8 @@ class DashboardViewModel @Inject constructor(
     private val healthSyncUseCase: HealthSyncUseCase,
     private val insightRepository: com.neon.ascent.core.domain.repository.InsightProjectionRepository,
     private val insightDao: InsightDao,
-    private val insightProcessor: InsightProjectionProcessor
+    private val insightProcessor: InsightProjectionProcessor,
+    private val briefPrefs: BriefPreferencesDataStore
 ) : ViewModel() {
     val userCharacter: StateFlow<UserCharacter?> = characterRepository.getUserCharacter()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -113,6 +115,12 @@ class DashboardViewModel @Inject constructor(
 
     val isReligionShortcutEnabled: StateFlow<Boolean> = settingsRepository.isReligionShortcutEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val briefTitle: StateFlow<String?> = briefPrefs.lastBriefTitle
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+        
+    val briefBody: StateFlow<String?> = briefPrefs.lastBriefBody
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private val _dopamineEvent = MutableStateFlow<com.neon.ascent.core.common.DopamineEvent?>(null)
 

@@ -8,6 +8,7 @@ import com.neon.ascent.core.domain.health.HealthManager
 import com.neon.ascent.core.domain.special.usecases.UpdateSpecialFromHealthUseCase
 import com.neon.ascent.core.domain.goals.usecases.SyncBiometricMetricsUseCase
 import com.neon.ascent.feature.health.data.uplink.NeuralUplinkManager
+import com.neon.ascent.feature.notifications.data.SmartPingScheduler
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
@@ -28,15 +29,36 @@ class HealthSyncWorker @AssistedInject constructor(
     private val uplinkManager: NeuralUplinkManager,
     private val updateSpecialFromHealthUseCase: UpdateSpecialFromHealthUseCase,
     private val syncBiometricMetricsUseCase: SyncBiometricMetricsUseCase,
-    private val healthPrefs: HealthPreferencesDataStore
+    private val healthPrefs: HealthPreferencesDataStore,
+    private val smartPingScheduler: SmartPingScheduler
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun getForegroundInfo(): ForegroundInfo {
-        val notification = NotificationCompat.Builder(applicationContext, "health_sync_channel")
+        val channelId = "health_sync_channel"
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            if (notificationManager.getNotificationChannel(channelId) == null) {
+                val channel = android.app.NotificationChannel(
+                    channelId,
+                    "Health Data Sync",
+                    android.app.NotificationManager.IMPORTANCE_MIN
+                ).apply {
+                    description = "Silent background telemetry synchronization."
+                    setShowBadge(false)
+                    enableLights(false)
+                    enableVibration(false)
+                }
+                notificationManager.createNotificationChannel(channel)
+            }
+        }
+
+        val notification = NotificationCompat.Builder(applicationContext, channelId)
             .setSmallIcon(android.R.drawable.stat_notify_sync)
             .setContentTitle("Neural Uplink Active")
             .setContentText("Syncing biometric data...")
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setSilent(true)
             .build()
         return ForegroundInfo(888, notification)
     }
@@ -65,7 +87,10 @@ class HealthSyncWorker @AssistedInject constructor(
             Log.d("HealthSyncWorker", "Updating Ascension Directive Success Metrics")
             syncBiometricMetricsUseCase()
 
-            // 4. Update sync state
+            // 4. P1: Trigger Brief Update if sleep data updated before 11:00
+            smartPingScheduler.triggerBriefUpdateIfNecessary()
+
+            // 5. Update sync state
             healthPrefs.updateLastSyncTime()
             Log.i("HealthSyncWorker", "Health sync complete. Updated ${updatedAttributes.size} attributes.")
 

@@ -6,6 +6,10 @@ import com.neon.ascent.core.domain.notifications.BriefService
 import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.feature.notifications.data.NeuralPingManager
 import com.neon.ascent.feature.notifications.data.SmartPingScheduler
+import com.neon.ascent.core.data.datastore.BriefPreferencesDataStore
+import com.neon.ascent.core.data.notifications.BriefFactsBuilder
+import com.neon.ascent.core.domain.notifications.brief.BriefStanceResolver
+import com.neon.ascent.core.domain.notifications.brief.TemplateCopyWriter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,7 +26,9 @@ class NotificationPreferencesViewModel @Inject constructor(
     private val neuralPingManager: NeuralPingManager,
     private val briefService: BriefService,
     private val smartPingScheduler: SmartPingScheduler,
-    private val repository: AscensionRepository
+    private val repository: AscensionRepository,
+    private val briefPrefs: BriefPreferencesDataStore,
+    private val factsBuilder: BriefFactsBuilder
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(NotificationPreferencesUiState())
@@ -77,7 +83,11 @@ class NotificationPreferencesViewModel @Inject constructor(
     }
     
     fun toggleAdaptiveWake(enabled: Boolean) { 
-        _uiState.update { it.copy(adaptiveWakeDefault = enabled) } 
+        viewModelScope.launch {
+            briefPrefs.setAdaptiveWakeEnabled(enabled)
+            smartPingScheduler.scheduleNextAdaptiveBrief()
+            _uiState.update { it.copy(adaptiveWakeDefault = enabled) } 
+        }
     }
 
     fun toggleMissionPings(enabled: Boolean) { _uiState.update { it.copy(missionPingsEnabled = enabled) } }
@@ -93,17 +103,23 @@ class NotificationPreferencesViewModel @Inject constructor(
     }
 
     fun sendTestBrief() {
-        briefService.showNeuralBrief(
-            title = "⚡ NEURAL BRIEF // TEST_SYNC",
-            content = "Operator, this is a manual override transmission. Biometrics synchronized. All systems operational. Stand by for further guidance.",
-            actions = listOf(
-                BriefService.BriefAction(
-                    label = "OPEN DECK",
-                    actionName = BriefService.ACTION_OPEN_DECK,
-                    type = "DASHBOARD"
+        viewModelScope.launch {
+            val facts = factsBuilder.build()
+            val stance = com.neon.ascent.core.domain.notifications.brief.BriefStanceResolver.resolve(facts)
+            val copy = com.neon.ascent.core.domain.notifications.brief.TemplateCopyWriter.write(facts, stance)
+            
+            briefService.showNeuralBrief(
+                title = copy.headline + " // TEST",
+                content = copy.body,
+                actions = listOf(
+                    BriefService.BriefAction(
+                        label = "OPEN DECK",
+                        actionName = BriefService.ACTION_OPEN_DECK,
+                        type = "DASHBOARD"
+                    )
                 )
             )
-        )
+        }
     }
 
     fun resetToDefaults() {

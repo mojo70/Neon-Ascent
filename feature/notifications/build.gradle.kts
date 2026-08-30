@@ -28,6 +28,8 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.hilt.work)
+    implementation(libs.androidx.lifecycle.process)
+    implementation(libs.gson)
     ksp(libs.androidx.hilt.compiler)
 
     implementation(platform(libs.androidx.compose.bom))

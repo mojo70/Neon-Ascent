@@ -34,12 +34,12 @@ class NeuralBriefManager @Inject constructor(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val name = "Neural Brief"
             val descriptionText = "Daily compiled insights and gentle guidance from your Neon Guide."
-            val importance = NotificationManager.IMPORTANCE_HIGH
+            val importance = NotificationManager.IMPORTANCE_DEFAULT
             
             val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
                 description = descriptionText
                 enableLights(true)
-                enableVibration(true)
+                enableVibration(false)
                 setShowBadge(true)
                 lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
             }

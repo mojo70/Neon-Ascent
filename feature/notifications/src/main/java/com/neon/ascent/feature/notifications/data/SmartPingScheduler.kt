@@ -14,11 +14,15 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
+import com.neon.ascent.core.data.datastore.BriefPreferencesDataStore
+import java.time.temporal.ChronoUnit
+
 @Singleton
 class SmartPingScheduler @Inject constructor(
     @ApplicationContext private val context: Context,
     private val ascensionRepository: AscensionRepository,
-    private val healthManager: HealthManager
+    private val healthManager: HealthManager,
+    private val briefPrefs: BriefPreferencesDataStore
 ) : NeuralPingScheduler {
 
     private val workManager = WorkManager.getInstance(context)
@@ -31,14 +35,70 @@ class SmartPingScheduler @Inject constructor(
             scheduleForTask(task)
         }
 
-        // Global daily neural brief (unifies summary + insights)
-        enqueueDailyNeuralBrief()
-
         // Periodic health state check for dynamic triggers (wake/bed)
         scheduleHealthTriggerCheck()
 
         // Periodic insight full re-materialization (Nightly)
         scheduleNightlyInsightProjection()
+        
+        // P1: Adaptive scheduling
+        scheduleNextAdaptiveBrief()
+        
+        // Warmup AI core at 05:30
+        scheduleAiWarmup()
+    }
+
+    suspend fun scheduleNextAdaptiveBrief() {
+        val now = LocalDateTime.now()
+        val adaptiveEnabled = briefPrefs.adaptiveWakeEnabled.first()
+        val quietEndStr = briefPrefs.quietHoursEnd.first()
+        val quietEnd = LocalTime.parse(quietEndStr)
+
+        var targetTime = quietEnd
+
+        if (adaptiveEnabled) {
+            val healthData = healthManager.readRecentData(1)
+            val lastSleep = healthData.sleep.maxByOrNull { it.endTime }
+            if (lastSleep != null) {
+                val wakeTime = lastSleep.endTime.atZone(ZoneId.systemDefault()).toLocalTime()
+                val adaptiveTime = wakeTime.plusMinutes(20)
+                if (adaptiveTime.isAfter(quietEnd)) {
+                    targetTime = adaptiveTime
+                }
+            }
+        }
+
+        var targetDateTime = now.with(targetTime)
+        if (targetDateTime.isBefore(now)) {
+            targetDateTime = targetDateTime.plusDays(1)
+        }
+
+        val delay = Duration.between(now, targetDateTime).toMillis()
+
+        val request = OneTimeWorkRequestBuilder<NeuralBriefWorker>()
+            .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+            .addTag("adaptive_brief")
+            .build()
+
+        workManager.enqueueUniqueWork(
+            NeuralBriefWorker.UNIQUE_WORK_NAME,
+            ExistingWorkPolicy.REPLACE,
+            request
+        )
+    }
+
+    private fun scheduleAiWarmup() {
+        val now = LocalDateTime.now()
+        var target = now.with(LocalTime.of(5, 30))
+        if (target.isBefore(now)) target = target.plusDays(1)
+        
+        val delay = Duration.between(now, target).toMillis()
+        
+        val request = OneTimeWorkRequestBuilder<AiWarmupWorker>()
+            .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+            .build()
+            
+        workManager.enqueueUniqueWork("ai_warmup", ExistingWorkPolicy.KEEP, request)
     }
 
     /**
@@ -86,6 +146,21 @@ class SmartPingScheduler @Inject constructor(
             ExistingWorkPolicy.KEEP,
             request
         )
+    }
+
+    suspend fun triggerBriefUpdateIfNecessary() {
+        val now = LocalTime.now()
+        // Only update before 11:00 AM if data changed
+        if (now.isBefore(LocalTime.of(11, 0))) {
+            val request = OneTimeWorkRequestBuilder<NeuralBriefWorker>()
+                .addTag("brief_update")
+                .build()
+            workManager.enqueueUniqueWork(
+                "neural_brief_update",
+                ExistingWorkPolicy.KEEP,
+                request
+            )
+        }
     }
 
     private fun scheduleForTask(task: AscensionTask) {
