@@ -402,7 +402,34 @@ fun SettingsScreen(
                         lineHeight = 16.sp
                     )
                     
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(16.dp))
+
+                    Text(
+                        "TRAINING_ORIGINS //",
+                        color = Color(0xFF00FF9C).copy(alpha = 0.6f),
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Text(
+                        "CyberCrapp is based on the DoggCrapp (DC) training system created by Dante Trudel. Originally posted on the IntenseMuscle forums.",
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        lineHeight = 16.sp
+                    )
+
+                    Text(
+                        "https://www.intensemuscle.com/forum/main-forums/the-dogg-pound/20286-updated-dc-training-newbies-read-this-first-and-then-ask-questions-later",
+                        color = Color(0xFF00FF9C).copy(alpha = 0.5f),
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        lineHeight = 14.sp,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                    
+                    Spacer(Modifier.height(16.dp))
                     
                     Text(
                         "CORE_OS // NEON_ASCENT_LABS",

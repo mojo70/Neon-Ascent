@@ -311,6 +311,11 @@ fun AppNavigation(
                                 coroutineScope.launch {
                                     pagerState.animateScrollToPage(opsIndex) // OPS
                                 }
+                            },
+                            onRelink = { provider ->
+                                if (provider == com.neon.ascent.feature.health.domain.uplink.UplinkProvider.GARMIN) {
+                                    navController.navigate(Screen.GarminLogin)
+                                }
                             }
                         )
                         page == forgeIndex -> AscensionTerminalScreen(
@@ -365,6 +370,11 @@ fun AppNavigation(
                 onNavigateToDopamineMenu = { navController.navigate(Screen.DopamineMenu) },
                 onNavigateToOps = {
                     navController.navigate(Screen.MainHub) // Pager logic is complex for deep links, just go to hub
+                },
+                onRelink = { provider ->
+                    if (provider == com.neon.ascent.feature.health.domain.uplink.UplinkProvider.GARMIN) {
+                        navController.navigate(Screen.GarminLogin)
+                    }
                 }
             )
         }

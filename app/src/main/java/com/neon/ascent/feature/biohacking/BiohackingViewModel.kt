@@ -4,6 +4,11 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.asFlow
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import androidx.health.connect.client.HealthConnectClient
+import android.widget.Toast
 import com.neon.ascent.core.domain.character.models.UserCharacter
 import com.neon.ascent.core.domain.codex.models.BiomarkerKeys
 import com.neon.ascent.core.domain.codex.models.BiomarkerSample
@@ -23,18 +28,22 @@ import com.neon.ascent.core.domain.repository.WorkoutRepository
 import com.neon.ascent.core.domain.workout.models.UserWorkoutProfile
 import com.neon.ascent.core.domain.workout.rules.MacroCalculator
 import com.neon.ascent.core.domain.workout.rules.Macros
+import com.neon.ascent.feature.health.data.workers.HealthSyncWorker
 import com.neon.ascent.feature.health.data.uplink.NeuralUplinkManager
+import com.neon.ascent.feature.health.domain.uplink.UplinkProvider
 import com.neon.ascent.feature.health.domain.uplink.UplinkSyncStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.text.PDFTextStripper
+import com.neon.ascent.core.domain.health.HealthManager
 import com.neon.ascent.core.domain.health.models.VitalsSnapshot
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
@@ -45,6 +54,7 @@ class BiohackingViewModel @Inject constructor(
     private val biohackingDao: BiohackingDao,
     private val userCharacterDao: UserCharacterDao,
     private val healthRepository: HealthRepository,
+    private val healthManager: HealthManager,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val healthPrefs: HealthPreferencesDataStore,
     private val workoutRepository: WorkoutRepository,
@@ -90,8 +100,24 @@ class BiohackingViewModel @Inject constructor(
 
     val uplinkSyncStatuses: StateFlow<List<UplinkSyncStatus>> = uplinkManager.uplinkSyncStatuses
 
+    private val _isManualSyncing = MutableStateFlow(false)
+    val isSyncing: StateFlow<Boolean> = combine(
+        _isManualSyncing,
+        WorkManager.getInstance(context)
+            .getWorkInfosForUniqueWorkLiveData("neon_ascent_health_sync_one_time")
+            .asFlow()
+    ) { manual, infos ->
+        manual || infos.any { it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     val measurementUnit: StateFlow<String> = userPreferencesRepository.measurementUnit
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Metric")
+
+    private val _showPermissionRationale = MutableStateFlow(false)
+    val showPermissionRationale: StateFlow<Boolean> = _showPermissionRationale.asStateFlow()
+
+    private val _permissionsRationale = MutableStateFlow<Map<String, String>>(emptyMap())
+    val permissionsRationale: StateFlow<Map<String, String>> = _permissionsRationale.asStateFlow()
 
     val cachedBioAge: StateFlow<Float?> = userPreferencesRepository.lastBioAge
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -368,7 +394,25 @@ class BiohackingViewModel @Inject constructor(
 
     fun syncWearable() {
         viewModelScope.launch {
-            if (healthRepository.hasAllPermissions()) {
+            android.util.Log.d("BiohackingVM", "syncWearable: Checking permissions...")
+            
+            // Re-check SDK availability
+            val sdkStatus = HealthConnectClient.getSdkStatus(context)
+            if (sdkStatus != HealthConnectClient.SDK_AVAILABLE) {
+                android.util.Log.w("BiohackingVM", "Health Connect SDK not available: $sdkStatus")
+                uplinkManager.activeUplinks.value
+                    .find { it.provider == UplinkProvider.HEALTH_CONNECT }
+                    ?.authenticate()
+                return@launch
+            }
+
+            // Give the OS a moment to propagate permission changes
+            delay(1200)
+            
+            val isAvailableAndHasPerms = healthManager.isAvailableAndHasPermissions()
+            android.util.Log.d("BiohackingVM", "syncWearable: isAvailableAndHasPermissions = $isAvailableAndHasPerms")
+            
+            if (isAvailableAndHasPerms) {
                 val steps = healthRepository.getTodaySteps()
                 val heartRate = healthRepository.getLatestHeartRate()
                 
@@ -379,6 +423,22 @@ class BiohackingViewModel @Inject constructor(
                     currentHeartRate = heartRate
                 ) }
                 fetchTrends(_selectedTimeRange.value)
+                
+                // Explicitly update uplink status
+                uplinkManager.activeUplinks.value
+                    .find { it.provider == UplinkProvider.HEALTH_CONNECT }
+                    ?.authenticate()
+
+                android.util.Log.i("BiohackingVM", "Health Connect linked successfully. Triggering sync.")
+                Toast.makeText(context, "Neural Link established: Health Connect connected.", Toast.LENGTH_SHORT).show()
+                triggerManualSync()
+            } else {
+                android.util.Log.w("BiohackingVM", "Permissions still missing after flow. Check logcat for missing keys.")
+                Toast.makeText(context, "Health Connect link incomplete. Some permissions missing.", Toast.LENGTH_LONG).show()
+                // Re-authenticate to update the UI status from "Authenticating" to "Permission Required"
+                uplinkManager.activeUplinks.value
+                    .find { it.provider == UplinkProvider.HEALTH_CONNECT }
+                    ?.authenticate()
             }
         }
     }
@@ -511,6 +571,48 @@ class BiohackingViewModel @Inject constructor(
         viewModelScope.launch {
             healthPrefs.setLiveMonitoringEnabled(enabled)
         }
+    }
+
+    fun triggerManualSync() {
+        _isManualSyncing.value = true
+        HealthSyncWorker.triggerManualSync(context)
+        // Reset manual flag after a delay; WorkManager will take over the reactive state
+        viewModelScope.launch {
+            delay(2000)
+            _isManualSyncing.value = false
+        }
+    }
+
+    fun relink(provider: UplinkProvider) {
+        viewModelScope.launch {
+            if (provider == UplinkProvider.HEALTH_CONNECT) {
+                val status = HealthConnectClient.getSdkStatus(context)
+                if (status == HealthConnectClient.SDK_UNAVAILABLE) {
+                    android.util.Log.e("BiohackingVM", "Health Connect SDK unavailable")
+                    return@launch
+                }
+                
+                if (healthManager.isAvailableAndHasPermissions()) {
+                    android.util.Log.i("BiohackingVM", "Permissions already granted. Syncing.")
+                    syncWearable()
+                } else {
+                    // Fetch fresh rationale and show dialog
+                    _permissionsRationale.value = healthManager.getPermissionRationale()
+                    _showPermissionRationale.value = true
+                }
+            } else {
+                // Garmin re-link is handled via navigation in AppNavigation
+                uplinkManager.activeUplinks.value.find { it.provider == provider }?.authenticate()
+            }
+        }
+    }
+
+    fun dismissRationale() {
+        _showPermissionRationale.value = false
+    }
+
+    suspend fun getPermissionsToRequest(): Set<String> {
+        return healthManager.getPermissionsToRequest()
     }
 
     private fun calculateAge(dob: String): String {

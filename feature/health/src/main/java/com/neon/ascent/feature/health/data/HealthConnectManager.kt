@@ -45,11 +45,30 @@ class HealthConnectManager @Inject constructor(
     override suspend fun isAvailableAndHasPermissions(): Boolean {
         return try {
             val availability = HealthConnectClient.getSdkStatus(context)
-            if (availability != HealthConnectClient.SDK_AVAILABLE) return false
+            if (availability != HealthConnectClient.SDK_AVAILABLE) {
+                android.util.Log.w("HealthConnectManager", "SDK Status: $availability")
+                return false
+            }
 
             val granted = healthConnectClient.permissionController.getGrantedPermissions()
-            requiredPermissions.all { it in granted }
+            
+            // Core set for "Connected" status (everything except RHR for now, if RHR is causing issues)
+            val corePermissions = requiredPermissions - HealthPermission.getReadPermission(RestingHeartRateRecord::class)
+            val coreGranted = corePermissions.all { it in granted }
+            
+            if (!coreGranted) {
+                val missing = corePermissions - granted
+                android.util.Log.w("HealthConnectManager", "Missing CORE permissions: $missing")
+            }
+            
+            val rhrGranted = HealthPermission.getReadPermission(RestingHeartRateRecord::class) in granted
+            if (!rhrGranted) {
+                android.util.Log.i("HealthConnectManager", "Resting HR permission not granted (Optional for base link).")
+            }
+            
+            coreGranted
         } catch (e: Exception) {
+            android.util.Log.e("HealthConnectManager", "Error checking permissions", e)
             false
         }
     }

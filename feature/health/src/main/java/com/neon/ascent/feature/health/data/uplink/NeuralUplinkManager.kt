@@ -12,6 +12,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -69,12 +70,16 @@ class NeuralUplinkManager @Inject constructor(
         }
     }
 
+    private var syncJob: Job? = null
+
     /**
      * Start observing all registered uplinks and merging their data.
      */
     fun startUplinkSync() {
+        syncJob?.cancel()
+        
         // Merge Live and Deep streams into a single Snapshot
-        combine(
+        syncJob = combine(
             garminUplink.getLiveStream(),
             healthConnectUplink.getLiveStream(),
             _combinedDeepMetrics
@@ -164,6 +169,10 @@ class NeuralUplinkManager @Inject constructor(
         _combinedDeepMetrics.value = merged
         ingestDeepMetrics(merged)
         rollupWriter.writeTodayRollup(merged)
+        
+        // Force immediate snapshot update
+        startUplinkSync() 
+        
         return merged
     }
 

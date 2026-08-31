@@ -153,13 +153,17 @@ class HealthConnectUplink @Inject constructor(
     }
 
     override suspend fun authenticate() {
-        Log.d("HealthConnectUplink", "Authenticating Health Connect")
+        Log.d("HealthConnectUplink", "Refreshing Health Connect status...")
         updateStatus(UplinkStatus.Authenticating)
-        if (healthConnectManager.isAvailableAndHasPermissions()) {
+        
+        // Re-check permissions
+        val isLinked = healthConnectManager.isAvailableAndHasPermissions()
+        
+        if (isLinked) {
             updateStatus(UplinkStatus.Connected)
         } else {
             updateStatus(UplinkStatus.PermissionRequired)
-            _syncStatus.update { it.copy(lastError = "Permissions not granted") }
+            _syncStatus.update { it.copy(lastError = "Permissions incomplete") }
         }
     }
 

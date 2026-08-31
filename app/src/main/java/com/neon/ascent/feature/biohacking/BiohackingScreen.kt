@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.health.connect.client.PermissionController
 import com.neon.ascent.core.common.*
 import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.feature.health.domain.uplink.*
@@ -41,6 +42,7 @@ import com.neon.ascent.core.domain.character.models.UserCharacter
 import com.neon.ascent.model.BioProtocolLog
 import com.neon.ascent.model.BiohackingData
 import com.neon.ascent.ui.*
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.Period
 import java.time.format.DateTimeFormatter
@@ -56,6 +58,7 @@ fun BiohackingScreen(
     onNavigateToGuide: (String?) -> Unit = {},
     onNavigateToDopamineMenu: () -> Unit = {},
     onNavigateToOps: () -> Unit = {},
+    onRelink: (UplinkProvider) -> Unit = {},
     viewModel: BiohackingViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -71,6 +74,9 @@ fun BiohackingScreen(
     val measurementUnit by viewModel.measurementUnit.collectAsState()
     val neuralInsights by viewModel.neuralInsights.collectAsState()
     val uplinkSyncStatuses by viewModel.uplinkSyncStatuses.collectAsState()
+    val isSyncing by viewModel.isSyncing.collectAsState()
+    val showPermissionRationale by viewModel.showPermissionRationale.collectAsState()
+    val permissionsRationale by viewModel.permissionsRationale.collectAsState()
     val isLiveMonitoringEnabled by viewModel.liveMonitoringEnabled.collectAsState()
     val macros by viewModel.macros.collectAsState()
     val vitalsSnapshot by viewModel.vitalsSnapshot.collectAsState()
@@ -80,6 +86,19 @@ fun BiohackingScreen(
     val scheduledSessions by viewModel.scheduledSessionsThisWeek.collectAsState()
     val selectedTimeRange by viewModel.selectedTimeRange.collectAsState()
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(isSyncing) {
+        if (isSyncing) {
+            snackbarHostState.showSnackbar("Neural Uplink: Manual sync initiated...")
+        }
+    }
+
+    LaunchedEffect(uiState.isWearableSynced) {
+        if (uiState.isWearableSynced) {
+            snackbarHostState.showSnackbar("Neural Link Established: Synchronizing telemetry.")
+        }
+    }
 
     val displayChar = characterState ?: UserCharacter(
         name = "PROTAGONIST", sex = "NON_BINARY", dob = "2077.01.01", units = measurementUnit, weight = "75", somatotype = 0.5f
@@ -97,9 +116,36 @@ fun BiohackingScreen(
         uri?.let { viewModel.processLabResults(it) }
     }
 
+    val permissionsLauncher = rememberLauncherForActivityResult(
+        PermissionController.createRequestPermissionResultContract()
+    ) { granted ->
+        viewModel.syncWearable()
+    }
+
+    val scope = rememberCoroutineScope()
+
     val neonCyan = Color(0xFF00F5FF)
     val neonMagenta = Color(0xFFFF0088)
     val voidBg = Color(0xFF0A0F14)
+
+    if (showPermissionRationale) {
+        com.neon.ascent.feature.health.ui.PermissionRationaleDialog(
+            rationale = permissionsRationale,
+            onConfirm = {
+                viewModel.dismissRationale()
+                scope.launch {
+                    val permissions = viewModel.getPermissionsToRequest()
+                    if (permissions.isEmpty()) {
+                        // All permissions already granted, just sync
+                        viewModel.syncWearable()
+                    } else {
+                        permissionsLauncher.launch(permissions)
+                    }
+                }
+            },
+            onDismiss = { viewModel.dismissRationale() }
+        )
+    }
 
     LaunchedEffect(isNeuralCoreThinking) {
         if (isNeuralCoreThinking) {
@@ -141,420 +187,448 @@ fun BiohackingScreen(
         CyberGridBackground()
         FloatingParticles(intensity = displayChar.neuralLoad + (scanProgress * 0.5f))
         
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .padding(16.dp)
-                .verticalScroll(scrollState)
-        ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        "BIOHACKING_INTERFACE // V.2.3",
-                        color = neonCyan,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Black,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+        Scaffold(
+            containerColor = Color.Transparent,
+            snackbarHost = { 
+                SnackbarHost(snackbarHostState) { data ->
+                    Surface(
+                        modifier = Modifier.padding(16.dp),
+                        shape = CyberCutShape,
+                        color = Color.Black.copy(alpha = 0.8f),
+                        border = BorderStroke(1.dp, neonCyan)
+                    ) {
                         Text(
-                            "COLLECTIVE_NET: ${if (uiState.consentAnonymizedUpload) "SYNC_ON" else "OFFLINE"}",
-                            color = (if (uiState.consentAnonymizedUpload) neonCyan else neonMagenta).copy(alpha = 0.6f),
-                            fontSize = 9.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                        if (uiState.enableOnDeviceNeuralCore) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "SYNAPSE_STATUS: LOCAL // NO NETWORK",
-                                color = neonCyan,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace,
-                                modifier = Modifier
-                                    .background(neonCyan.copy(alpha = 0.1f))
-                                    .padding(horizontal = 4.dp)
-                            )
-                        }
-                    }
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onNavigateToDopamineMenu) {
-                        Icon(
-                            imageVector = Icons.Default.Bolt,
-                            contentDescription = "Dopamine Menu",
-                            tint = neonMagenta,
-                            modifier = Modifier.cyberGlitch(0.1f)
-                        )
-                    }
-                    IconButton(onClick = { onNavigateToGuide(null) }) {
-                        Icon(
-                            imageVector = Icons.Default.ChatBubble,
-                            contentDescription = "Neon Guide",
-                            tint = neonCyan,
-                            modifier = Modifier.cyberGlitch(0.1f)
-                        )
-                    }
-                    NeuralLoadGauge(
-                        load = if (isNeuralCoreThinking) 0.9f else displayChar.neuralLoad, 
-                        modifier = Modifier.size(64.dp)
-                    )
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Hero: Full Body Holographic Selector
-            CyberFrame(label = "HOLOGRAPHIC_SELECTOR", borderColor = neonCyan) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(400.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    FullBodyHologram(
-                        character = displayChar,
-                        neuralLoad = displayChar.neuralLoad,
-                        selectedSector = selectedSector,
-                        onSectorSelected = { 
-                            selectedSector = it
-                            if (uiState.enableOnDeviceNeuralCore) {
-                                viewModel.initiateLocalScan(it)
-                            }
-                        },
-                        modifier = Modifier.fillMaxSize(0.9f),
-                        highlightColor = if (isNeuralCoreThinking) neonMagenta else neonCyan
-                    )
-                    
-                    SectorLabel("COGNITION", Alignment.TopEnd, selectedSector == "CRANIAL_NODE", neonCyan, neonMagenta)
-                    SectorLabel("ENDOCRINE", Alignment.CenterStart, selectedSector == "CORE_CHASSIS", neonCyan, neonMagenta)
-                    SectorLabel("RECOVERY", Alignment.BottomEnd, selectedSector == "MOTOR_EXTREMITIES", neonCyan, neonMagenta)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            CyberActionButton(
-                label = "DOPAMINE_MENU // PROTOCOL_BYPASS",
-                color = neonMagenta,
-                onClick = onNavigateToDopamineMenu
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Uplink Status Section
-            UplinkStatusPanel(
-                syncStatuses = uplinkSyncStatuses,
-                neonCyan = neonCyan,
-                neonMagenta = neonMagenta,
-                onManualSyncClick = { HealthSyncWorker.triggerManualSync(context) },
-                isLiveMonitoringEnabled = isLiveMonitoringEnabled,
-                onLiveMonitoringToggle = { enabled ->
-                    viewModel.toggleLiveMonitoring(enabled)
-                    if (enabled) LiveBiometricService.start(context)
-                    else LiveBiometricService.stop(context)
-                }
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Nutrition Macros Uplink
-            macros?.let {
-                NutritionMacrosCard(
-                    macros = it,
-                    neonCyan = neonCyan,
-                    neonMagenta = neonMagenta
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-
-            // VITALS Stack (P0)
-            VitalsStack(
-                snapshot = vitalsSnapshot,
-                rhrSeries = rhrSeries,
-                hrvSeries = hrvSeries,
-                completedSessions = completedSessions,
-                scheduledSessions = scheduledSessions,
-                neonCyan = neonCyan,
-                neonMagenta = neonMagenta,
-                onNavigateToOps = onNavigateToOps
-            )
-            
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Biometric Trends Section
-            BiometricTrendsSection(
-                trends = trends,
-                selectedRange = selectedTimeRange,
-                onRangeSelected = { viewModel.setTimeRange(it) },
-                neonCyan = neonCyan,
-                neonMagenta = neonMagenta,
-                onNavigateToGuide = onNavigateToGuide,
-                onNavigateToDopamineMenu = onNavigateToDopamineMenu
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Baselines Section
-            ExpandableBioSection("BASELINES_&_DEMOGRAPHICS", neonCyan, initiallyExpanded = focus == "baselines") {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        BioReadOnlyField("AGE", calculateAge(displayChar.dob), Modifier.weight(1f), neonCyan)
-                        BioReadOnlyField("SEX", displayChar.sex, Modifier.weight(1f), neonCyan)
-                    }
-                    if (uiState.calculatedBioAge != null) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        BioAgeCard(
-                            bioAge = uiState.calculatedBioAge!!,
-                            calendarAge = uiState.calendarAgeAtCalculation ?: calculateAge(displayChar.dob).toIntOrNull() ?: 0,
-                            neonCyan = neonCyan,
-                            neonMagenta = neonMagenta
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        BioReadOnlyField("HEIGHT", "${displayChar.heightFeet ?: "0"}'${displayChar.heightInches ?: "0"}\"", Modifier.weight(1f), neonCyan)
-                        BioReadOnlyField("WEIGHT", "${displayChar.weight}kg", Modifier.weight(1f), neonCyan)
-                    }
-                    BioSliderField("BODY_FAT_%", uiState.bodyFatPercentage ?: 15f, 5f..40f, neonCyan) {
-                        viewModel.updateData { d -> d.copy(bodyFatPercentage = it) }
-                    }
-                }
-            }
-
-            // Wearable Metrics
-            if (uiState.isWearableSynced) {
-                ExpandableBioSection("WEARABLE_METRICS", neonCyan, initiallyExpanded = focus == "hrv" || focus == "biometrics") {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        BioReadOnlyField("HEART_RATE", "${uiState.currentHeartRate ?: "--"} BPM", Modifier.weight(1f), neonCyan)
-                        BioReadOnlyField("STEPS_TODAY", "${uiState.currentSteps ?: "--"}", Modifier.weight(1f), neonCyan)
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "LAST_SYNC: ${uiState.lastSyncTimestamp?.let { java.time.Instant.ofEpochMilli(it).toString() } ?: "NEVER"}",
-                        color = Color.Gray,
-                        fontSize = 8.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-            } else {
-                CyberActionButton(
-                    label = "SYNC_WEARABLE_DATA",
-                    color = neonCyan.copy(alpha = 0.5f),
-                    onClick = { viewModel.syncWearable() }
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
-            // Lifestyle Stack
-            ExpandableBioSection("LIFESTYLE_STACK", neonCyan, initiallyExpanded = focus == "recovery" || focus == "lifestyle") {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    BioSliderField("ENERGY_SCORE", uiState.energyScore.toFloat(), 1f..10f, neonCyan) {
-                        viewModel.updateData { d -> d.copy(energyScore = it.toInt()) }
-                    }
-                    BioSliderField("MOOD_SCORE", uiState.moodScore.toFloat(), 1f..10f, neonCyan) {
-                        viewModel.updateData { d -> d.copy(moodScore = it.toInt()) }
-                    }
-                    BioSliderField("FOCUS_SCORE", uiState.focusScore.toFloat(), 1f..10f, neonCyan) {
-                        viewModel.updateData { d -> d.copy(focusScore = it.toInt()) }
-                    }
-                    BioSliderField("SLEEP_DURATION (HRS)", uiState.sleepHours ?: 7f, 4f..12f, neonCyan) {
-                        viewModel.updateData { d -> d.copy(sleepHours = it) }
-                    }
-                    BioSliderField("STRESS_LEVEL", uiState.stressLevel.toFloat(), 1f..10f, neonCyan) {
-                        viewModel.updateData { d -> d.copy(stressLevel = it.toInt()) }
-                    }
-                    BioInputField("SUPPLEMENT_STACK", uiState.supplements ?: "CREATINE, VIT_D, ASHWAGANDHA", neonCyan)
-                    BioInputField("DIET_TYPE", uiState.dietType ?: "KETO_OMAD", neonCyan)
-                }
-            }
-
-            // Goals & Constraints
-            ExpandableBioSection("GOALS_&_CONSTRAINTS", neonCyan, initiallyExpanded = focus == "goals") {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    BioInputField("PRIMARY_OBJECTIVE", uiState.primaryObjective ?: "LONGEVITY", neonCyan)
-                    BioInputField("CONTRAINDICATIONS", uiState.contraindications ?: "NONE_DETECTED", neonCyan)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(
-                            checked = uiState.pregnancyFlag,
-                            onCheckedChange = { viewModel.updateData { d -> d.copy(pregnancyFlag = it) } },
-                            colors = CheckboxDefaults.colors(checkedColor = neonMagenta)
-                        )
-                        Text("PREGNANCY_FLAG", color = neonMagenta, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Lab & Genetic Uploads
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                UploadCard("LAB_RESULTS_PDF/JSON", Modifier.weight(1f), neonCyan) {
-                    filePickerLauncher.launch("*/*")
-                }
-                UploadCard("GENETIC_RAW_DATA", Modifier.weight(1f), neonMagenta) {
-                    // Placeholder for genetic data
-                }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            if (!isLocalAiAvailable) {
-                CyberFrame(label = "NEURAL_ENGINE_MISSING", borderColor = neonMagenta) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            "Local AI capabilities require the Neural Engine core (Gemma 2B). Download now to enable secure, on-device biohacking protocols.",
-                            color = Color.White,
+                            text = data.visuals.message,
+                            color = neonCyan,
                             fontSize = 12.sp,
                             fontFamily = FontFamily.Monospace,
-                            textAlign = TextAlign.Center
+                            modifier = Modifier.padding(16.dp)
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        if (isDownloading) {
-                            LinearProgressIndicator(
-                                progress = { downloadProgress ?: 0f },
-                                modifier = Modifier.fillMaxWidth().height(2.dp),
-                                color = neonCyan,
-                                trackColor = neonCyan.copy(alpha = 0.1f)
-                            )
-                            Text(
-                                "DOWNLOADING_CORE...",
-                                color = neonCyan,
-                                fontSize = 10.sp,
-                                fontFamily = FontFamily.Monospace,
-                                modifier = Modifier.padding(top = 8.dp)
-                            )
-                        } else {
-                            CyberActionButton(
-                                label = "DOWNLOAD NEURAL_ENGINE (Gemma 4-E2B)",
-                                color = neonCyan,
-                                onClick = { viewModel.modelDownloadManager.startDownload() }
-                            )
-                        }
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
             }
-
-            CyberActionButton(
-                label = if (uiState.enableOnDeviceNeuralCore) "INITIATE NEURAL_CORE_SCAN" else "INITIATE AI_DEEP_SCAN",
-                color = if (isLocalAiAvailable || !uiState.enableOnDeviceNeuralCore) neonCyan else Color.Gray,
-                enabled = isLocalAiAvailable || !uiState.enableOnDeviceNeuralCore,
-                onClick = { viewModel.initiateLocalScan(selectedSector) }
-            )
-
-            // Neural Insights from Memory Palace
-            if (neuralInsights.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(32.dp))
-                CyberFrame(label = "NEURAL_INSIGHTS // MEMORY_PALACE", borderColor = neonCyan) {
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        neuralInsights.take(3).forEach { insight ->
-                            Column {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = insight.content,
-                                        color = Color.White,
-                                        fontSize = 12.sp,
-                                        fontFamily = FontFamily.Monospace,
-                                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    IconButton(
-                                        onClick = { 
-                                            onNavigateToForge(
-                                                SpecialType.INTELLIGENCE, 
-                                                "Neural Insight: ${insight.content.take(15)}...", 
-                                                insight.content,
-                                                "Neural Load: ${((displayChar.neuralLoad) * 100).toInt()}%"
-                                            ) 
-                                        }
-                                    ) {
-                                        val isHighValue = insight.content.contains("Forge", ignoreCase = true) || 
-                                                          insight.content.contains("Sync", ignoreCase = true) ||
-                                                          insight.content.length > 40
-                                        Icon(
-                                            imageVector = if (isHighValue) Icons.Default.Bolt else Icons.Default.Add, 
-                                            "Forge Directive", 
-                                            tint = if (isHighValue) neonMagenta else neonCyan,
-                                            modifier = if (isHighValue) Modifier.cyberGlitch(0.3f) else Modifier
-                                        )
-                                    }
-                                }
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp)
+                    .verticalScroll(scrollState)
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            "BIOHACKING_INTERFACE // V.2.3",
+                            color = neonCyan,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Black,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "COLLECTIVE_NET: ${if (uiState.consentAnonymizedUpload) "SYNC_ON" else "OFFLINE"}",
+                                color = (if (uiState.consentAnonymizedUpload) neonCyan else neonMagenta).copy(alpha = 0.6f),
+                                fontSize = 9.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            if (uiState.enableOnDeviceNeuralCore) {
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "LOGGED: ${java.time.Instant.ofEpochMilli(insight.timestamp)}",
-                                    color = neonCyan.copy(alpha = 0.5f),
-                                    fontSize = 8.sp,
-                                    fontFamily = FontFamily.Monospace
+                                    "SYNAPSE_STATUS: LOCAL // NO NETWORK",
+                                    color = neonCyan,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier
+                                        .background(neonCyan.copy(alpha = 0.1f))
+                                        .padding(horizontal = 4.dp)
                                 )
                             }
-                            if (insight != neuralInsights.take(3).last()) {
-                                HorizontalDivider(color = neonCyan.copy(alpha = 0.2f))
+                        }
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onNavigateToDopamineMenu) {
+                            Icon(
+                                imageVector = Icons.Default.Bolt,
+                                contentDescription = "Dopamine Menu",
+                                tint = neonMagenta,
+                                modifier = Modifier.cyberGlitch(0.1f)
+                            )
+                        }
+                        IconButton(onClick = { onNavigateToGuide(null) }) {
+                            Icon(
+                                imageVector = Icons.Default.ChatBubble,
+                                contentDescription = "Neon Guide",
+                                tint = neonCyan,
+                                modifier = Modifier.cyberGlitch(0.1f)
+                            )
+                        }
+                        NeuralLoadGauge(
+                            load = if (isNeuralCoreThinking) 0.9f else displayChar.neuralLoad, 
+                            modifier = Modifier.size(64.dp)
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Hero: Full Body Holographic Selector
+                CyberFrame(label = "HOLOGRAPHIC_SELECTOR", borderColor = neonCyan) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(400.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        FullBodyHologram(
+                            character = displayChar,
+                            neuralLoad = displayChar.neuralLoad,
+                            selectedSector = selectedSector,
+                            onSectorSelected = { 
+                                selectedSector = it
+                                if (uiState.enableOnDeviceNeuralCore) {
+                                    viewModel.initiateLocalScan(it)
+                                }
+                            },
+                            modifier = Modifier.fillMaxSize(0.9f),
+                            highlightColor = if (isNeuralCoreThinking) neonMagenta else neonCyan
+                        )
+                        
+                        SectorLabel("COGNITION", Alignment.TopEnd, selectedSector == "CRANIAL_NODE", neonCyan, neonMagenta)
+                        SectorLabel("ENDOCRINE", Alignment.CenterStart, selectedSector == "CORE_CHASSIS", neonCyan, neonMagenta)
+                        SectorLabel("RECOVERY", Alignment.BottomEnd, selectedSector == "MOTOR_EXTREMITIES", neonCyan, neonMagenta)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                CyberActionButton(
+                    label = "DOPAMINE_MENU // PROTOCOL_BYPASS",
+                    color = neonMagenta,
+                    onClick = onNavigateToDopamineMenu
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Uplink Status Section
+                UplinkStatusPanel(
+                    syncStatuses = uplinkSyncStatuses,
+                    isSyncing = isSyncing,
+                    neonCyan = neonCyan,
+                    neonMagenta = neonMagenta,
+                    onManualSyncClick = { viewModel.triggerManualSync() },
+                    onRelink = { provider -> 
+                        viewModel.relink(provider)
+                        onRelink(provider)
+                    },
+                    isLiveMonitoringEnabled = isLiveMonitoringEnabled,
+                    onLiveMonitoringToggle = { enabled ->
+                        viewModel.toggleLiveMonitoring(enabled)
+                        if (enabled) LiveBiometricService.start(context)
+                        else LiveBiometricService.stop(context)
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Nutrition Macros Uplink
+                macros?.let {
+                    NutritionMacrosCard(
+                        macros = it,
+                        neonCyan = neonCyan,
+                        neonMagenta = neonMagenta
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
+
+                // VITALS Stack (P0)
+                VitalsStack(
+                    snapshot = vitalsSnapshot,
+                    rhrSeries = rhrSeries,
+                    hrvSeries = hrvSeries,
+                    completedSessions = completedSessions,
+                    scheduledSessions = scheduledSessions,
+                    neonCyan = neonCyan,
+                    neonMagenta = neonMagenta,
+                    onNavigateToOps = onNavigateToOps
+                )
+                
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Biometric Trends Section
+                BiometricTrendsSection(
+                    trends = trends,
+                    selectedRange = selectedTimeRange,
+                    onRangeSelected = { viewModel.setTimeRange(it) },
+                    neonCyan = neonCyan,
+                    neonMagenta = neonMagenta,
+                    onNavigateToGuide = onNavigateToGuide,
+                    onNavigateToDopamineMenu = onNavigateToDopamineMenu
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Baselines Section
+                ExpandableBioSection("BASELINES_&_DEMOGRAPHICS", neonCyan, initiallyExpanded = focus == "baselines") {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            BioReadOnlyField("AGE", calculateAge(displayChar.dob), Modifier.weight(1f), neonCyan)
+                            BioReadOnlyField("SEX", displayChar.sex, Modifier.weight(1f), neonCyan)
+                        }
+                        if (uiState.calculatedBioAge != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            BioAgeCard(
+                                bioAge = uiState.calculatedBioAge!!,
+                                calendarAge = uiState.calendarAgeAtCalculation ?: calculateAge(displayChar.dob).toIntOrNull() ?: 0,
+                                neonCyan = neonCyan,
+                                neonMagenta = neonMagenta
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            BioReadOnlyField("HEIGHT", "${displayChar.heightFeet ?: "0"}'${displayChar.heightInches ?: "0"}\"", Modifier.weight(1f), neonCyan)
+                            BioReadOnlyField("WEIGHT", "${displayChar.weight}kg", Modifier.weight(1f), neonCyan)
+                        }
+                        BioSliderField("BODY_FAT_%", uiState.bodyFatPercentage ?: 15f, 5f..40f, neonCyan) {
+                            viewModel.updateData { d -> d.copy(bodyFatPercentage = it) }
+                        }
+                    }
+                }
+
+                // Wearable Metrics
+                if (uiState.isWearableSynced) {
+                    ExpandableBioSection("WEARABLE_METRICS", neonCyan, initiallyExpanded = focus == "hrv" || focus == "biometrics") {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            BioReadOnlyField("HEART_RATE", "${uiState.currentHeartRate ?: "--"} BPM", Modifier.weight(1f), neonCyan)
+                            BioReadOnlyField("STEPS_TODAY", "${uiState.currentSteps ?: "--"}", Modifier.weight(1f), neonCyan)
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "LAST_SYNC: ${uiState.lastSyncTimestamp?.let { java.time.Instant.ofEpochMilli(it).toString() } ?: "NEVER"}",
+                            color = Color.Gray,
+                            fontSize = 8.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                } else {
+                    CyberActionButton(
+                        label = "SYNC_WEARABLE_DATA",
+                        color = neonCyan.copy(alpha = 0.5f),
+                        onClick = { viewModel.syncWearable() }
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                // Lifestyle Stack
+                ExpandableBioSection("LIFESTYLE_STACK", neonCyan, initiallyExpanded = focus == "recovery" || focus == "lifestyle") {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        BioSliderField("ENERGY_SCORE", uiState.energyScore.toFloat(), 1f..10f, neonCyan) {
+                            viewModel.updateData { d -> d.copy(energyScore = it.toInt()) }
+                        }
+                        BioSliderField("MOOD_SCORE", uiState.moodScore.toFloat(), 1f..10f, neonCyan) {
+                            viewModel.updateData { d -> d.copy(moodScore = it.toInt()) }
+                        }
+                        BioSliderField("FOCUS_SCORE", uiState.focusScore.toFloat(), 1f..10f, neonCyan) {
+                            viewModel.updateData { d -> d.copy(focusScore = it.toInt()) }
+                        }
+                        BioSliderField("SLEEP_DURATION (HRS)", uiState.sleepHours ?: 7f, 4f..12f, neonCyan) {
+                            viewModel.updateData { d -> d.copy(sleepHours = it) }
+                        }
+                        BioSliderField("STRESS_LEVEL", uiState.stressLevel.toFloat(), 1f..10f, neonCyan) {
+                            viewModel.updateData { d -> d.copy(stressLevel = it.toInt()) }
+                        }
+                        BioInputField("SUPPLEMENT_STACK", uiState.supplements ?: "CREATINE, VIT_D, ASHWAGANDHA", neonCyan)
+                        BioInputField("DIET_TYPE", uiState.dietType ?: "KETO_OMAD", neonCyan)
+                    }
+                }
+
+                // Goals & Constraints
+                ExpandableBioSection("GOALS_&_CONSTRAINTS", neonCyan, initiallyExpanded = focus == "goals") {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        BioInputField("PRIMARY_OBJECTIVE", uiState.primaryObjective ?: "LONGEVITY", neonCyan)
+                        BioInputField("CONTRAINDICATIONS", uiState.contraindications ?: "NONE_DETECTED", neonCyan)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = uiState.pregnancyFlag,
+                                onCheckedChange = { viewModel.updateData { d -> d.copy(pregnancyFlag = it) } },
+                                colors = CheckboxDefaults.colors(checkedColor = neonMagenta)
+                            )
+                            Text("PREGNANCY_FLAG", color = neonMagenta, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Lab & Genetic Uploads
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    UploadCard("LAB_RESULTS_PDF/JSON", Modifier.weight(1f), neonCyan) {
+                        filePickerLauncher.launch("*/*")
+                    }
+                    UploadCard("GENETIC_RAW_DATA", Modifier.weight(1f), neonMagenta) {
+                        // Placeholder for genetic data
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                if (!isLocalAiAvailable) {
+                    CyberFrame(label = "NEURAL_ENGINE_MISSING", borderColor = neonMagenta) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                "Local AI capabilities require the Neural Engine core (Gemma 2B). Download now to enable secure, on-device biohacking protocols.",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontFamily = FontFamily.Monospace,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            if (isDownloading) {
+                                LinearProgressIndicator(
+                                    progress = { downloadProgress ?: 0f },
+                                    modifier = Modifier.fillMaxWidth().height(2.dp),
+                                    color = neonCyan,
+                                    trackColor = neonCyan.copy(alpha = 0.1f)
+                                )
+                                Text(
+                                    "DOWNLOADING_CORE...",
+                                    color = neonCyan,
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier.padding(top = 8.dp)
+                                )
+                            } else {
+                                CyberActionButton(
+                                    label = "DOWNLOAD NEURAL_ENGINE (Gemma 4-E2B)",
+                                    color = neonCyan,
+                                    onClick = { viewModel.modelDownloadManager.startDownload() }
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                CyberActionButton(
+                    label = if (uiState.enableOnDeviceNeuralCore) "INITIATE NEURAL_CORE_SCAN" else "INITIATE AI_DEEP_SCAN",
+                    color = if (isLocalAiAvailable || !uiState.enableOnDeviceNeuralCore) neonCyan else Color.Gray,
+                    enabled = isLocalAiAvailable || !uiState.enableOnDeviceNeuralCore,
+                    onClick = { viewModel.initiateLocalScan(selectedSector) }
+                )
+
+                // Neural Insights from Memory Palace
+                if (neuralInsights.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(32.dp))
+                    CyberFrame(label = "NEURAL_INSIGHTS // MEMORY_PALACE", borderColor = neonCyan) {
+                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            neuralInsights.take(3).forEach { insight ->
+                                Column {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = insight.content,
+                                            color = Color.White,
+                                            fontSize = 12.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        IconButton(
+                                            onClick = { 
+                                                onNavigateToForge(
+                                                    SpecialType.INTELLIGENCE, 
+                                                    "Neural Insight: ${insight.content.take(15)}...", 
+                                                    insight.content,
+                                                    "Neural Load: ${((displayChar.neuralLoad) * 100).toInt()}%"
+                                                ) 
+                                            }
+                                        ) {
+                                            val isHighValue = insight.content.contains("Forge", ignoreCase = true) || 
+                                                              insight.content.contains("Sync", ignoreCase = true) ||
+                                                              insight.content.length > 40
+                                            Icon(
+                                                imageVector = if (isHighValue) Icons.Default.Bolt else Icons.Default.Add, 
+                                                "Forge Directive", 
+                                                tint = if (isHighValue) neonMagenta else neonCyan,
+                                                modifier = if (isHighValue) Modifier.cyberGlitch(0.3f) else Modifier
+                                            )
+                                        }
+                                    }
+                                    Text(
+                                        text = "LOGGED: ${java.time.Instant.ofEpochMilli(insight.timestamp)}",
+                                        color = neonCyan.copy(alpha = 0.5f),
+                                        fontSize = 8.sp,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                                if (insight != neuralInsights.take(3).last()) {
+                                    HorizontalDivider(color = neonCyan.copy(alpha = 0.2f))
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            // Dynamic Report Section
-            if (showReport) {
-                Spacer(modifier = Modifier.height(32.dp))
-                ProtocolReport(
-                    report = viewModel.latestReport.collectAsState().value,
-                    magenta = neonMagenta, 
-                    cyan = neonCyan,
-                    onForgeClick = { report ->
-                        onNavigateToForge(
-                            SpecialType.ENDURANCE, 
-                            "Bio Protocol: ${report.take(15)}...", 
-                            report,
-                            "Bio Age: ${uiState.calculatedBioAge ?: "Unknown"}"
-                        )
+                // Dynamic Report Section
+                if (showReport) {
+                    Spacer(modifier = Modifier.height(32.dp))
+                    ProtocolReport(
+                        report = viewModel.latestReport.collectAsState().value,
+                        magenta = neonMagenta, 
+                        cyan = neonCyan,
+                        onForgeClick = { report ->
+                            onNavigateToForge(
+                                SpecialType.ENDURANCE, 
+                                "Bio Protocol: ${report.take(15)}...", 
+                                report,
+                                "Bio Age: ${uiState.calculatedBioAge ?: "Unknown"}"
+                            )
+                        }
+                    ) {
+                        showEffectivenessLogger = true
                     }
-                ) {
-                    showEffectivenessLogger = true
                 }
-            }
-            
-            // Effectiveness Logger Panel
-            if (showEffectivenessLogger) {
-                Spacer(modifier = Modifier.height(32.dp))
-                EffectivenessLoggerPanel(
-                    onLog = { e, s, m, f, se, n ->
-                        viewModel.logProtocolEffectiveness(e, s, m, f, se, n, "PROTOCOL_X_77")
-                        showEffectivenessLogger = false
-                    },
-                    neonCyan = neonCyan
-                )
-            }
-            
-            // Log History
-            if (logs.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(32.dp))
-                CyberFrame(label = "PROTOCOL_LOG_HISTORY", borderColor = neonCyan.copy(alpha = 0.5f)) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        logs.take(5).forEach { log ->
-                            EffectivenessLogItem(log, neonCyan)
+                
+                // Effectiveness Logger Panel
+                if (showEffectivenessLogger) {
+                    Spacer(modifier = Modifier.height(32.dp))
+                    EffectivenessLoggerPanel(
+                        onLog = { e, s, m, f, se, n ->
+                            viewModel.logProtocolEffectiveness(e, s, m, f, se, n, "PROTOCOL_X_77")
+                            showEffectivenessLogger = false
+                        },
+                        neonCyan = neonCyan
+                    )
+                }
+                
+                // Log History
+                if (logs.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(32.dp))
+                    CyberFrame(label = "PROTOCOL_LOG_HISTORY", borderColor = neonCyan.copy(alpha = 0.5f)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            logs.take(5).forEach { log ->
+                                EffectivenessLogItem(log, neonCyan)
+                            }
                         }
                     }
                 }
-            }
-            
-            // Stats Heatmap Mock
-            if (uiState.consentAnonymizedUpload) {
-                Spacer(modifier = Modifier.height(32.dp))
-                CommunityStatsHeatmap(neonCyan)
-            }
+                
+                // Stats Heatmap Mock
+                if (uiState.consentAnonymizedUpload) {
+                    Spacer(modifier = Modifier.height(32.dp))
+                    CommunityStatsHeatmap(neonCyan)
+                }
 
-            Spacer(modifier = Modifier.height(64.dp))
+                Spacer(modifier = Modifier.height(64.dp))
+            }
         }
 
         // Thinking Animation
@@ -1085,9 +1159,11 @@ fun ReportCard(title: String, detail: String, description: String, magenta: Colo
 @Composable
 fun UplinkStatusPanel(
     syncStatuses: List<UplinkSyncStatus>,
+    isSyncing: Boolean,
     neonCyan: Color,
     neonMagenta: Color,
     onManualSyncClick: () -> Unit,
+    onRelink: (UplinkProvider) -> Unit,
     isLiveMonitoringEnabled: Boolean,
     onLiveMonitoringToggle: (Boolean) -> Unit
 ) {
@@ -1126,7 +1202,7 @@ fun UplinkStatusPanel(
                 )
             }
             syncStatuses.forEach { status ->
-                UplinkStatusItem(status, neonCyan, neonMagenta)
+                UplinkStatusItem(status, neonCyan, neonMagenta, onRelink)
             }
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -1134,14 +1210,24 @@ fun UplinkStatusPanel(
             Button(
                 onClick = onManualSyncClick,
                 modifier = Modifier.fillMaxWidth().height(32.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = neonCyan.copy(alpha = 0.1f)),
-                border = BorderStroke(1.dp, neonCyan.copy(alpha = 0.5f)),
+                enabled = !isSyncing,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = neonCyan.copy(alpha = 0.1f),
+                    disabledContainerColor = neonCyan.copy(alpha = 0.05f)
+                ),
+                border = BorderStroke(1.dp, if (isSyncing) neonCyan.copy(alpha = 0.2f) else neonCyan.copy(alpha = 0.5f)),
                 shape = RoundedCornerShape(4.dp),
                 contentPadding = PaddingValues(0.dp)
             ) {
-                Icon(Icons.Default.Refresh, contentDescription = null, tint = neonCyan, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("MANUAL_DEEP_SYNC", color = neonCyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                if (isSyncing) {
+                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = neonCyan)
+                    Spacer(Modifier.width(8.dp))
+                    Text("SYNC_IN_PROGRESS...", color = neonCyan.copy(alpha = 0.5f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                } else {
+                    Icon(Icons.Default.Refresh, contentDescription = null, tint = neonCyan, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("MANUAL_DEEP_SYNC", color = neonCyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
@@ -1151,7 +1237,8 @@ fun UplinkStatusPanel(
 fun UplinkStatusItem(
     syncStatus: UplinkSyncStatus,
     neonCyan: Color,
-    neonMagenta: Color
+    neonMagenta: Color,
+    onRelink: (UplinkProvider) -> Unit
 ) {
     val statusColor = when (syncStatus.currentStatus) {
         is UplinkStatus.Connected -> neonCyan
@@ -1214,7 +1301,7 @@ fun UplinkStatusItem(
         
         if (syncStatus.currentStatus is UplinkStatus.Error || syncStatus.currentStatus is UplinkStatus.PermissionRequired || syncStatus.currentStatus is UplinkStatus.Disconnected || syncStatus.currentStatus is UplinkStatus.NeedsReAuth) {
             TextButton(
-                onClick = { /* In a real app, trigger re-auth here */ },
+                onClick = { onRelink(syncStatus.provider) },
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                 modifier = Modifier.height(24.dp)
             ) {
