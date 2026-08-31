@@ -1,8 +1,5 @@
 package com.neon.ascent.core.domain.special
 
-import androidx.health.connect.client.records.HeartRateVariabilityRmssdRecord
-import androidx.health.connect.client.records.SleepSessionRecord
-import androidx.health.connect.client.records.StepsRecord
 import com.neon.ascent.core.domain.model.BenchmarkTest
 import com.neon.ascent.core.domain.model.DataSource
 import com.neon.ascent.core.domain.model.SpecialType
@@ -15,13 +12,15 @@ import kotlin.math.roundToInt
 @Singleton
 class HealthDataProcessor @Inject constructor() {
 
-    /** Example grounded mappings – sources commented */
-    fun processSteps(stepsRecords: List<StepsRecord>): BenchmarkTest? {
-        val totalSteps = stepsRecords.sumOf { it.count.toDouble() }
+    /** 
+     * Process pre-aggregated steps today.
+     * Never sum raw records for this value to avoid double-counting.
+     */
+    fun processSteps(totalSteps: Long): BenchmarkTest? {
         if (totalSteps <= 0) return null
 
-        // CDC / ACS guidelines + population norms (adjust with real stratified tables)
-        val dailyAvg = totalSteps / 1.0   // last 24h for simplicity
+        // CDC / ACS guidelines + population norms
+        val dailyAvg = totalSteps.toDouble()
         val percentile = when {
             dailyAvg >= 12000 -> 92
             dailyAvg >= 10000 -> 82
@@ -42,18 +41,21 @@ class HealthDataProcessor @Inject constructor() {
         )
     }
 
+    /**
+     * Process sleep sessions and HRV. 
+     * Caller provides the longest overnight session duration.
+     * Do not produce a fake 0-100 sleep score for SPECIAL.
+     */
     fun processSleepAndHRV(
-        sleepRecords: List<SleepSessionRecord>,
-        hrvRecords: List<HeartRateVariabilityRmssdRecord>
+        sleepMinutes: Long,
+        avgHrvRmssd: Double
     ): BenchmarkTest? {
-        val totalSleepMinutes = sleepRecords.sumOf { 
-            java.time.Duration.between(it.startTime, it.endTime).toMinutes() 
-        }
-        val avgHRV = hrvRecords.map { it.heartRateVariabilityMillis }.average().takeIf { !it.isNaN() } ?: 0.0
+        if (sleepMinutes <= 0 && avgHrvRmssd <= 0) return null
 
-        // Combine sleep duration (WHO/ACS) + HRV (age-adjusted norms from literature)
-        val sleepScore = (totalSleepMinutes / 480.0).coerceAtMost(1.0)   // 8h ideal
-        val hrvScore = (avgHRV / 65.0).coerceAtMost(1.0)                 // rough adult median
+        // Combine sleep duration (WHO/ACS) + HRV (age-adjusted norms)
+        // This calculates an attribute percentile, not a "Sleep Score" card.
+        val sleepScore = (sleepMinutes / 480.0).coerceAtMost(1.0)   // 8h ideal
+        val hrvScore = (avgHrvRmssd / 65.0).coerceAtMost(1.0)      // rough adult median
 
         val combinedPercentile = ((sleepScore * 0.6 + hrvScore * 0.4) * 100).roundToInt()
 
@@ -61,12 +63,12 @@ class HealthDataProcessor @Inject constructor() {
             id = "health_endurance_${Instant.now().toEpochMilli()}",
             attribute = SpecialType.ENDURANCE,
             testType = TestType.WEARABLE_DERIVED,
-            rawScore = totalSleepMinutes.toDouble() + avgHRV,
+            rawScore = sleepMinutes.toDouble() + avgHrvRmssd,
             normalizedScore = (sleepScore + hrvScore) / 2,
             percentile = combinedPercentile.coerceIn(10, 95),
             metadata = mapOf(
-                "sleep_minutes" to totalSleepMinutes.toString(),
-                "avg_hrv_ms" to avgHRV.toString()
+                "sleep_minutes" to sleepMinutes.toString(),
+                "avg_hrv_ms" to avgHrvRmssd.toString()
             ),
             source = DataSource.HEALTH_CONNECT
         )
@@ -91,7 +93,7 @@ class HealthDataProcessor @Inject constructor() {
             normalizedScore = (totalCalories / 3000.0).coerceAtMost(1.0),
             percentile = percentile,
             metadata = mapOf("total_calories" to totalCalories.toString()),
-            source = com.neon.ascent.core.domain.model.DataSource.HEALTH_CONNECT
+            source = DataSource.HEALTH_CONNECT
         )
     }
 }

@@ -35,6 +35,7 @@ import javax.inject.Inject
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.text.PDFTextStripper
+import com.neon.ascent.core.domain.health.models.VitalsSnapshot
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 import java.util.*
@@ -128,10 +129,55 @@ class BiohackingViewModel @Inject constructor(
     private val _selectedTimeRange = MutableStateFlow(7)
     val selectedTimeRange: StateFlow<Int> = _selectedTimeRange.asStateFlow()
 
+    private val _vitalsSnapshot = MutableStateFlow<VitalsSnapshot?>(null)
+    val vitalsSnapshot: StateFlow<VitalsSnapshot?> = _vitalsSnapshot
+
+    private val _rhrSeries = MutableStateFlow<List<Pair<LocalDate, Double>>>(emptyList())
+    val rhrSeries: StateFlow<List<Pair<LocalDate, Double>>> = _rhrSeries.asStateFlow()
+
+    private val _hrvSeries = MutableStateFlow<List<Pair<LocalDate, Double>>>(emptyList())
+    val hrvSeries: StateFlow<List<Pair<LocalDate, Double>>> = _hrvSeries.asStateFlow()
+
+    private val _completedSessionsThisWeek = MutableStateFlow(0)
+    val completedSessionsThisWeek: StateFlow<Int> = _completedSessionsThisWeek.asStateFlow()
+
+    private val _scheduledSessionsThisWeek = MutableStateFlow(0)
+    val scheduledSessionsThisWeek: StateFlow<Int> = _scheduledSessionsThisWeek.asStateFlow()
+
     init {
         PDFBoxResourceLoader.init(context)
         viewModelScope.launch {
             bioAgeRepository.initialize()
+        }
+
+        val startOfWeek = LocalDate.now().with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY)).atStartOfDay(ZoneId.systemDefault()).toInstant()
+        val endOfWeek = Instant.now()
+        
+        viewModelScope.launch {
+            workoutRepository.countSessionsBetween(startOfWeek, endOfWeek).collect { count ->
+                _completedSessionsThisWeek.value = count
+            }
+        }
+
+        viewModelScope.launch {
+            workoutRepository.getUserProfile("default_user").collect { profile ->
+                _scheduledSessionsThisWeek.value = profile?.scheduledDays?.size ?: 0
+            }
+        }
+        
+        // Vitals Subscription
+        viewModelScope.launch {
+            uplinkManager.combinedVitalsSnapshot.collectLatest { snapshot ->
+                _vitalsSnapshot.value = snapshot
+            }
+        }
+
+        viewModelScope.launch {
+            healthRepository.series("RHR", 7).collectLatest { _rhrSeries.value = it }
+        }
+
+        viewModelScope.launch {
+            healthRepository.series("HRV_RMSSD", 7).collectLatest { _hrvSeries.value = it }
         }
         viewModelScope.launch {
             biohackingDao.getBiohackingData(0).collectLatest { data ->

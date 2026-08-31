@@ -3,6 +3,7 @@ package com.neon.ascent.feature.codex.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.neon.ascent.core.data.datastore.HealthPreferencesDataStore
+import com.neon.ascent.core.data.local.dao.DailyVitalRollupDao
 import com.neon.ascent.core.domain.repository.WorkoutRepository
 import com.neon.ascent.core.data.local.dao.InsightDao
 import com.neon.ascent.core.domain.codex.models.BiomarkerKeys
@@ -74,17 +75,18 @@ data class CodexUiState(
     val userProfile: UserWorkoutProfile? = null
 )
 
-enum class VitalsType(val label: String, val dbType: String) {
-    HRV("HRV", "HRV"),
-    BODY_BATTERY("BODY_BATTERY", "BODY_BATTERY"),
-    SLEEP_SCORE("SLEEP_SCORE", "SLEEP_SCORE"),
-    HEART_RATE("HEART_RATE", "HEART_RATE"),
+enum class VitalsType(val label: String, val rollupMetric: String) {
     STEPS("STEPS", "STEPS"),
+    RHR("RHR", "RHR"),
+    HRV("HRV", "HRV_RMSSD"),
+    SLEEP_MIN("SLEEP_MIN", "SLEEP_MIN"),
+    SLEEP_SCORE("SLEEP_SCORE", "SLEEP_SCORE"),
+    BODY_BATTERY("BODY_BATTERY", "BODY_BATTERY"),
     FUEL("FUEL", "FUEL")
 }
 
 data class VitalsPoint(
-    val timestamp: Instant,
+    val date: LocalDate,
     val value: Double
 )
 
@@ -139,6 +141,7 @@ data class PrDisplayData(
 class CodexViewModel @Inject constructor(
     private val workoutRepository: WorkoutRepository,
     private val biomarkerRepository: BiomarkerRepository,
+    private val rollupDao: DailyVitalRollupDao,
     private val dataStore: HealthPreferencesDataStore,
     private val insightDao: InsightDao
 ) : ViewModel() {
@@ -327,13 +330,19 @@ class CodexViewModel @Inject constructor(
     }
 
     private fun loadVitalsData(period: CodexPeriod, type: VitalsType) {
+        if (type == VitalsType.FUEL) {
+            loadFuelHistory(period)
+            return
+        }
         val (start, end) = getRangeForPeriod(period)
+        val zone = ZoneId.systemDefault()
+        val startDate = start.atZone(zone).toLocalDate().toString()
+        val endDate = end.atZone(zone).toLocalDate().toString()
+
         viewModelScope.launch {
-            insightDao.getBiometricEventsInRange(start, end).collect { events ->
-                val filtered = events.filter { it.type == type.dbType }
-                    .map { VitalsPoint(it.timestamp, it.value) }
-                    .sortedBy { it.timestamp }
-                _uiState.update { it.copy(vitalsData = filtered) }
+            rollupDao.getRange(type.rollupMetric, startDate, endDate).collect { list ->
+                val points = list.map { VitalsPoint(LocalDate.parse(it.localDate), it.value) }
+                _uiState.update { it.copy(vitalsData = points) }
             }
         }
     }

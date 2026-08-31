@@ -96,6 +96,15 @@ class GarminUplink @Inject constructor(
                 // 3. Fetch Sleep Data
                 val sleepResponse = garminCloudApi.getSleepData(displayName, today)
                 val sleepScore = sleepResponse.sleepScores?.overallScore
+                val sleepDto = sleepResponse.dailySleepDto
+                
+                val sleepStages = mutableMapOf<String, Int>()
+                if (sleepDto.sleepTimeSeconds > 0) {
+                    sleepStages["DEEP"] = (sleepDto.deepSleepSeconds / 60).toInt()
+                    sleepStages["LIGHT"] = (sleepDto.lightSleepSeconds / 60).toInt()
+                    sleepStages["REM"] = (sleepDto.remSleepSeconds / 60).toInt()
+                    sleepStages["AWAKE"] = (sleepDto.awakeSleepSeconds / 60).toInt()
+                }
 
                 updateStatus(UplinkStatus.Syncing(0.9f))
                 // 4. Fetch Stress
@@ -116,6 +125,8 @@ class GarminUplink @Inject constructor(
                     bodyBattery = currentBB,
                     sleepScore = sleepScore,
                     stressLevel = avgStress,
+                    sleepDurationMinutes = if (sleepDto.sleepTimeSeconds > 0) sleepDto.sleepTimeSeconds / 60 else null,
+                    sleepStages = sleepStages,
                     lastSyncTimestamp = now
                 )
             } catch (e: HttpException) {

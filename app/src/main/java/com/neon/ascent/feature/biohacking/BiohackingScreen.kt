@@ -55,6 +55,7 @@ fun BiohackingScreen(
     onNavigateToForge: (SpecialType, String?, String?, String?) -> Unit = { _, _, _, _ -> },
     onNavigateToGuide: (String?) -> Unit = {},
     onNavigateToDopamineMenu: () -> Unit = {},
+    onNavigateToOps: () -> Unit = {},
     viewModel: BiohackingViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -72,6 +73,11 @@ fun BiohackingScreen(
     val uplinkSyncStatuses by viewModel.uplinkSyncStatuses.collectAsState()
     val isLiveMonitoringEnabled by viewModel.liveMonitoringEnabled.collectAsState()
     val macros by viewModel.macros.collectAsState()
+    val vitalsSnapshot by viewModel.vitalsSnapshot.collectAsState()
+    val rhrSeries by viewModel.rhrSeries.collectAsState()
+    val hrvSeries by viewModel.hrvSeries.collectAsState()
+    val completedSessions by viewModel.completedSessionsThisWeek.collectAsState()
+    val scheduledSessions by viewModel.scheduledSessionsThisWeek.collectAsState()
     val selectedTimeRange by viewModel.selectedTimeRange.collectAsState()
     val context = LocalContext.current
 
@@ -267,6 +273,20 @@ fun BiohackingScreen(
                 )
                 Spacer(modifier = Modifier.height(24.dp))
             }
+
+            // VITALS Stack (P0)
+            VitalsStack(
+                snapshot = vitalsSnapshot,
+                rhrSeries = rhrSeries,
+                hrvSeries = hrvSeries,
+                completedSessions = completedSessions,
+                scheduledSessions = scheduledSessions,
+                neonCyan = neonCyan,
+                neonMagenta = neonMagenta,
+                onNavigateToOps = onNavigateToOps
+            )
+            
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Biometric Trends Section
             BiometricTrendsSection(

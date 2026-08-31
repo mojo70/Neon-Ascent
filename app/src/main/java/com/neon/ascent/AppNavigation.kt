@@ -306,6 +306,11 @@ fun AppNavigation(
                             },
                             onNavigateToDopamineMenu = {
                                 navController.navigate(Screen.DopamineMenu)
+                            },
+                            onNavigateToOps = {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(opsIndex) // OPS
+                                }
                             }
                         )
                         page == forgeIndex -> AscensionTerminalScreen(
@@ -357,7 +362,10 @@ fun AppNavigation(
                     navController.navigate(Screen.AscensionForge(type.name, title, desc, biometrics = biometrics))
                 },
                 onNavigateToGuide = { navController.navigate(Screen.NeonGuide()) },
-                onNavigateToDopamineMenu = { navController.navigate(Screen.DopamineMenu) }
+                onNavigateToDopamineMenu = { navController.navigate(Screen.DopamineMenu) },
+                onNavigateToOps = {
+                    navController.navigate(Screen.MainHub) // Pager logic is complex for deep links, just go to hub
+                }
             )
         }
 

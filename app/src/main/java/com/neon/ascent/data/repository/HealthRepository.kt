@@ -15,22 +15,46 @@ import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
+import com.neon.ascent.core.data.local.dao.DailyVitalRollupDao
+import com.neon.ascent.feature.health.data.uplink.NeuralUplinkManager
+import com.neon.ascent.core.domain.health.models.VitalsSnapshot
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import java.time.LocalDate
+import java.util.Locale
+
 @Singleton
 class HealthRepository @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val uplinkManager: NeuralUplinkManager,
+    private val rollupDao: DailyVitalRollupDao
 ) {
     private val healthConnectClient by lazy { HealthConnectClient.getOrCreate(context) }
 
     val permissions = setOf(
         HealthPermission.getReadPermission(StepsRecord::class),
         HealthPermission.getReadPermission(HeartRateRecord::class),
-        HealthPermission.getReadPermission(Vo2MaxRecord::class),
         HealthPermission.getReadPermission(SleepSessionRecord::class),
         HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class),
         HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
         HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
-        HealthPermission.getReadPermission(DistanceRecord::class)
+        HealthPermission.getReadPermission(DistanceRecord::class),
+        HealthPermission.getReadPermission(RestingHeartRateRecord::class)
     )
+
+    suspend fun todaySnapshot(): VitalsSnapshot {
+        return uplinkManager.combinedVitalsSnapshot.first() ?: VitalsSnapshot()
+    }
+
+    fun series(metric: String, days: Int): Flow<List<Pair<LocalDate, Double>>> {
+        val end = LocalDate.now()
+        val start = end.minusDays(days.toLong())
+        return rollupDao.getRange(metric, start.toString(), end.toString())
+            .map { list ->
+                list.map { LocalDate.parse(it.localDate) to it.value }
+            }
+    }
 
     suspend fun hasAllPermissions(): Boolean {
         return try {

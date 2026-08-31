@@ -5,6 +5,7 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.*
+import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import com.neon.ascent.core.domain.health.HealthDataSnapshot
@@ -12,6 +13,8 @@ import com.neon.ascent.core.domain.health.HealthManager
 import com.neon.ascent.core.domain.health.LiveMetrics
 import com.neon.ascent.core.domain.special.HealthDataProcessor
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -34,7 +37,8 @@ class HealthConnectManager @Inject constructor(
         HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
         HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
         HealthPermission.getReadPermission(DistanceRecord::class),
-        HealthPermission.getReadPermission(HeartRateRecord::class)
+        HealthPermission.getReadPermission(HeartRateRecord::class),
+        HealthPermission.getReadPermission(RestingHeartRateRecord::class)
     )
 
     /** Check if Health Connect is available and permissions are granted */
@@ -68,10 +72,14 @@ class HealthConnectManager @Inject constructor(
         ActiveCaloriesBurnedRecord::class.simpleName!! to "Active calories contribute to Strength and real-world benchmarks.",
         TotalCaloriesBurnedRecord::class.simpleName!! to "Total calories (Active + Basal) provide a complete view of your energy expenditure.",
         DistanceRecord::class.simpleName!! to "Distance walked/run boosts Agility progression.",
-        HeartRateRecord::class.simpleName!! to "Real-time heart rate monitoring for your neural link stability."
+        HeartRateRecord::class.simpleName!! to "Real-time heart rate monitoring for your neural link stability.",
+        RestingHeartRateRecord::class.simpleName!! to "Resting HR is a recovery signal, not live pulse."
     )
 
-    /** Read data from the last N days (default 7) */
+    /** 
+     * Read raw data records for the last N days. 
+     * NOTE: These are RAW records and must NOT be summed for HUD totals to avoid double-counting.
+     */
     override suspend fun readRecentData(days: Int): HealthDataSnapshot {
         val startTime = Instant.now().minusSeconds(days * 86400L)
 
@@ -81,30 +89,113 @@ class HealthConnectManager @Inject constructor(
             hrv = readRecords<HeartRateVariabilityRmssdRecord>(startTime),
             activeCalories = readRecords<ActiveCaloriesBurnedRecord>(startTime),
             totalCalories = readRecords<TotalCaloriesBurnedRecord>(startTime),
-            distance = readRecords<DistanceRecord>(startTime)
+            distance = readRecords<DistanceRecord>(startTime),
+            restingHeartRate = readRecords<RestingHeartRateRecord>(startTime)
         )
     }
 
-    private suspend inline fun <reified T : Record> readRecords(startTime: Instant): List<T> {
+    private suspend inline fun <reified T : Record> readRecords(startTime: Instant, endTime: Instant = Instant.now()): List<T> {
         return try {
             val request = ReadRecordsRequest(
                 recordType = T::class,
-                timeRangeFilter = TimeRangeFilter.between(startTime, Instant.now())
+                timeRangeFilter = TimeRangeFilter.between(startTime, endTime)
             )
-            // Explicitly use Dispatchers.IO to ensure we're off the main thread, 
-            // though healthConnectClient should handle this itself.
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            withContext(Dispatchers.IO) {
                 healthConnectClient.readRecords(request).records
             }
         } catch (e: IllegalArgumentException) {
-            // Specifically catch the "count must not be less than 1" crash 
-            // from the Health Connect SDK when it encountered bad data.
             android.util.Log.e("HealthConnectManager", "SDK validation error reading ${T::class.simpleName}: ${e.message}")
             emptyList()
         } catch (e: Throwable) {
             android.util.Log.e("HealthConnectManager", "Error reading ${T::class.simpleName}", e)
             emptyList()
         }
+    }
+
+    override suspend fun aggregateSteps(start: Instant, end: Instant): Long {
+        return try {
+            val request = AggregateRequest(
+                metrics = setOf(StepsRecord.COUNT_TOTAL),
+                timeRangeFilter = TimeRangeFilter.between(start, end)
+            )
+            val result = withContext(Dispatchers.IO) {
+                healthConnectClient.aggregate(request)
+            }
+            result[StepsRecord.COUNT_TOTAL] ?: 0L
+        } catch (e: Exception) {
+            android.util.Log.e("HealthConnectManager", "Error aggregating steps", e)
+            0L
+        }
+    }
+
+    override suspend fun aggregateTotalCaloriesKcal(start: Instant, end: Instant): Double {
+        return try {
+            val request = AggregateRequest(
+                metrics = setOf(TotalCaloriesBurnedRecord.ENERGY_TOTAL),
+                timeRangeFilter = TimeRangeFilter.between(start, end)
+            )
+            val result = withContext(Dispatchers.IO) {
+                healthConnectClient.aggregate(request)
+            }
+            result[TotalCaloriesBurnedRecord.ENERGY_TOTAL]?.inKilocalories ?: 0.0
+        } catch (e: Exception) {
+            android.util.Log.e("HealthConnectManager", "Error aggregating total calories", e)
+            0.0
+        }
+    }
+
+    override suspend fun aggregateActiveCaloriesKcal(start: Instant, end: Instant): Double {
+        return try {
+            val request = AggregateRequest(
+                metrics = setOf(ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL),
+                timeRangeFilter = TimeRangeFilter.between(start, end)
+            )
+            val result = withContext(Dispatchers.IO) {
+                healthConnectClient.aggregate(request)
+            }
+            result[ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL]?.inKilocalories ?: 0.0
+        } catch (e: Exception) {
+            android.util.Log.e("HealthConnectManager", "Error aggregating active calories", e)
+            0.0
+        }
+    }
+
+    override suspend fun aggregateDistanceMeters(start: Instant, end: Instant): Double {
+        return try {
+            val request = AggregateRequest(
+                metrics = setOf(DistanceRecord.DISTANCE_TOTAL),
+                timeRangeFilter = TimeRangeFilter.between(start, end)
+            )
+            val result = withContext(Dispatchers.IO) {
+                healthConnectClient.aggregate(request)
+            }
+            result[DistanceRecord.DISTANCE_TOTAL]?.inMeters ?: 0.0
+        } catch (e: Exception) {
+            android.util.Log.e("HealthConnectManager", "Error aggregating distance", e)
+            0.0
+        }
+    }
+
+    override suspend fun latestRestingHr(start: Instant, end: Instant): Int? {
+        return readRecords<RestingHeartRateRecord>(start, end)
+            .lastOrNull()?.beatsPerMinute?.toInt()
+    }
+
+    override suspend fun latestHrvRmssd(start: Instant, end: Instant): Double? {
+        return readRecords<HeartRateVariabilityRmssdRecord>(start, end)
+            .filter { it.heartRateVariabilityMillis > 0 }
+            .lastOrNull()?.heartRateVariabilityMillis
+    }
+
+    override suspend fun latestHeartRate(start: Instant, end: Instant): Int? {
+        return readRecords<HeartRateRecord>(start, end)
+            .flatMap { it.samples }
+            .filter { it.beatsPerMinute > 0 }
+            .lastOrNull()?.beatsPerMinute?.toInt()
+    }
+
+    override suspend fun sleepSessions(start: Instant, end: Instant): List<SleepSessionRecord> {
+        return readRecords<SleepSessionRecord>(start, end)
     }
 
     /** One-shot sync that feeds directly into S.P.E.C.I.A.L. */
@@ -126,42 +217,24 @@ class HealthConnectManager @Inject constructor(
                 val now = Instant.now()
                 val startOfDay = now.atZone(java.time.ZoneId.systemDefault()).toLocalDate().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()
 
-                val steps = try {
-                    readRecords<StepsRecord>(startOfDay).sumOf { it.count }
-                } catch (e: Throwable) { 0L }
+                val steps = aggregateSteps(startOfDay, now)
 
                 // Try to get total calories, fall back to active if total is not available/granted
-                var calories = try {
-                    readRecords<TotalCaloriesBurnedRecord>(startOfDay).sumOf { it.energy.inKilocalories }
-                } catch (e: Throwable) { 0.0 }
-
+                var calories = aggregateTotalCaloriesKcal(startOfDay, now)
                 if (calories <= 0.0) {
-                    calories = try {
-                        readRecords<ActiveCaloriesBurnedRecord>(startOfDay).sumOf { it.energy.inKilocalories }
-                    } catch (e: Throwable) { 0.0 }
+                    calories = aggregateActiveCaloriesKcal(startOfDay, now)
                 }
 
-                // For HR, we get the latest entry in the last 5 minutes
-                val recentHR = try {
-                    readRecords<HeartRateRecord>(now.minusSeconds(300))
-                        .flatMap { it.samples }
-                        .filter { it.beatsPerMinute > 0 }
-                        .lastOrNull()?.beatsPerMinute?.toInt()
-                } catch (e: Throwable) { null }
-
-                // For HRV, get the latest entry in the last hour
-                val recentHRV = try {
-                    readRecords<HeartRateVariabilityRmssdRecord>(now.minusSeconds(3600))
-                        .filter { it.heartRateVariabilityMillis > 0 }
-                        .lastOrNull()?.heartRateVariabilityMillis
-                } catch (e: Throwable) { null }
+                val recentHR = latestHeartRate(now.minusSeconds(300), now)
+                val recentHRV = latestHrvRmssd(now.minusSeconds(3600), now)
+                val rhr = latestRestingHr(startOfDay, now)
                 
-                // Emit what we found. If everything is 0/null, it means either no data or no permissions.
                 emit(LiveMetrics(
                     heartRate = recentHR,
                     stepsToday = if (steps > 0) steps else null,
                     caloriesToday = if (calories > 0.0) calories else null,
-                    heartRateVariability = recentHRV
+                    heartRateVariability = recentHRV,
+                    restingHeartRate = rhr
                 ))
             } else {
                 emit(LiveMetrics())

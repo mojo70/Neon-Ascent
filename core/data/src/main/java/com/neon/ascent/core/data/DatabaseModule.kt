@@ -18,6 +18,9 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_45_46
 import com.neon.ascent.core.data.local.migration.MIGRATION_46_47
 import com.neon.ascent.core.data.local.migration.MIGRATION_47_48
 import com.neon.ascent.core.data.local.migration.MIGRATION_48_49
+import com.neon.ascent.core.data.local.migration.MIGRATION_50_51
+import com.neon.ascent.core.data.local.migration.MIGRATION_51_52
+import com.neon.ascent.core.data.local.dao.DailyVitalRollupDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -79,7 +82,12 @@ object DatabaseModule {
             dbName
         )
         .openHelperFactory(factory)
-        .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_11_12, MIGRATION_43_44, MIGRATION_45_46, MIGRATION_46_47, MIGRATION_47_48, MIGRATION_48_49)
+        .addMigrations(
+            MIGRATION_2_3, MIGRATION_3_4, MIGRATION_11_12, 
+            MIGRATION_43_44, MIGRATION_45_46, MIGRATION_46_47, 
+            MIGRATION_47_48, MIGRATION_48_49, MIGRATION_50_51,
+            MIGRATION_51_52
+        )
         .fallbackToDestructiveMigration()
         .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
         .build()
@@ -128,5 +136,10 @@ object DatabaseModule {
     @Provides
     fun provideBiomarkerDao(database: NeonAscentDatabase): com.neon.ascent.core.data.local.dao.BiomarkerDao {
         return database.biomarkerDao()
+    }
+
+    @Provides
+    fun provideDailyVitalRollupDao(database: NeonAscentDatabase): DailyVitalRollupDao {
+        return database.dailyVitalRollupDao()
     }
 }

@@ -487,13 +487,13 @@ fun VitalsWing(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        "No uplink samples in this window.",
+                        "NO_ROLLUPS_YET",
                         color = Color.Gray,
                         fontSize = 12.sp,
                         fontFamily = FontFamily.Monospace
                     )
                     Text(
-                        "Sync Health Connect / Garmin in LABS.",
+                        "SYNC_HEALTH_FROM_LABS",
                         color = Color.DarkGray,
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace
@@ -1072,16 +1072,16 @@ fun RecoveryMetric(label: String, value: String, color: Color, modifier: Modifie
 }
 
 @Composable
-fun VitalsChart(data: List<VitalsPoint>, sessionSummaries: List<SessionSummary>) {
+fun VitalsChart(data: List<com.neon.ascent.feature.codex.ui.VitalsPoint>, sessionSummaries: List<SessionSummary>) {
     if (data.isEmpty()) return
 
     val minVal = data.minOf { it.value }.toFloat()
     val maxVal = data.maxOf { it.value }.toFloat()
     val range = (maxVal - minVal).coerceAtLeast(1f)
 
-    val start = data.first().timestamp
-    val end = data.last().timestamp
-    val timeRange = (end.toEpochMilli() - start.toEpochMilli()).coerceAtLeast(1)
+    val startDate = data.first().date
+    val endDate = data.last().date
+    val daysRange = java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate).coerceAtLeast(1)
 
     Canvas(
         modifier = Modifier
@@ -1095,9 +1095,10 @@ fun VitalsChart(data: List<VitalsPoint>, sessionSummaries: List<SessionSummary>)
 
         // Session Ticks
         sessionSummaries.forEach { session ->
-            val timestamp = session.date.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()
-            if (timestamp.isAfter(start) && timestamp.isBefore(end)) {
-                val x = ((timestamp.toEpochMilli() - start.toEpochMilli()).toFloat() / timeRange) * width
+            if ((session.date.isAfter(startDate) || session.date.isEqual(startDate)) && 
+                (session.date.isBefore(endDate) || session.date.isEqual(endDate))) {
+                val d = java.time.temporal.ChronoUnit.DAYS.between(startDate, session.date)
+                val x = (d.toFloat() / daysRange) * width
                 drawLine(
                     color = Color(0xFF00FF9C).copy(alpha = 0.3f),
                     start = Offset(x, 0f),
@@ -1110,7 +1111,8 @@ fun VitalsChart(data: List<VitalsPoint>, sessionSummaries: List<SessionSummary>)
         // Data Path
         val path = Path()
         data.forEachIndexed { index, point ->
-            val x = ((point.timestamp.toEpochMilli() - start.toEpochMilli()).toFloat() / timeRange) * width
+            val d = java.time.temporal.ChronoUnit.DAYS.between(startDate, point.date)
+            val x = (d.toFloat() / daysRange) * width
             val y = height - ((point.value.toFloat() - minVal) / range * height)
 
             if (index == 0) {
@@ -1128,7 +1130,8 @@ fun VitalsChart(data: List<VitalsPoint>, sessionSummaries: List<SessionSummary>)
 
         // Points
         data.forEach { point ->
-            val x = ((point.timestamp.toEpochMilli() - start.toEpochMilli()).toFloat() / timeRange) * width
+            val d = java.time.temporal.ChronoUnit.DAYS.between(startDate, point.date)
+            val x = (d.toFloat() / daysRange) * width
             val y = height - ((point.value.toFloat() - minVal) / range * height)
             drawCircle(
                 color = Color(0xFF00CCFF),

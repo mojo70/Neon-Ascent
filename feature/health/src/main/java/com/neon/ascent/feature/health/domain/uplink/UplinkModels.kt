@@ -21,6 +21,9 @@ data class DeepBiometrics(
     val recoveryTimeMinutes: Int? = null,
     val trainingReadiness: Int? = null,
     val vo2Max: Double? = null,
+    val restingHeartRate: Int? = null,
+    val hrvRmssd: Double? = null,
+    val sleepDurationMinutes: Long? = null,
     val sleepStages: Map<String, Int> = emptyMap(), // Stage Name -> Minutes
     val lastSyncTimestamp: Long = System.currentTimeMillis()
 )

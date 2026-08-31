@@ -8,6 +8,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -79,33 +82,34 @@ class HealthConnectUplink @Inject constructor(
                     throw Exception("No Permission")
                 }
 
-                val snapshot = healthConnectManager.readRecentData(days = 1)
+                val now = Instant.now()
+                val startOfDay = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()
                 
-                // Map Health Connect records to DeepBiometrics
-                val steps = snapshot.steps.sumOf { it.count }.takeIf { it > 0 }
+                // Use aggregates for totals to avoid double-counting
+                val steps = healthConnectManager.aggregateSteps(startOfDay, now).takeIf { it > 0 }
                 
-                // Prioritize total calories (Active + Basal), fall back to just Active if total is empty
-                val totalCals = snapshot.totalCalories.sumOf { it.energy.inKilocalories }
-                val calories = if (totalCals > 0) totalCals else {
-                    snapshot.activeCalories.sumOf { it.energy.inKilocalories }.takeIf { it > 0 }
+                // Prioritize total calories, fallback to active
+                var calories = healthConnectManager.aggregateTotalCaloriesKcal(startOfDay, now)
+                if (calories <= 0.0) {
+                    calories = healthConnectManager.aggregateActiveCaloriesKcal(startOfDay, now)
                 }
-                
-                // Use a more realistic mapping for sleep score from records if possible
-                val sleepScore = if (snapshot.sleep.isNotEmpty()) {
-                    // Placeholder: in a real app we might calculate this based on duration and stages
-                    val totalMinutes = snapshot.sleep.sumOf { 
-                        java.time.Duration.between(it.startTime, it.endTime).toMinutes() 
-                    }
-                    (totalMinutes / 4.8).toInt().coerceIn(0, 100) // 480 mins = 100%
-                } else null
+                val caloriesVal = calories.takeIf { it > 0 }
 
-                val avgHRV = snapshot.hrv.map { it.heartRateVariabilityMillis }.average().takeIf { !it.isNaN() }
+                // RHR and HRV (latest today)
+                val rhr = healthConnectManager.latestRestingHr(startOfDay, now)
+                val hrv = healthConnectManager.latestHrvRmssd(startOfDay, now)
                 
-                val now = System.currentTimeMillis()
+                // Longest sleep session duration
+                val sleepSessions = healthConnectManager.sleepSessions(startOfDay, now)
+                val longestSleepMinutes = sleepSessions.maxOfOrNull { 
+                    java.time.Duration.between(it.startTime, it.endTime).toMinutes() 
+                }
+
                 updateStatus(UplinkStatus.Connected)
+                val syncTime = System.currentTimeMillis()
                 _syncStatus.update { 
                     it.copy(
-                        lastSuccessfulSync = now,
+                        lastSuccessfulSync = syncTime,
                         lastError = null
                     )
                 }
@@ -113,12 +117,15 @@ class HealthConnectUplink @Inject constructor(
 
                 return DeepBiometrics(
                     stepsToday = steps,
-                    caloriesToday = calories,
-                    sleepScore = sleepScore,
-                    bodyBattery = null, // Health Connect doesn't have body battery natively
+                    caloriesToday = caloriesVal,
+                    sleepScore = null, // HC does not provide scores
+                    bodyBattery = null,
                     stressLevel = null,
-                    vo2Max = snapshot.distance.sumOf { it.distance.inMeters }.takeIf { it > 0 }?.let { 45.0 }, // Mock VO2Max logic
-                    lastSyncTimestamp = now
+                    vo2Max = null, // Deleted mock VO2
+                    restingHeartRate = rhr,
+                    hrvRmssd = hrv,
+                    sleepDurationMinutes = longestSleepMinutes,
+                    lastSyncTimestamp = syncTime
                 )
             } catch (e: Exception) {
                 lastException = e

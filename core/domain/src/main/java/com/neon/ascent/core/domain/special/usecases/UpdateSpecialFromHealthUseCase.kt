@@ -1,10 +1,7 @@
 package com.neon.ascent.core.domain.special.usecases
 
-import androidx.health.connect.client.HealthConnectClient
-import androidx.health.connect.client.records.*
-import androidx.health.connect.client.request.ReadRecordsRequest
-import androidx.health.connect.client.time.TimeRangeFilter
 import com.neon.ascent.core.domain.SpecialRepository
+import com.neon.ascent.core.domain.health.HealthManager
 import com.neon.ascent.core.domain.model.BenchmarkTest
 import com.neon.ascent.core.domain.model.SpecialAttribute
 import com.neon.ascent.core.domain.model.SpecialType
@@ -14,49 +11,47 @@ import java.time.Instant
 import javax.inject.Inject
 
 /**
- * Processes Health Connect data (Garmin-synced) → grounded S.P.E.C.I.A.L. updates.
- * Privacy-first: All reads are on-device, user-controlled permissions, read-only for MVP.
+ * Processes Health Connect data → grounded S.P.E.C.I.A.L. updates.
+ * Privacy-first: All reads are on-device, user-controlled permissions.
+ * Prevents double-counting by using pre-aggregated totals.
  */
 class UpdateSpecialFromHealthUseCase @Inject constructor(
-    private val healthConnectClient: HealthConnectClient,
+    private val healthManager: HealthManager,
     private val specialRepository: SpecialRepository,
     private val processor: HealthDataProcessor
 ) {
 
     /**
      * Call this from a WorkManager worker (daily/periodic) or after user triggers "Sync Diagnostics".
-     * Time window: last 24h or 7 days depending on attribute.
+     * Time window: last 24h or 48h.
      */
     suspend operator fun invoke(startTime: Instant = Instant.now().minusSeconds(86400)): List<SpecialAttribute> {
-        val updatedAttributes = mutableListOf<SpecialAttribute>()
-
-        // 1. Read relevant records
-        val stepsData = readSteps(startTime)
-        val sleepData = readSleepSessions(startTime)
-        val hrvData = readHRV(startTime)
+        if (!healthManager.isAvailableAndHasPermissions()) return emptyList()
         
-        // Calories: Check Total first, fallback to Active
-        var totalCalories = try {
-            val request = ReadRecordsRequest(
-                recordType = TotalCaloriesBurnedRecord::class,
-                timeRangeFilter = TimeRangeFilter.between(startTime, Instant.now())
-            )
-            healthConnectClient.readRecords(request).records.sumOf { it.energy.inKilocalories }
-        } catch (e: Throwable) { 0.0 }
+        val updatedAttributes = mutableListOf<SpecialAttribute>()
+        val now = Instant.now()
 
+        // 1. Fetch Aggregates (Truth)
+        val totalSteps = healthManager.aggregateSteps(startTime, now)
+        
+        // Calories: Check Total first, fallback to Active. Aggregated to prevent double-counting.
+        var totalCalories = healthManager.aggregateTotalCaloriesKcal(startTime, now)
         if (totalCalories <= 0.0) {
-            totalCalories = try {
-                val request = ReadRecordsRequest(
-                    recordType = ActiveCaloriesBurnedRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(startTime, Instant.now())
-                )
-                healthConnectClient.readRecords(request).records.sumOf { it.energy.inKilocalories }
-            } catch (e: Throwable) { 0.0 }
+            totalCalories = healthManager.aggregateActiveCaloriesKcal(startTime, now)
         }
 
+        // Sleep: Caller picks longest overnight, does not sum overlapping.
+        val sleepSessions = healthManager.sleepSessions(startTime, now)
+        val longestSleepMinutes = sleepSessions.maxOfOrNull { 
+            java.time.Duration.between(it.startTime, it.endTime).toMinutes() 
+        } ?: 0L
+        
+        // HRV: Latest RMSSD in window.
+        val avgHrv = healthManager.latestHrvRmssd(startTime, now) ?: 0.0
+
         // 2. Process into grounded benchmarks
-        val agilityBenchmark = processor.processSteps(stepsData)
-        val enduranceBenchmark = processor.processSleepAndHRV(sleepData, hrvData)
+        val agilityBenchmark = processor.processSteps(totalSteps)
+        val enduranceBenchmark = processor.processSleepAndHRV(longestSleepMinutes, avgHrv)
         val strengthBenchmark = processor.processStrength(totalCalories)
 
         // 3. Save raw benchmarks for Diagnostics history
@@ -83,52 +78,6 @@ class UpdateSpecialFromHealthUseCase @Inject constructor(
         return updatedAttributes
     }
 
-    private suspend fun readSteps(startTime: Instant): List<StepsRecord> {
-        return try {
-            val request = ReadRecordsRequest(
-                recordType = StepsRecord::class,
-                timeRangeFilter = TimeRangeFilter.between(startTime, Instant.now())
-            )
-            // Use withContext to ensure we're off-thread and catch the SDK-internal validation crash
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                healthConnectClient.readRecords(request).records
-                    .filter { it.count > 0 }
-            }
-        } catch (e: IllegalArgumentException) {
-            // Specifically catch the "count must not be less than 1" crash 
-            // from the Health Connect SDK when it encountered bad data.
-            android.util.Log.e("UpdateSpecial", "SDK validation error reading StepsRecord: ${e.message}")
-            emptyList()
-        } catch (e: Throwable) {
-            android.util.Log.e("UpdateSpecial", "Error reading steps", e)
-            emptyList()
-        }
-    }
-
-    private suspend fun readSleepSessions(startTime: Instant): List<SleepSessionRecord> {
-        return try {
-            val request = ReadRecordsRequest(
-                recordType = SleepSessionRecord::class,
-                timeRangeFilter = TimeRangeFilter.between(startTime, Instant.now())
-            )
-            healthConnectClient.readRecords(request).records
-        } catch (e: Throwable) {
-            emptyList()
-        }
-    }
-
-    private suspend fun readHRV(startTime: Instant): List<HeartRateVariabilityRmssdRecord> {
-        return try {
-            val request = ReadRecordsRequest(
-                recordType = HeartRateVariabilityRmssdRecord::class,
-                timeRangeFilter = TimeRangeFilter.between(startTime, Instant.now())
-            )
-            healthConnectClient.readRecords(request).records
-        } catch (e: Throwable) {
-            emptyList()
-        }
-    }
-
     private suspend fun updateAttribute(
         type: SpecialType,
         benchmark: BenchmarkTest
@@ -150,7 +99,6 @@ class UpdateSpecialFromHealthUseCase @Inject constructor(
         return updated
     }
 
-    // Same grounded formulas as cognitive UseCase for consistency
     private fun calculateXpGain(newPercentile: Int, oldPercentile: Int?): Long {
         val delta = (newPercentile - (oldPercentile ?: 50)).coerceAtLeast(0)
         return (delta * 10L) + 20L
@@ -165,6 +113,6 @@ class UpdateSpecialFromHealthUseCase @Inject constructor(
             newPercentile >= 30 -> 6
             else -> 5
         }
-        return (current + (target - current) / 3).coerceIn(1, 10)   // slower ramp for daily data
+        return (current + (target - current) / 3).coerceIn(1, 10)
     }
 }

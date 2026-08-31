@@ -41,8 +41,8 @@ object SpecialModule {
     @Provides
     @Singleton
     fun provideUpdateSpecialFromHealthUseCase(
-        healthConnectClient: HealthConnectClient,
+        healthManager: com.neon.ascent.core.domain.health.HealthManager,
         repository: SpecialRepository,
         processor: HealthDataProcessor
-    ) = UpdateSpecialFromHealthUseCase(healthConnectClient, repository, processor)
+    ) = UpdateSpecialFromHealthUseCase(healthManager, repository, processor)
 }
