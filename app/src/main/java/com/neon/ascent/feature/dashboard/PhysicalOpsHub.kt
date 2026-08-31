@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neon.ascent.ui.CyberCutShape
 import com.neon.ascent.ui.SoftGridBackground
+import com.neon.ascent.core.common.*
+import com.neon.ascent.core.common.VisualMode
 import com.neon.ascent.core.common.Vignette
 
 @Composable
@@ -30,11 +32,14 @@ fun PhysicalOpsHub(
     onNavigateToHullPulse: () -> Unit,
     onNavigateToArchive: () -> Unit = {}
 ) {
-    val systemColor = Color(0xFF00FF9C)
+    val theme = LocalNeonTheme.current
+    val systemColor = theme.accent
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF010101))) {
-        SoftGridBackground()
-        Vignette()
+    Box(modifier = Modifier.fillMaxSize().background(theme.canvas)) {
+        if (theme.mode == VisualMode.CYBER) {
+            SoftGridBackground()
+            Vignette()
+        }
 
         Column(
             modifier = Modifier
@@ -80,7 +85,7 @@ fun PhysicalOpsHub(
                 subtitle = "NEURAL CALM & MEDITATION",
                 icon = Icons.Default.SelfImprovement,
                 label = "INITIATE SESSION",
-                color = Color(0xFF00CCFF),
+                color = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00CCFF),
                 onClick = onNavigateToStilljack
             )
 
@@ -91,7 +96,7 @@ fun PhysicalOpsHub(
                 subtitle = "PELVIC CORE & KEGEL REINFORCEMENT",
                 icon = Icons.Default.MonitorHeart,
                 label = "INITIATE PULSE",
-                color = Color(0xFFFF006E),
+                color = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFFFF006E),
                 onClick = onNavigateToHullPulse
             )
 
@@ -109,10 +114,11 @@ fun PhysicalOpCard(
     color: Color,
     onClick: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.Black.copy(alpha = 0.4f), CyberCutShape)
+            .background(theme.overlay, CyberCutShape)
             .border(1.dp, color.copy(alpha = 0.2f), CyberCutShape)
             .clickable { onClick() }
             .padding(20.dp)
@@ -137,7 +143,7 @@ fun PhysicalOpCard(
                 )
                 Text(
                     text = subtitle,
-                    color = Color.White.copy(alpha = 0.6f),
+                    color = theme.inkMuted,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace
                 )

@@ -55,6 +55,7 @@ import coil.decode.ImageDecoderDecoder
 import coil.request.ImageRequest
 import android.os.Build
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.neon.ascent.core.common.*
 import com.neon.ascent.core.domain.workout.models.*
 import com.neon.ascent.core.domain.workout.rules.CyberCrappRules
 import com.neon.ascent.core.domain.workout.rules.RepRange
@@ -68,6 +69,7 @@ fun WorkoutLoggingScreen(
     viewModel: WorkoutViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val theme = LocalNeonTheme.current
     
     LaunchedEffect(taskId) {
         if (taskId != null) {
@@ -83,7 +85,7 @@ fun WorkoutLoggingScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF000000))
+            .background(theme.canvas)
     ) {
         if (uiState.userProfile == null && !uiState.isLoading) {
             OnboardingScreen(
@@ -94,25 +96,25 @@ fun WorkoutLoggingScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black)
+                    .background(theme.canvas)
             ) {
                 if (uiState.showProtocolChangeReminderDialog != null) {
                     val newProtocol = uiState.showProtocolChangeReminderDialog!!
                     AlertDialog(
                         onDismissRequest = { viewModel.cancelProtocolChange() },
-                        title = { Text("RESET REMINDERS?", color = Color.White, fontWeight = FontWeight.Black) },
-                        text = { Text("Replace training reminders with the ${newProtocol.displayName} recommended pattern?", color = Color.Gray) },
+                        title = { Text("RESET REMINDERS?", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Black) },
+                        text = { Text("Replace training reminders with the ${newProtocol.displayName} recommended pattern?", color = theme.inkMuted) },
                         confirmButton = {
                             TextButton(onClick = { viewModel.confirmProtocolChange(true) }) {
-                                Text("YES, RESET", color = Color(0xFF00FF9C), fontWeight = FontWeight.Bold)
+                                Text("YES, RESET", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                             }
                         },
                         dismissButton = {
                             TextButton(onClick = { viewModel.confirmProtocolChange(false) }) {
-                                Text("NO, KEEP CUSTOM", color = Color.White)
+                                Text("NO, KEEP CUSTOM", color = theme.ink)
                             }
                         },
-                        containerColor = Color(0xFF1C1C1E)
+                        containerColor = theme.surfaceRaised
                     )
                 }
 
@@ -345,14 +347,14 @@ fun WorkoutLoggingScreen(
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .background(Color.Black.copy(alpha = 0.7f))
+                                            .background(theme.overlay)
                                             .clickable(enabled = false) {},
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                             Text(
                                                 "WORKOUT PAUSED",
-                                                color = Color.White,
+                                                color = MaterialTheme.colorScheme.onSurface,
                                                 fontSize = 24.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
@@ -372,12 +374,12 @@ fun WorkoutLoggingScreen(
         if (uiState.showDeactivateProtocolDialog) {
             AlertDialog(
                 onDismissRequest = { viewModel.cancelDeactivateProtocol() },
-                title = { Text("DEACTIVATE PROTOCOL", color = Color.White, fontWeight = FontWeight.Black) },
+                title = { Text("DEACTIVATE PROTOCOL", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Black) },
                 text = { 
                     Column {
-                        Text("Are you sure you want to deactivate your active protocol?", color = Color.Gray)
+                        Text("Are you sure you want to deactivate your active protocol?", color = theme.inkMuted)
                         Spacer(Modifier.height(16.dp))
-                        Text("Would you also like to remove the associated routines from your library?", color = Color.White, fontSize = 14.sp)
+                        Text("Would you also like to remove the associated routines from your library?", color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
                     }
                 },
                 confirmButton = {
@@ -396,7 +398,7 @@ fun WorkoutLoggingScreen(
                             onClick = { viewModel.confirmDeactivateProtocol(removeRoutines = false) },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("DEACTIVATE ONLY (KEEP ROUTINES)", color = Color(0xFF00FF9C), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("DEACTIVATE ONLY (KEEP ROUTINES)", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
 
                         Spacer(Modifier.height(8.dp))
@@ -405,12 +407,12 @@ fun WorkoutLoggingScreen(
                             onClick = { viewModel.cancelDeactivateProtocol() },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("CANCEL", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("CANCEL", color = theme.inkMuted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 },
                 dismissButton = null,
-                containerColor = Color(0xFF1C1C1E)
+                containerColor = theme.surfaceRaised
             )
         }
 
@@ -418,14 +420,14 @@ fun WorkoutLoggingScreen(
         uiState.activeSessionError?.let { error ->
             AlertDialog(
                 onDismissRequest = { viewModel.clearActiveSessionError() },
-                title = { Text("Session Active", color = Color.White) },
-                text = { Text(error, color = Color.Gray) },
+                title = { Text("Session Active", color = MaterialTheme.colorScheme.onSurface) },
+                text = { Text(error, color = theme.inkMuted) },
                 confirmButton = {
                     TextButton(onClick = { viewModel.clearActiveSessionError() }) {
                         Text("OK", color = Color(0xFF007AFF))
                     }
                 },
-                containerColor = Color(0xFF1C1C1E)
+                containerColor = theme.surfaceRaised
             )
         }
 
@@ -508,8 +510,8 @@ fun WorkoutLoggingScreen(
         if (uiState.showUncompletedSetsDialog) {
             AlertDialog(
                 onDismissRequest = { viewModel.dismissUncompletedSetsDialog(discard = false) },
-                title = { Text("Uncompleted Sets", color = Color.White) },
-                text = { Text("You have sets that haven't been completed. Do you want to discard them and finish?", color = Color.Gray) },
+                title = { Text("Uncompleted Sets", color = MaterialTheme.colorScheme.onSurface) },
+                text = { Text("You have sets that haven't been completed. Do you want to discard them and finish?", color = theme.inkMuted) },
                 confirmButton = {
                     TextButton(onClick = { viewModel.dismissUncompletedSetsDialog(discard = true) }) {
                         Text("Discard & Finish", color = Color.Red)
@@ -517,10 +519,10 @@ fun WorkoutLoggingScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { viewModel.dismissUncompletedSetsDialog(discard = false) }) {
-                        Text("Keep Editing", color = Color.Gray)
+                        Text("Keep Editing", color = theme.inkMuted)
                     }
                 },
-                containerColor = Color(0xFF1C1C1E)
+                containerColor = theme.surfaceRaised
             )
         }
 
@@ -528,8 +530,8 @@ fun WorkoutLoggingScreen(
         if (uiState.showSaveRoutineChangesDialog) {
             AlertDialog(
                 onDismissRequest = { viewModel.confirmSaveRoutineChanges(save = false) },
-                title = { Text("Save Changes?", color = Color.White) },
-                text = { Text("You've modified the exercises or set counts in this routine. Would you like to update the routine with these changes for next time?", color = Color.Gray) },
+                title = { Text("Save Changes?", color = MaterialTheme.colorScheme.onSurface) },
+                text = { Text("You've modified the exercises or set counts in this routine. Would you like to update the routine with these changes for next time?", color = theme.inkMuted) },
                 confirmButton = {
                     TextButton(onClick = { viewModel.confirmSaveRoutineChanges(save = true) }) {
                         Text("Save Changes", color = Color(0xFF007AFF))
@@ -537,10 +539,10 @@ fun WorkoutLoggingScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { viewModel.confirmSaveRoutineChanges(save = false) }) {
-                        Text("No, Finish Only", color = Color.Gray)
+                        Text("No, Finish Only", color = theme.inkMuted)
                     }
                 },
-                containerColor = Color(0xFF1C1C1E)
+                containerColor = theme.surfaceRaised
             )
         }
 
@@ -630,20 +632,21 @@ fun PostWorkoutCheckInDialog(
     onFinish: (Int, Int) -> Unit,
     onCancel: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     var rpe by remember { mutableFloatStateOf(7f) }
     var jointHealth by remember { mutableFloatStateOf(1f) }
 
     Dialog(onDismissRequest = onCancel) {
         Surface(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
-            color = Color(0xFF050505),
+            color = MaterialTheme.colorScheme.background,
             shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.5f))
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
                 Text(
                     "INTENSITY & WELLNESS",
-                    color = Color(0xFF00FF9C),
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = 2.sp
@@ -651,7 +654,7 @@ fun PostWorkoutCheckInDialog(
                 
                 Spacer(Modifier.height(24.dp))
 
-                Text("SESSION RPE: ${rpe.toInt()}", color = Color.White, fontWeight = FontWeight.Bold)
+                Text("SESSION RPE: ${rpe.toInt()}", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                 Text(
                     when {
                         rpe < 4 -> "Light recovery work."
@@ -659,7 +662,7 @@ fun PostWorkoutCheckInDialog(
                         rpe < 9 -> "Hard session. Near limit."
                         else -> "Max effort. All-out intensity."
                     },
-                    color = Color.Gray,
+                    color = theme.inkMuted,
                     fontSize = 12.sp
                 )
                 Slider(
@@ -667,12 +670,12 @@ fun PostWorkoutCheckInDialog(
                     onValueChange = { rpe = it },
                     valueRange = 1f..10f,
                     steps = 8,
-                    colors = SliderDefaults.colors(thumbColor = Color(0xFF00FF9C), activeTrackColor = Color(0xFF00FF9C))
+                    colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary, activeTrackColor = MaterialTheme.colorScheme.primary)
                 )
 
                 Spacer(Modifier.height(24.dp))
 
-                Text("JOINT PAIN: ${jointHealth.toInt()}", color = Color.White, fontWeight = FontWeight.Bold)
+                Text("JOINT PAIN: ${jointHealth.toInt()}", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                 Text(
                     when {
                         jointHealth < 2 -> "Pain-free / Feeling strong."
@@ -680,7 +683,7 @@ fun PostWorkoutCheckInDialog(
                         jointHealth < 4 -> "Significant aches. Use caution."
                         else -> "Sharp pain. Immediate recovery needed."
                     },
-                    color = Color.Gray,
+                    color = theme.inkMuted,
                     fontSize = 12.sp
                 )
                 Slider(
@@ -696,10 +699,10 @@ fun PostWorkoutCheckInDialog(
                 Button(
                     onClick = { onFinish(rpe.toInt(), jointHealth.toInt()) },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("FINISH & LOG BIOMETRICS", color = Color.Black, fontWeight = FontWeight.Black)
+                    Text("FINISH & LOG BIOMETRICS", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black)
                 }
             }
         }
@@ -719,6 +722,7 @@ fun ActiveWorkoutHeader(
     protocol: WorkoutProtocol? = null,
     dayType: ProtocolDayType? = null
 ) {
+    val theme = LocalNeonTheme.current
     var showDiscardDialog by remember { mutableStateOf(false) }
 
     if (showDiscardDialog) {
@@ -739,9 +743,9 @@ fun ActiveWorkoutHeader(
                     Text("Cancel")
                 }
             },
-            containerColor = Color(0xFF1C1C1E),
-            titleContentColor = Color.White,
-            textContentColor = Color.Gray
+            containerColor = theme.surfaceRaised,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = theme.inkMuted
         )
     }
 
@@ -757,21 +761,21 @@ fun ActiveWorkoutHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { onBack() }) {
-            Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Color.White)
+            Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
             if (zoom < 1.25f) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     if (zoom <= 0.8f) "ASCENT NEURAL LINK" else if (protocol != null) {
                         if (protocol == WorkoutProtocol.DUP) "UNDULATION" else protocol.displayName
                     } else "Log Workout", 
-                    color = Color.White, 
+                    color = MaterialTheme.colorScheme.onSurface, 
                     fontSize = 18.sp, 
                     fontWeight = FontWeight.Black
                 )
                 if (dayType != null && zoom < 1.0f) {
                     Text(
                         dayType.name,
-                        color = Color(0xFF00FF9C),
+                        color = MaterialTheme.colorScheme.primary,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(start = 8.dp)
@@ -785,7 +789,7 @@ fun ActiveWorkoutHeader(
             
             if (zoom < 1.25f) {
                 IconButton(onClick = onViewInCodex, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.History, contentDescription = "View In Archive", tint = Color(0xFF00FF9C), modifier = Modifier.size(iconSize))
+                    Icon(Icons.Default.History, contentDescription = "View In Archive", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(iconSize))
                 }
             }
 
@@ -799,7 +803,7 @@ fun ActiveWorkoutHeader(
                 Icon(
                     if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
                     contentDescription = if (isPaused) "Resume" else "Pause",
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(iconSize)
                 )
             }
@@ -807,7 +811,7 @@ fun ActiveWorkoutHeader(
             Spacer(modifier = Modifier.width(if (zoom >= 1.5f) 2.dp else 4.dp))
             Text(
                 duration, 
-                color = Color.White, 
+                color = MaterialTheme.colorScheme.onSurface, 
                 fontSize = if (zoom >= 1.5f) 14.sp else 16.sp, 
                 fontWeight = FontWeight.Black,
                 fontFamily = FontFamily.Monospace,
@@ -826,7 +830,7 @@ fun ActiveWorkoutHeader(
                 contentPadding = PaddingValues(horizontal = if (zoom >= 1.5f) 4.dp else 8.dp, vertical = 0.dp),
                 modifier = Modifier.height(30.dp).widthIn(min = buttonWidth)
             ) {
-                Text(buttonText, color = Color.White, fontWeight = FontWeight.Bold, fontSize = if (zoom >= 1.5f) 12.sp else 14.sp)
+                Text(buttonText, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = if (zoom >= 1.5f) 12.sp else 14.sp)
             }
         }
     }
@@ -834,6 +838,7 @@ fun ActiveWorkoutHeader(
 
 @Composable
 fun WorkoutSummaryBar(uiState: WorkoutUiState, viewModel: WorkoutViewModel, onToggleSomatotype: () -> Unit = {}) {
+    val theme = LocalNeonTheme.current
     val totalVolume = remember(uiState.logs) {
         uiState.logs.sumOf { (_, sets) -> 
             sets.sumOf { (it.weight * it.reps).toDouble() }
@@ -856,25 +861,25 @@ fun WorkoutSummaryBar(uiState: WorkoutUiState, viewModel: WorkoutViewModel, onTo
     ) {
         val blastWeek = viewModel.getBlastWeek()
         if (blastWeek != null && zoom < 1.75f) {
-            SummaryStat("Blast", "Wk $blastWeek", Color(0xFF00FF9C))
+            SummaryStat("Blast", "Wk $blastWeek", MaterialTheme.colorScheme.primary)
         }
         SummaryStat("Duration", "${durationMinutes}m", Color(0xFF007AFF))
-        SummaryStat("Volume", "%,d".format(totalVolume), Color.White)
+        SummaryStat("Volume", "%,d".format(totalVolume), MaterialTheme.colorScheme.onSurface)
         
         if (zoom < 1.5f) {
-            SummaryStat("Sets", "$totalSets", Color.White)
+            SummaryStat("Sets", "$totalSets", MaterialTheme.colorScheme.onSurface)
         }
         
         if (zoom <= 0.8f) {
             val status = uiState.recoveryScore?.status?.name ?: "READY"
-            SummaryStat("Status", status, Color(0xFF00FF9C))
+            SummaryStat("Status", status, MaterialTheme.colorScheme.primary)
         }
 
         IconButton(onClick = onToggleSomatotype) {
             Icon(
                 Icons.Default.SettingsInputComponent, 
                 contentDescription = "Toggle Somatotype Influence", 
-                tint = if (uiState.useSomatotypeInfluence) Color(0xFF00FF9C) else Color.Gray,
+                tint = if (uiState.useSomatotypeInfluence) MaterialTheme.colorScheme.primary else theme.inkMuted,
                 modifier = Modifier.size(if (zoom >= 1.75f) 16.dp else 20.dp)
             )
         }
@@ -886,7 +891,7 @@ fun SomatotypeBadge(text: String, somatotype: Somatotype?) {
     val color = when (somatotype) {
         Somatotype.ECTOMORPH -> Color(0xFF00CCFF)
         Somatotype.ENDOMORPH -> Color(0xFFFF006E)
-        else -> Color(0xFF00FF9C)
+        else -> MaterialTheme.colorScheme.primary
     }
     
     Box(
@@ -911,8 +916,9 @@ fun SomatotypeBadge(text: String, somatotype: Somatotype?) {
 
 @Composable
 fun SummaryStat(label: String, value: String, valueColor: Color) {
+    val theme = LocalNeonTheme.current
     Column {
-        Text(label, color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        Text(label, color = theme.inkMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
         Text(value, color = valueColor, fontSize = 14.sp, fontWeight = FontWeight.Black)
     }
 }
@@ -937,6 +943,7 @@ fun WorkoutIntakeScreen(
     onDeactivateProtocol: () -> Unit,
     onShowSettings: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     var isRoutinesExpanded by remember { mutableStateOf(true) }
     var isAugmentsExpanded by remember { mutableStateOf(true) }
 
@@ -957,11 +964,11 @@ fun WorkoutIntakeScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
                 }
                 Text(
                     "WORKOUT",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = 2.sp
@@ -972,7 +979,7 @@ fun WorkoutIntakeScreen(
                     Icon(
                         Icons.Default.Settings,
                         contentDescription = "Settings",
-                        tint = Color.White,
+                        tint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -980,7 +987,7 @@ fun WorkoutIntakeScreen(
                     Icon(
                         Icons.AutoMirrored.Filled.TrendingUp,
                         contentDescription = "Archive",
-                        tint = Color(0xFF00FF9C),
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -988,7 +995,7 @@ fun WorkoutIntakeScreen(
                     Icon(
                         Icons.Default.Refresh,
                         contentDescription = "Sync",
-                        tint = Color.White,
+                        tint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -1048,13 +1055,13 @@ fun WorkoutIntakeScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C1C1E)),
+            colors = ButtonDefaults.buttonColors(containerColor = theme.surfaceRaised),
             shape = RoundedCornerShape(8.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
+                Icon(Icons.Default.Add, contentDescription = null, tint = theme.ink)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Start Empty Workout", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                Text("Start Empty Workout", color = theme.ink, fontSize = 16.sp, fontWeight = FontWeight.Medium)
             }
         }
 
@@ -1068,7 +1075,7 @@ fun WorkoutIntakeScreen(
         ) {
             Text(
                 "Routines",
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -1076,7 +1083,7 @@ fun WorkoutIntakeScreen(
                 Icon(
                     Icons.Default.AddBox,
                     contentDescription = "New Routine",
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -1119,12 +1126,12 @@ fun WorkoutIntakeScreen(
             Icon(
                 if (isRoutinesExpanded) Icons.Default.ArrowDropDown else Icons.AutoMirrored.Filled.ArrowRight,
                 contentDescription = null,
-                tint = Color.Gray,
+                tint = theme.inkMuted,
                 modifier = Modifier.size(20.dp)
             )
             Text(
                 "My Routines (${uiState.routines.size})",
-                color = Color.Gray,
+                color = theme.inkMuted,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -1156,12 +1163,12 @@ fun WorkoutIntakeScreen(
             Icon(
                 if (isAugmentsExpanded) Icons.Default.ArrowDropDown else Icons.AutoMirrored.Filled.ArrowRight,
                 contentDescription = null,
-                tint = Color.Gray,
+                tint = theme.inkMuted,
                 modifier = Modifier.size(20.dp)
             )
             Text(
                 "Sub Protocols / Augments (${uiState.augments.size})",
-                color = Color.Gray,
+                color = theme.inkMuted,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -1192,21 +1199,22 @@ fun WorkoutIntakeScreen(
 
 @Composable
 fun NextMissionCard(routine: WorkoutRoutine, onStart: () -> Unit) {
+    val theme = LocalNeonTheme.current
     Surface(
         modifier = Modifier.fillMaxWidth().clickable { onStart() },
-        color = Color(0xFF00FF9C).copy(alpha = 0.05f),
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.5f))
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
     ) {
         Row(
             modifier = Modifier.padding(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                modifier = Modifier.size(48.dp).background(Color(0xFF00FF9C).copy(alpha = 0.1f), CircleShape),
+                modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color(0xFF00FF9C))
+                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
             }
             
             Spacer(Modifier.width(20.dp))
@@ -1214,27 +1222,27 @@ fun NextMissionCard(routine: WorkoutRoutine, onStart: () -> Unit) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     "NEXT MISSION",
-                    color = Color(0xFF00FF9C),
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = 2.sp
                 )
                 Text(
                     routine.name,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Black
                 )
                 Text(
                     routine.exercises.take(3).joinToString(", ") { it.exercise.name } + if (routine.exercises.size > 3) "..." else "",
-                    color = Color.Gray,
+                    color = theme.inkMuted,
                     fontSize = 12.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
             
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = Color(0xFF00FF9C))
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         }
     }
 }
@@ -1245,9 +1253,10 @@ fun SequenceOverrideDialog(
     onConfirm: (Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF1C1C1E),
+        containerColor = theme.surfaceRaised,
         title = { 
             Text(
                 "OFF-MISSION DETECTED", 
@@ -1261,12 +1270,12 @@ fun SequenceOverrideDialog(
             Column {
                 Text(
                     "You've selected ${routine.name}, but a different routine was due in your rotation.",
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(Modifier.height(16.dp))
                 Text(
                     "Would you like to update your sequence baseline to this routine, or treat this as a one-off session?",
-                    color = Color.Gray,
+                    color = theme.inkMuted,
                     fontSize = 14.sp
                 )
             }
@@ -1276,23 +1285,23 @@ fun SequenceOverrideDialog(
                 Button(
                     onClick = { onConfirm(true) },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("UPDATE SEQUENCE BASELINE", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text("UPDATE SEQUENCE BASELINE", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
                 Spacer(Modifier.height(8.dp))
                 TextButton(
                     onClick = { onConfirm(false) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("ONE-OFF SESSION (KEEP SEQUENCE)", color = Color.White)
+                    Text("ONE-OFF SESSION (KEEP SEQUENCE)", color = MaterialTheme.colorScheme.onSurface)
                 }
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("CANCEL", color = Color.Gray)
+                Text("CANCEL", color = theme.inkMuted)
             }
         }
     )
@@ -1304,9 +1313,10 @@ fun InjuryWarningDialog(
     onAutoSwap: () -> Unit,
     onIgnore: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     AlertDialog(
         onDismissRequest = onIgnore,
-        containerColor = Color(0xFF1C1C1E),
+        containerColor = theme.surfaceRaised,
         title = { 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFFF006E))
@@ -1324,7 +1334,7 @@ fun InjuryWarningDialog(
             Column {
                 Text(
                     "The following exercises in this routine are contraindicated for your current injuries:",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 14.sp
                 )
                 Spacer(Modifier.height(16.dp))
@@ -1332,7 +1342,7 @@ fun InjuryWarningDialog(
                     Column(modifier = Modifier.padding(bottom = 12.dp)) {
                         Text(highRisk.name, color = Color(0xFFFF006E), fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         if (alternatives.isNotEmpty()) {
-                            Text("Safe swap: ${alternatives.first().name}", color = Color.Gray, fontSize = 12.sp)
+                            Text("Safe swap: ${alternatives.first().name}", color = theme.inkMuted, fontSize = 12.sp)
                         }
                     }
                 }
@@ -1342,10 +1352,10 @@ fun InjuryWarningDialog(
             Button(
                 onClick = onAutoSwap,
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text("NEURAL SWAP (STABILITY-FIRST)", color = Color.Black, fontWeight = FontWeight.Bold)
+                Text("NEURAL SWAP (STABILITY-FIRST)", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
@@ -1353,7 +1363,7 @@ fun InjuryWarningDialog(
                 onClick = onIgnore,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("IGNORE & PROCEED AT RISK", color = Color.White.copy(alpha = 0.6f))
+                Text("IGNORE & PROCEED AT RISK", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
             }
         }
     )
@@ -1361,8 +1371,9 @@ fun InjuryWarningDialog(
 
 @Composable
 fun RecoveryScoreCard(score: RecoveryScore, onStartDeload: () -> Unit) {
+    val theme = LocalNeonTheme.current
     val color = when (score.status) {
-        RecoveryStatus.OPTIMAL -> Color(0xFF00FF9C)
+        RecoveryStatus.OPTIMAL -> MaterialTheme.colorScheme.primary
         RecoveryStatus.CAUTION -> Color(0xFFFFD700)
         RecoveryStatus.DELOAD -> Color(0xFFFF006E)
         RecoveryStatus.CRITICAL -> Color(0xFFFF0000)
@@ -1370,7 +1381,7 @@ fun RecoveryScoreCard(score: RecoveryScore, onStartDeload: () -> Unit) {
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = Color(0xFF1C1C1E),
+        color = theme.surfaceRaised,
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, color.copy(alpha = 0.5f))
     ) {
@@ -1390,7 +1401,7 @@ fun RecoveryScoreCard(score: RecoveryScore, onStartDeload: () -> Unit) {
                     )
                     Text(
                         score.status.name,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Black
                     )
@@ -1401,13 +1412,13 @@ fun RecoveryScoreCard(score: RecoveryScore, onStartDeload: () -> Unit) {
                         progress = { score.totalScore / 100f },
                         modifier = Modifier.fillMaxSize(),
                         color = color,
-                        trackColor = Color.White.copy(alpha = 0.1f),
+                        trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
                         strokeWidth = 6.dp,
                         strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
                     )
                     Text(
                         "${score.totalScore}",
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Black
                     )
@@ -1418,7 +1429,7 @@ fun RecoveryScoreCard(score: RecoveryScore, onStartDeload: () -> Unit) {
 
             Text(
                 score.plainLanguageSummary,
-                color = Color.Gray,
+                color = theme.inkMuted,
                 fontSize = 13.sp,
                 lineHeight = 18.sp
             )
@@ -1431,7 +1442,7 @@ fun RecoveryScoreCard(score: RecoveryScore, onStartDeload: () -> Unit) {
                     colors = ButtonDefaults.buttonColors(containerColor = color),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("START SOFT DELOAD SESSION", color = Color.Black, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                    Text("START SOFT DELOAD SESSION", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black, fontSize = 12.sp)
                 }
             }
         }
@@ -1440,15 +1451,16 @@ fun RecoveryScoreCard(score: RecoveryScore, onStartDeload: () -> Unit) {
 
 @Composable
 fun ActiveProtocolCard(protocol: WorkoutProtocol, onDeactivate: () -> Unit) {
+    val theme = LocalNeonTheme.current
     var expanded by remember { mutableStateOf(false) }
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { expanded = !expanded },
-        color = Color(0xFF00FF9C).copy(alpha = 0.1f),
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
         shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.5f))
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -1457,20 +1469,20 @@ fun ActiveProtocolCard(protocol: WorkoutProtocol, onDeactivate: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Adjust, contentDescription = null, tint = Color(0xFF00FF9C), modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Adjust, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("ACTIVE PROTOCOL", color = Color(0xFF00FF9C), fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
+                    Text("ACTIVE PROTOCOL", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
                 }
                 Icon(
                     if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                     contentDescription = null,
-                    tint = Color(0xFF00FF9C).copy(alpha = 0.7f),
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
                     modifier = Modifier.size(20.dp)
                 )
             }
             Text(
                 protocol.displayName,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Black,
                 modifier = Modifier.padding(top = 4.dp)
@@ -1479,18 +1491,18 @@ fun ActiveProtocolCard(protocol: WorkoutProtocol, onDeactivate: () -> Unit) {
             if (expanded) {
                 Text(
                     protocol.description,
-                    color = Color.White.copy(alpha = 0.8f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                     fontSize = 12.sp,
                     lineHeight = 16.sp,
                     modifier = Modifier.padding(top = 12.dp)
                 )
                 
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("PROTOCOL TENANTS", color = Color(0xFF00FF9C), fontSize = 10.sp, fontWeight = FontWeight.Black)
+                Text("PROTOCOL TENANTS", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Black)
                 protocol.tenants.forEach { tenant ->
                     Row(modifier = Modifier.padding(top = 8.dp)) {
-                        Text("•", color = Color(0xFF00FF9C), modifier = Modifier.padding(end = 8.dp))
-                        Text(tenant, color = Color.Gray, fontSize = 11.sp)
+                        Text("•", color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(end = 8.dp))
+                        Text(tenant, color = theme.inkMuted, fontSize = 11.sp)
                     }
                 }
 
@@ -1506,7 +1518,7 @@ fun ActiveProtocolCard(protocol: WorkoutProtocol, onDeactivate: () -> Unit) {
             } else {
                 Text(
                     "Strict rotation enabled. Next routine auto-sequenced.",
-                    color = Color.Gray,
+                    color = theme.inkMuted,
                     fontSize = 11.sp,
                     modifier = Modifier.padding(top = 4.dp)
                 )
@@ -1523,11 +1535,12 @@ fun IntakeActionButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {}
 ) {
+    val theme = LocalNeonTheme.current
     Surface(
         modifier = modifier
             .height(56.dp)
             .clickable { onClick() },
-        color = Color(0xFF1C1C1E),
+        color = theme.surfaceRaised,
         shape = RoundedCornerShape(8.dp)
     ) {
         Row(
@@ -1535,9 +1548,9 @@ fun IntakeActionButton(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+            Icon(icon, contentDescription = null, tint = theme.ink, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text(label, color = Color.White, fontWeight = FontWeight.Medium, fontSize = 15.sp)
+            Text(label, color = theme.ink, fontWeight = FontWeight.Medium, fontSize = 15.sp)
         }
 
     }
@@ -1545,9 +1558,10 @@ fun IntakeActionButton(
 
 @Composable
 fun RoutineCard(routine: WorkoutRoutine, onStart: () -> Unit, onActionClick: () -> Unit) {
+    val theme = LocalNeonTheme.current
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = Color(0xFF1C1C1E),
+        color = theme.surfaceRaised,
         shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -1558,12 +1572,12 @@ fun RoutineCard(routine: WorkoutRoutine, onStart: () -> Unit, onActionClick: () 
             ) {
                 Text(
                     routine.name,
-                    color = Color.White,
+                    color = theme.ink,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold
                 )
                 IconButton(onClick = onActionClick, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.MoreHoriz, contentDescription = "Routine Actions", tint = Color.Gray)
+                    Icon(Icons.Default.MoreHoriz, contentDescription = "Routine Actions", tint = theme.inkMuted)
                 }
             }
             
@@ -1571,7 +1585,7 @@ fun RoutineCard(routine: WorkoutRoutine, onStart: () -> Unit, onActionClick: () 
             
             Text(
                 routine.exercises.joinToString(", ") { it.exercise.name } + (if (routine.augments.isNotEmpty()) ", " + routine.augments.joinToString(", ") { it.name } else ""),
-                color = Color.Gray,
+                color = theme.inkMuted,
                 fontSize = 13.sp,
                 maxLines = 2,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
@@ -1587,7 +1601,7 @@ fun RoutineCard(routine: WorkoutRoutine, onStart: () -> Unit, onActionClick: () 
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF)),
                 shape = RoundedCornerShape(6.dp)
             ) {
-                Text("Start Routine", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text("Start Routine", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
         }
 
@@ -1603,6 +1617,7 @@ fun AugmentCard(
     onLaunchSolo: () -> Unit,
     onActionClick: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     val color = Color(android.graphics.Color.parseColor(augment.colorHex))
     val isLive = activation?.status == AugmentActivationStatus.ACTIVE
 
@@ -1610,9 +1625,9 @@ fun AugmentCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onCardClick() },
-        color = Color(0xFF1C1C1E),
+        color = theme.surfaceRaised,
         shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, if (isLive) Color(0xFF00FF9C).copy(alpha = 0.5f) else color.copy(alpha = 0.3f))
+        border = BorderStroke(1.dp, if (isLive) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else color.copy(alpha = 0.3f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -1623,7 +1638,7 @@ fun AugmentCard(
                 Column {
                     Text(
                         augment.name,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -1635,7 +1650,7 @@ fun AugmentCard(
                     )
                 }
                 IconButton(onClick = onActionClick, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.MoreHoriz, contentDescription = "Augment Actions", tint = Color.Gray)
+                    Icon(Icons.Default.MoreHoriz, contentDescription = "Augment Actions", tint = theme.inkMuted)
                 }
             }
 
@@ -1661,7 +1676,7 @@ fun AugmentCard(
                 }
                 Text(
                     statusText,
-                    color = Color(0xFF00FF9C),
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Black,
                     modifier = Modifier.padding(top = 4.dp)
@@ -1680,7 +1695,7 @@ fun AugmentCard(
             
             Text(
                 augment.exercises.joinToString(", ") { it.exercise.name },
-                color = Color.Gray,
+                color = theme.inkMuted,
                 fontSize = 13.sp,
                 maxLines = 2,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
@@ -1695,23 +1710,23 @@ fun AugmentCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(44.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         shape = RoundedCornerShape(6.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.Black)
+                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("LAUNCH", color = Color.Black, fontWeight = FontWeight.Black, fontSize = 15.sp)
+                            Text("LAUNCH", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black, fontSize = 15.sp)
                         }
                     }
                 } else {
                     Surface(
                         modifier = Modifier.fillMaxWidth().height(40.dp),
-                        color = Color(0xFF2C2C2E),
+                        color = theme.surface,
                         shape = RoundedCornerShape(6.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Text("ON DECK · ADDS TO MAIN", color = Color.Gray, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text("ON DECK · ADDS TO MAIN", color = theme.inkMuted, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
                     }
                 }
@@ -1721,10 +1736,10 @@ fun AugmentCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(44.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(6.dp)
                 ) {
-                    Text("ACTIVATE", color = Color.Black, fontWeight = FontWeight.Black, fontSize = 15.sp)
+                    Text("ACTIVATE", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black, fontSize = 15.sp)
                 }
             }
         }
@@ -1738,12 +1753,13 @@ fun SubProtocolsHubRail(
     onLaunchSolo: (AugmentActivation) -> Unit,
     onDossierClick: (WorkoutAugment) -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     val currentDayOfWeek = java.time.LocalDate.now().dayOfWeek.value // 1 = Monday .. 7 = Sunday
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             "SUB-PROTOCOLS",
-            color = Color(0xFF00FF9C),
+            color = MaterialTheme.colorScheme.primary,
             fontSize = 11.sp,
             fontWeight = FontWeight.Black,
             letterSpacing = 1.5.sp,
@@ -1770,13 +1786,13 @@ fun SubProtocolsHubRail(
                                     onDossierClick(augment)
                                 }
                             },
-                        color = if (isSolo) Color(0xFF1C1C1E) else Color(0xFF141416),
+                        color = if (isSolo) theme.surfaceRaised else theme.surface,
                         shape = RoundedCornerShape(8.dp),
                         border = BorderStroke(
                             1.dp,
-                            if (isDueToday) Color(0xFF00FF9C)
+                            if (isDueToday) MaterialTheme.colorScheme.primary
                             else if (isSolo) color.copy(alpha = 0.5f)
-                            else Color(0xFF2C2C2E)
+                            else theme.hairline
                         )
                     ) {
                         Row(
@@ -1788,13 +1804,13 @@ fun SubProtocolsHubRail(
                                 Box(
                                     modifier = Modifier
                                         .size(24.dp)
-                                        .background(if (isDueToday) Color(0xFF00FF9C) else color.copy(alpha = 0.2f), CircleShape),
+                                        .background(if (isDueToday) MaterialTheme.colorScheme.primary else color.copy(alpha = 0.2f), CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         Icons.Default.PlayArrow,
                                         contentDescription = "Launch",
-                                        tint = if (isDueToday) Color.Black else Color.White,
+                                        tint = if (isDueToday) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                                         modifier = Modifier.size(14.dp)
                                     )
                                 }
@@ -1807,18 +1823,18 @@ fun SubProtocolsHubRail(
                                 ) {
                                     Text(
                                         augment.name.uppercase(),
-                                        color = if (isSolo) Color.White else Color.Gray,
+                                        color = if (isSolo) MaterialTheme.colorScheme.onSurface else theme.inkMuted,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Black
                                     )
                                     if (isDueToday) {
                                         Surface(
-                                            color = Color(0xFF00FF9C),
+                                            color = MaterialTheme.colorScheme.primary,
                                             shape = RoundedCornerShape(3.dp)
                                         ) {
                                             Text(
                                                 "DUE",
-                                                color = Color.Black,
+                                                color = MaterialTheme.colorScheme.onPrimary,
                                                 fontSize = 8.sp,
                                                 fontWeight = FontWeight.Black,
                                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
@@ -1838,7 +1854,7 @@ fun SubProtocolsHubRail(
 
                                 Text(
                                     subText,
-                                    color = if (isDueToday) Color(0xFF00FF9C) else Color.Gray,
+                                    color = if (isDueToday) MaterialTheme.colorScheme.primary else theme.inkMuted,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -1861,13 +1877,14 @@ fun AugmentDossierSheet(
     onActionClick: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     val color = Color(android.graphics.Color.parseColor(augment.colorHex))
     val isLive = activation?.status == AugmentActivationStatus.ACTIVE
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF0D0D0D),
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.Gray) }
+        containerColor = theme.overlay,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = theme.inkMuted) }
     ) {
         Column(
             modifier = Modifier
@@ -1883,7 +1900,7 @@ fun AugmentDossierSheet(
                 Column {
                     Text(
                         augment.name.uppercase(),
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Black,
                         letterSpacing = 1.sp
@@ -1896,25 +1913,25 @@ fun AugmentDossierSheet(
                     )
                 }
                 IconButton(onClick = onActionClick) {
-                    Icon(Icons.Default.MoreHoriz, contentDescription = "Actions", tint = Color.Gray)
+                    Icon(Icons.Default.MoreHoriz, contentDescription = "Actions", tint = theme.inkMuted)
                 }
             }
 
             val desc = augment.description
             if (!desc.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(12.dp))
-                Text(desc, color = Color.LightGray, fontSize = 13.sp)
+                Text(desc, color = theme.inkMuted, fontSize = 13.sp)
             }
 
             Spacer(modifier = Modifier.height(20.dp))
-            Text("EXERCISES & PROTOCOL SCHEME", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+            Text("EXERCISES & PROTOCOL SCHEME", color = theme.inkMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
             Spacer(modifier = Modifier.height(10.dp))
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 augment.exercises.forEachIndexed { idx, ex ->
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        color = Color(0xFF1C1C1E),
+                        color = theme.surfaceRaised,
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Row(
@@ -1922,7 +1939,7 @@ fun AugmentDossierSheet(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("${idx + 1}. ${ex.exercise.name}", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Text("${idx + 1}. ${ex.exercise.name}", color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                             Text("${ex.sets.size} SETS", color = color, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
@@ -1939,23 +1956,23 @@ fun AugmentDossierSheet(
                             onLaunchSolo()
                         },
                         modifier = Modifier.fillMaxWidth().height(52.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.Black)
+                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("LAUNCH SOLO SESSION", color = Color.Black, fontWeight = FontWeight.Black)
+                            Text("LAUNCH SOLO SESSION", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black)
                         }
                     }
                 } else {
                     Surface(
                         modifier = Modifier.fillMaxWidth().height(48.dp),
-                        color = Color(0xFF1C1C1E),
+                        color = theme.surfaceRaised,
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Text("ON DECK · ADDS TO MAIN WORKOUT", color = Color.Gray, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text("ON DECK · ADDS TO MAIN WORKOUT", color = theme.inkMuted, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
                     }
                 }
@@ -1966,10 +1983,10 @@ fun AugmentDossierSheet(
                         onActivate()
                     },
                     modifier = Modifier.fillMaxWidth().height(52.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("ACTIVATE SUB-PROTOCOL", color = Color.Black, fontWeight = FontWeight.Black)
+                    Text("ACTIVATE SUB-PROTOCOL", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black)
                 }
             }
         }
@@ -1984,6 +2001,7 @@ fun CreateRoutineScreen(
     onUpdateName: (String) -> Unit,
     viewModel: WorkoutViewModel
 ) {
+    val theme = LocalNeonTheme.current
     var showExercisePicker by remember { mutableStateOf(false) }
     var showAugmentPicker by remember { mutableStateOf(false) }
     val exerciseFamilies by viewModel.exerciseFamilies.collectAsState()
@@ -2009,13 +2027,13 @@ fun CreateRoutineScreen(
             )
             Text(
                 "Create Routine",
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold,
                 fontSize = 17.sp
             )
             Text(
                 "Save",
-                color = if (uiState.newRoutineName.isNotBlank() && (uiState.newRoutineExercises.isNotEmpty() || uiState.newRoutineAugments.isNotEmpty())) Color(0xFF007AFF) else Color.Gray,
+                color = if (uiState.newRoutineName.isNotBlank() && (uiState.newRoutineExercises.isNotEmpty() || uiState.newRoutineAugments.isNotEmpty())) Color(0xFF007AFF) else theme.inkMuted,
                 modifier = Modifier.clickable(enabled = uiState.newRoutineName.isNotBlank() && (uiState.newRoutineExercises.isNotEmpty() || uiState.newRoutineAugments.isNotEmpty())) { onSave() },
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold
@@ -2030,13 +2048,13 @@ fun CreateRoutineScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
                 .padding(top = 8.dp),
-            placeholder = { Text("Routine title", color = Color.Gray, fontSize = 20.sp, fontWeight = FontWeight.Bold) },
+            placeholder = { Text("Routine title", color = theme.inkMuted, fontSize = 20.sp, fontWeight = FontWeight.Bold) },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Color(0xFF007AFF),
-                unfocusedBorderColor = Color.DarkGray,
+                unfocusedBorderColor = theme.hairline,
                 cursorColor = Color(0xFF007AFF),
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
             ),
             textStyle = LocalTextStyle.current.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold),
             singleLine = true
@@ -2055,13 +2073,13 @@ fun CreateRoutineScreen(
                 Icon(
                     Icons.Default.FitnessCenter,
                     contentDescription = null,
-                    tint = Color.DarkGray,
+                    tint = theme.inkMuted,
                     modifier = Modifier.size(64.dp)
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     "Get started by adding exercises or augments to your routine.",
-                    color = Color.Gray,
+                    color = theme.inkMuted,
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(horizontal = 48.dp)
@@ -2074,12 +2092,12 @@ fun CreateRoutineScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF)),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("Add Exercise", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("Add Exercise", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                     }
                     Button(
                         onClick = { showAugmentPicker = true },
                         modifier = Modifier.weight(1f).height(48.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C1C1E)),
+                        colors = ButtonDefaults.buttonColors(containerColor = theme.surfaceRaised),
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text("Add Augment", color = Color(0xFF00CCFF), fontWeight = FontWeight.Bold)
@@ -2099,7 +2117,7 @@ fun CreateRoutineScreen(
                     val color = Color(android.graphics.Color.parseColor(augment.colorHex))
                     Surface(
                         modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                        color = Color(0xFF1C1C1E),
+                        color = theme.surfaceRaised,
                         shape = RoundedCornerShape(12.dp),
                         border = BorderStroke(1.dp, color.copy(alpha = 0.5f))
                     ) {
@@ -2107,11 +2125,11 @@ fun CreateRoutineScreen(
                             Icon(Icons.Default.Bolt, contentDescription = null, tint = color)
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(augment.name, color = Color.White, fontWeight = FontWeight.Bold)
+                                Text(augment.name, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                                 Text(augment.focusBodyPart, color = color, fontSize = 12.sp)
                             }
                             IconButton(onClick = { viewModel.removeAugmentFromNewRoutine(augment) }) {
-                                Icon(Icons.Default.Close, contentDescription = null, tint = Color.Gray)
+                                Icon(Icons.Default.Close, contentDescription = null, tint = theme.inkMuted)
                             }
                         }
                     }
@@ -2136,7 +2154,7 @@ fun CreateRoutineScreen(
 
     if (showExercisePicker) {
         Dialog(onDismissRequest = { showExercisePicker = false }) {
-            Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
+            Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.onPrimary) {
                 ExercisePicker(
                     uiState = uiState,
                     families = exerciseFamilies,
@@ -2159,7 +2177,7 @@ fun CreateRoutineScreen(
     
     if (showAugmentPicker) {
         Dialog(onDismissRequest = { showAugmentPicker = false }) {
-            Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
+            Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.onPrimary) {
                 AugmentPicker(
                     myAugments = uiState.augments,
                     libraryAugments = uiState.exploreAugments,
@@ -2184,6 +2202,7 @@ fun CreateAugmentScreen(
     onUpdateBodyPart: (String) -> Unit,
     viewModel: WorkoutViewModel
 ) {
+    val theme = LocalNeonTheme.current
     var showExercisePicker by remember { mutableStateOf(false) }
     val exerciseFamilies by viewModel.exerciseFamilies.collectAsState()
 
@@ -2208,13 +2227,13 @@ fun CreateAugmentScreen(
             )
             Text(
                 "Create Augment",
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold,
                 fontSize = 17.sp
             )
             Text(
                 "Save",
-                color = if (uiState.newAugmentName.isNotBlank() && uiState.newAugmentExercises.isNotEmpty()) Color(0xFF00CCFF) else Color.Gray,
+                color = if (uiState.newAugmentName.isNotBlank() && uiState.newAugmentExercises.isNotEmpty()) Color(0xFF00CCFF) else theme.inkMuted,
                 modifier = Modifier.clickable(enabled = uiState.newAugmentName.isNotBlank() && uiState.newAugmentExercises.isNotEmpty()) { onSave() },
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold
@@ -2228,12 +2247,12 @@ fun CreateAugmentScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
-            placeholder = { Text("Augment title (e.g. Gorilla Arms)", color = Color.Gray, fontSize = 20.sp, fontWeight = FontWeight.Bold) },
+            placeholder = { Text("Augment title (e.g. Gorilla Arms)", color = theme.inkMuted, fontSize = 20.sp, fontWeight = FontWeight.Bold) },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Color(0xFF00CCFF),
-                unfocusedBorderColor = Color.DarkGray,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White
+                unfocusedBorderColor = theme.hairline,
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
             ),
             textStyle = LocalTextStyle.current.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold),
             singleLine = true
@@ -2246,12 +2265,12 @@ fun CreateAugmentScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            placeholder = { Text("Focus Body Part (e.g. Biceps)", color = Color.Gray, fontSize = 14.sp) },
+            placeholder = { Text("Focus Body Part (e.g. Biceps)", color = theme.inkMuted, fontSize = 14.sp) },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Color(0xFF00CCFF),
-                unfocusedBorderColor = Color.DarkGray,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White
+                unfocusedBorderColor = theme.hairline,
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
             ),
             textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
             singleLine = true
@@ -2270,13 +2289,13 @@ fun CreateAugmentScreen(
                 Icon(
                     Icons.Default.Bolt,
                     contentDescription = null,
-                    tint = Color.DarkGray,
+                    tint = theme.inkMuted,
                     modifier = Modifier.size(64.dp)
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     "Select exercises to bundle into this sub-protocol.",
-                    color = Color.Gray,
+                    color = theme.inkMuted,
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(horizontal = 48.dp)
@@ -2291,9 +2310,9 @@ fun CreateAugmentScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00CCFF)),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = null, tint = Color.Black)
+                    Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Add exercise", color = Color.Black, fontWeight = FontWeight.Bold)
+                    Text("Add exercise", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                 }
             }
         } else {
@@ -2327,7 +2346,7 @@ fun CreateAugmentScreen(
         Dialog(onDismissRequest = { showExercisePicker = false }) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
-                color = Color.Black
+                color = MaterialTheme.colorScheme.onPrimary
             ) {
                 ExercisePicker(
                     uiState = uiState,
@@ -2358,13 +2377,14 @@ fun RoutineExerciseItem(
     isPrescriptive: Boolean = false,
     onRemove: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     var showSetTypeSelectorForIndex by remember { mutableStateOf<Int?>(null) }
     
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp)
-            .background(Color(0xFF1C1C1E), RoundedCornerShape(12.dp))
+            .background(theme.surfaceRaised, RoundedCornerShape(12.dp))
             .padding(16.dp)
     ) {
         Row(
@@ -2379,7 +2399,7 @@ fun RoutineExerciseItem(
                 fontWeight = FontWeight.Bold
             )
             IconButton(onClick = onRemove) {
-                Icon(Icons.Default.Close, contentDescription = "Remove", tint = Color.Gray, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.Close, contentDescription = "Remove", tint = theme.inkMuted, modifier = Modifier.size(20.dp))
             }
         }
         
@@ -2387,10 +2407,10 @@ fun RoutineExerciseItem(
         
         // Set Table Header
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("SET", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1f))
-            Text("GOAL", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center)
-            Text("LBS", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center)
-            Text("REPS", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center)
+            Text("SET", color = theme.inkMuted, fontSize = 12.sp, modifier = Modifier.weight(1f))
+            Text("GOAL", color = theme.inkMuted, fontSize = 12.sp, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center)
+            Text("LBS", color = theme.inkMuted, fontSize = 12.sp, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center)
+            Text("REPS", color = theme.inkMuted, fontSize = 12.sp, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center)
             Box(modifier = Modifier.size(24.dp)) // Spacer for remove button
         }
 
@@ -2431,10 +2451,10 @@ fun RoutineExerciseItem(
                         SetType.WIDOWMAKER -> Color(0xFFFF00FF)
                         SetType.POWER -> Color(0xFFFFD700)
                         SetType.GS -> Color(0xFF00CCFF)
-                        SetType.PARTIAL -> Color(0xFF00FF9C)
+                        SetType.PARTIAL -> MaterialTheme.colorScheme.primary
                         SetType.STRETCH -> Color(0xFFFF006E)
                         SetType.MAX_EFFORT -> Color(0xFFFF0000)
-                        else -> Color.White
+                        else -> MaterialTheme.colorScheme.onSurface
                     }
                     Text(label, color = color, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
@@ -2470,7 +2490,7 @@ fun RoutineExerciseItem(
                     onClick = { viewModel.removeSetFromRoutineExercise(routineExercise, index) },
                     modifier = Modifier.size(24.dp)
                 ) {
-                    Icon(Icons.Default.RemoveCircleOutline, contentDescription = "Remove Set", tint = Color.Gray, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.RemoveCircleOutline, contentDescription = "Remove Set", tint = theme.inkMuted, modifier = Modifier.size(16.dp))
                 }
             }
         }
@@ -2506,6 +2526,7 @@ fun ActiveWorkoutContent(
     onRestTimerClick: () -> Unit,
     onViewInCodex: (String) -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     var showExercisePicker by remember { mutableStateOf(false) }
     var showAugmentPicker by remember { mutableStateOf(false) }
     var exerciseToReplace by remember { mutableStateOf<WorkoutLog?>(null) }
@@ -2545,7 +2566,7 @@ fun ActiveWorkoutContent(
                     modifier = Modifier
                         .weight(1f)
                         .height(48.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C1C1E)),
+                    colors = ButtonDefaults.buttonColors(containerColor = theme.surfaceRaised),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text("Add Exercise", color = Color(0xFF007AFF), fontWeight = FontWeight.Bold)
@@ -2557,7 +2578,7 @@ fun ActiveWorkoutContent(
                         .weight(1f)
                         .height(48.dp)
                         .border(1.dp, Color(0xFF00CCFF), RoundedCornerShape(8.dp)),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
+                    colors = ButtonDefaults.buttonColors(containerColor = theme.surface),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Icon(Icons.Default.Bolt, contentDescription = null, tint = Color(0xFF00CCFF), modifier = Modifier.size(20.dp))
@@ -2621,7 +2642,7 @@ fun ActiveWorkoutContent(
         Dialog(onDismissRequest = { showExercisePicker = false }) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
-                color = Color.Black
+                color = MaterialTheme.colorScheme.onPrimary
             ) {
                 ExercisePicker(
                     uiState = uiState,
@@ -2655,7 +2676,7 @@ fun ActiveWorkoutContent(
         Dialog(onDismissRequest = { showAugmentPicker = false }) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
-                color = Color.Black
+                color = MaterialTheme.colorScheme.onPrimary
             ) {
                 AugmentPicker(
                     myAugments = uiState.augments,
@@ -2679,9 +2700,10 @@ fun AugmentPicker(
     onSelect: (WorkoutAugment) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     var showLibrary by remember { mutableStateOf(false) }
 
-    Column(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         // Header
         Row(
             modifier = Modifier
@@ -2697,7 +2719,7 @@ fun AugmentPicker(
             )
             Text(
                 "Select Augment",
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold,
                 fontSize = 17.sp
             )
@@ -2713,7 +2735,7 @@ fun AugmentPicker(
                 item {
                     Text(
                         "MY SUB-PROTOCOLS",
-                        color = Color.Gray,
+                        color = theme.inkMuted,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 8.dp)
@@ -2761,12 +2783,13 @@ fun AugmentPicker(
 
 @Composable
 fun AugmentPickerItem(augment: WorkoutAugment, onSelect: (WorkoutAugment) -> Unit) {
+    val theme = LocalNeonTheme.current
     val color = Color(android.graphics.Color.parseColor(augment.colorHex))
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onSelect(augment) },
-        color = Color(0xFF1C1C1E),
+        color = theme.surfaceRaised,
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(1.dp, color.copy(alpha = 0.5f))
     ) {
@@ -2778,7 +2801,7 @@ fun AugmentPickerItem(augment: WorkoutAugment, onSelect: (WorkoutAugment) -> Uni
             ) {
                 Text(
                     augment.name,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -2798,7 +2821,7 @@ fun AugmentPickerItem(augment: WorkoutAugment, onSelect: (WorkoutAugment) -> Uni
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 augment.exercises.joinToString(" • ") { it.exercise.name },
-                color = Color.Gray,
+                color = theme.inkMuted,
                 fontSize = 13.sp
             )
         }
@@ -2816,10 +2839,11 @@ fun SupersetSelectionMenu(
     onLogSelected: (WorkoutLog) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF1C1C1E),
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.Gray) }
+        containerColor = theme.surfaceRaised,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = theme.inkMuted) }
     ) {
         Column(modifier = Modifier.padding(bottom = 32.dp)) {
             Column(
@@ -2830,13 +2854,13 @@ fun SupersetSelectionMenu(
             ) {
                 Text(
                     "Superset",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     "Superset ${sourceLog.exerciseName} with...",
-                    color = Color.Gray,
+                    color = theme.inkMuted,
                     fontSize = 14.sp
                 )
             }
@@ -2855,7 +2879,7 @@ fun SupersetSelectionMenu(
                 ) {
                     Text(
                         text = log.exerciseName,
-                        color = if (isSource) Color.White.copy(alpha = 0.5f) else Color.White,
+                        color = if (isSource) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface,
                         fontSize = 16.sp,
                         modifier = Modifier.weight(1f)
                     )
@@ -2868,7 +2892,7 @@ fun SupersetSelectionMenu(
                         )
                     }
                 }
-                HorizontalDivider(color = Color.Gray.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 24.dp))
+                HorizontalDivider(color = theme.inkMuted.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 24.dp))
             }
         }
 
@@ -2887,10 +2911,11 @@ fun WorkoutRoutineActionMenu(
     onDelete: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF1C1C1E),
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.Gray) }
+        containerColor = theme.surfaceRaised,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = theme.inkMuted) }
     ) {
         Column(modifier = Modifier.padding(bottom = 32.dp)) {
             Column(
@@ -2901,7 +2926,7 @@ fun WorkoutRoutineActionMenu(
             ) {
                 Text(
                     routine.name,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -2932,7 +2957,7 @@ fun WorkoutRoutineActionMenu(
                 }
             )
             
-            HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f))
+            HorizontalDivider(color = theme.inkMuted.copy(alpha = 0.2f))
             
             ActionMenuItem(
                 icon = Icons.Default.Close,
@@ -2964,10 +2989,11 @@ fun WorkoutAugmentActionMenu(
     onDelete: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF1C1C1E),
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.Gray) }
+        containerColor = theme.surfaceRaised,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = theme.inkMuted) }
     ) {
         Column(modifier = Modifier.padding(bottom = 32.dp)) {
             Column(
@@ -2978,7 +3004,7 @@ fun WorkoutAugmentActionMenu(
             ) {
                 Text(
                     augment.name,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -3013,7 +3039,7 @@ fun WorkoutAugmentActionMenu(
                         onDismiss()
                     }
                 )
-                HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f))
+                HorizontalDivider(color = theme.inkMuted.copy(alpha = 0.2f))
             }
 
             ActionMenuItem(
@@ -3049,7 +3075,7 @@ fun WorkoutAugmentActionMenu(
                 }
             )
             
-            HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f))
+            HorizontalDivider(color = theme.inkMuted.copy(alpha = 0.2f))
             
             ActionMenuItem(
                 icon = Icons.Default.Close,
@@ -3077,10 +3103,11 @@ fun WorkoutExerciseActionMenu(
     onRemove: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF1C1C1E),
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.Gray) }
+        containerColor = theme.surfaceRaised,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = theme.inkMuted) }
     ) {
         Column(modifier = Modifier.padding(bottom = 32.dp)) {
             ActionMenuItem(
@@ -3116,7 +3143,7 @@ fun WorkoutExerciseActionMenu(
             )
             Text(
                 "Pair two lifts. Not a program.",
-                color = Color.Gray,
+                color = theme.inkMuted,
                 fontSize = 11.sp,
                 modifier = Modifier.padding(horizontal = 64.dp, vertical = 0.dp)
             )
@@ -3133,7 +3160,7 @@ fun WorkoutExerciseActionMenu(
                 )
             }
             
-            HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f))
+            HorizontalDivider(color = theme.inkMuted.copy(alpha = 0.2f))
             
             ActionMenuItem(
                 icon = Icons.Default.Close,
@@ -3168,7 +3195,7 @@ fun ReorderExercisesScreen(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding()
-            .background(Color.Black)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // Header
         Row(
@@ -3179,11 +3206,11 @@ fun ReorderExercisesScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
             }
             Text(
                 "Reorder",
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold,
                 fontSize = 17.sp
             )
@@ -3264,7 +3291,7 @@ fun ReorderExercisesScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF)),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Done", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Text("Done", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 17.sp)
             }
         }
 
@@ -3283,6 +3310,7 @@ fun ReorderExerciseItem(
     onDrag: (Float) -> Unit,
     onDragEnd: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -3310,10 +3338,10 @@ fun ReorderExerciseItem(
         Box(
             modifier = Modifier
                 .size(48.dp)
-                .background(Color.White, CircleShape),
+                .background(MaterialTheme.colorScheme.onSurface, CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(exerciseIcon, contentDescription = null, tint = Color.Black, modifier = Modifier.size(24.dp))
+            Icon(exerciseIcon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(24.dp))
         }
 
         Spacer(modifier = Modifier.width(16.dp))
@@ -3321,7 +3349,7 @@ fun ReorderExerciseItem(
         // Exercise Name
         Text(
             log.exerciseName,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 17.sp,
             fontWeight = FontWeight.Normal,
             modifier = Modifier.weight(1f)
@@ -3330,10 +3358,10 @@ fun ReorderExerciseItem(
         // Navigation Controls (Arrows) + Drag Handle (Hamburger)
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onMoveUp, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move Up", tint = Color.Gray)
+                Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move Up", tint = theme.inkMuted)
             }
             IconButton(onClick = onMoveDown, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move Down", tint = Color.Gray)
+                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move Down", tint = theme.inkMuted)
             }
             
             Spacer(modifier = Modifier.width(8.dp))
@@ -3358,7 +3386,7 @@ fun ReorderExerciseItem(
                 Icon(
                     Icons.Default.Menu,
                     contentDescription = "Drag to reorder",
-                    tint = Color.Gray.copy(alpha = 0.6f),
+                    tint = theme.inkMuted.copy(alpha = 0.6f),
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -3371,7 +3399,7 @@ fun ReorderExerciseItem(
 fun ActionMenuItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
-    color: Color = Color.White,
+    color: Color = MaterialTheme.colorScheme.onSurface,
     onClick: () -> Unit
 ) {
     Row(
@@ -3401,6 +3429,7 @@ fun ExercisePicker(
     onSaveCustomExercise: (String, String, String, String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     var showCustomExerciseForm by remember { mutableStateOf(false) }
 
     if (showCustomExerciseForm) {
@@ -3416,7 +3445,7 @@ fun ExercisePicker(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // Header
         Row(
@@ -3436,7 +3465,7 @@ fun ExercisePicker(
             )
             Text(
                 if (uiState.selectedFamilyIdInPicker != null) "Select Variant" else "Add Exercise",
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold,
                 fontSize = 17.sp
             )
@@ -3456,11 +3485,11 @@ fun ExercisePicker(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
                 .heightIn(min = 44.dp),
-            placeholder = { Text("Search family or variant...", color = Color.Gray, fontSize = 14.sp) },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.Gray) },
+            placeholder = { Text("Search family or variant...", color = theme.inkMuted, fontSize = 14.sp) },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = theme.inkMuted) },
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color(0xFF1C1C1E),
-                unfocusedContainerColor = Color(0xFF1C1C1E),
+                focusedContainerColor = theme.surfaceRaised,
+                unfocusedContainerColor = theme.surfaceRaised,
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent
             ),
@@ -3492,8 +3521,8 @@ fun ExercisePicker(
                 onClick = { onToggleShowAll(true) },
                 label = { Text("ALL VARIANTS") },
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Color(0xFF00FF9C).copy(alpha = 0.2f),
-                    selectedLabelColor = Color(0xFF00FF9C)
+                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                    selectedLabelColor = MaterialTheme.colorScheme.primary
                 )
             )
         }
@@ -3536,6 +3565,7 @@ fun ExercisePicker(
 
 @Composable
 fun ExerciseFamilyItem(family: ExerciseFamily, onClick: () -> Unit) {
+    val theme = LocalNeonTheme.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -3552,19 +3582,19 @@ fun ExerciseFamilyItem(family: ExerciseFamily, onClick: () -> Unit) {
                 else -> Icons.Default.FitnessCenter
             }
             Box(
-                modifier = Modifier.size(48.dp).background(Color.White.copy(alpha = 0.1f), CircleShape),
+                modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(exerciseIcon, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+                Icon(exerciseIcon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(24.dp))
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(family.name.uppercase(), color = Color.White, fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 1.sp)
-                Text("${family.variants.size} implements", color = Color.Gray, fontSize = 12.sp)
+                Text(family.name.uppercase(), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 1.sp)
+                Text("${family.variants.size} implements", color = theme.inkMuted, fontSize = 12.sp)
             }
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = Color.DarkGray)
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = theme.hairline)
         }
-        HorizontalDivider(modifier = Modifier.padding(start = 80.dp), color = Color.DarkGray.copy(alpha = 0.5f), thickness = 0.5.dp)
+        HorizontalDivider(modifier = Modifier.padding(start = 80.dp), color = theme.hairline.copy(alpha = 0.5f), thickness = 0.5.dp)
     }
 }
 
@@ -3575,6 +3605,7 @@ fun VariantSelector(
     onSelect: (Exercise) -> Unit,
     onDetailClick: (Exercise) -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     var selectedImplement by remember { mutableStateOf<Implement?>(family.variants.firstOrNull()?.implement) }
     
     val implements = remember(family) { family.variants.map { it.implement }.distinct() }
@@ -3591,7 +3622,7 @@ fun VariantSelector(
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text("1. CHOOSE IMPLEMENT", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+        Text("1. CHOOSE IMPLEMENT", color = theme.inkMuted, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
         Spacer(Modifier.height(8.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             implements.forEach { imp ->
@@ -3601,8 +3632,8 @@ fun VariantSelector(
                     onClick = { selectedImplement = imp },
                     label = { Text(imp.name.replace("_", " ")) },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0xFF00FF9C).copy(alpha = 0.2f),
-                        selectedLabelColor = Color(0xFF00FF9C)
+                        selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                        selectedLabelColor = MaterialTheme.colorScheme.primary
                     )
                 )
             }
@@ -3610,7 +3641,7 @@ fun VariantSelector(
 
         if (stances.size > 1) {
             Spacer(Modifier.height(24.dp))
-            Text("2. CHOOSE STANCE", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+            Text("2. CHOOSE STANCE", color = theme.inkMuted, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
             Spacer(Modifier.height(8.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 stances.forEach { stance ->
@@ -3633,29 +3664,29 @@ fun VariantSelector(
         if (finalVariant != null) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color(0xFF1C1C1E),
+                color = theme.surfaceRaised,
                 shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.3f))
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
             ) {
                 Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(finalVariant.name.uppercase(), color = Color.White, fontWeight = FontWeight.Black, fontSize = 16.sp)
+                        Text(finalVariant.name.uppercase(), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Black, fontSize = 16.sp)
                         val details = buildString {
                             append(finalVariant.stance.name.replace("_", " "))
                             append(" · ")
                             append(finalVariant.specialtyBar ?: finalVariant.implement.name.replace("_", " "))
                         }
-                        Text(details, color = Color.Gray, fontSize = 12.sp)
+                        Text(details, color = theme.inkMuted, fontSize = 12.sp)
                     }
                     IconButton(onClick = { onDetailClick(finalVariant) }) {
-                        Icon(Icons.Default.Info, contentDescription = "Info", tint = Color.Gray)
+                        Icon(Icons.Default.Info, contentDescription = "Info", tint = theme.inkMuted)
                     }
                     Button(
                         onClick = { onSelect(finalVariant) },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("ADD TO SESSION", color = Color.Black, fontWeight = FontWeight.Black)
+                        Text("ADD TO SESSION", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black)
                     }
                 }
             }
@@ -3683,11 +3714,12 @@ fun AllVariantsList(
 
 @Composable
 fun FilterButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val theme = LocalNeonTheme.current
     Surface(
         modifier = modifier
             .height(36.dp)
             .clickable { onClick() },
-        color = Color(0xFF1C1C1E),
+        color = theme.surfaceRaised,
         shape = RoundedCornerShape(8.dp)
     ) {
         Row(
@@ -3695,8 +3727,8 @@ fun FilterButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifi
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Text(label, color = Color.White, fontSize = 14.sp)
-            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = Color.Gray)
+            Text(label, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
+            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = theme.inkMuted)
         }
 
     }
@@ -3704,6 +3736,7 @@ fun FilterButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifi
 
 @Composable
 fun ExerciseListItem(exercise: Exercise, onDetailClick: (Exercise) -> Unit, onSelect: () -> Unit) {
+    val theme = LocalNeonTheme.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -3724,14 +3757,14 @@ fun ExerciseListItem(exercise: Exercise, onDetailClick: (Exercise) -> Unit, onSe
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .background(Color.White, CircleShape)
+                    .background(MaterialTheme.colorScheme.onSurface, CircleShape)
                     .clickable { onDetailClick(exercise) },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     exerciseIcon,
                     contentDescription = null,
-                    tint = Color.Black,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -3745,13 +3778,13 @@ fun ExerciseListItem(exercise: Exercise, onDetailClick: (Exercise) -> Unit, onSe
             ) {
                 Text(
                     exercise.name,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium
                 )
                 Text(
                     exercise.muscleGroups.firstOrNull() ?: "",
-                    color = Color.Gray,
+                    color = theme.inkMuted,
                     fontSize = 14.sp
                 )
             }
@@ -3767,7 +3800,7 @@ fun ExerciseListItem(exercise: Exercise, onDetailClick: (Exercise) -> Unit, onSe
         }
         HorizontalDivider(
             modifier = Modifier.padding(start = 80.dp),
-            color = Color.DarkGray,
+            color = theme.hairline,
             thickness = 0.5.dp
         )
 
@@ -3779,6 +3812,7 @@ fun CustomExerciseForm(
     onSave: (String, String, String, String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     var name by remember { mutableStateOf("") }
     var muscleGroup by remember { mutableStateOf("") }
     var equipment by remember { mutableStateOf("") }
@@ -3789,7 +3823,7 @@ fun CustomExerciseForm(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            color = Color(0xFF1C1C1E),
+            color = theme.surfaceRaised,
             shape = RoundedCornerShape(12.dp)
         ) {
             Column(
@@ -3799,7 +3833,7 @@ fun CustomExerciseForm(
             ) {
                 Text(
                     "Create Custom Exercise",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 16.dp)
@@ -3808,13 +3842,13 @@ fun CustomExerciseForm(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Exercise Name *", color = Color.Gray) },
+                    label = { Text("Exercise Name *", color = theme.inkMuted) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color(0xFF007AFF),
-                        unfocusedBorderColor = Color.DarkGray,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        unfocusedBorderColor = theme.hairline,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                     ),
                     singleLine = true
                 )
@@ -3824,13 +3858,13 @@ fun CustomExerciseForm(
                 OutlinedTextField(
                     value = muscleGroup,
                     onValueChange = { muscleGroup = it },
-                    label = { Text("Muscle Group", color = Color.Gray) },
+                    label = { Text("Muscle Group", color = theme.inkMuted) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color(0xFF007AFF),
-                        unfocusedBorderColor = Color.DarkGray,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        unfocusedBorderColor = theme.hairline,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                     ),
                     singleLine = true
                 )
@@ -3840,13 +3874,13 @@ fun CustomExerciseForm(
                 OutlinedTextField(
                     value = equipment,
                     onValueChange = { equipment = it },
-                    label = { Text("Equipment", color = Color.Gray) },
+                    label = { Text("Equipment", color = theme.inkMuted) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color(0xFF007AFF),
-                        unfocusedBorderColor = Color.DarkGray,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        unfocusedBorderColor = theme.hairline,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                     ),
                     singleLine = true
                 )
@@ -3856,13 +3890,13 @@ fun CustomExerciseForm(
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("Instructions", color = Color.Gray) },
+                    label = { Text("Instructions", color = theme.inkMuted) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color(0xFF007AFF),
-                        unfocusedBorderColor = Color.DarkGray,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        unfocusedBorderColor = theme.hairline,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                     ),
                     minLines = 3
                 )
@@ -3874,14 +3908,14 @@ fun CustomExerciseForm(
                     horizontalArrangement = Arrangement.End
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text("Cancel", color = Color.Gray)
+                        Text("Cancel", color = theme.inkMuted)
                     }
                     Button(
                         onClick = { onSave(name, muscleGroup, equipment, description) },
                         enabled = name.isNotBlank(),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF))
                     ) {
-                        Text("Save Exercise", color = Color.White)
+                        Text("Save Exercise", color = MaterialTheme.colorScheme.onSurface)
                     }
                 }
             }
@@ -3932,7 +3966,7 @@ fun WorkoutLogCard(
     val showGoalColumn = isCC || log.showGoalReps || sets.any { it.goalReps != null || it.prescribedReps != null }
     
     val augmentColor = log.augmentColor?.let { Color(android.graphics.Color.parseColor(it)) } ?: Color(0xFF007AFF)
-    val neonColor = Color(0xFF00FF9C)
+    val neonColor = MaterialTheme.colorScheme.primary
 
     var notesText by remember(exercise?.notes) { mutableStateOf(exercise?.notes ?: "") }
     var isEditing by remember { mutableStateOf(false) }
@@ -3946,13 +3980,14 @@ fun WorkoutLogCard(
         }
     }
 
+    val theme = LocalNeonTheme.current
     Column(
         modifier = Modifier
             .padding(horizontal = 16.dp)
             .then(
                 if (log.augmentId != null) {
                     Modifier
-                        .background(Color.Black)
+                        .background(theme.canvas)
                         .padding(2.dp)
                         .border(
                             width = 1.dp,
@@ -4018,13 +4053,13 @@ fun WorkoutLogCard(
                 Box(
                     modifier = Modifier
                         .size(36.dp)
-                        .background(Color(0xFF1C1C1E), CircleShape),
+                        .background(theme.surfaceRaised, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         exerciseIcon,
                         contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.6f),
+                        tint = theme.ink.copy(alpha = 0.6f),
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -4067,7 +4102,7 @@ fun WorkoutLogCard(
                     if (variantTitle.isNotEmpty()) {
                         Text(
                             variantTitle.uppercase(),
-                            color = Color.Gray,
+                            color = theme.inkMuted,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Black,
                             letterSpacing = 1.sp
@@ -4076,7 +4111,7 @@ fun WorkoutLogCard(
 
                     Text(
                         "VIEW_IN_CODEX",
-                        color = Color(0xFF00FF9C).copy(alpha = 0.5f),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                         fontSize = 8.sp,
                         fontFamily = FontFamily.Monospace,
                         modifier = Modifier.clickable { onViewInCodex(log.exerciseId) }
@@ -4105,7 +4140,7 @@ fun WorkoutLogCard(
                     }
                     
                     comparisonText?.let {
-                        Text(it, color = Color(0xFF00FF9C), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
 
                     // Accomplishments badge display
@@ -4165,7 +4200,7 @@ fun WorkoutLogCard(
                 Icon(
                     Icons.Default.MoreHoriz, 
                     contentDescription = "Exercise Actions", 
-                    tint = Color.White.copy(alpha = 0.8f),
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -4215,15 +4250,15 @@ fun WorkoutLogCard(
                         }
                     }
                     .padding(vertical = 4.dp),
-                placeholder = { Text("Add notes...", color = Color.Gray, fontSize = 14.sp) },
+                placeholder = { Text("Add notes...", color = theme.inkMuted, fontSize = 14.sp) },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = augmentColor,
-                    unfocusedBorderColor = Color.DarkGray,
+                    unfocusedBorderColor = theme.hairline,
                     cursorColor = augmentColor,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedContainerColor = Color(0xFF1C1C1E),
-                    unfocusedContainerColor = Color(0xFF1C1C1E)
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    focusedContainerColor = theme.surfaceRaised,
+                    unfocusedContainerColor = theme.surfaceRaised
                 ),
                 textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
                 maxLines = 3
@@ -4231,7 +4266,7 @@ fun WorkoutLogCard(
         } else if (notesText.isNotEmpty()) {
             Text(
                 text = notesText,
-                color = Color.Gray,
+                color = theme.inkMuted,
                 fontSize = 14.sp,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -4248,13 +4283,13 @@ fun WorkoutLogCard(
                 Icon(
                     Icons.Default.Edit,
                     contentDescription = null,
-                    tint = Color.Gray.copy(alpha = 0.7f),
+                    tint = theme.inkMuted.copy(alpha = 0.7f),
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     "Add notes...",
-                    color = Color.Gray.copy(alpha = 0.7f),
+                    color = theme.inkMuted.copy(alpha = 0.7f),
                     fontSize = 13.sp
                 )
             }
@@ -4279,13 +4314,13 @@ fun WorkoutLogCard(
             Icon(
                 Icons.Default.Timer, 
                 contentDescription = null, 
-                tint = if (uiState.isResting || uiState.showLoadedStretch) Color(0xFF00FF9C) else Color(0xFF007AFF), 
+                tint = if (uiState.isResting || uiState.showLoadedStretch) MaterialTheme.colorScheme.primary else Color(0xFF007AFF), 
                 modifier = Modifier.size(16.dp)
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
                 timerText, 
-                color = if (uiState.isResting || uiState.showLoadedStretch) Color(0xFF00FF9C) else Color(0xFF007AFF), 
+                color = if (uiState.isResting || uiState.showLoadedStretch) MaterialTheme.colorScheme.primary else Color(0xFF007AFF), 
                 fontSize = 14.sp
             )
             
@@ -4311,17 +4346,17 @@ fun WorkoutLogCard(
             val lbsLabel = if (zoom >= 1.5f) "LB" else "LBS"
             val repsLabel = if (zoom >= 1.5f) "R" else "REPS"
 
-            Text(setLabel, color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1f))
+            Text(setLabel, color = theme.inkMuted, fontSize = 12.sp, modifier = Modifier.weight(1f))
             if (showGoalColumn && zoom < 1.5f) {
-                Text("GOAL", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center)
+                Text("GOAL", color = theme.inkMuted, fontSize = 12.sp, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center)
             }
             if (zoom < 1.5f) {
                 val prevLabel = if (zoom <= 0.8f) "LAST BEST" else "PREVIOUS"
-                Text(prevLabel, color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(2f))
+                Text(prevLabel, color = theme.inkMuted, fontSize = 12.sp, modifier = Modifier.weight(2f))
             }
-            Text(lbsLabel, color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center)
-            Text(repsLabel, color = Color.Gray, fontSize = 12.sp, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center)
-            Icon(Icons.Default.Check, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+            Text(lbsLabel, color = theme.inkMuted, fontSize = 12.sp, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center)
+            Text(repsLabel, color = theme.inkMuted, fontSize = 12.sp, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center)
+            Icon(Icons.Default.Check, contentDescription = null, tint = theme.inkMuted, modifier = Modifier.size(16.dp))
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -4353,7 +4388,7 @@ fun WorkoutLogCard(
         if (uiState.currentUiMode == ProtocolUiMode.MAX_EFFORT && warmupSets.isNotEmpty() && warmupsCollapsed) {
             Text(
                 "${warmupSets.size} WARMUPS COLLAPSED", 
-                color = Color.Gray, 
+                color = theme.inkMuted, 
                 fontSize = 10.sp, 
                 fontWeight = FontWeight.Bold, 
                 modifier = Modifier.fillMaxWidth().clickable { warmupsCollapsed = false }.padding(vertical = 8.dp), 
@@ -4477,10 +4512,10 @@ fun WorkoutLogCard(
                 .fillMaxWidth()
                 .padding(vertical = 8.dp)
                 .height(36.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C1C1E)),
+            colors = ButtonDefaults.buttonColors(containerColor = theme.surfaceRaised),
             shape = RoundedCornerShape(4.dp)
         ) {
-            Text("+ Add Set", color = Color.White, fontSize = 14.sp)
+            Text("+ Add Set", color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
         }
     }
 
@@ -4519,6 +4554,7 @@ fun ProgressionBanner(
     icon: ImageVector,
     onActionClick: (() -> Unit)? = null
 ) {
+    val theme = LocalNeonTheme.current
     Surface(
         color = color.copy(alpha = 0.15f),
         shape = RoundedCornerShape(8.dp),
@@ -4557,10 +4593,11 @@ fun ExerciseSubstitutionDialog(
     onBrowseLibrary: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF1C1C1E),
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.Gray) }
+        containerColor = theme.surfaceRaised,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = theme.inkMuted) }
     ) {
         Column(
             modifier = Modifier
@@ -4576,7 +4613,7 @@ fun ExerciseSubstitutionDialog(
             )
             Text(
                 text = "Performance has plateaued. Select a similar movement to continue progression.",
-                color = Color.Gray,
+                color = theme.inkMuted,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(vertical = 8.dp)
             )
@@ -4586,9 +4623,9 @@ fun ExerciseSubstitutionDialog(
             recommendations.forEach { exercise ->
                 Surface(
                     onClick = { onSubstitute(exercise) },
-                    color = Color.Black.copy(alpha = 0.5f),
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f),
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
@@ -4597,11 +4634,11 @@ fun ExerciseSubstitutionDialog(
                         modifier = Modifier.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.FitnessCenter, contentDescription = null, tint = Color.White)
+                        Icon(Icons.Default.FitnessCenter, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
                         Spacer(Modifier.width(16.dp))
                         Column {
-                            Text(exercise.name, color = Color.White, fontWeight = FontWeight.Bold)
-                            Text(exercise.equipment.joinToString(", "), color = Color.Gray, fontSize = 10.sp)
+                            Text(exercise.name, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                            Text(exercise.equipment.joinToString(", "), color = theme.inkMuted, fontSize = 10.sp)
                         }
                     }
                 }
@@ -4612,9 +4649,9 @@ fun ExerciseSubstitutionDialog(
             Button(
                 onClick = onBrowseLibrary,
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.1f))
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
             ) {
-                Text("BROWSE MAIN LIBRARY", color = Color.White)
+                Text("BROWSE MAIN LIBRARY", color = MaterialTheme.colorScheme.onSurface)
             }
         }
 
@@ -4628,15 +4665,16 @@ fun ExerciseDetailModal(
     onExerciseClick: (Exercise) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     val context = LocalContext.current
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.85f),
-            color = Color(0xFF050505),
+            color = MaterialTheme.colorScheme.background,
             shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, Color.Gray.copy(alpha = 0.3f))
+            border = BorderStroke(1.dp, theme.inkMuted.copy(alpha = 0.3f))
         ) {
             Column(
                 modifier = Modifier
@@ -4652,13 +4690,13 @@ fun ExerciseDetailModal(
                 ) {
                     Text(
                         exercise.name.uppercase(),
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Black,
                         modifier = Modifier.weight(1f)
                     )
                     IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Gray)
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = theme.inkMuted)
                     }
                 }
 
@@ -4669,7 +4707,7 @@ fun ExerciseDetailModal(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(240.dp)
-                        .background(Color(0xFF1C1C1E), RoundedCornerShape(12.dp)),
+                        .background(theme.surfaceRaised, RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     if (exercise.gifAssetPath != null) {
@@ -4687,7 +4725,7 @@ fun ExerciseDetailModal(
                         Icon(
                             Icons.Default.FitnessCenter,
                             contentDescription = null,
-                            tint = Color.DarkGray,
+                            tint = theme.inkMuted,
                             modifier = Modifier.size(64.dp)
                         )
                     }
@@ -4702,13 +4740,13 @@ fun ExerciseDetailModal(
                 ) {
                     exercise.muscleGroups.forEach { muscle ->
                         Surface(
-                            color = Color(0xFF00FF9C).copy(alpha = 0.1f),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
                             shape = RoundedCornerShape(4.dp),
-                            border = BorderStroke(0.5.dp, Color(0xFF00FF9C).copy(alpha = 0.5f))
+                            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
                         ) {
                             Text(
                                 muscle.uppercase(),
-                                color = Color(0xFF00FF9C),
+                                color = MaterialTheme.colorScheme.primary,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Black,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -4717,13 +4755,13 @@ fun ExerciseDetailModal(
                     }
                     exercise.equipment.forEach { equip ->
                         Surface(
-                            color = Color.Gray.copy(alpha = 0.1f),
+                            color = theme.inkMuted.copy(alpha = 0.1f),
                             shape = RoundedCornerShape(4.dp),
-                            border = BorderStroke(0.5.dp, Color.Gray.copy(alpha = 0.5f))
+                            border = BorderStroke(0.5.dp, theme.inkMuted.copy(alpha = 0.5f))
                         ) {
                             Text(
                                 equip.uppercase(),
-                                color = Color.Gray,
+                                color = theme.inkMuted,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -4737,14 +4775,14 @@ fun ExerciseDetailModal(
                 // Description
                 Text(
                     "PROTOCOL DIRECTIVE",
-                    color = Color.Gray,
+                    color = theme.inkMuted,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = 2.sp
                 )
                 Text(
                     exercise.description,
-                    color = Color.White.copy(alpha = 0.9f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f),
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
                     modifier = Modifier.padding(top = 8.dp)
@@ -4756,18 +4794,18 @@ fun ExerciseDetailModal(
                 if (exercise.cues.isNotEmpty()) {
                     Text(
                         "NEURAL CUES",
-                        color = Color.Gray,
+                        color = theme.inkMuted,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Black,
                         letterSpacing = 2.sp
                     )
                     exercise.cues.forEach { cue ->
                         Row(modifier = Modifier.padding(top = 12.dp)) {
-                            Text("•", color = Color(0xFF00FF9C), fontWeight = FontWeight.Bold)
+                            Text("•", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 cue,
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 fontSize = 14.sp,
                                 lineHeight = 18.sp
                             )
@@ -4780,7 +4818,7 @@ fun ExerciseDetailModal(
                     Spacer(modifier = Modifier.height(24.dp))
                     Text(
                         "INJURY SUBSTITUTIONS",
-                        color = Color.Gray,
+                        color = theme.inkMuted,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Black,
                         letterSpacing = 2.sp
@@ -4796,17 +4834,17 @@ fun ExerciseDetailModal(
                                         onExerciseClick(it)
                                     }
                                 },
-                            color = Color.White.copy(alpha = 0.05f),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
                             shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(0.5.dp, Color.Gray.copy(alpha = 0.3f))
+                            border = BorderStroke(0.5.dp, theme.inkMuted.copy(alpha = 0.3f))
                         ) {
                             Row(
                                 modifier = Modifier.padding(12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Default.SwapHoriz, contentDescription = null, tint = Color(0xFF00FF9C), modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.SwapHoriz, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(12.dp))
-                                Text(subName, color = Color.White, fontSize = 14.sp)
+                                Text(subName, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
                             }
                         }
                     }
@@ -4817,11 +4855,11 @@ fun ExerciseDetailModal(
                 Button(
                     onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth().height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.05f)),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)),
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, Color.Gray.copy(alpha = 0.2f))
+                    border = BorderStroke(1.dp, theme.inkMuted.copy(alpha = 0.2f))
                 ) {
-                    Text("RESUME PROTOCOL", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("RESUME PROTOCOL", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -4831,6 +4869,7 @@ fun ExerciseDetailModal(
 
 @Composable
 fun CyberFinisherDialog(onDone: (Int) -> Unit) {
+    val theme = LocalNeonTheme.current
     var partialReps by remember { mutableStateOf(3) }
     
     Dialog(onDismissRequest = { /* Force completion */ }) {
@@ -4838,9 +4877,9 @@ fun CyberFinisherDialog(onDone: (Int) -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            color = Color(0xFF050505),
+            color = MaterialTheme.colorScheme.background,
             shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, Color(0xFF00FF9C))
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
@@ -4848,7 +4887,7 @@ fun CyberFinisherDialog(onDone: (Int) -> Unit) {
             ) {
                 Text(
                     "CYBER FINISHER",
-                    color = Color(0xFF00FF9C),
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = 2.sp
@@ -4858,14 +4897,14 @@ fun CyberFinisherDialog(onDone: (Int) -> Unit) {
                 
                 Text(
                     "LENGTHENED PARTIALS",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
                 
                 Text(
                     "Perform reps in the stretched position only. Focus on the bottom half of the movement.",
-                    color = Color.Gray,
+                    color = theme.inkMuted,
                     fontSize = 13.sp,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(top = 8.dp)
@@ -4882,12 +4921,12 @@ fun CyberFinisherDialog(onDone: (Int) -> Unit) {
                         onClick = { if (partialReps > 0) partialReps-- },
                         modifier = Modifier.size(48.dp)
                     ) {
-                        Icon(Icons.Default.Remove, contentDescription = null, tint = Color(0xFF00FF9C))
+                        Icon(Icons.Default.Remove, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     }
                     
                     Text(
                         text = partialReps.toString(),
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 48.sp,
                         fontWeight = FontWeight.Black,
                         modifier = Modifier.padding(horizontal = 24.dp)
@@ -4897,13 +4936,13 @@ fun CyberFinisherDialog(onDone: (Int) -> Unit) {
                         onClick = { partialReps++ },
                         modifier = Modifier.size(48.dp)
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF00FF9C))
+                        Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     }
                 }
                 
                 Text(
                     "TARGET: 3-5 REPS",
-                    color = if (partialReps in 3..5) Color(0xFF00FF9C) else Color.Gray,
+                    color = if (partialReps in 3..5) MaterialTheme.colorScheme.primary else theme.inkMuted,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -4913,10 +4952,10 @@ fun CyberFinisherDialog(onDone: (Int) -> Unit) {
                 Button(
                     onClick = { onDone(partialReps) },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("LOG & START STRETCH", color = Color.Black, fontWeight = FontWeight.Black)
+                    Text("LOG & START STRETCH", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black)
                 }
             }
         }
@@ -4925,12 +4964,13 @@ fun CyberFinisherDialog(onDone: (Int) -> Unit) {
 
 @Composable
 fun LoadedStretchDialog(remaining: Int) {
+    val theme = LocalNeonTheme.current
     Dialog(onDismissRequest = { /* Force completion */ }) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            color = Color(0xFF050505),
+            color = MaterialTheme.colorScheme.background,
             shape = RoundedCornerShape(16.dp),
             border = BorderStroke(1.dp, Color(0xFFFF006E))
         ) {
@@ -4952,7 +4992,7 @@ fun LoadedStretchDialog(remaining: Int) {
                     CircularProgressIndicator(
                         progress = { 1f },
                         modifier = Modifier.size(120.dp),
-                        color = Color.White.copy(alpha = 0.1f),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
                         strokeWidth = 8.dp
                     )
                     CircularProgressIndicator(
@@ -4963,7 +5003,7 @@ fun LoadedStretchDialog(remaining: Int) {
                     )
                     Text(
                         remaining.toString(),
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Black
                     )
@@ -4974,7 +5014,7 @@ fun LoadedStretchDialog(remaining: Int) {
                 val isInhale = (remaining % 6) >= 3
                 Text(
                     text = if (isInhale) "BREATHE IN" else "BREATHE OUT",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.graphicsLayer { alpha = if (remaining % 3 == 0) 0.5f else 1f }
@@ -4982,7 +5022,7 @@ fun LoadedStretchDialog(remaining: Int) {
                 
                 Text(
                     "DEEP DIAPHRAGMATIC BREATHING",
-                    color = Color.Gray,
+                    color = theme.inkMuted,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(top = 8.dp)
                 )
@@ -4993,7 +5033,7 @@ fun LoadedStretchDialog(remaining: Int) {
                     progress = { remaining / 45f }, // Approx default
                     modifier = Modifier.fillMaxWidth().height(4.dp),
                     color = Color(0xFFFF006E),
-                    trackColor = Color.White.copy(alpha = 0.1f)
+                    trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
                 )
             }
         }
@@ -5012,6 +5052,7 @@ fun ClusterSetRow(
     onClick: () -> Unit,
     onSetLabelClick: (() -> Unit)? = null
 ) {
+    val theme = LocalNeonTheme.current
     val totalReps = sets.filter { it.isCompleted && it.type == SetType.REST_PAUSE }.sumOf { it.reps }
     val isCompleted = sets.filter { it.type == SetType.REST_PAUSE }.all { it.isCompleted } && sets.isNotEmpty()
     val weight = sets.firstOrNull()?.weight ?: 0f
@@ -5022,7 +5063,7 @@ fun ClusterSetRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFF00FFAA).copy(alpha = 0.05f), RoundedCornerShape(4.dp))
+            .background(if (theme.mode == VisualMode.STEVE) theme.surfaceRaised.copy(alpha = 0.5f) else Color(0xFF00FFAA).copy(alpha = 0.05f), RoundedCornerShape(4.dp))
             .padding(vertical = 4.dp, horizontal = 4.dp)
     ) {
         Row(
@@ -5038,7 +5079,7 @@ fun ClusterSetRow(
             ) {
                 Text(
                     "RP",
-                    color = Color(0xFF00FFAA),
+                    color = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00FFAA),
                     fontWeight = FontWeight.Black,
                     fontSize = 16.sp
                 )
@@ -5065,7 +5106,7 @@ fun ClusterSetRow(
                     Column {
                         Text(
                             if (prevTotalReps > 0) "${prevTotalReps} total" else "-",
-                            color = Color.Gray,
+                            color = theme.inkMuted,
                             fontSize = 12.sp
                         )
                         
@@ -5075,7 +5116,7 @@ fun ClusterSetRow(
                         if (partials != null || stretch != null) {
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
                                 if (partials != null) {
-                                    Text("P:${partials.reps}", color = Color(0xFF00FF9C), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    Text("P:${partials.reps}", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                     if (stretch != null) Spacer(Modifier.width(6.dp))
                                 }
                                 if (stretch != null) {
@@ -5118,14 +5159,14 @@ fun ClusterSetRow(
                 modifier = Modifier
                     .size(24.dp)
                     .background(
-                        if (isCompleted) Color(0xFF4CD964) else Color.Gray.copy(alpha = 0.5f),
+                        if (isCompleted) Color(0xFF4CD964) else theme.inkMuted.copy(alpha = 0.5f),
                         RoundedCornerShape(4.dp)
                     )
                     .clickable { onClick() },
                 contentAlignment = Alignment.Center
             ) {
                 if (isCompleted) {
-                    Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(16.dp))
                 }
             }
         }
@@ -5141,7 +5182,7 @@ fun ClusterSetRow(
             ) {
                 Text(
                     "GOAL: $goalReps", 
-                    color = Color.Gray, 
+                    color = theme.inkMuted, 
                     fontSize = 10.sp, 
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
@@ -5150,7 +5191,7 @@ fun ClusterSetRow(
                 Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.End) {
                     Text(
                         "PREV: $prevTotalReps", 
-                        color = Color.Gray, 
+                        color = theme.inkMuted, 
                         fontSize = 10.sp, 
                         fontWeight = FontWeight.Bold
                     )
@@ -5160,7 +5201,7 @@ fun ClusterSetRow(
                     if (partials != null || stretch != null) {
                         Spacer(Modifier.width(8.dp))
                         if (partials != null) {
-                            Text("P:${partials.reps}", color = Color(0xFF00FF9C), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text("P:${partials.reps}", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             if (stretch != null) Spacer(Modifier.width(4.dp))
                         }
                         if (stretch != null) {
@@ -5184,6 +5225,7 @@ fun ClusterLoggingDialog(
     viewModel: WorkoutViewModel,
     onDismiss: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     LaunchedEffect(uiState.workoutPhase) {
         if (uiState.workoutPhase == RestPausePhase.FINISHER || uiState.workoutPhase == RestPausePhase.LOADED_STRETCH) {
             onDismiss()
@@ -5195,7 +5237,7 @@ fun ClusterLoggingDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            color = Color(0xFF050505),
+            color = MaterialTheme.colorScheme.background,
             shape = RoundedCornerShape(16.dp),
             border = BorderStroke(1.dp, Color(0xFF00FFAA).copy(alpha = 0.5f))
         ) {
@@ -5216,13 +5258,13 @@ fun ClusterLoggingDialog(
                         val weight = sets.firstOrNull()?.weight ?: 0f
                         Text(
                             "${if (weight % 1 == 0f) weight.toInt() else weight} LBS",
-                            color = Color.Gray,
+                            color = theme.inkMuted,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Gray)
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = theme.inkMuted)
                     }
                 }
 
@@ -5257,7 +5299,7 @@ fun ClusterLoggingDialog(
                                 .padding(top = 8.dp)
                                 .height(2.dp),
                             color = Color(0xFF00FFAA),
-                            trackColor = Color.Gray.copy(alpha = 0.2f),
+                            trackColor = theme.inkMuted.copy(alpha = 0.2f),
                         )
                     }
                     Spacer(modifier = Modifier.height(20.dp))
@@ -5281,17 +5323,17 @@ fun ClusterLoggingDialog(
                         ) {
                             Text(
                                 "M-${index + 1}",
-                                color = if (set.isCompleted) Color(0xFF00FFAA) else if (isActive) Color.White else Color.Gray,
+                                color = if (set.isCompleted) Color(0xFF00FFAA) else if (isActive) MaterialTheme.colorScheme.onSurface else theme.inkMuted,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.width(40.dp)
                             )
                             
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("LAST", color = Color.Gray, fontSize = 10.sp)
+                                Text("LAST", color = theme.inkMuted, fontSize = 10.sp)
                                 Text(
                                     prevSet?.reps?.toString() ?: "-",
-                                    color = Color.White,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Medium
                                 )
@@ -5315,14 +5357,14 @@ fun ClusterLoggingDialog(
                                 modifier = Modifier
                                     .size(36.dp)
                                     .background(
-                                        if (set.isCompleted) Color(0xFF00FFAA) else Color.Gray.copy(alpha = 0.2f),
+                                        if (set.isCompleted) Color(0xFF00FFAA) else theme.inkMuted.copy(alpha = 0.2f),
                                         RoundedCornerShape(8.dp)
                                     )
                             ) {
                                 Icon(
                                     Icons.Default.Check,
                                     contentDescription = null,
-                                    tint = if (set.isCompleted) Color.Black else Color.White.copy(alpha = 0.5f),
+                                    tint = if (set.isCompleted) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -5336,12 +5378,12 @@ fun ClusterLoggingDialog(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("REPS IN RESERVE", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Text("REPS IN RESERVE", color = theme.inkMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     listOf(0, 1, 2, 3).forEach { rirValue ->
                                         val label = if (rirValue == 3) ">2" else rirValue.toString()
                                         val isSelected = set.rir == rirValue
-                                        val chipColor = if (isSelected) Color(0xFF00FFAA) else Color.Gray.copy(alpha = 0.2f)
+                                        val chipColor = if (isSelected) Color(0xFF00FFAA) else theme.inkMuted.copy(alpha = 0.2f)
                                         
                                         Box(
                                             modifier = Modifier
@@ -5350,7 +5392,7 @@ fun ClusterLoggingDialog(
                                                 .clickable { viewModel.updateSet(set, rir = rirValue) },
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text(label, color = if (isSelected) Color.Black else Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            Text(label, color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
@@ -5369,14 +5411,14 @@ fun ClusterLoggingDialog(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column {
-                                Text("CLUSTER INTENSITY", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                                Text("How many left in the tank?", color = Color.Gray, fontSize = 10.sp)
+                                Text("CLUSTER INTENSITY", color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                Text("How many left in the tank?", color = theme.inkMuted, fontSize = 10.sp)
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 listOf(0, 1, 2, 3).forEach { rirValue ->
                                     val label = if (rirValue == 3) ">2" else rirValue.toString()
                                     val isSelected = lastSet.rir == rirValue
-                                    val chipColor = if (isSelected) Color(0xFF00FFAA) else Color.Gray.copy(alpha = 0.2f)
+                                    val chipColor = if (isSelected) Color(0xFF00FFAA) else theme.inkMuted.copy(alpha = 0.2f)
                                     
                                     Box(
                                         modifier = Modifier
@@ -5385,7 +5427,7 @@ fun ClusterLoggingDialog(
                                             .clickable { viewModel.updateSet(lastSet, rir = rirValue) },
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text(label, color = if (isSelected) Color.Black else Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        Text(label, color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
@@ -5399,20 +5441,20 @@ fun ClusterLoggingDialog(
                 
                 if (partials != null || stretch != null) {
                     Spacer(modifier = Modifier.height(20.dp))
-                    Text("CYBER FINISHERS", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                    Text("CYBER FINISHERS", color = theme.inkMuted, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
                     Spacer(modifier = Modifier.height(8.dp))
                     
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (partials != null) {
                             Surface(
                                 modifier = Modifier.weight(1f),
-                                color = Color(0xFF00FF9C).copy(alpha = 0.1f),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
                                 shape = RoundedCornerShape(8.dp),
-                                border = BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.3f))
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
                             ) {
                                 Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("PARTIALS", color = Color(0xFF00FF9C), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                    Text("${partials.reps}", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Black)
+                                    Text("PARTIALS", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    Text("${partials.reps}", color = MaterialTheme.colorScheme.onSurface, fontSize = 18.sp, fontWeight = FontWeight.Black)
                                 }
                             }
                         }
@@ -5426,7 +5468,7 @@ fun ClusterLoggingDialog(
                             ) {
                                 Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text("STRETCH", color = Color(0xFFFF006E), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                    Text("${stretch.reps}s", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Black)
+                                    Text("${stretch.reps}s", color = MaterialTheme.colorScheme.onSurface, fontSize = 18.sp, fontWeight = FontWeight.Black)
                                 }
                             }
                         }
@@ -5441,21 +5483,21 @@ fun ClusterLoggingDialog(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.03f), RoundedCornerShape(8.dp))
                         .padding(16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text("TOTAL CLUSTER VOLUME", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        Text("$totalReps REPS", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
+                        Text("TOTAL CLUSTER VOLUME", color = theme.inkMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text("$totalReps REPS", color = MaterialTheme.colorScheme.onSurface, fontSize = 24.sp, fontWeight = FontWeight.Black)
                     }
                     
                     if (prevTotal > 0) {
                         val diff = totalReps - prevTotal
-                        val color = if (diff >= 0) Color(0xFF00FF9C) else Color(0xFFFF006E)
+                        val color = if (diff >= 0) MaterialTheme.colorScheme.primary else Color(0xFFFF006E)
                         Column(horizontalAlignment = Alignment.End) {
-                            Text("VS LAST", color = Color.Gray, fontSize = 10.sp)
+                            Text("VS LAST", color = theme.inkMuted, fontSize = 10.sp)
                             Text(
                                 "${if (diff >= 0) "+" else ""}$diff",
                                 color = color,
@@ -5476,7 +5518,7 @@ fun ClusterLoggingDialog(
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FFAA)),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("SYNC DATA", color = Color.Black, fontWeight = FontWeight.Black, fontSize = 16.sp)
+                    Text("SYNC DATA", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black, fontSize = 16.sp)
                 }
             }
         }
@@ -5484,159 +5526,6 @@ fun ClusterLoggingDialog(
     }
 }
 
-@Composable
-fun SetLogRow(
-    setNumber: Int,
-    set: SetLog,
-    showGoal: Boolean,
-    previousData: String,
-    previousWeight: Float? = null,
-    zoomLevel: Float = 1.0f,
-    onUpdateWeight: (Float) -> Unit,
-    onUpdateReps: (Int) -> Unit,
-    onUpdateGoal: (String) -> Unit,
-    onCompleteToggle: () -> Unit,
-    onSetLabelClick: () -> Unit
-) {
-    val haptic = LocalHapticFeedback.current
-    val backgroundColor = if (setNumber % 2 == 0) Color.Transparent else Color(0xFF1C1C1E).copy(alpha = 0.3f)
-    val weightPlaceholder = previousWeight?.let { if (it % 1 == 0f) it.toInt().toString() else it.toString() } ?: "0"
-    
-    val setLabel = when (set.type) {
-        SetType.NORMAL -> "$setNumber"
-        SetType.WARMUP -> "W"
-        SetType.DROP -> "D"
-        SetType.FAILURE -> "F"
-        SetType.REST_PAUSE -> if (set.clusterMiniSetIndex != null) "RP ${set.clusterMiniSetIndex}" else "RP"
-        SetType.WIDOWMAKER -> "WM"
-        SetType.POWER -> "P"
-        SetType.GS -> "GS"
-        SetType.PARTIAL -> "PAR"
-        SetType.STRETCH -> "STR"
-        SetType.MAX_EFFORT -> "ME"
-    }
-    val labelColor = when (set.type) {
-        SetType.WARMUP -> Color(0xFFFFA500)
-        SetType.DROP -> Color(0xFF00CCFF)
-        SetType.FAILURE -> Color(0xFFFF4444)
-        SetType.REST_PAUSE -> Color(0xFF00FFAA)
-        SetType.WIDOWMAKER -> Color(0xFFFF00FF)
-        SetType.POWER -> Color(0xFFFFD700)
-        SetType.GS -> Color(0xFF00CCFF)
-        SetType.PARTIAL -> Color(0xFF00FF9C)
-        SetType.STRETCH -> Color(0xFFFF006E)
-        SetType.MAX_EFFORT -> Color(0xFFFF0000)
-        else -> Color.White
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(backgroundColor)
-            .padding(vertical = 4.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Set Label
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { onSetLabelClick() },
-                contentAlignment = Alignment.CenterStart
-            ) {
-                Text(setLabel, color = labelColor, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            }
-
-            // Goal Input (Standard)
-            if (showGoal && zoomLevel < 1.5f) {
-                val isGoalMandatory = set.type == SetType.WIDOWMAKER
-                EditableValueBox(
-                    value = set.goalReps ?: "",
-                    onValueChange = { onUpdateGoal(it) },
-                    modifier = Modifier.weight(1.5f),
-                    keyboardType = KeyboardType.Text,
-                    enabled = !isGoalMandatory
-                )
-            }
-
-            // Previous Data (Standard)
-            if (zoomLevel < 1.5f) {
-                Text(previousData, color = Color.Gray, fontSize = 14.sp, modifier = Modifier.weight(2f))
-            }
-            
-            // Weight Input
-            EditableValueBox(
-                value = if (set.weight % 1 == 0f) set.weight.toInt().toString() else set.weight.toString(),
-                onValueChange = { it.toFloatOrNull()?.let { w -> onUpdateWeight(w) } },
-                placeholder = weightPlaceholder,
-                modifier = Modifier.weight(1.5f),
-                keyboardType = KeyboardType.Decimal
-            )
-            
-            // Reps Input
-            EditableValueBox(
-                value = if (set.type == SetType.STRETCH) "${set.reps}s" else set.reps.toString(),
-                onValueChange = { 
-                    val clean = it.replace("s", "")
-                    clean.toIntOrNull()?.let { r -> onUpdateReps(r) } 
-                },
-                modifier = Modifier.weight(1.5f),
-                keyboardType = KeyboardType.Number
-            )
-            
-            // Completion Check
-            Box(
-                modifier = Modifier
-                    .size(24.dp)
-                    .background(
-                        if (set.isCompleted) Color(0xFF4CD964) else Color.Gray.copy(alpha = 0.5f), 
-                        RoundedCornerShape(4.dp)
-                    )
-                    .clickable {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onCompleteToggle()
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.Check, 
-                    contentDescription = null, 
-                    tint = if (set.isCompleted) Color.Black else Color.White.copy(alpha = 0.5f),
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-        }
-
-        // Sub-row for Stacked Data (Zoom >= 1.5f)
-        if (zoomLevel >= 1.5f) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 32.dp, top = 2.dp, end = 32.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                if (showGoal) {
-                    Text(
-                        "GOAL: ${set.goalReps ?: "-"}", 
-                        color = Color.Gray, 
-                        fontSize = 10.sp, 
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                Text(
-                    "PREV: $previousData", 
-                    color = Color.Gray, 
-                    fontSize = 10.sp, 
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-    }
-}
 
 @Composable
 fun EditableValueBox(
@@ -5648,6 +5537,7 @@ fun EditableValueBox(
     placeholder: String = "0",
     enabled: Boolean = true
 ) {
+    val theme = LocalNeonTheme.current
     var text by remember { mutableStateOf(if (value == "0" || value == "0.0") "" else value) }
     var isFocused by remember { mutableStateOf(false) }
 
@@ -5660,14 +5550,14 @@ fun EditableValueBox(
     Box(
         modifier = modifier
             .padding(horizontal = 4.dp)
-            .background(if (enabled) Color(0xFF1C1C1E) else Color.Transparent, RoundedCornerShape(4.dp))
+            .background(if (enabled) (if (theme.mode == VisualMode.STEVE) theme.surface else theme.surfaceRaised) else Color.Transparent, RoundedCornerShape(4.dp))
             .padding(vertical = 4.dp),
         contentAlignment = Alignment.Center
     ) {
         if (text.isEmpty()) {
             Text(
                 text = placeholder,
-                color = if (isFocused) Color.Gray.copy(alpha = 0.3f) else Color.Gray.copy(alpha = 0.5f),
+                color = theme.inkMuted.copy(alpha = 0.5f),
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center,
                 fontFamily = FontFamily.Monospace
@@ -5690,7 +5580,7 @@ fun EditableValueBox(
             },
             enabled = enabled,
             textStyle = TextStyle(
-                color = if (enabled) Color.White else Color.Gray,
+                color = if (enabled) theme.ink else theme.inkMuted,
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center,
                 fontFamily = FontFamily.Monospace
@@ -5703,7 +5593,7 @@ fun EditableValueBox(
             keyboardActions = androidx.compose.foundation.text.KeyboardActions(
                 onDone = { onCommit() }
             ),
-            cursorBrush = SolidColor(Color(0xFF007AFF)),
+            cursorBrush = SolidColor(theme.accent),
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
@@ -5731,15 +5621,16 @@ fun SetTypeSelectorBottomSheet(
     onRemoveSet: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF1C1C1E),
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.Gray) }
+        containerColor = theme.surfaceRaised,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = theme.inkMuted) }
     ) {
         Column(modifier = Modifier.padding(16.dp).padding(bottom = 32.dp)) {
             Text(
                 "Select Set Type",
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.fillMaxWidth(),
@@ -5748,7 +5639,7 @@ fun SetTypeSelectorBottomSheet(
             Spacer(modifier = Modifier.height(24.dp))
             
             SetTypeOption("W", "Warm Up Set", Color(0xFFFFA500)) { onTypeSelected(SetType.WARMUP) }
-            SetTypeOption("1", "Normal Set", Color.White) { onTypeSelected(SetType.NORMAL) }
+            SetTypeOption("1", "Normal Set", MaterialTheme.colorScheme.onSurface) { onTypeSelected(SetType.NORMAL) }
             SetTypeOption("P", "Power Set (Explosive)", Color(0xFFFFD700)) { onTypeSelected(SetType.POWER) }
             SetTypeOption("F", "Failure Set", Color(0xFFFF4444)) { onTypeSelected(SetType.FAILURE) }
             SetTypeOption("D", "Drop Set", Color(0xFF00CCFF)) { onTypeSelected(SetType.DROP) }
@@ -5756,7 +5647,7 @@ fun SetTypeSelectorBottomSheet(
             SetTypeOption("WM", "Widowmaker (20 Reps)", Color(0xFFFF00FF)) { onTypeSelected(SetType.WIDOWMAKER) }
             SetTypeOption("GS", "Giant Set", Color(0xFF00CCFF)) { onTypeSelected(SetType.GS) }
             
-            HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f), modifier = Modifier.padding(vertical = 8.dp))
+            HorizontalDivider(color = theme.inkMuted.copy(alpha = 0.2f), modifier = Modifier.padding(vertical = 8.dp))
             
             Row(
                 modifier = Modifier
@@ -5776,6 +5667,7 @@ fun SetTypeSelectorBottomSheet(
 
 @Composable
 fun SetTypeOption(label: String, description: String, color: Color, onClick: () -> Unit) {
+    val theme = LocalNeonTheme.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -5792,10 +5684,10 @@ fun SetTypeOption(label: String, description: String, color: Color, onClick: () 
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.width(16.dp))
-        Text(description, color = Color.White, fontSize = 16.sp, modifier = Modifier.weight(1f))
-        Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(18.dp))
+        Text(description, color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp, modifier = Modifier.weight(1f))
+        Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = null, tint = theme.inkMuted, modifier = Modifier.size(18.dp))
     }
-    HorizontalDivider(color = Color.Gray.copy(alpha = 0.1f))
+    HorizontalDivider(color = theme.inkMuted.copy(alpha = 0.1f))
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -5811,6 +5703,7 @@ fun WorkoutExploreScreen(
     onAugmentActionClick: (WorkoutAugment) -> Unit,
     onAddRoutine: (WorkoutRoutine) -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     val sortedProtocols = remember {
         WorkoutProtocol.entries
             .filter { it.isSelectableEngine }
@@ -5827,7 +5720,7 @@ fun WorkoutExploreScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF000000))
+            .background(theme.canvas)
             .statusBarsPadding()
     ) {
         Row(
@@ -5837,11 +5730,11 @@ fun WorkoutExploreScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
             }
             Text(
                 "PROTOCOL ARCHIVE",
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 2.sp
@@ -5857,7 +5750,7 @@ fun WorkoutExploreScreen(
             item {
                 Text(
                     "CORE METHODOLOGIES",
-                    color = Color(0xFF00FF9C),
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = 1.sp,
@@ -5872,9 +5765,9 @@ fun WorkoutExploreScreen(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth(),
-                    color = Color(0xFF1C1C1E),
+                    color = theme.surfaceRaised,
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, if (isActive) Color(0xFF00FF9C) else Color.White.copy(alpha = 0.1f))
+                    border = BorderStroke(1.dp, if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
                 ) {
                     Row(
                         modifier = Modifier
@@ -5888,19 +5781,19 @@ fun WorkoutExploreScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     protocol.displayName,
-                                    color = Color.White,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Black
                                 )
                                 if (isActive) {
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Surface(
-                                        color = Color(0xFF00FF9C),
+                                        color = MaterialTheme.colorScheme.primary,
                                         shape = RoundedCornerShape(4.dp)
                                     ) {
                                         Text(
                                             "ACTIVE",
-                                            color = Color.Black,
+                                            color = MaterialTheme.colorScheme.onPrimary,
                                             fontSize = 8.sp,
                                             fontWeight = FontWeight.Black,
                                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
@@ -5916,7 +5809,7 @@ fun WorkoutExploreScreen(
                             ) {
                                 Text(
                                     protocol.loreName,
-                                    color = Color(0xFF00FF9C).copy(alpha = 0.7f),
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = FontFamily.Monospace
@@ -5924,7 +5817,7 @@ fun WorkoutExploreScreen(
                                 
                                 Text(
                                     protocol.frequencyCaption,
-                                    color = Color.White.copy(alpha = 0.6f),
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -5932,7 +5825,7 @@ fun WorkoutExploreScreen(
                                 val levelColor = when (dossier.recommendedLevel) {
                                     ExperienceLevel.ADVANCED -> Color(0xFFFF006E) // Cyber Red
                                     ExperienceLevel.INTERMEDIATE -> Color(0xFFFFA500) // Hazard Orange
-                                    else -> Color(0xFF00FF9C) // Cyber Green
+                                    else -> MaterialTheme.colorScheme.primary // Cyber Green
                                 }
 
                                 Surface(
@@ -5957,12 +5850,12 @@ fun WorkoutExploreScreen(
                                     onClick = { onAddProtocol(protocol) },
                                     modifier = Modifier
                                         .size(32.dp)
-                                        .background(Color(0xFF00FF9C).copy(alpha = 0.2f), CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), CircleShape)
                                 ) {
                                     Icon(
                                         Icons.Default.Add, 
                                         contentDescription = "Set Protocol Active", 
-                                        tint = Color(0xFF00FF9C), 
+                                        tint = MaterialTheme.colorScheme.primary, 
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -6017,6 +5910,7 @@ fun ProtocolConfigScreen(
     onSave: () -> Unit,
     onCancel: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     val days = listOf("M", "T", "W", "T", "F", "S", "S")
     var showTimePickerForDay by remember { mutableStateOf<Int?>(null) }
     var applyTimeToAll by remember { mutableStateOf(true) }
@@ -6024,17 +5918,17 @@ fun ProtocolConfigScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
     ) {
         // Header
         Box(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
             IconButton(onClick = onCancel, modifier = Modifier.align(Alignment.CenterStart)) {
-                Icon(Icons.Default.Close, contentDescription = "Cancel", tint = Color.White)
+                Icon(Icons.Default.Close, contentDescription = "Cancel", tint = MaterialTheme.colorScheme.onSurface)
             }
             Text(
                 "REMINDERS · ${protocol.displayName} · ${recommendedDays}× / WEEK",
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 2.sp,
@@ -6048,14 +5942,14 @@ fun ProtocolConfigScreen(
             item {
                 Text(
                     "CALIBRATE UPLINK",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Black
                 )
                 
                 Text(
                     frequencyCopy,
-                    color = Color.Gray,
+                    color = theme.inkMuted,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(top = 8.dp)
                 )
@@ -6093,7 +5987,7 @@ fun ProtocolConfigScreen(
 
                 Text(
                     "TRAINING SCHEDULE",
-                    color = Color(0xFF00FF9C),
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = 1.sp
@@ -6108,11 +6002,11 @@ fun ProtocolConfigScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("APPLY SAME TIME TO ALL", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("APPLY SAME TIME TO ALL", color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     Switch(
                         checked = applyTimeToAll, 
                         onCheckedChange = { applyTimeToAll = it }, 
-                        colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF00FF9C))
+                        colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary)
                     )
                 }
 
@@ -6133,18 +6027,18 @@ fun ProtocolConfigScreen(
                                             onUpdateSchedule(tempProfile.scheduledDays + ScheduledDay(dayId, baseTime))
                                         }
                                     }, 
-                                color = if (isSelected) Color(0xFF00FF9C).copy(alpha = 0.1f) else Color(0xFF1C1C1E), 
+                                color = if (isSelected) theme.ink else theme.inkMuted, 
                                 shape = CircleShape, 
-                                border = BorderStroke(1.dp, if (isSelected) Color(0xFF00FF9C) else Color.DarkGray)
+                                border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else theme.hairline)
                             ) {
                                 Box(contentAlignment = Alignment.Center) { 
-                                    Text(label, color = if (isSelected) Color(0xFF00FF9C) else Color.Gray, fontWeight = FontWeight.Bold) 
+                                    Text(label, color = if (isSelected) MaterialTheme.colorScheme.primary else theme.inkMuted, fontWeight = FontWeight.Bold) 
                                 }
                             }
                             if (scheduled != null) {
                                 Text(
                                     scheduled.time, 
-                                    color = Color.Gray, 
+                                    color = theme.inkMuted, 
                                     fontSize = 9.sp, 
                                     modifier = Modifier.padding(top = 4.dp).clickable { showTimePickerForDay = dayId }
                                 )
@@ -6157,7 +6051,7 @@ fun ProtocolConfigScreen(
 
                 Text(
                     "NEURAL REMINDERS",
-                    color = Color(0xFF00FF9C),
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = 1.sp
@@ -6167,21 +6061,21 @@ fun ProtocolConfigScreen(
                 
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    color = Color(0xFF1C1C1E),
+                    color = theme.surfaceRaised,
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Row(
                         modifier = Modifier.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = Color(0xFF00FF9C))
+                        Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.width(16.dp))
                         Column {
-                            Text("PUSH NOTIFICATIONS", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                            Text("Receive pings at the start of your neural windows.", color = Color.Gray, fontSize = 11.sp)
+                            Text("PUSH NOTIFICATIONS", color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Text("Receive pings at the start of your neural windows.", color = theme.inkMuted, fontSize = 11.sp)
                         }
                         Spacer(Modifier.weight(1f))
-                        Switch(checked = true, onCheckedChange = {}, enabled = false, colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF00FF9C)))
+                        Switch(checked = true, onCheckedChange = {}, enabled = false, colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary))
                     }
                 }
             }
@@ -6192,10 +6086,10 @@ fun ProtocolConfigScreen(
             Button(
                 onClick = onSave,
                 modifier = Modifier.fillMaxWidth().height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("ESTABLISH NEURAL LINK", color = Color.Black, fontWeight = FontWeight.Black)
+                Text("ESTABLISH NEURAL LINK", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black)
             }
         }
 
@@ -6221,18 +6115,18 @@ fun ProtocolConfigScreen(
                         }
                         showTimePickerForDay = null 
                     }) { 
-                        Text("CONFIRM", color = Color(0xFF00FF9C), fontWeight = FontWeight.Bold) 
+                        Text("CONFIRM", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold) 
                     } 
                 },
                 dismissButton = {
                     TextButton(onClick = { showTimePickerForDay = null }) {
-                        Text("CANCEL", color = Color.Gray)
+                        Text("CANCEL", color = theme.inkMuted)
                     }
                 },
                 title = { 
                     Text(
                         "TRAINING TIME WINDOW", 
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Black,
                         letterSpacing = 1.sp
@@ -6246,7 +6140,7 @@ fun ProtocolConfigScreen(
                         TimePicker(state = timePickerState) 
                     }
                 }, 
-                containerColor = Color(0xFF1C1C1E),
+                containerColor = theme.surfaceRaised,
                 shape = RoundedCornerShape(16.dp)
             )
         }
@@ -6265,6 +6159,7 @@ fun ProtocolDetailScreen(
     onAddRoutine: (WorkoutRoutine) -> Unit,
     onRoutineClick: (WorkoutRoutine) -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     val dossier = protocol.dossier
     val isIntakeNeeded = viewModel.isIntakeNeededForProtocol(protocol)
     val isActive = uiState.userProfile?.activeProtocol == protocol
@@ -6272,17 +6167,17 @@ fun ProtocolDetailScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF000000))
+            .background(theme.canvas)
             .statusBarsPadding()
     ) {
         // Header
         Box(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
             IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
             }
             Text(
                 "PROTOCOL DOSSIER",
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 2.sp,
@@ -6300,13 +6195,13 @@ fun ProtocolDetailScreen(
                 Column {
                     Text(
                         dossier.displayName,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Black
                     )
                     Text(
                         dossier.loreName,
-                        color = Color(0xFF00FF9C),
+                        color = MaterialTheme.colorScheme.primary,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace,
@@ -6321,20 +6216,20 @@ fun ProtocolDetailScreen(
                 DossierSection("RECOMMENDED", "") {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(
-                            color = Color(0xFF00FF9C).copy(alpha = 0.1f),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
                             shape = RoundedCornerShape(4.dp),
-                            border = BorderStroke(1.dp, Color(0xFF00FF9C))
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
                         ) {
                             Text(
                                 dossier.recommendedLevel.name,
-                                color = Color(0xFF00FF9C),
+                                color = MaterialTheme.colorScheme.primary,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Black,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
                         Spacer(Modifier.width(12.dp))
-                        Text(dossier.alsoFits, color = Color.Gray, fontSize = 13.sp)
+                        Text(dossier.alsoFits, color = theme.inkMuted, fontSize = 13.sp)
                     }
                 }
             }
@@ -6350,10 +6245,10 @@ fun ProtocolDetailScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         dossier.tenets.forEachIndexed { index, tenet ->
                             Row {
-                                Text("0", color = Color(0xFF00FF9C), fontSize = 13.sp, fontFamily = FontFamily.Monospace)
-                                Text("${index + 1}", color = Color(0xFF00FF9C), fontSize = 13.sp, fontFamily = FontFamily.Monospace)
+                                Text("0", color = MaterialTheme.colorScheme.primary, fontSize = 13.sp, fontFamily = FontFamily.Monospace)
+                                Text("${index + 1}", color = MaterialTheme.colorScheme.primary, fontSize = 13.sp, fontFamily = FontFamily.Monospace)
                                 Spacer(Modifier.width(12.dp))
-                                Text(tenet, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
+                                Text(tenet, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f), fontSize = 14.sp)
                             }
                         }
                     }
@@ -6371,21 +6266,21 @@ fun ProtocolDetailScreen(
                 Button(
                     onClick = onBack,
                     modifier = Modifier.fillMaxWidth().height(56.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C1C1E)),
+                    colors = ButtonDefaults.buttonColors(containerColor = theme.surfaceRaised),
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, Color(0xFF00FF9C))
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
                 ) {
-                    Text("CURRENTLY ACTIVE", color = Color(0xFF00FF9C), fontWeight = FontWeight.Black)
+                    Text("CURRENTLY ACTIVE", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Black)
                 }
             } else {
                 val cta = if (isIntakeNeeded) "CALIBRATE ENGINE" else "SET ACTIVE"
                 Button(
                     onClick = { onAddProtocol(protocol) },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text(cta, color = Color.Black, fontWeight = FontWeight.Black)
+                    Text(cta, color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black)
                 }
             }
         }
@@ -6394,10 +6289,11 @@ fun ProtocolDetailScreen(
 
 @Composable
 fun DossierSection(label: String, content: String, customContent: @Composable () -> Unit = {}) {
+    val theme = LocalNeonTheme.current
     Column {
         Text(
             label,
-            color = Color(0xFF00FF9C),
+            color = MaterialTheme.colorScheme.primary,
             fontSize = 10.sp,
             fontWeight = FontWeight.Black,
             letterSpacing = 2.sp,
@@ -6407,7 +6303,7 @@ fun DossierSection(label: String, content: String, customContent: @Composable ()
         if (content.isNotEmpty()) {
             Text(
                 content,
-                color = Color.White.copy(alpha = 0.9f),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f),
                 fontSize = 15.sp,
                 lineHeight = 22.sp
             )
@@ -6424,20 +6320,21 @@ fun RoutinePreviewScreen(
     onAdd: (WorkoutRoutine) -> Unit,
     onStart: (WorkoutRoutine) -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF000000))
+            .background(theme.canvas)
             .statusBarsPadding()
     ) {
         // Header
         Box(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
             IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
             }
             Text(
                 "ROUTINE PREVIEW",
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 2.sp,
@@ -6451,14 +6348,14 @@ fun RoutinePreviewScreen(
             item {
                 Text(
                     routine.name,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Black
                 )
                 
                 Text(
                     routine.protocol.displayName,
-                    color = Color(0xFF00FF9C),
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = 1.sp,
@@ -6468,7 +6365,7 @@ fun RoutinePreviewScreen(
                 routine.description?.let {
                     Text(
                         it,
-                        color = Color.Gray,
+                        color = theme.inkMuted,
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(top = 16.dp)
                     )
@@ -6478,7 +6375,7 @@ fun RoutinePreviewScreen(
                 
                 Text(
                     "PRESCRIBED EXERCISES",
-                    color = Color(0xFF00FF9C),
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = 1.sp
@@ -6498,14 +6395,14 @@ fun RoutinePreviewScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 routineExercise.exercise.name.uppercase(),
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Black
                             )
                             Spacer(Modifier.weight(1f))
                             Text(
                                 "${routineExercise.sets.size} SETS",
-                                color = Color(0xFF00FF9C),
+                                color = MaterialTheme.colorScheme.primary,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -6514,7 +6411,7 @@ fun RoutinePreviewScreen(
                         if (routineExercise.exercise.muscleGroups.isNotEmpty()) {
                             Text(
                                 routineExercise.exercise.muscleGroups.joinToString(" • ").uppercase(),
-                                color = Color.Gray,
+                                color = theme.inkMuted,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(top = 4.dp)
@@ -6547,9 +6444,9 @@ fun RoutinePreviewScreen(
                                     SetType.POWER -> Color(0xFFFFD700)
                                     SetType.WIDOWMAKER -> Color(0xFFFF00FF)
                                     SetType.GS -> Color(0xFF00CCFF)
-                                    SetType.PARTIAL -> Color(0xFF00FF9C)
+                                    SetType.PARTIAL -> MaterialTheme.colorScheme.primary
                                     SetType.STRETCH -> Color(0xFFFF006E)
-                                    else -> Color.White.copy(alpha = 0.7f)
+                                    else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                                 }
                                 
                                 Text(
@@ -6563,7 +6460,7 @@ fun RoutinePreviewScreen(
                                 if (set.goalReps != null) {
                                     Text(
                                         "GOAL: ${set.goalReps}",
-                                        color = Color.White,
+                                        color = MaterialTheme.colorScheme.onSurface,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -6575,12 +6472,12 @@ fun RoutinePreviewScreen(
                             Spacer(modifier = Modifier.height(12.dp))
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
-                                color = Color(0xFF1C1C1E).copy(alpha = 0.5f),
+                                color = theme.surfaceRaised.copy(alpha = 0.5f),
                                 shape = RoundedCornerShape(4.dp)
                             ) {
                                 Text(
                                     "NEURAL CUE: ${routineExercise.exercise.cues.first()}",
-                                    color = Color.Gray,
+                                    color = theme.inkMuted,
                                     fontSize = 10.sp,
                                     lineHeight = 14.sp,
                                     modifier = Modifier.padding(8.dp)
@@ -6597,19 +6494,19 @@ fun RoutinePreviewScreen(
             Button(
                 onClick = { onAdd(routine) },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = if (routine.isAddedToLibrary) Color.DarkGray else Color(0xFF1C1C1E)),
+                colors = ButtonDefaults.buttonColors(containerColor = if (routine.isAddedToLibrary) theme.surface else theme.surfaceRaised),
                 shape = RoundedCornerShape(12.dp),
-                border = if (!routine.isAddedToLibrary) BorderStroke(1.dp, Color(0xFF00FF9C)) else null
+                border = if (!routine.isAddedToLibrary) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null
             ) {
                 Icon(
                     if (routine.isAddedToLibrary) Icons.Default.CheckCircle else Icons.Default.Download,
                     contentDescription = null,
-                    tint = if (routine.isAddedToLibrary) Color(0xFF00FF9C) else Color.White
+                    tint = if (routine.isAddedToLibrary) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(Modifier.width(12.dp))
                 Text(
                     if (routine.isAddedToLibrary) "ROUTINE ARCHIVED" else "ADD TO MY ROUTINES",
-                    color = if (routine.isAddedToLibrary) Color(0xFF00FF9C) else Color.White,
+                    color = if (routine.isAddedToLibrary) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Black
                 )
             }
@@ -6619,10 +6516,10 @@ fun RoutinePreviewScreen(
             Button(
                 onClick = { onStart(routine) },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("INITIALIZE SESSION", color = Color.Black, fontWeight = FontWeight.Black)
+                Text("INITIALIZE SESSION", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black)
             }
         }
 
@@ -6635,12 +6532,13 @@ fun RestTimerAdjustmentDialog(
     viewModel: WorkoutViewModel,
     onDismiss: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            color = Color(0xFF1C1C1E),
+            color = theme.surfaceRaised,
             shape = RoundedCornerShape(12.dp),
             border = BorderStroke(1.dp, Color(0xFF007AFF).copy(alpha = 0.5f))
         ) {
@@ -6650,7 +6548,7 @@ fun RestTimerAdjustmentDialog(
             ) {
                 Text(
                     "UPDATE REST TIMERS",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = 1.sp
@@ -6658,7 +6556,7 @@ fun RestTimerAdjustmentDialog(
                 
                 Text(
                     "Completed timers will not be affected. Durations will be saved for next time.",
-                    color = Color.Gray,
+                    color = theme.inkMuted,
                     fontSize = 11.sp,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
@@ -6678,13 +6576,13 @@ fun RestTimerAdjustmentDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text("AUTO-START TIMER", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        Text("Starts when set is completed", color = Color.Gray, fontSize = 11.sp)
+                        Text("AUTO-START TIMER", color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text("Starts when set is completed", color = theme.inkMuted, fontSize = 11.sp)
                     }
                     Switch(
                         checked = uiState.isAutoStartTimerEnabled,
                         onCheckedChange = { viewModel.toggleAutoStartTimer() },
-                        colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF00FF9C))
+                        colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary)
                     )
                 }
 
@@ -6695,7 +6593,7 @@ fun RestTimerAdjustmentDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("DISPLAY MODE", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text("DISPLAY MODE", color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     
                     val modes = RestTimerMode.entries.filter { it != RestTimerMode.NONE }
                     Row {
@@ -6705,12 +6603,12 @@ fun RestTimerAdjustmentDialog(
                                 modifier = Modifier
                                     .padding(start = 4.dp)
                                     .clickable { viewModel.updateRestTimerMode(mode) },
-                                color = if (isSelected) Color(0xFF007AFF) else Color.DarkGray,
+                                color = if (isSelected) Color(0xFF007AFF) else theme.surface,
                                 shape = RoundedCornerShape(4.dp)
                             ) {
                                 Text(
                                     mode.name, 
-                                    color = Color.White, 
+                                    color = MaterialTheme.colorScheme.onSurface, 
                                     fontSize = 10.sp, 
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -6728,7 +6626,7 @@ fun RestTimerAdjustmentDialog(
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF)),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("UPDATE REST TIMERS", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("UPDATE REST TIMERS", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -6738,15 +6636,16 @@ fun RestTimerAdjustmentDialog(
 
 @Composable
 fun TimerConfigRow(label: String, currentSeconds: Int, onUpdate: (Int) -> Unit) {
+    val theme = LocalNeonTheme.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+        Text(label, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 15.sp)
         
         Surface(
-            color = Color.Black.copy(alpha = 0.3f),
+            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f),
             shape = RoundedCornerShape(8.dp),
             modifier = Modifier.width(100.dp).height(40.dp)
         ) {
@@ -6756,20 +6655,20 @@ fun TimerConfigRow(label: String, currentSeconds: Int, onUpdate: (Int) -> Unit) 
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = { onUpdate((currentSeconds - 15).coerceAtLeast(0)) }, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.Remove, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Remove, contentDescription = null, tint = theme.inkMuted, modifier = Modifier.size(16.dp))
                 }
                 
                 val minutes = currentSeconds / 60
                 val seconds = currentSeconds % 60
                 Text(
                     if (currentSeconds == 0) "None" else "%d:%02d".format(minutes, seconds),
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 14.sp,
                     fontFamily = FontFamily.Monospace
                 )
                 
                 IconButton(onClick = { onUpdate((currentSeconds + 15).coerceAtMost(600)) }, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.Add, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Add, contentDescription = null, tint = theme.inkMuted, modifier = Modifier.size(16.dp))
                 }
             }
         }
@@ -6784,12 +6683,13 @@ fun RestTimerPopup(
     onAdjust: (Int) -> Unit,
     onSkip: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     Dialog(onDismissRequest = { }) { // Non-dismissable by tapping outside
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            color = Color.White,
+            color = theme.surfaceRaised,
             shape = RoundedCornerShape(16.dp)
         ) {
             Column(
@@ -6797,14 +6697,14 @@ fun RestTimerPopup(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onSkip) { Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Gray) }
-                    Text("Rest Timer", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    IconButton(onClick = onSkip) { Icon(Icons.Default.Close, contentDescription = "Close", tint = theme.inkMuted) }
+                    Text("Rest Timer", color = theme.ink, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     Box(Modifier.size(48.dp))
                 }
 
                 Text(
                     "Adjust duration via the +/- buttons.",
-                    color = Color.Gray,
+                    color = theme.inkMuted,
                     fontSize = 14.sp,
                     modifier = Modifier.padding(vertical = 16.dp)
                 )
@@ -6830,7 +6730,7 @@ fun RestTimerPopup(
                         val seconds = remaining % 60
                         Text(
                             "%d:%02d".format(minutes, seconds),
-                            color = Color.Black,
+                            color = theme.ink,
                             fontSize = 48.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace
@@ -6839,7 +6739,7 @@ fun RestTimerPopup(
                         val tSec = total % 60
                         Text(
                             "%d:%02d".format(tMin, tSec),
-                            color = Color.Gray,
+                            color = theme.inkMuted,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -6855,18 +6755,18 @@ fun RestTimerPopup(
                     Button(
                         onClick = { onAdjust(-10) },
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF2F2F7)),
+                        colors = ButtonDefaults.buttonColors(containerColor = theme.surface),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("-10s", color = Color.Black, fontWeight = FontWeight.Bold)
+                        Text("-10s", color = theme.ink, fontWeight = FontWeight.Bold)
                     }
                     Button(
                         onClick = { onAdjust(10) },
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF2F2F7)),
+                        colors = ButtonDefaults.buttonColors(containerColor = theme.surface),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("+10s", color = Color.Black, fontWeight = FontWeight.Bold)
+                        Text("+10s", color = theme.ink, fontWeight = FontWeight.Bold)
                     }
                     Button(
                         onClick = onSkip,
@@ -6874,7 +6774,7 @@ fun RestTimerPopup(
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF)),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("Skip", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("Skip", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -6890,6 +6790,7 @@ fun InlineRestTimer(
     onAdjust: (Int) -> Unit,
     onSkip: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -6919,7 +6820,7 @@ fun InlineRestTimer(
                 val seconds = remaining % 60
                 Text(
                     "%d:%02d".format(minutes, seconds),
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
                     fontFamily = FontFamily.Monospace
@@ -6927,16 +6828,16 @@ fun InlineRestTimer(
                 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = { onAdjust(-10) }, modifier = Modifier.size(24.dp)) {
-                        Icon(Icons.Default.Remove, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Remove, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(16.dp))
                     }
                     Spacer(Modifier.width(8.dp))
                     IconButton(onClick = { onAdjust(10) }, modifier = Modifier.size(24.dp)) {
-                        Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(16.dp))
                     }
                     Spacer(Modifier.width(8.dp))
                     Text(
                         "Skip", 
-                        color = Color.White, 
+                        color = MaterialTheme.colorScheme.onSurface, 
                         fontWeight = FontWeight.Bold, 
                         fontSize = 12.sp,
                         modifier = Modifier.clickable { onSkip() }
@@ -6955,13 +6856,14 @@ fun StickyBottomTimer(
     onAdjust: (Int) -> Unit,
     onSkip: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     Box(modifier = Modifier.fillMaxSize().padding(bottom = 80.dp), contentAlignment = Alignment.BottomCenter) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
                 .height(56.dp),
-            color = Color(0xFF1C1C1E).copy(alpha = 0.95f),
+            color = theme.surfaceRaised.copy(alpha = 0.95f),
             shape = RoundedCornerShape(12.dp),
             shadowElevation = 8.dp,
             border = BorderStroke(1.dp, Color(0xFF007AFF).copy(alpha = 0.5f))
@@ -6987,7 +6889,7 @@ fun StickyBottomTimer(
                         val seconds = remaining % 60
                         Text(
                             "RESTING: %d:%02d".format(minutes, seconds),
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.Black,
                             fontSize = 14.sp,
                             fontFamily = FontFamily.Monospace
@@ -7005,7 +6907,7 @@ fun StickyBottomTimer(
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
                             modifier = Modifier.height(32.dp)
                         ) {
-                            Text("SKIP", color = Color.White, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                            Text("SKIP", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Black, fontSize = 12.sp)
                         }
                     }
                 }
@@ -7039,7 +6941,7 @@ fun StagnationBadge(exerciseName: String, onRotate: () -> Unit) {
                 )
                 Text(
                     "You've failed to beat the log for $exerciseName twice. System recommends rotation.",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 13.sp,
                     modifier = Modifier.padding(top = 2.dp)
                 )
@@ -7052,7 +6954,7 @@ fun StagnationBadge(exerciseName: String, onRotate: () -> Unit) {
                 modifier = Modifier.height(32.dp),
                 shape = RoundedCornerShape(4.dp)
             ) {
-                Text("ROTATE MISSION", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Black)
+                Text("ROTATE MISSION", color = MaterialTheme.colorScheme.onSurface, fontSize = 11.sp, fontWeight = FontWeight.Black)
             }
         }
     }
@@ -7072,6 +6974,7 @@ fun HstIntakeScreen(
     onSubmit: (Map<String, Triple<Float?, Float?, Float?>>) -> Unit,
     uiState: WorkoutUiState
 ) {
+    val theme = LocalNeonTheme.current
     val families = listOf(
         "squat" to "SQUAT",
         "bench_press" to "BENCH PRESS",
@@ -7189,17 +7092,17 @@ fun HstIntakeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black)
+                .background(MaterialTheme.colorScheme.background)
                 .statusBarsPadding()
                 .padding(24.dp)
         ) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("INITIALIZATION", color = Color(0xFF00FF9C), fontSize = 12.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
-                IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Gray) }
+                Text("INITIALIZATION", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
+                IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close", tint = theme.inkMuted) }
             }
 
-            Text("HST", color = Color.White, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black)
-            Text("ENTER 15 / 10 / 5 RMS. WE BUILD THE LADDER.", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+            Text("HST", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black)
+            Text("ENTER 15 / 10 / 5 RMS. WE BUILD THE LADDER.", color = theme.inkMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -7226,11 +7129,11 @@ fun HstIntakeScreen(
                 enabled = allFilled,
                 modifier = Modifier.fillMaxWidth().height(56.dp).padding(top = 16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF00FF9C),
-                    disabledContainerColor = Color.DarkGray
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    disabledContainerColor = theme.surfaceRaised
                 )
             ) {
-                Text("CALIBRATE ENGINE", color = if (allFilled) Color.Black else Color.Gray, fontWeight = FontWeight.Black)
+                Text("CALIBRATE ENGINE", color = if (allFilled) MaterialTheme.colorScheme.onPrimary else theme.inkMuted, fontWeight = FontWeight.Black)
             }
         }
     }
@@ -7244,15 +7147,16 @@ fun HstFamilyInput(
     onCommit: (String) -> Unit,
     onEstimateEmpty: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     Column {
-        Text(label, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Black)
+        Text(label, color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp, fontWeight = FontWeight.Black)
         
         Spacer(modifier = Modifier.height(8.dp))
         
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             val isEst = !state.manualFields.contains("rm1")
             Column(modifier = Modifier.weight(1f)) {
-                Text(if (isEst && state.rm1.isNotEmpty()) "1RM (EST)" else "1RM", color = if (isEst && state.rm1.isNotEmpty()) Color(0xFF00FF9C).copy(alpha = 0.6f) else Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text(if (isEst && state.rm1.isNotEmpty()) "1RM (EST)" else "1RM", color = if (isEst && state.rm1.isNotEmpty()) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else theme.inkMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 EditableValueBox(
                     value = state.rm1,
                     onValueChange = { onUpdate("rm1", it) },
@@ -7263,12 +7167,12 @@ fun HstFamilyInput(
             }
             Button(
                 onClick = onEstimateEmpty,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C1C1E)),
+                colors = ButtonDefaults.buttonColors(containerColor = theme.surfaceRaised),
                 shape = RoundedCornerShape(4.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp),
                 modifier = Modifier.align(Alignment.Bottom)
             ) {
-                Text("ESTIMATE EMPTY", color = Color(0xFF00FF9C), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text("ESTIMATE EMPTY", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
         }
         
@@ -7284,10 +7188,11 @@ fun HstFamilyInput(
 
 @Composable
 fun RmInputField(label: String, value: String, isEstimated: Boolean, onValueChange: (String) -> Unit, onCommit: () -> Unit, modifier: Modifier) {
+    val theme = LocalNeonTheme.current
     Column(modifier = modifier) {
         Text(
             text = if (isEstimated && value.isNotEmpty()) "$label (EST)" else label, 
-            color = if (isEstimated && value.isNotEmpty()) Color(0xFF00FF9C).copy(alpha = 0.6f) else Color.Gray, 
+            color = if (isEstimated && value.isNotEmpty()) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else theme.inkMuted, 
             fontSize = 10.sp, 
             fontWeight = FontWeight.Bold, 
             modifier = Modifier.fillMaxWidth(), 
@@ -7309,15 +7214,16 @@ fun HstLadderPreview(
     onConfirm: () -> Unit,
     onBack: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .padding(24.dp)
     ) {
-        Text("LADDER PREVIEW", color = Color(0xFF00FF9C), fontSize = 12.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
-        Text("6 SESSIONS PER BLOCK", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Black)
+        Text("LADDER PREVIEW", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
+        Text("6 SESSIONS PER BLOCK", color = MaterialTheme.colorScheme.onSurface, fontSize = 20.sp, fontWeight = FontWeight.Black)
         
         Spacer(modifier = Modifier.height(24.dp))
         
@@ -7326,8 +7232,8 @@ fun HstLadderPreview(
         LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             items(previewFamilies) { familyLabel ->
                 val rmsValue = rms[familyLabel] ?: Triple(0f, 0f, 0f)
-                Column(modifier = Modifier.background(Color(0xFF1C1C1E), RoundedCornerShape(8.dp)).padding(16.dp)) {
-                    Text(familyLabel, color = Color(0xFF00FF9C), fontWeight = FontWeight.Black, fontSize = 14.sp)
+                Column(modifier = Modifier.background(theme.surfaceRaised, RoundedCornerShape(8.dp)).padding(16.dp)) {
+                    Text(familyLabel, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Black, fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(12.dp))
                     
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -7344,26 +7250,27 @@ fun HstLadderPreview(
         Button(
             onClick = onConfirm,
             modifier = Modifier.fillMaxWidth().height(56.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C))
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
         ) {
-            Text("START CYCLE", color = Color.Black, fontWeight = FontWeight.Black)
+            Text("START CYCLE", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black)
         }
         
         TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
-            Text("BACK TO EDIT", color = Color.Gray)
+            Text("BACK TO EDIT", color = theme.inkMuted)
         }
     }
 }
 
 @Composable
 fun LadderBlockPreview(label: String, rm: Float) {
+    val theme = LocalNeonTheme.current
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(4.dp)) {
-        Text(label, color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        Text(label, color = theme.inkMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
         val start = rm * 0.8f
         val step = (rm - start) / 5f
         (0 until 6).forEach { i ->
             val weight = Math.round(start + i * step)
-            Text("$weight", color = if (i == 5) Color(0xFF00FF9C) else Color.White, fontSize = 11.sp, fontWeight = if (i == 5) FontWeight.Black else FontWeight.Normal)
+            Text("$weight", color = if (i == 5) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface, fontSize = 11.sp, fontWeight = if (i == 5) FontWeight.Black else FontWeight.Normal)
         }
     }
 }
@@ -7374,6 +7281,7 @@ fun ProtocolIntakeScreen(
     onDismiss: () -> Unit,
     onSubmit: (Map<String, Float>) -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     val families = when (protocol) {
         WorkoutProtocol.STARTING_STRENGTH -> listOf("squat", "bench_press", "overhead_press", "deadlift")
         WorkoutProtocol.FIVE_THREE_ONE -> listOf("overhead_press", "deadlift", "bench_press", "squat")
@@ -7387,18 +7295,18 @@ fun ProtocolIntakeScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .padding(24.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("INITIALIZATION", color = Color(0xFF00FF9C), fontSize = 12.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
-            IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Gray) }
+            Text("INITIALIZATION", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
+            IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close", tint = theme.inkMuted) }
         }
 
         Text(
             protocol.displayName,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.Black
         )
@@ -7408,7 +7316,7 @@ fun ProtocolIntakeScreen(
             else -> "ENTER CURRENT WORKING WEIGHT (STRENGTH DAY)"
         }
         
-        Text(intakeNote, color = Color.Gray, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+        Text(intakeNote, color = theme.inkMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
 
         Spacer(modifier = Modifier.height(32.dp))
 
@@ -7416,7 +7324,7 @@ fun ProtocolIntakeScreen(
             items(families) { familyId ->
                 val label = familyId.replace("_", " ").uppercase()
                 Column {
-                    Text(label, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text(label, color = MaterialTheme.colorScheme.onSurface, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     EditableValueBox(
                         value = weights[familyId] ?: "",
                         onValueChange = { val newMap = weights.toMutableMap(); newMap[familyId] = it; weights = newMap },
@@ -7436,28 +7344,29 @@ fun ProtocolIntakeScreen(
                 onSubmit(results)
             },
             modifier = Modifier.fillMaxWidth().height(56.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C))
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
         ) {
-            Text("CALIBRATE ENGINE", color = Color.Black, fontWeight = FontWeight.Black)
+            Text("CALIBRATE ENGINE", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black)
         }
     }
 }
 
 @Composable
 fun StrategicDeconditioningWindow(onDismiss: () -> Unit) {
+    val theme = LocalNeonTheme.current
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.9f)),
+            .background(theme.overlay),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
             Icon(Icons.Default.HourglassEmpty, contentDescription = null, tint = Color(0xFF00CCFF), modifier = Modifier.size(64.dp))
             Spacer(modifier = Modifier.height(24.dp))
-            Text("STRATEGIC DECONDITIONING", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Black)
+            Text("STRATEGIC DECONDITIONING", color = MaterialTheme.colorScheme.onSurface, fontSize = 20.sp, fontWeight = FontWeight.Black)
             Text(
                 "Neural recovery in progress. System is purging systemic fatigue to restore hypertrophy sensitivity.",
-                color = Color.Gray,
+                color = theme.inkMuted,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(top = 16.dp)
             )
@@ -7466,7 +7375,7 @@ fun StrategicDeconditioningWindow(onDismiss: () -> Unit) {
                 onClick = onDismiss,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00CCFF))
             ) {
-                Text("UNDERSTOOD", color = Color.Black, fontWeight = FontWeight.Black)
+                Text("UNDERSTOOD", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black)
             }
         }
     }

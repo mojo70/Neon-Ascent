@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.neon.ascent.core.common.*
 
 sealed class NavItem(
     val label: String,
@@ -49,15 +50,18 @@ fun NeonBottomBar(
     modifier: Modifier = Modifier,
     isAltarEnabled: Boolean = false
 ) {
-    val borderColor = Color(0xFF1A262E)
-    val inactiveColor = Color(0xFF5A6E78)
-    val activeColor = MaterialTheme.colorScheme.onBackground // 0xFF00FF9C
+    val theme = LocalNeonTheme.current
+    val visualMode = LocalVisualMode.current
+    
+    val borderColor = if (visualMode == VisualMode.STEVE) theme.hairline else Color(0xFF1A262E)
+    val inactiveColor = if (visualMode == VisualMode.STEVE) theme.ink.copy(alpha = 0.65f) else Color(0xFF5A6E78)
+    val activeColor = theme.ink
     val items = NavItem.getItems(isAltarEnabled)
 
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color(0xFF050505).copy(alpha = 0.95f))
+            .background(theme.canvas.copy(alpha = 0.95f))
             .drawBehind {
                 drawLine(
                     color = borderColor,
@@ -77,31 +81,43 @@ fun NeonBottomBar(
         ) {
             items.forEachIndexed { index, item ->
                 val isSelected = selectedIndex == index
-                val color = if (isSelected) activeColor else inactiveColor
+                
+                val itemColor = if (isSelected) activeColor else inactiveColor
 
-                Column(
+                Box(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
+                        .let {
+                            if (isSelected && visualMode == VisualMode.STEVE) {
+                                it.background(theme.ink)
+                            } else it
+                        }
                         .clickable { onItemSelected(index) },
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = item.icon,
-                        contentDescription = item.label,
-                        tint = color,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = item.label,
-                        color = color,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        letterSpacing = 0.15.sp
-                    )
+                    val finalColor = if (isSelected && visualMode == VisualMode.STEVE) theme.canvas else itemColor
+                    
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = item.icon,
+                            contentDescription = item.label,
+                            tint = finalColor,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = item.label,
+                            color = finalColor,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            letterSpacing = 0.15.sp
+                        )
+                    }
                 }
             }
         }

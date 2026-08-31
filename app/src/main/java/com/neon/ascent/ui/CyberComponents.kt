@@ -41,7 +41,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neon.ascent.R
-import com.neon.ascent.core.common.neonBorder
+import com.neon.ascent.core.common.*
 import com.neon.ascent.model.TerminalEvent
 import com.neon.ascent.model.TrainingTemplate
 import com.neon.ascent.core.domain.character.models.UserCharacter
@@ -62,9 +62,10 @@ val CyberCutShape = GenericShape { size, _ ->
 
 @Composable
 fun SoftGridBackground(modifier: Modifier = Modifier) {
+    val theme = LocalNeonTheme.current
     Canvas(modifier = modifier.fillMaxSize()) {
         val gridSpacing = 40.dp.toPx()
-        val gridColor = Color(0xFF1A1A1A)
+        val gridColor = theme.grid
         
         // Horizontal lines
         for (y in 0..size.height.toInt() step gridSpacing.toInt()) {
@@ -116,16 +117,17 @@ fun CyberTabButton(
     selected: Boolean,
     onClick: () -> Unit,
     label: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    palette: NeonThemeData = LocalNeonTheme.current
 ) {
     Box(
         modifier = modifier
             .height(44.dp)
             .clip(CyberButtonShape)
-            .background(if (selected) Color(0xFFFF006E) else Color(0xFF0A0A0A))
+            .background(if (selected) palette.secondary else palette.canvas)
             .border(
                 width = 1.dp,
-                color = if (selected) Color.White.copy(alpha = 0.4f) else Color(0xFF00FF9C).copy(alpha = 0.2f),
+                color = if (selected) Color.White.copy(alpha = 0.4f) else palette.ink.copy(alpha = 0.2f),
                 shape = CyberButtonShape
             )
             .selectable(selected = selected, onClick = onClick, role = androidx.compose.ui.semantics.Role.RadioButton),
@@ -133,7 +135,7 @@ fun CyberTabButton(
     ) {
         Text(
             text = label,
-            color = if (selected) Color.White else Color(0xFF00FF9C).copy(alpha = 0.5f),
+            color = if (selected) Color.White else palette.ink.copy(alpha = 0.5f),
             style = MaterialTheme.typography.labelLarge.copy(
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 1.5.sp,
@@ -150,17 +152,18 @@ fun TemplateCard(
     isSuggested: Boolean = false,
     onClick: () -> Unit
 ) {
-    val borderColor = if (isSuggested) Color(0xFFFF006E) else Color(0xFF00FF9C)
+    val theme = LocalNeonTheme.current
+    val accentColor = if (isSuggested) theme.accentDanger else theme.accent
     
     Box(
         modifier = Modifier
             .width(160.dp)
             .height(80.dp)
             .clip(CyberButtonShape)
-            .background(if (isSelected) borderColor else Color(0xFF0A0A0A))
+            .background(if (isSelected) accentColor else theme.canvas)
             .border(
                 width = if (isSuggested) 2.dp else 1.dp,
-                color = if (isSelected) Color.White else borderColor.copy(alpha = 0.4f),
+                color = if (isSelected) theme.ink else accentColor.copy(alpha = 0.4f),
                 shape = CyberButtonShape
             )
             .clickable { onClick() },
@@ -169,7 +172,7 @@ fun TemplateCard(
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = template.name,
-                color = if (isSelected) Color.Black else Color.White,
+                color = if (isSelected) theme.canvas else theme.ink,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 1.sp,
@@ -178,7 +181,7 @@ fun TemplateCard(
             if (isSuggested) {
                 Text(
                     text = "[SYSTEM_MATCH]",
-                    color = if (isSelected) Color.Black.copy(alpha = 0.7f) else borderColor,
+                    color = if (isSelected) theme.canvas.copy(alpha = 0.7f) else accentColor,
                     fontSize = 8.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace
@@ -192,8 +195,14 @@ fun TemplateCard(
 fun CyberHelmetIcon(
     modifier: Modifier = Modifier.size(120.dp),
     neuralLoad: Float = 0.2f,        // 0.0 to 1.0 — drives glow intensity & effects
-    primaryColor: Color = Color(0xFF00FF9F)  // Neon green/cyan
+    primaryColor: Color = LocalNeonTheme.current.accent
 ) {
+    val theme = LocalNeonTheme.current
+    if (theme.mode == VisualMode.STEVE) {
+        // Simplified icon for Steve mode? Or just follow rules.
+        // Rule: No glow/bloom.
+    }
+    
     val infiniteTransition = rememberInfiniteTransition(label = "HelmetAnim")
     val pulse by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -209,55 +218,53 @@ fun CyberHelmetIcon(
         val center = Offset(size.width / 2, size.height / 2)
         val radius = size.minDimension / 2.2f
 
-        // 1. Outer helmet glow layers (the bloom that makes it pop)
-        for (i in 0..10) {
-            val f = i.toFloat()
-            drawCircle(
-                color = primaryColor.copy(alpha = (0.12f - f * 0.01f).coerceAtLeast(0f) * (1f + neuralLoad)),
-                radius = radius + f * 5f,
-                style = Stroke(width = 12f + f * 4f)
-            )
+        // 1. Outer helmet glow layers
+        if (theme.glowEnabled) {
+            for (i in 0..10) {
+                val f = i.toFloat()
+                drawCircle(
+                    color = primaryColor.copy(alpha = (0.12f - f * 0.01f).coerceAtLeast(0f) * (1f + neuralLoad)),
+                    radius = radius + f * 5f,
+                    style = Stroke(width = 12f + f * 4f)
+                )
+            }
         }
 
-        // 2. Main helmet shell (rounded + angular shape)
+        // 2. Main helmet shell
         val helmetPath = Path().apply {
-            // Top dome
+            // ... (rest of path same)
             moveTo(center.x - radius * 0.75f, center.y - radius * 0.6f)
             quadraticBezierTo(center.x, center.y - radius * 1.0f, center.x + radius * 0.75f, center.y - radius * 0.6f)
-            
-            // Right side / Ear piece
             lineTo(center.x + radius * 0.9f, center.y - radius * 0.2f)
             lineTo(center.x + radius * 0.9f, center.y + radius * 0.3f)
-            
-            // Jawline
             lineTo(center.x + radius * 0.7f, center.y + radius * 0.8f)
             quadraticBezierTo(center.x, center.y + radius * 0.95f, center.x - radius * 0.7f, center.y + radius * 0.8f)
-            
-            // Left side / Ear piece
             lineTo(center.x - radius * 0.9f, center.y + radius * 0.3f)
             lineTo(center.x - radius * 0.9f, center.y - radius * 0.2f)
             close()
         }
 
         // Base shell
-        drawPath(helmetPath, color = Color(0xFF020806), style = Fill)
+        drawPath(helmetPath, color = if (theme.mode == VisualMode.CYBER) Color(0xFF020806) else theme.surface, style = Fill)
 
-        // 3. Helmet outline with strong multi-layered neon
-        for (i in 0..3) {
-            drawPath(
-                path = helmetPath,
-                color = primaryColor.copy(alpha = 0.3f / (i + 1)),
-                style = Stroke(width = 8f + i * 6f)
-            )
+        // 3. Helmet outline
+        if (theme.glowEnabled) {
+            for (i in 0..3) {
+                drawPath(
+                    path = helmetPath,
+                    color = primaryColor.copy(alpha = 0.3f / (i + 1)),
+                    style = Stroke(width = 8f + i * 6f)
+                )
+            }
         }
         drawPath(
             path = helmetPath,
-            color = primaryColor,
-            style = Stroke(width = 3f)
+            color = if (theme.mode == VisualMode.STEVE) theme.ink else primaryColor,
+            style = Stroke(width = if (theme.mode == VisualMode.STEVE) 1.dp.toPx() else 3f)
         )
 
-        // 4. Visor (Dynamic focus)
-        val visorColor = if (neuralLoad > 0.7f) Color(0xFFFF006E) else Color(0xFF00FFFF)
+        // 4. Visor
+        val visorColor = if (theme.mode == VisualMode.STEVE) theme.ink else if (neuralLoad > 0.7f) Color(0xFFFF006E) else Color(0xFF00FFFF)
         val visorLeft = center.x - radius * 0.65f
         val visorTop = center.y - radius * 0.3f
         val visorWidth = radius * 1.3f
@@ -265,40 +272,44 @@ fun CyberHelmetIcon(
         
         // Inner visor glow
         drawRect(
-            color = visorColor.copy(alpha = 0.15f + neuralLoad * 0.2f),
+            color = if (theme.mode == VisualMode.STEVE) theme.surfaceRaised else visorColor.copy(alpha = 0.15f + neuralLoad * 0.2f),
             topLeft = Offset(visorLeft, visorTop),
             size = Size(visorWidth, visorHeight),
             style = Fill
         )
 
         // Visor border layers
-        for (i in 0..5) {
-            val f = i.toFloat()
-            drawRect(
-                color = visorColor.copy(alpha = (0.2f - f * 0.03f).coerceAtLeast(0f) * (1f + neuralLoad)),
-                topLeft = Offset(visorLeft - f * 2, visorTop - f * 2),
-                size = Size(visorWidth + f * 4, visorHeight + f * 4),
-                style = Stroke(width = 2f + f * 2f)
-            )
+        if (theme.glowEnabled) {
+            for (i in 0..5) {
+                val f = i.toFloat()
+                drawRect(
+                    color = visorColor.copy(alpha = (0.2f - f * 0.03f).coerceAtLeast(0f) * (1f + neuralLoad)),
+                    topLeft = Offset(visorLeft - f * 2, visorTop - f * 2),
+                    size = Size(visorWidth + f * 4, visorHeight + f * 4),
+                    style = Stroke(width = 2f + f * 2f)
+                )
+            }
         }
         drawRect(
             color = visorColor, 
             topLeft = Offset(visorLeft, visorTop), 
             size = Size(visorWidth, visorHeight), 
-            style = Stroke(width = 2f)
+            style = Stroke(width = if (theme.mode == VisualMode.STEVE) 1.dp.toPx() else 2f)
         )
 
-        // Visor Detail: HUD Scanlines / Data bits
-        val scanlineY = (System.currentTimeMillis() % 2000 / 2000f) * visorHeight
-        drawLine(
-            color = Color.White.copy(alpha = 0.4f * pulse),
-            start = Offset(visorLeft + 5f, visorTop + scanlineY),
-            end = Offset(visorLeft + visorWidth - 5f, visorTop + scanlineY),
-            strokeWidth = 1.5f
-        )
+        // Visor Detail
+        if (theme.mode == VisualMode.CYBER) {
+            val scanlineY = (System.currentTimeMillis() % 2000 / 2000f) * visorHeight
+            drawLine(
+                color = Color.White.copy(alpha = 0.4f * pulse),
+                start = Offset(visorLeft + 5f, visorTop + scanlineY),
+                end = Offset(visorLeft + visorWidth - 5f, visorTop + scanlineY),
+                strokeWidth = 1.5f
+            )
+        }
         
-        // Random data dots on high load
-        if (neuralLoad > 0.5f) {
+        // Random data dots
+        if (neuralLoad > 0.5f && theme.mode == VisualMode.CYBER) {
             val r = Random(System.currentTimeMillis() / 100)
             repeat(5) {
                 drawCircle(
@@ -314,23 +325,26 @@ fun CyberHelmetIcon(
 
         // 5. Side accent panels
         drawRoundRect(
-            color = Color(0xFFFF006E).copy(alpha = 0.8f),
+            color = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFFFF006E).copy(alpha = 0.8f),
             topLeft = Offset(center.x - radius * 0.95f, center.y),
             size = Size(radius * 0.2f, radius * 0.3f),
             cornerRadius = CornerRadius(4f),
             style = Fill
         )
         // Accent glow
-        drawCircle(
-            color = Color(0xFFFF006E).copy(alpha = 0.3f * pulse),
-            radius = radius * 0.15f,
-            center = Offset(center.x - radius * 0.85f, center.y + radius * 0.15f)
-        )
+        if (theme.glowEnabled) {
+            drawCircle(
+                color = Color(0xFFFF006E).copy(alpha = 0.3f * pulse),
+                radius = radius * 0.15f,
+                center = Offset(center.x - radius * 0.85f, center.y + radius * 0.15f)
+            )
+        }
     }
 }
 
 @Composable
 fun HeartRatePulse(heartRate: Int) {
+    val theme = LocalNeonTheme.current
     val infiniteTransition = rememberInfiniteTransition(label = "HeartRate")
     val duration = (60000 / heartRate.coerceAtLeast(40)).toInt()
     val scale by infiniteTransition.animateFloat(
@@ -346,7 +360,7 @@ fun HeartRatePulse(heartRate: Int) {
     Icon(
         imageVector = Icons.Default.Favorite,
         contentDescription = "Heart Rate",
-        tint = Color(0xFFFF006E),
+        tint = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFFFF006E),
         modifier = Modifier
             .size(16.dp)
             .graphicsLayer(scaleX = scale, scaleY = scale)
@@ -357,11 +371,16 @@ fun HeartRatePulse(heartRate: Int) {
 fun CyberFrame(
     label: String,
     modifier: Modifier = Modifier,
-    accentColor: Color = Color(0xFFFF006E),
-    borderColor: Color = Color(0xFF00FF9C),
-    backgroundColor: Color = Color.Black.copy(alpha = 0.85f),
+    accentColor: Color? = null,
+    borderColor: Color? = null,
+    backgroundColor: Color? = null,
     content: @Composable () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
+    val finalAccent = accentColor ?: theme.accentDanger
+    val finalBorder = borderColor ?: theme.accent
+    val finalBg = backgroundColor ?: theme.overlay
+
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -370,14 +389,14 @@ fun CyberFrame(
             Box(
                 Modifier
                     .size(4.dp, 16.dp)
-                    .background(accentColor)
-                    .neonBorder(accentColor, width = 1.dp, glowIntensity = 0.8f, cornerRadius = 0.dp)
+                    .background(finalAccent)
+                    .neonBorder(finalAccent, width = 1.dp, glowIntensity = if (theme.glowEnabled) 0.8f else 0f, cornerRadius = 0.dp)
             )
             Spacer(Modifier.width(8.dp))
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall.copy(
-                    color = borderColor,
+                    color = if (theme.mode == VisualMode.STEVE) theme.ink else finalBorder,
                     fontWeight = FontWeight.Black,
                     letterSpacing = 2.sp,
                     fontFamily = FontFamily.Monospace
@@ -388,15 +407,15 @@ fun CyberFrame(
                 Modifier
                     .height(1.dp)
                     .weight(1f)
-                    .background(borderColor.copy(alpha = 0.3f))
+                    .background(finalBorder.copy(alpha = 0.3f))
             )
         }
         
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .neonBorder(borderColor.copy(alpha = 0.6f), width = 1.dp, cornerRadius = 4.dp)
-                .background(backgroundColor)
+                .neonBorder(finalBorder.copy(alpha = 0.6f), width = 1.dp, cornerRadius = 4.dp, glowIntensity = if (theme.glowEnabled) 1f else 0f)
+                .background(finalBg)
                 .padding(12.dp)
         ) {
             content()
@@ -444,6 +463,7 @@ fun AvatarImage(
     contentScale: ContentScale = ContentScale.Crop,
     alignment: Alignment = Alignment.Center
 ) {
+    val theme = LocalNeonTheme.current
     val avatarBitmap = remember(character?.avatarPath) {
         if (character?.avatarPath != null && character.avatarPath != "internal_storage_placeholder") {
             try {
@@ -452,28 +472,40 @@ fun AvatarImage(
         } else { null }
     }
 
+    val finalModifier = modifier.alpha(alpha)
+    val colorFilter = if (theme.mode == VisualMode.STEVE) {
+        ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
+    } else {
+        null
+    }
+
     if (avatarBitmap != null) {
         Image(
             bitmap = avatarBitmap.asImageBitmap(),
             contentDescription = "Avatar",
-            modifier = modifier.alpha(alpha),
+            modifier = finalModifier,
             contentScale = contentScale,
-            alignment = alignment
+            alignment = alignment,
+            colorFilter = colorFilter
         )
     } else {
         // Use the provided holographic body image as the fallback
         Image(
             painter = painterResource(id = R.drawable.full_body_hologram),
             contentDescription = "Holographic Avatar",
-            modifier = modifier.alpha(alpha),
+            modifier = finalModifier,
             contentScale = contentScale,
-            alignment = alignment
+            alignment = alignment,
+            colorFilter = colorFilter
         )
     }
 }
 
 @Composable
 fun NeuralLoadGauge(load: Float, modifier: Modifier = Modifier) {
+    val theme = LocalNeonTheme.current
+    val gaugeColor = if (theme.mode == VisualMode.STEVE) theme.ink else if (load > 0.7f) Color(0xFFFF006E) else Color(0xFF00FF9C)
+    
     val infiniteTransition = rememberInfiniteTransition(label = "GaugeAnim")
     
     val pulseScale by infiniteTransition.animateFloat(
@@ -506,25 +538,26 @@ fun NeuralLoadGauge(load: Float, modifier: Modifier = Modifier) {
             val radius = (size.minDimension - strokeWidth) / 2
             
             drawCircle(
-                color = Color.White.copy(alpha = 0.05f),
+                color = theme.ink.copy(alpha = 0.05f),
                 radius = radius,
                 style = Stroke(width = strokeWidth)
             )
 
             val sweepAngle = load * 360f
-            val gaugeColor = if (load > 0.7f) Color(0xFFFF006E) else Color(0xFF00FF9C)
-            val glowIntensity = 0.5f + (load * 0.5f)
+            val glowIntensity = if (theme.glowEnabled) 0.5f + (load * 0.5f) else 0f
             
-            for (i in 0..6) {
-                val f = i.toFloat()
-                val glowAlpha = (0.25f - f * 0.03f).coerceAtLeast(0f) * glowIntensity
-                drawArc(
-                    color = gaugeColor.copy(alpha = glowAlpha),
-                    startAngle = -90f,
-                    sweepAngle = sweepAngle,
-                    useCenter = false,
-                    style = Stroke(width = strokeWidth + f * (10f + load * 5f), cap = StrokeCap.Round)
-                )
+            if (theme.glowEnabled) {
+                for (i in 0..6) {
+                    val f = i.toFloat()
+                    val glowAlpha = (0.25f - f * 0.03f).coerceAtLeast(0f) * glowIntensity
+                    drawArc(
+                        color = gaugeColor.copy(alpha = glowAlpha),
+                        startAngle = -90f,
+                        sweepAngle = sweepAngle,
+                        useCenter = false,
+                        style = Stroke(width = strokeWidth + f * (10f + load * 5f), cap = StrokeCap.Round)
+                    )
+                }
             }
             
             drawArc(
@@ -532,33 +565,35 @@ fun NeuralLoadGauge(load: Float, modifier: Modifier = Modifier) {
                 startAngle = -90f,
                 sweepAngle = sweepAngle,
                 useCenter = false,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                style = Stroke(width = if (theme.mode == VisualMode.STEVE) 2.dp.toPx() else strokeWidth, cap = StrokeCap.Round)
             )
 
-            rotate(rotation, center) {
-                drawLine(
-                    brush = Brush.verticalGradient(listOf(Color.Transparent, gaugeColor.copy(alpha = 0.6f))),
-                    start = center,
-                    end = Offset(center.x, center.y - radius),
-                    strokeWidth = 3.dp.toPx()
-                )
+            if (theme.mode == VisualMode.CYBER) {
+                rotate(rotation, center) {
+                    drawLine(
+                        brush = Brush.verticalGradient(listOf(Color.Transparent, gaugeColor.copy(alpha = 0.6f))),
+                        start = center,
+                        end = Offset(center.x, center.y - radius),
+                        strokeWidth = 3.dp.toPx()
+                    )
+                }
             }
         }
         
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "${(load * 100).toInt()}%",
-                color = Color.White,
+                color = theme.ink,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Black,
                 fontFamily = FontFamily.Monospace,
-                style = TextStyle(
-                    shadow = Shadow(color = if (load > 0.7f) Color(0xFFFF006E) else Color(0xFF00FF9C), blurRadius = 15f * load)
-                )
+                style = if (theme.glowEnabled) TextStyle(
+                    shadow = Shadow(color = gaugeColor, blurRadius = 15f * load)
+                ) else LocalTextStyle.current
             )
             Text(
                 text = "LOAD",
-                color = if (load > 0.7f) Color(0xFFFF006E) else Color(0xFF00FF9C),
+                color = if (theme.mode == VisualMode.STEVE) theme.inkMuted else gaugeColor,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace
@@ -575,19 +610,20 @@ fun CyberActionButton(
     enabled: Boolean = true,
     onClick: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     
-    val buttonColor = if (enabled) color else Color.Gray
+    val buttonColor = if (enabled) (if (theme.mode == VisualMode.STEVE) theme.ink else color) else theme.inkMuted
     
     val glowIntensity by animateFloatAsState(
-        targetValue = if (isPressed && enabled) 0.3f else 1f,
+        targetValue = if (isPressed && enabled && theme.glowEnabled) 0.3f else 1f,
         animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "GlowIntensity"
     )
     
     val staticRipple by animateFloatAsState(
-        targetValue = if (isPressed && enabled) 1f else 0f,
+        targetValue = if (isPressed && enabled && theme.mode == VisualMode.CYBER) 1f else 0f,
         animationSpec = tween(150),
         label = "StaticRipple"
     )
@@ -603,11 +639,11 @@ fun CyberActionButton(
                 enabled = enabled,
                 onClick = onClick
             )
-            .background(Color(0xFF080808).copy(alpha = 0.9f))
+            .background(theme.canvas.copy(alpha = 0.9f))
             .neonBorder(
                 color = buttonColor, 
                 width = 2.dp, 
-                glowIntensity = if (enabled) glowIntensity else 0.2f,
+                glowIntensity = if (enabled && theme.glowEnabled) glowIntensity else 0f,
                 cornerRadius = 0.dp // HexTerminalShape handles shape
             )
             .drawBehind {
@@ -628,17 +664,17 @@ fun CyberActionButton(
     ) {
         Text(
             text = label, 
-            color = if (isPressed && enabled) buttonColor.copy(alpha = 0.7f) else buttonColor, 
+            color = if (isPressed && enabled) buttonColor.copy(alpha = 0.7f) else (if (theme.mode == VisualMode.STEVE && !isPressed) theme.ink else buttonColor), 
             fontSize = 14.sp,
             fontWeight = FontWeight.Black, 
             fontFamily = FontFamily.Monospace,
             letterSpacing = 3.sp,
-            style = TextStyle(
+            style = if (theme.glowEnabled) TextStyle(
                 shadow = Shadow(
                     color = buttonColor.copy(alpha = 0.5f * glowIntensity),
                     blurRadius = 10f * glowIntensity
                 )
-            )
+            ) else LocalTextStyle.current
         )
     }
 }
@@ -789,18 +825,20 @@ fun pulseAlpha(): Float {
 }
 
 @Composable
-fun CyberMetricCard(label: String, value: String, subValue: String, color: Color = Color(0xFF00FF9C), modifier: Modifier = Modifier) {
+fun CyberMetricCard(label: String, value: String, subValue: String, color: Color? = null, modifier: Modifier = Modifier) {
+    val theme = LocalNeonTheme.current
+    val finalColor = color ?: theme.accent
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFF0F0F0F).copy(alpha = 0.7f))
-            .neonBorder(color.copy(alpha = 0.6f), width = 1.dp, cornerRadius = 8.dp)
+            .background(theme.surface.copy(alpha = 0.7f))
+            .neonBorder(finalColor.copy(alpha = 0.6f), width = 1.dp, cornerRadius = 8.dp, glowIntensity = if (theme.glowEnabled) 1f else 0f)
             .padding(16.dp)
     ) {
         Column {
             Text(
                 text = label, 
-                color = color, 
+                color = if (theme.mode == VisualMode.STEVE) theme.inkMuted else finalColor, 
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold
@@ -808,7 +846,7 @@ fun CyberMetricCard(label: String, value: String, subValue: String, color: Color
             )
             Text(
                 text = value, 
-                color = Color.White, 
+                color = theme.ink, 
                 style = MaterialTheme.typography.headlineSmall.copy(
                     fontWeight = FontWeight.Black, 
                     fontFamily = FontFamily.Monospace
@@ -816,7 +854,7 @@ fun CyberMetricCard(label: String, value: String, subValue: String, color: Color
             )
             Text(
                 text = subValue, 
-                color = Color.Gray, 
+                color = theme.inkMuted, 
                 fontSize = 9.sp, 
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold
@@ -829,10 +867,12 @@ fun CyberMetricCard(label: String, value: String, subValue: String, color: Color
 fun GlitchText(
     text: String,
     modifier: Modifier = Modifier,
-    color: Color = Color(0xFF00FF9C),
+    color: Color? = null,
     fontSize: TextUnit = 14.sp,
     fontWeight: FontWeight = FontWeight.Bold
 ) {
+    val theme = LocalNeonTheme.current
+    val finalColor = color ?: theme.accent
     var glitchState by remember { mutableStateOf(false) }
     val infiniteTransition = rememberInfiniteTransition(label = "GlitchText")
     
@@ -847,7 +887,7 @@ fun GlitchText(
     )
 
     LaunchedEffect(trigger) {
-        if (Random.nextFloat() > 0.8f) {
+        if (Random.nextFloat() > 0.8f && theme.mode == VisualMode.CYBER) {
             glitchState = true
             kotlinx.coroutines.delay(100)
             glitchState = false
@@ -875,7 +915,7 @@ fun GlitchText(
         }
         Text(
             text = text,
-            color = color,
+            color = finalColor,
             fontSize = fontSize,
             fontWeight = fontWeight,
             fontFamily = FontFamily.Monospace
@@ -934,10 +974,14 @@ fun HolyGhostAura(modifier: Modifier = Modifier) {
 
 @Composable
 fun NightCityGlow(modifier: Modifier = Modifier) {
+    val theme = LocalNeonTheme.current
+    if (theme.mode == VisualMode.STEVE) return
     // Simple mock for NightCityGlow
 }
 
 @Composable
 fun AcidRainOverlay(modifier: Modifier = Modifier) {
+    val theme = LocalNeonTheme.current
+    if (theme.mode == VisualMode.STEVE) return
     // Simple mock for AcidRainOverlay
 }

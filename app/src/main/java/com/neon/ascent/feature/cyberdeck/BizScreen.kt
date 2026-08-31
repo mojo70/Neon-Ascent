@@ -29,6 +29,7 @@ import com.neon.ascent.model.StockCandleResponse
 import com.neon.ascent.model.StockFinancials
 import com.neon.ascent.model.WatchlistItem
 import com.neon.ascent.ui.CyberFrame
+import com.neon.ascent.core.common.*
 import java.util.Locale
 
 @Composable
@@ -82,12 +83,13 @@ fun MainBizView(
     onLookup: (String) -> Unit,
     onNWClick: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     var searchSymbol by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF020202))
+            .background(theme.canvas)
             .statusBarsPadding()
             .padding(16.dp)
     ) {
@@ -221,6 +223,7 @@ fun StockDetailView(
 
 @Composable
 fun NetWorthHeader(summary: com.neon.ascent.model.NetWorthSummary, onClick: () -> Unit) {
+    val theme = LocalNeonTheme.current
     CyberFrame(
         label = "AUGMENTED_ASSETS",
         modifier = Modifier.clickable { onClick() }
@@ -231,10 +234,10 @@ fun NetWorthHeader(summary: com.neon.ascent.model.NetWorthSummary, onClick: () -
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text("TOTAL_NETWORTH", color = Color.Gray, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                Text("TOTAL_NETWORTH", color = theme.inkMuted, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
                 Text(
                     "$${String.format(Locale.getDefault(), "%,.2f", summary.totalValue)}",
-                    color = Color.White,
+                    color = theme.ink,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace
@@ -242,7 +245,7 @@ fun NetWorthHeader(summary: com.neon.ascent.model.NetWorthSummary, onClick: () -
             }
             
             Row(verticalAlignment = Alignment.CenterVertically) {
-                val color = if (summary.isUp) Color(0xFF00FF9F) else Color.Red
+                val color = if (summary.isUp) theme.accent else theme.secondary
                 Icon(
                     imageVector = if (summary.isUp) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
                     contentDescription = null,
@@ -271,10 +274,11 @@ fun MetricRow(label: String, value: String) {
 
 @Composable
 fun MarketStatusHeader(status: com.neon.ascent.model.MarketStatus) {
+    val theme = LocalNeonTheme.current
     val color = when (status.session) {
-        "REGULAR" -> Color(0xFF00FF9F)
-        "PRE-MARKET", "AFTER-HOURS" -> Color(0xFFFFCC00)
-        else -> Color.Red
+        "REGULAR" -> theme.accent
+        "PRE-MARKET", "AFTER-HOURS" -> if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFFFFCC00)
+        else -> theme.secondary
     }
     
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -333,10 +337,11 @@ fun CandleChart(data: StockCandleResponse?, modifier: Modifier) {
 
 @Composable
 fun WatchlistItemRow(symbol: String, quote: com.neon.ascent.model.StockQuote?, onClick: () -> Unit) {
+    val theme = LocalNeonTheme.current
     val displaySymbol = symbol.split(":").last().replace("USDT", "")
     CyberFrame(
         label = displaySymbol,
-        borderColor = Color.White.copy(alpha = 0.2f),
+        borderColor = theme.ink.copy(alpha = 0.2f),
         modifier = Modifier.clickable { onClick() }
     ) {
         Row(
@@ -344,12 +349,12 @@ fun WatchlistItemRow(symbol: String, quote: com.neon.ascent.model.StockQuote?, o
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(displaySymbol, color = Color.White, fontWeight = FontWeight.Bold)
+            Text(displaySymbol, color = theme.ink, fontWeight = FontWeight.Bold)
             
             if (quote != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val isUp = quote.d >= 0
-                    val color = if (isUp) Color(0xFF00FF9F) else Color.Red
+                    val color = if (isUp) theme.accent else theme.secondary
                     Icon(
                         imageVector = if (isUp) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
                         contentDescription = null,
@@ -365,13 +370,13 @@ fun WatchlistItemRow(symbol: String, quote: com.neon.ascent.model.StockQuote?, o
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         "$${String.format(Locale.getDefault(), "%.2f", quote.c)}",
-                        color = Color.White,
+                        color = theme.ink,
                         fontSize = 14.sp,
                         fontFamily = FontFamily.Monospace
                     )
                 }
             } else {
-                Text("---", color = Color.Gray)
+                Text("---", color = theme.inkMuted)
             }
         }
     }

@@ -44,7 +44,7 @@ fun OnboardingScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF000000))
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
     ) {
         NeuralProgressHeader(
@@ -115,13 +115,13 @@ fun NeuralProgressHeader(currentStep: Int, totalSteps: Int, onBack: () -> Unit) 
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (currentStep > 1) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.Gray)
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 }
             }
             Spacer(modifier = Modifier.weight(1f))
             Text(
                 "NEURAL INITIALIZATION",
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onBackground,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 2.sp
@@ -138,8 +138,8 @@ fun NeuralProgressHeader(currentStep: Int, totalSteps: Int, onBack: () -> Unit) 
         ) {
             for (i in 1..totalSteps) {
                 val color = when {
-                    i < currentStep -> Color(0xFF00FF9C)
-                    i == currentStep -> Color(0xFF00CCFF)
+                    i < currentStep -> MaterialTheme.colorScheme.primary
+                    i == currentStep -> MaterialTheme.colorScheme.secondary
                     else -> Color.DarkGray
                 }
                 Box(
@@ -160,18 +160,18 @@ fun StepSyncing(state: OnboardingUiState) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(Icons.Default.Sync, contentDescription = null, tint = Color(0xFF00CCFF), modifier = Modifier.size(64.dp))
+        Icon(Icons.Default.Sync, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(64.dp))
         Spacer(modifier = Modifier.height(24.dp))
-        Text("SYNCING BIOMETRICS", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Black)
-        Text("Establishing neural link with Identity Forge...", color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp))
+        Text("SYNCING BIOMETRICS", color = MaterialTheme.colorScheme.onBackground, fontSize = 20.sp, fontWeight = FontWeight.Black)
+        Text("Establishing neural link with Identity Forge...", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp))
 
         Spacer(modifier = Modifier.height(48.dp))
 
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = Color(0xFF1C1C1E),
+            color = MaterialTheme.colorScheme.surfaceVariant,
             shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, Color(0xFF00CCFF).copy(alpha = 0.3f))
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f))
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 SyncRow("AGE", "${state.profile.age}")
@@ -191,16 +191,16 @@ fun StepSyncing(state: OnboardingUiState) {
 @Composable
 fun SyncRow(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-        Text(value, color = Color(0xFF00CCFF), fontSize = 14.sp, fontWeight = FontWeight.Black)
+        Text(label, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Text(value, color = MaterialTheme.colorScheme.secondary, fontSize = 14.sp, fontWeight = FontWeight.Black)
     }
 }
 
 @Composable
 fun StepExperience(state: OnboardingUiState, onSelect: (ExperienceLevel) -> Unit) {
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-        Text("NEURAL EXPERIENCE", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
-        Text("Calibrate complexity based on training history.", color = Color.Gray, modifier = Modifier.padding(top = 8.dp, bottom = 32.dp))
+        Text("NEURAL EXPERIENCE", color = MaterialTheme.colorScheme.onBackground, fontSize = 24.sp, fontWeight = FontWeight.Black)
+        Text("Calibrate complexity based on training history.", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.padding(top = 8.dp, bottom = 32.dp))
 
         ExperienceLevel.entries.filter { it != ExperienceLevel.ANY }.forEach { level ->
             val isSelected = state.profile.experienceLevel == level
@@ -212,16 +212,16 @@ fun StepExperience(state: OnboardingUiState, onSelect: (ExperienceLevel) -> Unit
             }
             Surface(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp).clickable { onSelect(level) },
-                color = if (isSelected) Color(0xFF00CCFF).copy(alpha = 0.1f) else Color(0xFF1C1C1E),
+                color = if (isSelected) MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant,
                 shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, if (isSelected) Color(0xFF00CCFF) else Color.Transparent)
+                border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.secondary else Color.Transparent)
             ) {
                 Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(selected = isSelected, onClick = { onSelect(level) }, colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF00CCFF)))
+                    RadioButton(selected = isSelected, onClick = { onSelect(level) }, colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.secondary))
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
-                        Text(level.name, color = Color.White, fontWeight = FontWeight.Black)
-                        Text(description, color = Color.Gray, fontSize = 11.sp, lineHeight = 14.sp)
+                        Text(level.name, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Black)
+                        Text(description, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 11.sp, lineHeight = 14.sp)
                     }
                 }
             }
@@ -232,11 +232,11 @@ fun StepExperience(state: OnboardingUiState, onSelect: (ExperienceLevel) -> Unit
 @Composable
 fun StepAttributeCalibration(state: OnboardingUiState, onRemindLater: () -> Unit, onPerformScan: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("ATTRIBUTE CALIBRATION", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black, modifier = Modifier.fillMaxWidth())
-        Text("Analyzing performance markers...", color = Color.Gray, modifier = Modifier.padding(top = 8.dp, bottom = 32.dp).fillMaxWidth())
+        Text("ATTRIBUTE CALIBRATION", color = MaterialTheme.colorScheme.onBackground, fontSize = 24.sp, fontWeight = FontWeight.Black, modifier = Modifier.fillMaxWidth())
+        Text("Analyzing performance markers...", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.padding(top = 8.dp, bottom = 32.dp).fillMaxWidth())
 
         if (state.hasScanData) {
-            Surface(modifier = Modifier.fillMaxWidth(), color = Color(0xFF1C1C1E), shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.3f))) {
+            Surface(modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     AttributeBar("STRENGTH", state.scanStrength ?: 0)
                     AttributeBar("ENDURANCE", state.scanEndurance ?: 0)
@@ -251,19 +251,19 @@ fun StepAttributeCalibration(state: OnboardingUiState, onRemindLater: () -> Unit
 
 @Composable
 fun NoScanPanel(onRemindLater: () -> Unit, onPerformScan: () -> Unit) {
-    Surface(modifier = Modifier.fillMaxWidth(), color = Color(0xFF1C1C1E), shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, Color.Red.copy(alpha = 0.2f))) {
+    Surface(modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, Color.Red.copy(alpha = 0.2f))) {
         Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(Icons.Default.Warning, contentDescription = null, tint = Color.Red.copy(alpha = 0.7f))
-            Text("NO SCAN DATA FOUND", color = Color.White, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
-            Text("Attributes unknown. Protocol calibration will be less accurate.", color = Color.Gray, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
+            Text("NO SCAN DATA FOUND", color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
+            Text("Attributes unknown. Protocol calibration will be less accurate.", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
         }
     }
     Spacer(modifier = Modifier.height(32.dp))
-    Button(onClick = onPerformScan, modifier = Modifier.fillMaxWidth().height(56.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00CCFF))) {
+    Button(onClick = onPerformScan, modifier = Modifier.fillMaxWidth().height(56.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)) {
         Text("PERFORM ATTRIBUTE SCAN", color = Color.Black, fontWeight = FontWeight.Black)
     }
     TextButton(onClick = onRemindLater, modifier = Modifier.padding(top = 16.dp)) {
-        Text("REMIND ME LATER", color = Color.Gray, fontWeight = FontWeight.Bold)
+        Text("REMIND ME LATER", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontWeight = FontWeight.Bold)
     }
 }
 
@@ -271,10 +271,10 @@ fun NoScanPanel(onRemindLater: () -> Unit, onPerformScan: () -> Unit) {
 fun AttributeBar(label: String, value: Int) {
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            Text("$value", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Black)
+            Text(label, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Text("$value", color = MaterialTheme.colorScheme.onBackground, fontSize = 10.sp, fontWeight = FontWeight.Black)
         }
-        LinearProgressIndicator(progress = { value / 100f }, modifier = Modifier.fillMaxWidth().padding(top = 4.dp).height(2.dp).clip(CircleShape), color = Color(0xFF00FF9C), trackColor = Color.DarkGray)
+        LinearProgressIndicator(progress = { value / 100f }, modifier = Modifier.fillMaxWidth().padding(top = 4.dp).height(2.dp).clip(CircleShape), color = MaterialTheme.colorScheme.primary, trackColor = Color.DarkGray)
     }
 }
 
@@ -283,12 +283,12 @@ fun AttributeBar(label: String, value: Int) {
 fun StepHardwareCheck(state: OnboardingUiState, onToggle: (String) -> Unit) {
     val bodyParts = listOf("Left Shoulder", "Right Shoulder", "Lower Back", "Left Knee", "Right Knee", "Neck", "Wrist")
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-        Text("HARDWARE CHECK", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
-        Text("Flag physical constraints.", color = Color.Gray, modifier = Modifier.padding(top = 8.dp, bottom = 32.dp))
+        Text("HARDWARE CHECK", color = MaterialTheme.colorScheme.onBackground, fontSize = 24.sp, fontWeight = FontWeight.Black)
+        Text("Flag physical constraints.", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.padding(top = 8.dp, bottom = 32.dp))
         FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             bodyParts.forEach { part ->
                 val isSelected = state.profile.injuries.contains(part)
-                FilterChip(selected = isSelected, onClick = { onToggle(part) }, label = { Text(part.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Black) }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color.Red.copy(alpha = 0.2f), selectedLabelColor = Color.Red, labelColor = Color.Gray))
+                FilterChip(selected = isSelected, onClick = { onToggle(part) }, label = { Text(part.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Black) }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color.Red.copy(alpha = 0.2f), selectedLabelColor = Color.Red, labelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)))
             }
         }
     }
@@ -308,7 +308,7 @@ fun StepChronosCalibration(state: OnboardingUiState, onUpdateSchedule: (List<Sch
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-        Text(title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
+        Text(title, color = MaterialTheme.colorScheme.onBackground, fontSize = 24.sp, fontWeight = FontWeight.Black)
         
         if (protocol != null) {
             val selectedCount = state.profile.scheduledDays.size
@@ -340,14 +340,14 @@ fun StepChronosCalibration(state: OnboardingUiState, onUpdateSchedule: (List<Sch
                 }
             }
         } else {
-            Text("Schedule training within your neural windows.", color = Color.Gray, modifier = Modifier.padding(top = 8.dp))
+            Text("Schedule training within your neural windows.", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.padding(top = 8.dp))
         }
 
         Spacer(modifier = Modifier.height(32.dp))
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("APPLY SAME TIME TO ALL", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            Switch(checked = state.applyTimeToAll, onCheckedChange = { onToggleApplyToAll() }, colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF00CCFF)))
+            Text("APPLY SAME TIME TO ALL", color = MaterialTheme.colorScheme.onBackground, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Switch(checked = state.applyTimeToAll, onCheckedChange = { onToggleApplyToAll() }, colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.secondary))
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -379,14 +379,14 @@ fun StepChronosCalibration(state: OnboardingUiState, onUpdateSchedule: (List<Sch
                                     )
                                 }
                             },
-                        color = if (isSelected) Color(0xFF00CCFF).copy(alpha = 0.15f) else Color(0xFF1C1C1E),
+                        color = if (isSelected) MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant,
                         shape = CircleShape,
-                        border = BorderStroke(1.5.dp, if (isSelected) Color(0xFF00CCFF) else Color.DarkGray)
+                        border = BorderStroke(1.5.dp, if (isSelected) MaterialTheme.colorScheme.secondary else Color.DarkGray)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
                                 label,
-                                color = if (isSelected) Color(0xFF00CCFF) else Color.Gray,
+                                color = if (isSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                                 fontWeight = FontWeight.Black,
                                 fontSize = 16.sp
                             )
@@ -402,7 +402,7 @@ fun StepChronosCalibration(state: OnboardingUiState, onUpdateSchedule: (List<Sch
                         ) {
                             Text(
                                 scheduled.time,
-                                color = Color(0xFF00CCFF),
+                                color = MaterialTheme.colorScheme.secondary,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
@@ -437,18 +437,18 @@ fun StepChronosCalibration(state: OnboardingUiState, onUpdateSchedule: (List<Sch
                         }
                         showTimePickerForDay = null
                     }) {
-                        Text("CONFIRM", color = Color(0xFF00CCFF), fontWeight = FontWeight.Bold)
+                        Text("CONFIRM", color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showTimePickerForDay = null }) {
-                        Text("CANCEL", color = Color.Gray)
+                        Text("CANCEL", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                     }
                 },
                 title = {
                     Text(
                         "TRAINING TIME WINDOW",
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onBackground,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Black,
                         letterSpacing = 1.sp
@@ -464,7 +464,7 @@ fun StepChronosCalibration(state: OnboardingUiState, onUpdateSchedule: (List<Sch
                         TimePicker(state = dialogTimePickerState)
                     }
                 },
-                containerColor = Color(0xFF1C1C1E),
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
                 shape = RoundedCornerShape(16.dp)
             )
         }
@@ -484,7 +484,7 @@ fun StepProtocolSynthesis(state: OnboardingUiState, onViewAlternate: () -> Unit)
     ) {
         Text(
             "PROTOCOL SYNTHESIS",
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onBackground,
             fontSize = 24.sp,
             fontWeight = FontWeight.Black,
             modifier = Modifier.fillMaxWidth()
@@ -497,9 +497,9 @@ fun StepProtocolSynthesis(state: OnboardingUiState, onViewAlternate: () -> Unit)
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 20.dp),
-                color = Color(0xFF1C1C1E),
+                color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(2.dp, Color(0xFF00FF9C))
+                border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(
@@ -508,8 +508,8 @@ fun StepProtocolSynthesis(state: OnboardingUiState, onViewAlternate: () -> Unit)
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column {
-                            Text("RECOMMENDED CORE", color = Color(0xFF00FF9C), fontSize = 10.sp, fontWeight = FontWeight.Black)
-                            Text(protocolName, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Black)
+                            Text("RECOMMENDED CORE", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Black)
+                            Text(protocolName, color = MaterialTheme.colorScheme.onBackground, fontSize = 22.sp, fontWeight = FontWeight.Black)
                         }
                         if (routine.protocol == WorkoutProtocol.CYBER_CRAPP) {
                             ModifierBadge("REST-PAUSE PROTOCOL", Color(0xFF00FFAA))
@@ -529,15 +529,15 @@ fun StepProtocolSynthesis(state: OnboardingUiState, onViewAlternate: () -> Unit)
                     Button(
                         onClick = { showTenantsOverview = true },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C).copy(alpha = 0.15f)),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
                         shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, Color(0xFF00FF9C))
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
                     ) {
-                        Icon(Icons.Default.MenuBook, contentDescription = null, tint = Color(0xFF00FF9C), modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.MenuBook, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             "REVIEW PROTOCOL TENANTS & EXECUTION",
-                            color = Color(0xFF00FF9C),
+                            color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 11.sp
                         )
@@ -549,14 +549,14 @@ fun StepProtocolSynthesis(state: OnboardingUiState, onViewAlternate: () -> Unit)
 
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color(0xFF141416),
+                color = MaterialTheme.colorScheme.surface,
                 shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(1.dp, Color(0xFF2C2C2E))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         "CORE METHODOLOGY",
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Black,
                         letterSpacing = 1.sp
@@ -564,7 +564,7 @@ fun StepProtocolSynthesis(state: OnboardingUiState, onViewAlternate: () -> Unit)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         routine.protocol.methodology,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onBackground,
                         fontSize = 13.sp,
                         lineHeight = 18.sp
                     )
@@ -576,7 +576,7 @@ fun StepProtocolSynthesis(state: OnboardingUiState, onViewAlternate: () -> Unit)
             TextButton(onClick = onViewAlternate, modifier = Modifier.fillMaxWidth()) {
                 Text(
                     "VIEW ALTERNATE PROTOCOLS",
-                    color = Color(0xFF00CCFF),
+                    color = MaterialTheme.colorScheme.secondary,
                     fontWeight = FontWeight.Black,
                     fontSize = 12.sp,
                     letterSpacing = 1.sp
@@ -603,9 +603,9 @@ fun ProtocolOverviewModal(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp),
-            color = Color(0xFF0D0D0D),
+            color = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.5f))
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
         ) {
             Column(
                 modifier = Modifier
@@ -620,20 +620,20 @@ fun ProtocolOverviewModal(
                     Column {
                         Text(
                             "PROTOCOL PROTO-INTEL",
-                            color = Color(0xFF00FF9C),
+                            color = MaterialTheme.colorScheme.primary,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Black,
                             letterSpacing = 1.sp
                         )
                         Text(
                             protocol.displayName,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onBackground,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Black
                         )
                     }
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Gray)
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                     }
                 }
 
@@ -650,7 +650,7 @@ fun ProtocolOverviewModal(
                 Button(
                     onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth().height(48.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text("I UNDERSTAND THE SYSTEM", color = Color.Black, fontWeight = FontWeight.Black, fontSize = 12.sp)
@@ -679,7 +679,7 @@ private fun CyberCrappTenantsContent() {
         TenantCard(
             title = "2. CYBER FINISHER (LENGTHENED PARTIALS)",
             badge = "HYPERTROPHY MULTIPLIER",
-            badgeColor = Color(0xFF00CCFF),
+            badgeColor = MaterialTheme.colorScheme.secondary,
             explanation = "Immediately following your 3rd mini-set, drop the load or keep dumbbells and perform 3 to 5 controlled partial reps strictly in the stretched (lengthened) range of motion. This triggers stretch-mediated hypertrophy without joint damage."
         )
 
@@ -713,7 +713,7 @@ private fun GenericProtocolTenantsContent(protocol: WorkoutProtocol) {
             TenantCard(
                 title = "TENANT 0${index + 1}",
                 badge = "PRINCIPLE",
-                badgeColor = Color(0xFF00FF9C),
+                badgeColor = MaterialTheme.colorScheme.primary,
                 explanation = tenant
             )
         }
@@ -728,7 +728,7 @@ private fun TenantCard(
     explanation: String
 ) {
     Surface(
-        color = Color(0xFF1C1C1E),
+        color = MaterialTheme.colorScheme.surfaceVariant,
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(1.dp, Color(0xFF2C2C2E))
     ) {
@@ -738,7 +738,7 @@ private fun TenantCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text(title, color = MaterialTheme.colorScheme.onBackground, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 Surface(
                     color = badgeColor.copy(alpha = 0.15f),
                     shape = RoundedCornerShape(4.dp),
@@ -779,9 +779,9 @@ fun AlternateProtocolsDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 24.dp),
-            color = Color(0xFF0D0D0D),
+            color = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, Color(0xFF00CCFF).copy(alpha = 0.5f))
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f))
         ) {
             Column(
                 modifier = Modifier
@@ -790,14 +790,14 @@ fun AlternateProtocolsDialog(
             ) {
                 Text(
                     "PROTOCOL REPLACEMENT",
-                    color = Color(0xFF00CCFF),
+                    color = MaterialTheme.colorScheme.secondary,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = 1.sp
                 )
                 Text(
                     "Select a different operational core for your frame.",
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     fontSize = 12.sp,
                     modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
                 )
@@ -819,7 +819,7 @@ fun AlternateProtocolsDialog(
                     onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("CANCEL", color = Color.Gray, fontWeight = FontWeight.Bold)
+                    Text("CANCEL", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -832,7 +832,7 @@ fun ProtocolSelectionCard(routine: WorkoutRoutine, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        color = Color(0xFF1C1C1E),
+        color = MaterialTheme.colorScheme.surfaceVariant,
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(1.dp, Color(0xFF2C2C2E))
     ) {
@@ -844,7 +844,7 @@ fun ProtocolSelectionCard(routine: WorkoutRoutine, onClick: () -> Unit) {
             ) {
                 Text(
                     routine.protocol.displayName,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.Black,
                     fontSize = 16.sp
                 )
@@ -852,7 +852,7 @@ fun ProtocolSelectionCard(routine: WorkoutRoutine, onClick: () -> Unit) {
                 if (level != null) {
                     Text(
                         level.uppercase(),
-                        color = Color(0xFF00CCFF),
+                        color = MaterialTheme.colorScheme.secondary,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -861,7 +861,7 @@ fun ProtocolSelectionCard(routine: WorkoutRoutine, onClick: () -> Unit) {
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 routine.protocol.description,
-                color = Color.Gray,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 fontSize = 11.sp,
                 lineHeight = 14.sp
             )
@@ -878,9 +878,9 @@ fun AttributeReminderDialog(onDismiss: () -> Unit, onSchedule: (LocalDateTime) -
     var showTimePicker by remember { mutableStateOf(false) }
 
     Dialog(onDismissRequest = onDismiss) {
-        Surface(modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp), color = Color(0xFF1C1C1E), shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, Color(0xFF00CCFF).copy(alpha = 0.5f))) {
+        Surface(modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp), color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f))) {
             Column(modifier = Modifier.padding(20.dp)) {
-                Text("SCHEDULE REMINDER", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Black)
+                Text("SCHEDULE REMINDER", color = MaterialTheme.colorScheme.onBackground, fontSize = 18.sp, fontWeight = FontWeight.Black)
                 if (!showTimePicker) {
                     DatePicker(state = datePickerState, showModeToggle = false, title = null, headline = null)
                     Button(onClick = { showTimePicker = true }, modifier = Modifier.fillMaxWidth()) { Text("SELECT TIME") }
@@ -896,7 +896,7 @@ fun AttributeReminderDialog(onDismiss: () -> Unit, onSchedule: (LocalDateTime) -
 @Composable
 fun OnboardingBottomBar(uiState: OnboardingUiState, onNext: () -> Unit) {
     Box(modifier = Modifier.fillMaxWidth().padding(24.dp).navigationBarsPadding()) {
-        Button(onClick = onNext, modifier = Modifier.fillMaxWidth().height(56.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)), shape = RoundedCornerShape(12.dp)) {
+        Button(onClick = onNext, modifier = Modifier.fillMaxWidth().height(56.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary), shape = RoundedCornerShape(12.dp)) {
             Text(if (uiState.currentStep == 6) "INITIALIZE UPLINK" else "PROCEED", color = Color.Black, fontWeight = FontWeight.Black)
         }
     }

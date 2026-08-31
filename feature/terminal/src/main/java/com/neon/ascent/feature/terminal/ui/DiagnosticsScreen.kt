@@ -27,6 +27,8 @@ import com.neon.ascent.core.common.Scanlines
 import com.neon.ascent.core.common.StaticNoise
 import com.neon.ascent.core.common.GlitchOverlay
 import com.neon.ascent.core.common.cyberGlitch
+import com.neon.ascent.core.common.VisualMode
+import com.neon.ascent.core.common.LocalVisualMode
 import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.feature.health.ui.HealthUiState
 import com.neon.ascent.feature.health.ui.HealthViewModel
@@ -43,13 +45,16 @@ fun DiagnosticsScreen(
 ) {
     val specialState by viewModel.specialState.collectAsState()
     val healthState by healthViewModel.uiState.collectAsState()
+    val visualMode = LocalVisualMode.current
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         // Cyber Effects
-        CyberGridBackground(color = NeonCyan.copy(alpha = 0.05f))
-        StaticNoise(intensity = 0.1f)
-        Scanlines(intensity = 0.15f)
-        GlitchOverlay(intensity = 0.1f)
+        if (visualMode == VisualMode.CYBER) {
+            CyberGridBackground(color = NeonCyan.copy(alpha = 0.05f))
+            StaticNoise(intensity = 0.1f)
+            Scanlines(intensity = 0.15f)
+            GlitchOverlay(intensity = 0.1f)
+        }
 
         Column(
             modifier = Modifier
@@ -194,7 +199,7 @@ private fun ArchiveSummaryItem(
     Card(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
-        colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.5f)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background.copy(alpha = 0.5f)),
         border = BorderStroke(1.dp, color.copy(alpha = 0.3f)),
         shape = RoundedCornerShape(2.dp)
     ) {
@@ -217,7 +222,7 @@ private fun ArchiveSummaryItem(
             Column(Modifier.weight(1f)) {
                 Text(
                     text = type.name, 
-                    color = Color.White, 
+                    color = MaterialTheme.colorScheme.onSurface, 
                     style = MaterialTheme.typography.titleSmall.copy(
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold
@@ -286,7 +291,7 @@ private fun HealthStatusBanner(healthState: HealthUiState) {
             Text(
                 text = "LAST_SYNC: $lastSync", 
                 style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
-                color = Color.White.copy(alpha = 0.5f)
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
             )
         }
     }

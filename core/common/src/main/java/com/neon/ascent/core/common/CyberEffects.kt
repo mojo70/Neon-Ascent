@@ -40,6 +40,15 @@ import kotlinx.coroutines.delay
 import kotlin.math.pow
 import kotlin.random.Random
 
+val LocalGlowEnabled = staticCompositionLocalOf { true }
+val LocalIntensity = staticCompositionLocalOf { 0.8f }
+
+enum class VisualMode {
+    CYBER, STEVE
+}
+
+val LocalVisualMode = staticCompositionLocalOf { VisualMode.CYBER }
+
 @Composable
 fun ResonanceAura(
     modifier: Modifier = Modifier,
@@ -725,36 +734,51 @@ fun Modifier.neonBorder(
     width: Dp = 4.dp,
     glowIntensity: Float = 1f,
     cornerRadius: Dp = 12.dp
-) = this.drawWithContent {
-    drawContent()
+) = this.composed {
+    val glowEnabled = LocalGlowEnabled.current
+    val intensity = LocalIntensity.current
+    val finalIntensity = if (glowEnabled) glowIntensity else 0f
+    
+    this.drawWithContent {
+        drawContent()
 
-    val radiusPx = cornerRadius.toPx()
-    val widthPx = width.toPx()
-    val cr = CornerRadius(radiusPx)
+        val radiusPx = cornerRadius.toPx()
+        val widthPx = if (glowEnabled) {
+            width.toPx()
+        } else {
+            // STEVE: hairline stroke 1.dp + intensity * 0.75.dp (clamp 1–2.dp)
+            (1.dp + (intensity * 0.75f).dp).toPx().coerceIn(1.dp.toPx(), 2.dp.toPx())
+        }
+        val cr = CornerRadius(radiusPx)
 
-    for (i in 0..6) {
-        val f = i.toFloat()
-        val alphaVal = ((0.25f - (f * 0.03f)).coerceAtLeast(0f) * glowIntensity).coerceIn(0f, 1f)
-        if (alphaVal > 0f) {
+        if (finalIntensity > 0f) {
+            for (i in 0..6) {
+                val f = i.toFloat()
+                val alphaVal = ((0.25f - (f * 0.03f)).coerceAtLeast(0f) * finalIntensity).coerceIn(0f, 1f)
+                if (alphaVal > 0f) {
+                    drawRoundRect(
+                        color = color.copy(alpha = alphaVal),
+                        cornerRadius = cr,
+                        style = Stroke(width = widthPx + f * 6f)
+                    )
+                }
+            }
+        }
+
+        drawRoundRect(
+            color = color,
+            cornerRadius = cr,
+            style = Stroke(width = widthPx + if (glowEnabled) 2f else 0f)
+        )
+
+        if (glowEnabled) {
             drawRoundRect(
-                color = color.copy(alpha = alphaVal),
+                color = Color.White.copy(alpha = (0.5f * finalIntensity).coerceIn(0f, 1f)),
                 cornerRadius = cr,
-                style = Stroke(width = widthPx + f * 6f)
+                style = Stroke(width = 1.5f)
             )
         }
     }
-
-    drawRoundRect(
-        color = color,
-        cornerRadius = cr,
-        style = Stroke(width = widthPx + 2f)
-    )
-
-    drawRoundRect(
-        color = Color.White.copy(alpha = (0.5f * glowIntensity).coerceIn(0f, 1f)),
-        cornerRadius = cr,
-        style = Stroke(width = 1.5f)
-    )
 }
 
 /**

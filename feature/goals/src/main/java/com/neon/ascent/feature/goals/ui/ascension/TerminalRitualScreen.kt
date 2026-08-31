@@ -38,6 +38,7 @@ fun TerminalRitualScreen(
     onBack: () -> Unit,
     viewModel: TerminalRitualViewModel = hiltViewModel()
 ) {
+    val theme = LocalNeonTheme.current
     val context = androidx.compose.ui.platform.LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val haptic = LocalHapticFeedback.current
@@ -74,32 +75,32 @@ fun TerminalRitualScreen(
                             text = "NEON_SANCTUM // REVIEW", 
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Black,
-                            color = NeonPink
+                            color = theme.secondary
                         )
                         Text(
                             text = "Q${uiState.currentQuarter} ${uiState.currentYear} ARCHIVE",
                             fontFamily = FontFamily.Monospace,
                             fontSize = 9.sp,
-                            color = NeonCyan
+                            color = theme.accent
                         )
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = NeonPink)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = theme.secondary)
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color(0xFF030104),
-                    titleContentColor = NeonPink
+                    containerColor = theme.canvas,
+                    titleContentColor = theme.secondary
                 )
             )
         },
         bottomBar = {
             // Bottom Sticky Action Bar
             Surface(
-                color = Color(0xFF020103),
-                border = BorderStroke(1.dp, NeonPink.copy(alpha = 0.2f)),
+                color = theme.canvas,
+                border = BorderStroke(1.dp, theme.secondary.copy(alpha = 0.2f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -118,8 +119,8 @@ fun TerminalRitualScreen(
                                 onBack()
                             }
                         },
-                        border = BorderStroke(1.dp, NeonPink),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonPink),
+                        border = BorderStroke(1.dp, theme.secondary),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = theme.secondary),
                         shape = RoundedCornerShape(4.dp)
                     ) {
                         Text(
@@ -133,12 +134,12 @@ fun TerminalRitualScreen(
                         Button(
                             onClick = { viewModel.exportNeuralLog() },
                             colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                            border = BorderStroke(1.dp, NeonCyan),
+                            border = BorderStroke(1.dp, theme.accent),
                             shape = RoundedCornerShape(4.dp)
                         ) {
-                            Icon(Icons.Default.Share, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(14.dp))
+                            Icon(Icons.Default.Share, contentDescription = null, tint = theme.accent, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("EXPORT_LOG", color = NeonCyan, fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                            Text("EXPORT_LOG", color = theme.accent, fontFamily = FontFamily.Monospace, fontSize = 11.sp)
                         }
 
                         Button(
@@ -151,7 +152,7 @@ fun TerminalRitualScreen(
                                     onBack()
                                 }
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = NeonPink, contentColor = Color.Black),
+                            colors = ButtonDefaults.buttonColors(containerColor = theme.secondary, contentColor = theme.canvas),
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text(
@@ -165,11 +166,12 @@ fun TerminalRitualScreen(
                 }
             }
         },
-        containerColor = Color(0xFF030104)
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
                 .padding(padding)
         ) {
             Column(
@@ -192,9 +194,9 @@ fun TerminalRitualScreen(
                         val isPassed = currentStep > stepNum
                         
                         val stepColor = when {
-                            isCurrent -> NeonPink
-                            isPassed -> NeonCyan
-                            else -> Color.Gray
+                            isCurrent -> theme.secondary
+                            isPassed -> theme.accent
+                            else -> theme.inkMuted
                         }
 
                         Column(
@@ -209,7 +211,7 @@ fun TerminalRitualScreen(
                             Box(
                                 modifier = Modifier
                                     .size(24.dp)
-                                    .background(if (isCurrent) NeonPink.copy(alpha = 0.1f) else Color.Transparent, RoundedCornerShape(12.dp))
+                                    .background(if (isCurrent) theme.secondary.copy(alpha = 0.1f) else Color.Transparent, RoundedCornerShape(12.dp))
                                     .border(1.dp, stepColor, RoundedCornerShape(12.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -233,12 +235,12 @@ fun TerminalRitualScreen(
                     }
                 }
 
-                HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+                HorizontalDivider(color = theme.ink.copy(alpha = 0.05f))
 
                 // STEP 1: OVERVIEW HERO SECTION
                 if (currentStep == 1) {
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        CyberFrame(label = "Q${uiState.currentQuarter} TERMINAL_REVIEW", accentColor = NeonPink) {
+                        CyberFrame(label = "Q${uiState.currentQuarter} TERMINAL_REVIEW", accentColor = theme.secondary) {
                             Column(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -246,7 +248,7 @@ fun TerminalRitualScreen(
                             ) {
                                 Text(
                                     text = "Q${uiState.currentQuarter} ${uiState.currentYear} TERMINAL REVIEW",
-                                    color = Color.White,
+                                    color = theme.ink,
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Black,
                                     fontFamily = FontFamily.Monospace,
@@ -255,7 +257,7 @@ fun TerminalRitualScreen(
 
                                 Text(
                                     text = "Analyzing completion nodes across nested campaign metrics...",
-                                    color = Color.Gray,
+                                    color = theme.inkMuted,
                                     fontSize = 10.sp,
                                     fontFamily = FontFamily.Monospace,
                                     textAlign = TextAlign.Center
@@ -266,14 +268,14 @@ fun TerminalRitualScreen(
                                     modifier = Modifier
                                         .size(100.dp)
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(Color.Black)
-                                        .border(1.dp, NeonPink.copy(alpha = 0.5f), RoundedCornerShape(8.dp)),
+                                        .background(theme.surface)
+                                        .border(1.dp, theme.secondary.copy(alpha = 0.5f), RoundedCornerShape(8.dp)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.AccessibilityNew,
                                         contentDescription = null,
-                                        tint = NeonPink,
+                                        tint = theme.secondary,
                                         modifier = Modifier.size(64.dp)
                                     )
                                 }
@@ -285,13 +287,13 @@ fun TerminalRitualScreen(
                             StatBox(
                                 label = "DIRECTIVES_LINKED",
                                 value = "${uiState.directives.size}",
-                                color = NeonPink,
+                                color = theme.secondary,
                                 modifier = Modifier.weight(1f)
                             )
                             StatBox(
                                 label = "MISSIONS_INTEGRATED",
                                 value = "${uiState.missions.size}",
-                                color = NeonCyan,
+                                color = theme.accent,
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -300,20 +302,20 @@ fun TerminalRitualScreen(
                             StatBox(
                                 label = "TOTAL_COMPLETIONS",
                                 value = "${uiState.completionHistory.size}",
-                                color = NeonCyan,
+                                color = theme.accent,
                                 modifier = Modifier.weight(1f)
                             )
                             val maxStreak = if (uiState.tasks.isNotEmpty()) uiState.tasks.maxOf { it.currentStreak } else 0
                             StatBox(
                                 label = "LONGEST_STREAK",
                                 value = "$maxStreak DAYS",
-                                color = Color.Yellow,
+                                color = if (theme.mode == VisualMode.STEVE) theme.ink else Color.Yellow,
                                 modifier = Modifier.weight(1f)
                             )
                         }
 
                         // Heatmap Area
-                        CyberFrame(label = "NEURAL_CONSISTENCY_MAP", accentColor = NeonCyan) {
+                        CyberFrame(label = "NEURAL_CONSISTENCY_MAP", accentColor = theme.accent) {
                             NeuralHeatmap(uiState.heatmapData)
                         }
                     }
@@ -352,8 +354,8 @@ fun TerminalRitualScreen(
 
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0C0306)),
-                                    border = BorderStroke(1.dp, NeonPink.copy(alpha = 0.3f))
+                                    colors = CardDefaults.cardColors(containerColor = theme.surfaceRaised),
+                                    border = BorderStroke(1.dp, theme.secondary.copy(alpha = 0.3f))
                                 ) {
                                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                         Row(
@@ -363,14 +365,14 @@ fun TerminalRitualScreen(
                                         ) {
                                             Text(
                                                 text = directive.title.uppercase(),
-                                                color = Color.White,
+                                                color = theme.ink,
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 14.sp,
                                                 fontFamily = FontFamily.Monospace
                                             )
                                             Text(
                                                 text = "${(directive.currentProgress * 100).toInt()}% SYNC",
-                                                color = NeonPink,
+                                                color = theme.secondary,
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 12.sp,
                                                 fontFamily = FontFamily.Monospace
@@ -379,7 +381,7 @@ fun TerminalRitualScreen(
 
                                         Text(
                                             text = directive.description,
-                                            color = Color.Gray,
+                                            color = theme.inkMuted,
                                             fontSize = 11.sp,
                                             fontFamily = FontFamily.Monospace
                                         )
@@ -387,8 +389,8 @@ fun TerminalRitualScreen(
                                         LinearProgressIndicator(
                                             progress = { directive.currentProgress },
                                             modifier = Modifier.fillMaxWidth(),
-                                            color = NeonPink,
-                                            trackColor = Color.White.copy(alpha = 0.05f)
+                                            color = theme.secondary,
+                                            trackColor = theme.ink.copy(alpha = 0.05f)
                                         )
 
                                         Row(
@@ -398,13 +400,13 @@ fun TerminalRitualScreen(
                                         ) {
                                             Text(
                                                 text = "MISSIONS: ${nestedMissions.size} ACTIVE",
-                                                color = NeonCyan,
+                                                color = theme.accent,
                                                 fontSize = 10.sp,
                                                 fontFamily = FontFamily.Monospace
                                             )
                                             Text(
                                                 text = "TASKS: ${directTasks.size} STANDALONE",
-                                                color = Color.White,
+                                                color = theme.ink,
                                                 fontSize = 10.sp,
                                                 fontFamily = FontFamily.Monospace
                                             )
@@ -421,14 +423,14 @@ fun TerminalRitualScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         Text(
                             text = "CYBR-TES // DIAGNOSTIC_INSIGHTS",
-                            color = NeonCyan,
+                            color = theme.accent,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Black,
                             fontFamily = FontFamily.Monospace,
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        CyberFrame(label = "PATTERN_ANALYSIS_STREAM", accentColor = NeonPink) {
+                        CyberFrame(label = "PATTERN_ANALYSIS_STREAM", accentColor = theme.secondary) {
                             if (uiState.ritualAnalysis == null) {
                                 Column(
                                     modifier = Modifier
@@ -436,11 +438,11 @@ fun TerminalRitualScreen(
                                         .padding(24.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    CircularProgressIndicator(color = NeonPink)
+                                    CircularProgressIndicator(color = theme.secondary)
                                     Spacer(modifier = Modifier.height(12.dp))
                                     Text(
                                         "SYNTHESIZING_PATTERN_INSIGHTS...",
-                                        color = Color.Gray,
+                                        color = theme.inkMuted,
                                         fontSize = 10.sp,
                                         fontFamily = FontFamily.Monospace
                                     )
@@ -448,7 +450,7 @@ fun TerminalRitualScreen(
                             } else {
                                 Text(
                                     text = uiState.ritualAnalysis!!,
-                                    color = Color.White,
+                                    color = theme.ink,
                                     fontFamily = FontFamily.Monospace,
                                     fontSize = 13.sp,
                                     lineHeight = 18.sp,
@@ -460,20 +462,20 @@ fun TerminalRitualScreen(
                         // Insights highlights cards
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF02070D)),
-                            border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.3f))
+                            colors = CardDefaults.cardColors(containerColor = theme.surfaceRaised),
+                            border = BorderStroke(1.dp, theme.accent.copy(alpha = 0.3f))
                         ) {
                             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(
                                     "STRENGTHS_DETECTED",
-                                    color = NeonCyan,
+                                    color = theme.accent,
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
                                     "High morning protocol consistency detected. Sync ratio has stabilized over 90% during morning hours.",
-                                    color = Color.White,
+                                    color = theme.ink,
                                     fontSize = 12.sp,
                                     fontFamily = FontFamily.Monospace
                                 )
@@ -482,20 +484,20 @@ fun TerminalRitualScreen(
 
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF0C0306)),
-                            border = BorderStroke(1.dp, NeonPink.copy(alpha = 0.3f))
+                            colors = CardDefaults.cardColors(containerColor = theme.surfaceRaised),
+                            border = BorderStroke(1.dp, theme.secondary.copy(alpha = 0.3f))
                         ) {
                             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(
                                     "IDENTITY_SHIFTS",
-                                    color = NeonPink,
+                                    color = theme.secondary,
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
                                     "You are becoming an operator who consistently prioritizes physical and cognitive baseline synchronization.",
-                                    color = Color.White,
+                                    color = theme.ink,
                                     fontSize = 12.sp,
                                     fontFamily = FontFamily.Monospace
                                 )
@@ -519,7 +521,7 @@ fun TerminalRitualScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        CyberFrame(label = "MAJOR_CELEBRATION_DOME", accentColor = NeonPink) {
+                        CyberFrame(label = "MAJOR_CELEBRATION_DOME", accentColor = theme.secondary) {
                             Column(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -527,7 +529,7 @@ fun TerminalRitualScreen(
                             ) {
                                 Text(
                                     text = "DETONATE_DOPAMINE_FEEDBACK",
-                                    color = Color.White,
+                                    color = theme.ink,
                                     fontSize = 13.sp,
                                     fontFamily = FontFamily.Monospace
                                 )
@@ -541,7 +543,7 @@ fun TerminalRitualScreen(
                                             xpGained = uiState.completionHistory.size * 10
                                         )
                                     },
-                                    colors = ButtonDefaults.buttonColors(containerColor = NeonPink, contentColor = Color.Black),
+                                    colors = ButtonDefaults.buttonColors(containerColor = theme.secondary, contentColor = theme.canvas),
                                     shape = RoundedCornerShape(4.dp),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
@@ -555,26 +557,26 @@ fun TerminalRitualScreen(
                         // Highlights list
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF02070D)),
-                            border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.2f))
+                            colors = CardDefaults.cardColors(containerColor = theme.surfaceRaised),
+                            border = BorderStroke(1.dp, theme.accent.copy(alpha = 0.2f))
                         ) {
                             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Text(
                                     "QUARTERLY_MILESTONES",
-                                    color = NeonCyan,
+                                    color = theme.accent,
                                     fontSize = 12.sp,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Bold
                                 )
 
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(16.dp))
-                                    Text("Top Missions Completed: Hydration Ritual, Core Cardio Lift", fontSize = 11.sp, color = Color.White, fontFamily = FontFamily.Monospace)
+                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = theme.accent, modifier = Modifier.size(16.dp))
+                                    Text("Top Missions Completed: Hydration Ritual, Core Cardio Lift", fontSize = 11.sp, color = theme.ink, fontFamily = FontFamily.Monospace)
                                 }
 
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(16.dp))
-                                    Text("ADHD Grace Recoveries logged: 4 recoveries synchronized", fontSize = 11.sp, color = Color.White, fontFamily = FontFamily.Monospace)
+                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = theme.accent, modifier = Modifier.size(16.dp))
+                                    Text("ADHD Grace Recoveries logged: 4 recoveries synchronized", fontSize = 11.sp, color = theme.ink, fontFamily = FontFamily.Monospace)
                                 }
                             }
                         }
@@ -593,23 +595,23 @@ fun TerminalRitualScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        CyberFrame(label = "CYBR-TES // PLANNING_RECOMMENDATIONS", accentColor = NeonCyan) {
+                        CyberFrame(label = "CYBR-TES // PLANNING_RECOMMENDATIONS", accentColor = theme.accent) {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(
                                     "AI proposed strategic directives for the next period:",
-                                    color = Color.Gray,
+                                    color = theme.inkMuted,
                                     fontSize = 10.sp,
                                     fontFamily = FontFamily.Monospace
                                 )
                                 Text(
                                     "1. FORTIFY THE MIND V4: To attain peak neuro-performance and block cognitive intrusion vectors.",
-                                    color = Color.White,
+                                    color = theme.ink,
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace
                                 )
                                 Text(
                                     "2. HYDRAULIC REVOLUTION: Secure daily hydration, metabolic pathways, and endurance metrics.",
-                                    color = Color.White,
+                                    color = theme.ink,
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace
                                 )
@@ -617,15 +619,20 @@ fun TerminalRitualScreen(
                         }
 
                         // Form to add customized Directive
-                        CyberFrame(label = "FORGE_CUSTOM_DIRECTIVE", accentColor = NeonPink) {
+                        CyberFrame(label = "FORGE_CUSTOM_DIRECTIVE", accentColor = theme.secondary) {
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 OutlinedTextField(
                                     value = proposedTitle,
                                     onValueChange = { proposedTitle = it },
                                     label = { Text("DIRECTIVE_TITLE", fontSize = 9.sp, fontFamily = FontFamily.Monospace) },
                                     modifier = Modifier.fillMaxWidth(),
-                                    textStyle = MaterialTheme.typography.bodySmall.copy(color = Color.White, fontFamily = FontFamily.Monospace),
-                                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonPink)
+                                    textStyle = MaterialTheme.typography.bodySmall.copy(color = theme.ink, fontFamily = FontFamily.Monospace),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = theme.secondary,
+                                        unfocusedBorderColor = theme.inkMuted.copy(alpha = 0.3f),
+                                        unfocusedTextColor = theme.ink,
+                                        focusedTextColor = theme.ink
+                                    )
                                 )
 
                                 OutlinedTextField(
@@ -633,8 +640,13 @@ fun TerminalRitualScreen(
                                     onValueChange = { proposedDesc = it },
                                     label = { Text("DESCRIPTION", fontSize = 9.sp, fontFamily = FontFamily.Monospace) },
                                     modifier = Modifier.fillMaxWidth(),
-                                    textStyle = MaterialTheme.typography.bodySmall.copy(color = Color.White, fontFamily = FontFamily.Monospace),
-                                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonPink)
+                                    textStyle = MaterialTheme.typography.bodySmall.copy(color = theme.ink, fontFamily = FontFamily.Monospace),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = theme.secondary,
+                                        unfocusedBorderColor = theme.inkMuted.copy(alpha = 0.3f),
+                                        unfocusedTextColor = theme.ink,
+                                        focusedTextColor = theme.ink
+                                    )
                                 )
 
                                 OutlinedTextField(
@@ -642,8 +654,13 @@ fun TerminalRitualScreen(
                                     onValueChange = { proposedVision = it },
                                     label = { Text("VISION_STATEMENT", fontSize = 9.sp, fontFamily = FontFamily.Monospace) },
                                     modifier = Modifier.fillMaxWidth(),
-                                    textStyle = MaterialTheme.typography.bodySmall.copy(color = Color.White, fontFamily = FontFamily.Monospace),
-                                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonPink)
+                                    textStyle = MaterialTheme.typography.bodySmall.copy(color = theme.ink, fontFamily = FontFamily.Monospace),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = theme.secondary,
+                                        unfocusedBorderColor = theme.inkMuted.copy(alpha = 0.3f),
+                                        unfocusedTextColor = theme.ink,
+                                        focusedTextColor = theme.ink
+                                    )
                                 )
 
                                 Button(
@@ -661,7 +678,7 @@ fun TerminalRitualScreen(
                                             proposedVision = ""
                                         }
                                     },
-                                    colors = ButtonDefaults.buttonColors(containerColor = NeonPink, contentColor = Color.Black),
+                                    colors = ButtonDefaults.buttonColors(containerColor = theme.secondary, contentColor = theme.canvas),
                                     shape = RoundedCornerShape(4.dp),
                                     modifier = Modifier.fillMaxWidth(),
                                     enabled = proposedTitle.isNotBlank()
@@ -689,15 +706,16 @@ fun TerminalRitualScreen(
 
 @Composable
 fun NeuralHeatmap(data: Map<LocalDate, Int>) {
+    val theme = LocalNeonTheme.current
     val now = LocalDate.now()
     val startOfQuarter = now.with(IsoFields.DAY_OF_QUARTER, 1L)
     
     Column {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("MON", fontSize = 8.sp, color = Color.Gray, fontFamily = FontFamily.Monospace)
-            Text("WED", fontSize = 8.sp, color = Color.Gray, fontFamily = FontFamily.Monospace)
-            Text("FRI", fontSize = 8.sp, color = Color.Gray, fontFamily = FontFamily.Monospace)
-            Text("SUN", fontSize = 8.sp, color = Color.Gray, fontFamily = FontFamily.Monospace)
+            Text("MON", fontSize = 8.sp, color = theme.inkMuted, fontFamily = FontFamily.Monospace)
+            Text("WED", fontSize = 8.sp, color = theme.inkMuted, fontFamily = FontFamily.Monospace)
+            Text("FRI", fontSize = 8.sp, color = theme.inkMuted, fontFamily = FontFamily.Monospace)
+            Text("SUN", fontSize = 8.sp, color = theme.inkMuted, fontFamily = FontFamily.Monospace)
         }
         Spacer(Modifier.height(4.dp))
         // Simple 13x7 grid for a quarter
@@ -711,11 +729,11 @@ fun NeuralHeatmap(data: Map<LocalDate, Int>) {
                             val date = startOfQuarter.plusDays(dayOffset.toLong())
                             val count = data[date] ?: 0
                             val color = when {
-                                date.isAfter(now) -> Color.DarkGray.copy(alpha = 0.2f)
-                                count == 0 -> Color.DarkGray.copy(alpha = 0.5f)
-                                count == 1 -> NeonCyan.copy(alpha = 0.4f)
-                                count == 2 -> NeonCyan.copy(alpha = 0.7f)
-                                else -> NeonCyan
+                                date.isAfter(now) -> theme.inkMuted.copy(alpha = 0.2f)
+                                count == 0 -> theme.inkMuted.copy(alpha = 0.5f)
+                                count == 1 -> theme.accent.copy(alpha = 0.4f)
+                                count == 2 -> theme.accent.copy(alpha = 0.7f)
+                                else -> theme.accent
                             }
                             Box(modifier = Modifier.size(size).background(color))
                         }
@@ -728,6 +746,7 @@ fun NeuralHeatmap(data: Map<LocalDate, Int>) {
 
 @Composable
 fun StatBox(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
+    val theme = LocalNeonTheme.current
     Box(
         modifier = modifier
             .border(1.dp, color.copy(alpha = 0.3f))
@@ -735,7 +754,7 @@ fun StatBox(label: String, value: String, color: Color, modifier: Modifier = Mod
     ) {
         Column {
             Text(label, color = color, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
-            Text(value, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
+            Text(value, color = theme.ink, fontSize = 24.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
         }
     }
 }

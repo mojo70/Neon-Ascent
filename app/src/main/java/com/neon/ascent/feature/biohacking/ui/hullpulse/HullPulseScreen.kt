@@ -58,17 +58,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.neon.ascent.core.common.NeonCyan
-import com.neon.ascent.core.common.NeonGreen
-import com.neon.ascent.core.common.NeonPink
-import com.neon.ascent.core.common.Scanlines
-import com.neon.ascent.core.common.Vignette
-import com.neon.ascent.core.common.neonBorder
+import com.neon.ascent.core.common.*
 import com.neon.ascent.ui.CyberActionButton
 import com.neon.ascent.ui.CyberCutShape
 import com.neon.ascent.ui.GlitchText
 import com.neon.ascent.ui.HudCornerAccents
 import com.neon.ascent.ui.SoftGridBackground
+
 
 private enum class HullIntensity(val label: String) {
     LOW("LOW"),
@@ -90,6 +86,7 @@ fun HullPulseScreen(
     onBack: () -> Unit,
     viewModel: HullPulseViewModel = hiltViewModel()
 ) {
+    val palette = LocalNeonTheme.current
     val state by viewModel.uiState.collectAsState()
 
     var selectedIntensity by remember { mutableStateOf(HullIntensity.MID) }
@@ -98,20 +95,22 @@ fun HullPulseScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF010403))
+            .background(palette.canvas)
     ) {
         // Multi-layered Cyber Background
-        SoftGridBackground()
-        Vignette()
-        Scanlines(intensity = 0.1f)
+        if (palette.mode == VisualMode.CYBER) {
+            SoftGridBackground()
+            Vignette()
+            Scanlines(intensity = 0.1f)
 
-        // HUD Corner Accents
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp)
-        ) {
-            HudCornerAccents(color = NeonGreen.copy(alpha = 0.35f))
+            // HUD Corner Accents
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(12.dp)
+            ) {
+                HudCornerAccents(color = palette.accent.copy(alpha = 0.35f))
+            }
         }
 
         // Main Scrollable Area
@@ -133,7 +132,7 @@ fun HullPulseScreen(
                 Column {
                     Text(
                         text = "// HULL_PULSE v0.8.4",
-                        color = NeonCyan.copy(alpha = 0.7f),
+                        color = palette.accent.copy(alpha = 0.7f),
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
@@ -141,7 +140,7 @@ fun HullPulseScreen(
                     )
                     Text(
                         text = "LOBBY // LIFE-RPG NODE",
-                        color = NeonCyan.copy(alpha = 0.5f),
+                        color = palette.accent.copy(alpha = 0.5f),
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.SemiBold,
@@ -153,24 +152,24 @@ fun HullPulseScreen(
                 Box(
                     modifier = Modifier
                         .clip(CyberCutShape)
-                        .background(Color(0xFF04120C).copy(alpha = 0.8f))
-                        .neonBorder(NeonGreen.copy(alpha = 0.6f), width = 1.dp, cornerRadius = 0.dp)
+                        .background(palette.surfaceRaised)
+                        .neonBorder(palette.accent.copy(alpha = 0.6f), width = 1.dp, cornerRadius = 0.dp)
                         .padding(horizontal = 10.dp, vertical = 5.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        ChipIcon(color = NeonGreen)
+                        ChipIcon(color = palette.accent)
                         Spacer(Modifier.width(6.dp))
                         Column {
                             Text(
                                 text = "+30 XP",
-                                color = NeonGreen,
+                                color = palette.accent,
                                 fontSize = 11.sp,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Black
                             )
                             Text(
                                 text = "/ CORE",
-                                color = NeonGreen.copy(alpha = 0.7f),
+                                color = palette.accent.copy(alpha = 0.7f),
                                 fontSize = 9.sp,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold
@@ -185,7 +184,7 @@ fun HullPulseScreen(
             // Title
             GlitchText(
                 text = "HULL PULSE",
-                color = Color.White,
+                color = palette.ink,
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Black
             )
@@ -200,42 +199,42 @@ fun HullPulseScreen(
             ) {
                 Text(
                     text = "FLOOR: ",
-                    color = Color.White.copy(alpha = 0.6f),
+                    color = palette.ink.copy(alpha = 0.6f),
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = "ONLINE",
-                    color = NeonGreen,
+                    color = palette.accent,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Black
                 )
                 Text(
                     text = "  //  SEED: ",
-                    color = Color.White.copy(alpha = 0.6f),
+                    color = palette.ink.copy(alpha = 0.6f),
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = selectedProtocol.name,
-                    color = NeonCyan,
+                    color = palette.accent,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Black
                 )
                 Text(
                     text = "  //  LOAD: ",
-                    color = Color.White.copy(alpha = 0.6f),
+                    color = palette.ink.copy(alpha = 0.6f),
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = selectedIntensity.name,
-                    color = if (selectedIntensity == HullIntensity.OVERCLOCK) NeonPink else NeonGreen,
+                    color = if (selectedIntensity == HullIntensity.OVERCLOCK) palette.secondary else palette.accent,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Black
@@ -261,14 +260,14 @@ fun HullPulseScreen(
                     ) {
                         HullIntensity.entries.forEach { intensity ->
                             val isSelected = selectedIntensity == intensity
-                            val chipAccent = if (intensity == HullIntensity.OVERCLOCK) NeonPink else NeonGreen
+                            val chipAccent = if (intensity == HullIntensity.OVERCLOCK) palette.secondary else palette.accent
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(38.dp)
                                     .clip(CyberCutShape)
                                     .background(
-                                        if (isSelected) chipAccent else Color(0xFF06100B).copy(alpha = 0.85f)
+                                        if (isSelected) chipAccent else palette.surfaceRaised
                                     )
                                     .neonBorder(
                                         color = if (isSelected) chipAccent else chipAccent.copy(alpha = 0.35f),
@@ -281,7 +280,7 @@ fun HullPulseScreen(
                             ) {
                                 Text(
                                     text = intensity.label,
-                                    color = if (isSelected) Color.Black else Color.White.copy(alpha = 0.85f),
+                                    color = if (isSelected) palette.canvas else palette.ink.copy(alpha = 0.85f),
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Black,
@@ -328,7 +327,7 @@ fun HullPulseScreen(
                         ProtocolTile(
                             protocol = HullProtocol.REVERSE,
                             isSelected = selectedProtocol == HullProtocol.REVERSE,
-                            accentColor = NeonPink,
+                            accentColor = palette.secondary,
                             onClick = { selectedProtocol = HullProtocol.REVERSE },
                             modifier = Modifier.weight(1f)
                         )
@@ -350,7 +349,7 @@ fun HullPulseScreen(
                     // Microcopy
                     Text(
                         text = "CONTRACT THE FLOOR. NOT THE GLUTES.",
-                        color = Color.White.copy(alpha = 0.85f),
+                        color = palette.ink.copy(alpha = 0.85f),
                         fontSize = 12.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Black,
@@ -360,7 +359,7 @@ fun HullPulseScreen(
                     Spacer(Modifier.height(3.dp))
                     Text(
                         text = "BREATHE ON RELEASE.",
-                        color = NeonCyan,
+                        color = palette.accent,
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
@@ -373,7 +372,7 @@ fun HullPulseScreen(
                     // Primary Action (Jack Hull Pulse)
                     CyberActionButton(
                         label = "JACK HULL_PULSE",
-                        color = NeonPink,
+                        color = palette.secondary,
                         onClick = { viewModel.startPulse() }
                     )
                 }
@@ -411,8 +410,8 @@ fun HullPulseScreen(
                             modifier = Modifier
                                 .fillMaxWidth(fraction = state.totalProgress.coerceIn(0f, 1f))
                                 .height(6.dp)
-                                .background(NeonGreen)
-                                .neonBorder(NeonGreen, width = 1.dp, cornerRadius = 0.dp)
+                                .background(palette.accent)
+                                .neonBorder(palette.accent, width = 1.dp, cornerRadius = 0.dp)
                         )
                     }
 
@@ -421,7 +420,7 @@ fun HullPulseScreen(
                     // Session Abort Button
                     CyberActionButton(
                         label = "ABORT HULL",
-                        color = NeonPink,
+                        color = palette.secondary,
                         onClick = { viewModel.stopPulse() }
                     )
                 }
@@ -444,7 +443,7 @@ fun HullPulseScreen(
             Icon(
                 imageVector = Icons.Default.Close,
                 contentDescription = "Close Hull Pulse",
-                tint = Color.White.copy(alpha = 0.8f)
+                tint = palette.ink.copy(alpha = 0.8f)
             )
         }
     }
@@ -455,10 +454,12 @@ private fun ProtocolTile(
     protocol: HullProtocol,
     isSelected: Boolean,
     modifier: Modifier = Modifier,
-    accentColor: Color = NeonCyan,
+    accentColor: Color? = null,
     onClick: () -> Unit
 ) {
-    val borderColor = if (isSelected) accentColor else Color.White.copy(alpha = 0.15f)
+    val palette = LocalNeonTheme.current
+    val finalAccent = accentColor ?: palette.accent
+    val borderColor = if (isSelected) finalAccent else palette.ink.copy(alpha = 0.15f)
     val glowIntensity = if (isSelected) 0.6f else 0.05f
 
     Box(
@@ -466,7 +467,7 @@ private fun ProtocolTile(
             .height(84.dp)
             .clip(CyberCutShape)
             .background(
-                if (isSelected) Color(0xFF031418).copy(alpha = 0.85f) else Color(0xFF06090A).copy(alpha = 0.7f)
+                if (isSelected) finalAccent.copy(alpha = 0.15f) else palette.surfaceRaised
             )
             .neonBorder(
                 color = borderColor,
@@ -484,12 +485,12 @@ private fun ProtocolTile(
         ) {
             ProtocolIcon(
                 iconType = protocol.iconType,
-                color = if (isSelected) (if (protocol == HullProtocol.HOLD) NeonGreen else accentColor) else Color.White.copy(alpha = 0.5f)
+                color = if (isSelected) (if (protocol == HullProtocol.HOLD) palette.accent else finalAccent) else palette.ink.copy(alpha = 0.5f)
             )
             Spacer(Modifier.height(8.dp))
             Text(
                 text = protocol.label,
-                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.5f),
+                color = if (isSelected) palette.ink else palette.ink.copy(alpha = 0.5f),
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
@@ -558,10 +559,11 @@ private fun ProtocolIcon(iconType: String, color: Color) {
 
 @Composable
 private fun PhasePreviewSection() {
+    val palette = LocalNeonTheme.current
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = "// PHASE PREVIEW",
-            color = NeonPink,
+            color = palette.secondary,
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Bold,
@@ -573,8 +575,8 @@ private fun PhasePreviewSection() {
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(CyberCutShape)
-                .background(Color(0xFF040809).copy(alpha = 0.85f))
-                .neonBorder(NeonCyan.copy(alpha = 0.4f), width = 1.dp, cornerRadius = 0.dp)
+                .background(palette.surfaceRaised)
+                .neonBorder(palette.accent.copy(alpha = 0.4f), width = 1.dp, cornerRadius = 0.dp)
                 .padding(vertical = 12.dp, horizontal = 10.dp)
         ) {
             Row(
@@ -582,15 +584,15 @@ private fun PhasePreviewSection() {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                PhasePreviewItem(color = NeonGreen, label = "HOLD", duration = "6s")
-                Text(">", color = NeonCyan.copy(alpha = 0.5f), fontSize = 14.sp, fontFamily = FontFamily.Monospace)
-                PhasePreviewItem(color = NeonCyan, label = "REL", duration = "4s")
-                Text(">", color = NeonCyan.copy(alpha = 0.5f), fontSize = 14.sp, fontFamily = FontFamily.Monospace)
-                PhasePreviewItem(color = NeonPink, label = "FLICK", duration = "x8")
-                Text(">", color = NeonCyan.copy(alpha = 0.5f), fontSize = 14.sp, fontFamily = FontFamily.Monospace)
-                PhasePreviewItem(color = NeonGreen, label = "HOLD", duration = "8s")
-                Text(">", color = NeonCyan.copy(alpha = 0.5f), fontSize = 14.sp, fontFamily = FontFamily.Monospace)
-                PhasePreviewItem(color = NeonCyan, label = "DROP", duration = "5s")
+                PhasePreviewItem(color = palette.accent, label = "HOLD", duration = "6s")
+                Text(">", color = palette.accent.copy(alpha = 0.5f), fontSize = 14.sp, fontFamily = FontFamily.Monospace)
+                PhasePreviewItem(color = palette.accent, label = "REL", duration = "4s")
+                Text(">", color = palette.accent.copy(alpha = 0.5f), fontSize = 14.sp, fontFamily = FontFamily.Monospace)
+                PhasePreviewItem(color = palette.secondary, label = "FLICK", duration = "x8")
+                Text(">", color = palette.accent.copy(alpha = 0.5f), fontSize = 14.sp, fontFamily = FontFamily.Monospace)
+                PhasePreviewItem(color = palette.accent, label = "HOLD", duration = "8s")
+                Text(">", color = palette.accent.copy(alpha = 0.5f), fontSize = 14.sp, fontFamily = FontFamily.Monospace)
+                PhasePreviewItem(color = palette.accent, label = "DROP", duration = "5s")
             }
         }
     }
@@ -598,6 +600,7 @@ private fun PhasePreviewSection() {
 
 @Composable
 private fun PhasePreviewItem(color: Color, label: String, duration: String) {
+    val palette = LocalNeonTheme.current
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         // Grid dot matrix icon
         Canvas(modifier = Modifier.size(20.dp)) {
@@ -616,7 +619,7 @@ private fun PhasePreviewItem(color: Color, label: String, duration: String) {
         Row {
             Text(
                 text = label,
-                color = Color.White.copy(alpha = 0.9f),
+                color = palette.ink.copy(alpha = 0.9f),
                 fontSize = 9.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold
@@ -638,6 +641,7 @@ private fun PulseCore(
     state: HullPulseUiState,
     modifier: Modifier = Modifier
 ) {
+    val palette = LocalNeonTheme.current
     val isHolding = state.phase == PulsePhase.HOLD || state.phase == PulsePhase.CONTRACT
     val isReleasing = state.phase == PulsePhase.RELEASE
 
@@ -666,7 +670,7 @@ private fun PulseCore(
         label = "GlowAlpha"
     )
 
-    val coreColor = if (isHolding) NeonGreen else if (isReleasing) NeonCyan else Color.White.copy(alpha = 0.5f)
+    val coreColor = if (isHolding) palette.accent else if (isReleasing) palette.accent else palette.ink.copy(alpha = 0.5f)
 
     Box(
         contentAlignment = Alignment.Center,
@@ -679,7 +683,7 @@ private fun PulseCore(
 
             // 1. Outer Track Ring
             drawCircle(
-                color = Color.White.copy(alpha = 0.08f),
+                color = palette.ink.copy(alpha = 0.08f),
                 radius = outerRadius,
                 style = Stroke(width = strokeWidth)
             )
@@ -691,7 +695,7 @@ private fun PulseCore(
                     val f = i.toFloat()
                     val glowAlpha = (0.25f - f * 0.04f).coerceAtLeast(0f)
                     drawArc(
-                        color = NeonGreen.copy(alpha = glowAlpha),
+                        color = palette.accent.copy(alpha = glowAlpha),
                         startAngle = -90f,
                         sweepAngle = sweepAngle,
                         useCenter = false,
@@ -700,7 +704,7 @@ private fun PulseCore(
                 }
 
                 drawArc(
-                    color = NeonGreen,
+                    color = palette.accent,
                     startAngle = -90f,
                     sweepAngle = sweepAngle,
                     useCenter = false,
@@ -756,7 +760,7 @@ private fun PulseCore(
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = "${state.phaseTimeRemaining}s",
-                    color = Color.White,
+                    color = palette.ink,
                     fontSize = 24.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold
@@ -767,7 +771,7 @@ private fun PulseCore(
 
             Text(
                 text = "${state.currentCycle}/${state.totalCycles} CYCLES",
-                color = Color.White.copy(alpha = 0.5f),
+                color = palette.ink.copy(alpha = 0.5f),
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,

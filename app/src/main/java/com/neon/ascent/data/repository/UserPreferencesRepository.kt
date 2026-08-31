@@ -42,6 +42,18 @@ class UserPreferencesRepository @Inject constructor(
         val WORKOUT_ZOOM_LEVEL = floatPreferencesKey("workout_zoom_level")
     }
 
+    val themeMode: Flow<String> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            preferences[PreferencesKeys.THEME_MODE] ?: "CYBER"
+        }
+
     val measurementUnit: Flow<String> = context.dataStore.data
         .catch { exception ->
             if (exception is IOException) {
@@ -87,6 +99,14 @@ class UserPreferencesRepository @Inject constructor(
         .map { preferences ->
             preferences[PreferencesKeys.YEARLY_REVIEW_ENABLED] ?: true
         }
+
+    suspend fun setThemeMode(mode: String) {
+        val coercedMode = when (mode.uppercase()) {
+            "STEVE" -> "STEVE"
+            else -> "CYBER"
+        }
+        context.dataStore.edit { it[PreferencesKeys.THEME_MODE] = coercedMode }
+    }
 
     suspend fun updateMeasurementUnit(unit: String) {
         context.dataStore.edit { preferences ->

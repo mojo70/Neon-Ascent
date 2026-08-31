@@ -1,5 +1,6 @@
 package com.neon.ascent.feature.goals.ui.ascension
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,8 +15,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.core.domain.goals.models.*
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.ui.graphics.Color
-import com.neon.ascent.core.common.NeonCyan
-import com.neon.ascent.core.common.CelebrationOverlay
+import com.neon.ascent.core.common.*
 import androidx.compose.material.icons.filled.Psychology
 
 import androidx.compose.material.icons.automirrored.filled.LibraryBooks
@@ -33,6 +33,7 @@ fun AscensionTerminalScreen(
     viewModel: AscensionTerminalViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val theme = LocalNeonTheme.current
 
     Scaffold(
         topBar = {
@@ -40,21 +41,30 @@ fun AscensionTerminalScreen(
                 title = { Text("NEURAL ASCENSION TERMINAL") },
                 actions = {
                     IconButton(onClick = onBrowseProtocols) {
-                        Icon(Icons.AutoMirrored.Filled.LibraryBooks, contentDescription = "BROWSE_PROTOCOLS", tint = NeonCyan)
+                        Icon(Icons.AutoMirrored.Filled.LibraryBooks, contentDescription = "BROWSE_PROTOCOLS", tint = theme.accent)
                     }
                     IconButton(onClick = onRitualClick) {
-                        Icon(Icons.Default.Terminal, contentDescription = "SYSTEM_RITUAL", tint = NeonCyan)
+                        Icon(Icons.Default.Terminal, contentDescription = "SYSTEM_RITUAL", tint = theme.accent)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = theme.canvas,
+                    titleContentColor = theme.accent
+                )
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onForgeClick) {
+            FloatingActionButton(
+                onClick = onForgeClick,
+                containerColor = theme.accent,
+                contentColor = theme.canvas
+            ) {
                 Icon(Icons.Default.Add, contentDescription = "FORGE_DIRECTIVE")
             }
-        }
+        },
+        containerColor = theme.canvas
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().background(theme.canvas)) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -63,7 +73,11 @@ fun AscensionTerminalScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 item {
-                    Text("OPERATIONAL DIRECTIVES", style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        "OPERATIONAL DIRECTIVES", 
+                        style = MaterialTheme.typography.titleLarge,
+                        color = theme.ink
+                    )
                 }
                 
                 items(uiState.directives.filter { it.status == DirectiveStatus.ACTIVE }) { directive ->
@@ -76,7 +90,11 @@ fun AscensionTerminalScreen(
                 }
 
                 item {
-                    Text("ACTIVE MISSIONS", style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        "ACTIVE MISSIONS", 
+                        style = MaterialTheme.typography.titleLarge,
+                        color = theme.ink
+                    )
                 }
 
                 items(uiState.activeMissions) { mission ->
@@ -99,36 +117,63 @@ fun DirectiveCard(
     onReviewClick: () -> Unit,
     onCompleteClick: () -> Unit
 ) {
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+    val theme = LocalNeonTheme.current
+    Card(
+        onClick = onClick, 
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = theme.surfaceRaised)
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(directive.title, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    directive.title, 
+                    style = MaterialTheme.typography.titleMedium,
+                    color = theme.ink
+                )
                 Row {
                     IconButton(onClick = onReviewClick) {
-                        Icon(Icons.Default.Psychology, contentDescription = "DIALECTIC_REVIEW", tint = NeonCyan)
+                        Icon(Icons.Default.Psychology, contentDescription = "DIALECTIC_REVIEW", tint = theme.accent)
                     }
                     if (directive.currentProgress >= 0.9f) {
                         IconButton(onClick = onCompleteClick) {
-                            Icon(Icons.Default.Check, contentDescription = "COMPLETE_DIRECTIVE", tint = Color.Green)
+                            Icon(Icons.Default.Check, contentDescription = "COMPLETE_DIRECTIVE", tint = theme.accent)
                         }
                     }
                 }
             }
             LinearProgressIndicator(
                 progress = { directive.currentProgress },
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                color = theme.accent,
+                trackColor = theme.ink.copy(alpha = 0.1f)
             )
-            Text("${(directive.currentProgress * 100).toInt()}% COMPLETE", style = MaterialTheme.typography.labelSmall)
+            Text(
+                "${(directive.currentProgress * 100).toInt()}% COMPLETE", 
+                style = MaterialTheme.typography.labelSmall,
+                color = theme.inkMuted
+            )
         }
     }
 }
 
 @Composable
 fun MissionCard(mission: AscensionMission) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    val theme = LocalNeonTheme.current
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = theme.surfaceRaised)
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(mission.title, style = MaterialTheme.typography.titleMedium)
-            Text(mission.description, style = MaterialTheme.typography.bodySmall)
+            Text(
+                mission.title, 
+                style = MaterialTheme.typography.titleMedium,
+                color = theme.ink
+            )
+            Text(
+                mission.description, 
+                style = MaterialTheme.typography.bodySmall,
+                color = theme.inkMuted
+            )
         }
     }
 }

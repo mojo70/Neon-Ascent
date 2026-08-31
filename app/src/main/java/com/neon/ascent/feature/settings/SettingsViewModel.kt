@@ -23,10 +23,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import com.neon.ascent.data.AppSessionManager
 import com.neon.ascent.feature.notifications.data.SmartPingScheduler
+import com.neon.ascent.core.common.VisualMode
 import java.util.UUID
 import javax.inject.Inject
 
@@ -191,6 +193,22 @@ class SettingsViewModel @Inject constructor(
 
     val userCharacter: StateFlow<UserCharacter?> = characterRepository.getUserCharacter()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val visualMode: StateFlow<VisualMode> = userPreferencesRepository.themeMode
+        .map { mode ->
+            try {
+                VisualMode.valueOf(mode.uppercase())
+            } catch (e: Exception) {
+                VisualMode.CYBER
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), VisualMode.CYBER)
+
+    fun setVisualMode(mode: VisualMode) {
+        viewModelScope.launch {
+            userPreferencesRepository.setThemeMode(mode.name)
+        }
+    }
 
     // Notification Settings
     val isNeuralBriefEnabled = settingsRepository.isNeuralBriefEnabled

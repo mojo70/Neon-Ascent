@@ -46,6 +46,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.model.Saying
 import com.neon.ascent.ui.CyberFrame
+import com.neon.ascent.core.common.*
+import com.neon.ascent.core.common.VisualMode
 import com.neon.ascent.core.common.Scanlines
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -90,8 +92,12 @@ fun CoreDashboardScreen(
         viewModel.checkIce(tabs[activeTab])
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        Scanlines()
+    val theme = LocalNeonTheme.current
+
+    Box(modifier = Modifier.fillMaxSize().background(theme.canvas)) {
+        if (theme.mode == VisualMode.CYBER) {
+            Scanlines()
+        }
         
         Column(
             modifier = Modifier
@@ -107,7 +113,7 @@ fun CoreDashboardScreen(
             ) {
                 Text(
                     "LOCAL_AI_CORE v3.0",
-                    color = Color(0xFF00FF9C),
+                    color = theme.accent,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp
@@ -141,8 +147,8 @@ fun CoreDashboardScreen(
                         modifier = Modifier
                             .weight(1f)
                             .height(40.dp)
-                            .background(if (activeTab == index) Color(0xFF00FF9C).copy(alpha = 0.2f) else Color.Transparent)
-                            .border(1.dp, if (activeTab == index) Color(0xFF00FF9C) else Color.Gray.copy(alpha = 0.3f))
+                            .background(if (activeTab == index) theme.accent.copy(alpha = 0.2f) else Color.Transparent)
+                            .border(1.dp, if (activeTab == index) theme.accent else theme.inkMuted.copy(alpha = 0.3f))
                             .clickable { activeTab = index },
                         contentAlignment = Alignment.BottomCenter
                     ) {
@@ -153,7 +159,7 @@ fun CoreDashboardScreen(
                         ) {
                             Text(
                                 title,
-                                color = if (activeTab == index) Color(0xFF00FF9C) else Color.Gray,
+                                color = if (activeTab == index) theme.accent else theme.inkMuted,
                                 fontSize = 8.sp,
                                 fontFamily = FontFamily.Monospace
                             )
@@ -223,7 +229,7 @@ fun CoreDashboardScreen(
                     Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = msg,
-                            color = Color(0xFF00FF9C),
+                            color = theme.accent,
                             fontFamily = FontFamily.Monospace,
                             fontSize = 14.sp,
                             textAlign = TextAlign.Center
@@ -231,11 +237,11 @@ fun CoreDashboardScreen(
                         Spacer(Modifier.height(24.dp))
                         Button(
                             onClick = { viewModel.dismissFirstEntryMessage() },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C).copy(alpha = 0.2f)),
-                            border = BorderStroke(1.dp, Color(0xFF00FF9C)),
+                            colors = ButtonDefaults.buttonColors(containerColor = theme.accent.copy(alpha = 0.2f)),
+                            border = BorderStroke(1.dp, theme.accent),
                             shape = RoundedCornerShape(4.dp)
                         ) {
-                            Text("ACKNOWLEDGE", color = Color(0xFF00FF9C), fontSize = 10.sp)
+                            Text("ACKNOWLEDGE", color = theme.accent, fontSize = 10.sp)
                         }
                     }
                 }
@@ -261,6 +267,7 @@ fun BlackIceOverlay() {
         modifier = Modifier.fillMaxSize().border(2.dp, Color.Red.copy(alpha = 0.5f)),
         contentAlignment = Alignment.Center
     ) {
+        val theme = LocalNeonTheme.current
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
             Icon(Icons.Default.Lock, contentDescription = null, tint = Color.Red, modifier = Modifier.size(64.dp))
             Spacer(Modifier.height(16.dp))
@@ -274,7 +281,7 @@ fun BlackIceOverlay() {
             Spacer(Modifier.height(8.dp))
             Text(
                 "Access restricted. Arasaka-grade ICE detected. Root breach protocol required for decryption.",
-                color = Color.White.copy(alpha = 0.7f),
+                color = theme.ink.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center,
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace
@@ -300,6 +307,7 @@ fun BlackIceOverlay() {
 
 @Composable
 fun LightIceOverlay(section: String, onQuickHack: () -> Unit, onManualHack: () -> Unit) {
+    val theme = LocalNeonTheme.current
     Box(
         modifier = Modifier.fillMaxSize().border(1.dp, Color(0xFF00CCFF).copy(alpha = 0.5f)),
         contentAlignment = Alignment.Center
@@ -316,7 +324,7 @@ fun LightIceOverlay(section: String, onQuickHack: () -> Unit, onManualHack: () -
             )
             Text(
                 "Section: $section",
-                color = Color.Gray,
+                color = theme.inkMuted,
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace
             )
@@ -332,9 +340,9 @@ fun LightIceOverlay(section: String, onQuickHack: () -> Unit, onManualHack: () -
             OutlinedButton(
                 onClick = onQuickHack,
                 modifier = Modifier.fillMaxWidth(),
-                border = BorderStroke(1.dp, Color(0xFF00FF9C))
+                border = BorderStroke(1.dp, theme.accent)
             ) {
-                Text("QUICKHACK (20 ED)", color = Color(0xFF00FF9C))
+                Text("QUICKHACK (20 ED)", color = theme.accent)
             }
         }
     }
@@ -342,6 +350,7 @@ fun LightIceOverlay(section: String, onQuickHack: () -> Unit, onManualHack: () -
 
 @Composable
 fun VaultHub(viewModel: CoreDashboardViewModel) {
+    val theme = LocalNeonTheme.current
     val char by viewModel.userCharacter.collectAsState()
     val isNetrunnerOn by viewModel.isNetrunnerMode.collectAsState()
     var showTransferDialog by remember { mutableStateOf(false) }
@@ -363,8 +372,8 @@ fun VaultHub(viewModel: CoreDashboardViewModel) {
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                     Column {
-                        Text("NETRUNNER MODE", color = if (isNetrunnerOn) Color.Red else Color.Gray, fontWeight = FontWeight.Bold)
-                        Text("Exposes kernel to subnet", color = Color.Gray, fontSize = 10.sp)
+                        Text("NETRUNNER MODE", color = if (isNetrunnerOn) Color.Red else theme.inkMuted, fontWeight = FontWeight.Bold)
+                        Text("Exposes kernel to subnet", color = theme.inkMuted, fontSize = 10.sp)
                     }
                     Switch(
                         checked = isNetrunnerOn, 
@@ -386,12 +395,12 @@ fun VaultHub(viewModel: CoreDashboardViewModel) {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             CyberFrame(label = "XP", modifier = Modifier.weight(1f)) {
                 Column {
-                    Text("LVL ${char?.level ?: 1}", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("LVL ${char?.level ?: 1}", color = theme.ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     LinearProgressIndicator(
                         progress = { (char?.experience?.toFloat() ?: 0f) / 5000f },
                         modifier = Modifier.fillMaxWidth().height(4.dp),
-                        color = Color(0xFF00FF9C),
-                        trackColor = Color.Gray.copy(alpha = 0.2f),
+                        color = theme.accent,
+                        trackColor = theme.inkMuted.copy(alpha = 0.2f),
                     )
                 }
             }
@@ -399,11 +408,11 @@ fun VaultHub(viewModel: CoreDashboardViewModel) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                     Column {
                         Text("€${char?.eddies ?: 0}", color = Color(0xFFFFCC00), fontSize = 18.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
-                        Text(if (char?.walletConnected == true) "SOLANA: LINKED" else "UNLINKED", color = Color.Gray, fontSize = 9.sp)
+                        Text(if (char?.walletConnected == true) "SOLANA: LINKED" else "UNLINKED", color = theme.inkMuted, fontSize = 9.sp)
                     }
                     if (char?.walletConnected == true) {
                         IconButton(onClick = { showTransferDialog = true }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.Shield, contentDescription = "Transfer to Secure", tint = Color(0xFF00FF9C), modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.Shield, contentDescription = "Transfer to Secure", tint = theme.accent, modifier = Modifier.size(20.dp))
                         }
                     }
                 }
@@ -430,13 +439,13 @@ fun VaultHub(viewModel: CoreDashboardViewModel) {
                 if (isSaved) {
                     Text(
                         text = "> $message",
-                        color = Color(0xFF00FF9C),
+                        color = theme.accent,
                         fontFamily = FontFamily.Monospace,
                         fontSize = 11.sp,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(60.dp)
-                            .background(Color.White.copy(alpha = 0.05f))
+                            .background(theme.ink.copy(alpha = 0.05f))
                             .padding(8.dp)
                     )
                 } else {
@@ -444,16 +453,16 @@ fun VaultHub(viewModel: CoreDashboardViewModel) {
                         value = message,
                         onValueChange = { if (it.length <= 140) message = it },
                         enabled = isNetrunnerOn,
-                        textStyle = TextStyle(color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 11.sp),
-                        modifier = Modifier.fillMaxWidth().height(60.dp).background(Color.White.copy(alpha = 0.05f)).padding(8.dp),
+                        textStyle = TextStyle(color = theme.ink, fontFamily = FontFamily.Monospace, fontSize = 11.sp),
+                        modifier = Modifier.fillMaxWidth().height(60.dp).background(theme.ink.copy(alpha = 0.05f)).padding(8.dp),
                         decorationBox = { innerTextField ->
-                            if (message.isEmpty()) Text("Leave graffiti for other runners...", color = Color.Gray, fontSize = 11.sp)
+                            if (message.isEmpty()) Text("Leave graffiti for other runners...", color = theme.inkMuted, fontSize = 11.sp)
                             innerTextField()
                         }
                     )
                 }
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("${message.length}/140", color = Color.Gray, fontSize = 9.sp)
+                    Text("${message.length}/140", color = theme.inkMuted, fontSize = 9.sp)
                     
                     if (isSaved) {
                         Text(
@@ -472,7 +481,7 @@ fun VaultHub(viewModel: CoreDashboardViewModel) {
                                 Canvas(modifier = Modifier.matchParentSize()) {
                                     repeat(20) {
                                         drawRect(
-                                            color = if (Random.nextBoolean()) Color.White else Color(0xFF00FF9C),
+                                            color = if (Random.nextBoolean()) theme.ink else theme.accent,
                                             topLeft = Offset(
                                                 x = Random.nextFloat() * size.width,
                                                 y = Random.nextFloat() * size.height
@@ -484,7 +493,7 @@ fun VaultHub(viewModel: CoreDashboardViewModel) {
                             }
                             Text(
                                 "UPLOAD",
-                                color = if (isGlitching) Color.White else if (isNetrunnerOn) Color(0xFF00FF9C) else Color.Gray,
+                                color = if (isGlitching) theme.ink else if (isNetrunnerOn) theme.accent else theme.inkMuted,
                                 fontSize = 10.sp,
                                 modifier = Modifier
                                     .offset(offsetX, offsetY)
@@ -514,6 +523,7 @@ fun VaultHub(viewModel: CoreDashboardViewModel) {
 
 @Composable
 fun TransferToSecureDialog(maxAmount: Int, onDismiss: () -> Unit, onConfirm: (Int) -> Unit) {
+    val theme = LocalNeonTheme.current
     var amountText by remember { mutableStateOf("") }
     val amount = amountText.toIntOrNull() ?: 0
     val isValid = amount in 1..maxAmount
@@ -521,19 +531,19 @@ fun TransferToSecureDialog(maxAmount: Int, onDismiss: () -> Unit, onConfirm: (In
     Dialog(onDismissRequest = onDismiss) {
         CyberFrame(label = "SECURE_TRANSFER_PROTOCOL") {
             Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Transfer Eddies to Solana Secure Wallet?", color = Color.White, fontSize = 14.sp, textAlign = TextAlign.Center)
+                Text("Transfer Eddies to Solana Secure Wallet?", color = theme.ink, fontSize = 14.sp, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(16.dp))
-                Text("AVAILABLE: €$maxAmount", color = Color.Gray, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                Text("AVAILABLE: €$maxAmount", color = theme.inkMuted, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
                 Spacer(Modifier.height(8.dp))
                 BasicTextField(
                     value = amountText,
                     onValueChange = { if (it.all { char -> char.isDigit() }) amountText = it },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     textStyle = TextStyle(color = Color(0xFFFFCC00), fontFamily = FontFamily.Monospace, fontSize = 18.sp, textAlign = TextAlign.Center),
-                    cursorBrush = SolidColor(Color(0xFF00FF9C)),
-                    modifier = Modifier.fillMaxWidth().background(Color.White.copy(alpha = 0.05f)).padding(12.dp),
+                    cursorBrush = SolidColor(theme.accent),
+                    modifier = Modifier.fillMaxWidth().background(theme.ink.copy(alpha = 0.05f)).padding(12.dp),
                     decorationBox = { innerTextField ->
-                        if (amountText.isEmpty()) Text("ENTER_AMOUNT", color = Color.Gray.copy(alpha = 0.5f), modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, fontSize = 14.sp)
+                        if (amountText.isEmpty()) Text("ENTER_AMOUNT", color = theme.inkMuted.copy(alpha = 0.5f), modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, fontSize = 14.sp)
                         innerTextField()
                     }
                 )
@@ -544,13 +554,13 @@ fun TransferToSecureDialog(maxAmount: Int, onDismiss: () -> Unit, onConfirm: (In
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
                     ) {
-                        Text("CANCEL", color = Color.White, fontSize = 10.sp)
+                        Text("CANCEL", color = theme.ink, fontSize = 10.sp)
                     }
                     Button(
                         onClick = { onConfirm(amount) },
                         enabled = isValid,
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C))
+                        colors = ButtonDefaults.buttonColors(containerColor = theme.accent)
                     ) {
                         Text("TRANSFER", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
@@ -562,26 +572,28 @@ fun TransferToSecureDialog(maxAmount: Int, onDismiss: () -> Unit, onConfirm: (In
 
 @Composable
 fun IceOption(name: String, desc: String, enabled: Boolean, systemActive: Boolean) {
+    val theme = LocalNeonTheme.current
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
-            Text(name, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-            Text(desc, color = Color.Gray, fontSize = 9.sp)
+            Text(name, color = theme.ink, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text(desc, color = theme.inkMuted, fontSize = 9.sp)
         }
         Checkbox(
             checked = enabled, 
             onCheckedChange = {}, 
             enabled = systemActive,
-            colors = CheckboxDefaults.colors(checkedColor = Color(0xFF00FF9C), uncheckedColor = Color.Gray)
+            colors = CheckboxDefaults.colors(checkedColor = theme.accent, uncheckedColor = theme.inkMuted)
         )
     }
 }
 
 @Composable
 fun AiParametersPanel(viewModel: CoreDashboardViewModel) {
+    val theme = LocalNeonTheme.current
     val temp by viewModel.nanoTemperature.collectAsState()
     val fallback by viewModel.cloudFallbackThreshold.collectAsState()
     val seed by viewModel.philosophySeed.collectAsState()
@@ -604,18 +616,18 @@ fun AiParametersPanel(viewModel: CoreDashboardViewModel) {
                 LabeledSlider("NANO_TEMPERATURE", temp, 0f..2f) { viewModel.updateNanoTemperature(it) }
                 LabeledSlider("CLOUD_FALLBACK_THRESHOLD", fallback, 0f..100f, suffix = "%") { viewModel.updateCloudFallback(it) }
                 
-                Text("PHILOSOPHY_SEED", color = Color.White, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                Text("PHILOSOPHY_SEED", color = theme.ink, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
                 Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     philosophyOptions.forEach { option ->
                         val isSelected = seed == option
                         Box(
                             modifier = Modifier
-                                .border(1.dp, if (isSelected) Color(0xFF00FF9C) else Color.Gray.copy(alpha = 0.3f))
-                                .background(if (isSelected) Color(0xFF00FF9C).copy(alpha = 0.2f) else Color.Transparent)
+                                .border(1.dp, if (isSelected) theme.accent else theme.inkMuted.copy(alpha = 0.3f))
+                                .background(if (isSelected) theme.accent.copy(alpha = 0.2f) else Color.Transparent)
                                 .clickable { viewModel.updatePhilosophySeed(option) }
                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
-                            Text(option, color = if (isSelected) Color(0xFF00FF9C) else Color.Gray, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                            Text(option, color = if (isSelected) theme.accent else theme.inkMuted, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
                         }
                     }
                 }
@@ -630,17 +642,17 @@ fun AiParametersPanel(viewModel: CoreDashboardViewModel) {
                 BasicTextField(
                     value = testPrompt,
                     onValueChange = { testPrompt = it },
-                    textStyle = TextStyle(color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 12.sp),
-                    cursorBrush = SolidColor(Color(0xFF00FF9C)),
-                    modifier = Modifier.fillMaxWidth().height(80.dp).background(Color.White.copy(alpha = 0.05f)).padding(8.dp),
+                    textStyle = TextStyle(color = theme.ink, fontFamily = FontFamily.Monospace, fontSize = 12.sp),
+                    cursorBrush = SolidColor(theme.accent),
+                    modifier = Modifier.fillMaxWidth().height(80.dp).background(theme.ink.copy(alpha = 0.05f)).padding(8.dp),
                     decorationBox = { innerTextField ->
-                        if (testPrompt.isEmpty()) Text("Type neural probe here...", color = Color.Gray, fontSize = 12.sp)
+                        if (testPrompt.isEmpty()) Text("Type neural probe here...", color = theme.inkMuted, fontSize = 12.sp)
                         innerTextField()
                     }
                 )
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = {}, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C))) {
+                    Button(onClick = {}, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = theme.accent)) {
                         Text("RUN_NANO", color = Color.Black, fontSize = 10.sp)
                     }
                     Button(onClick = {}, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00CCFF))) {
@@ -667,7 +679,7 @@ fun AiParametersPanel(viewModel: CoreDashboardViewModel) {
                 ) {
                     Text(
                         "${neuralMemories.size} FRAGMENTS DETECTED",
-                        color = Color(0xFF00FF9C),
+                        color = theme.accent,
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold
@@ -675,7 +687,7 @@ fun AiParametersPanel(viewModel: CoreDashboardViewModel) {
                     Icon(
                         imageVector = if (isMemoriesExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
                         contentDescription = null,
-                        tint = Color(0xFF00FF9C),
+                        tint = theme.accent,
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -685,7 +697,7 @@ fun AiParametersPanel(viewModel: CoreDashboardViewModel) {
                         if (neuralMemories.isEmpty()) {
                             Text(
                                 "NO_FRAGMENTS_CAPTURED_YET",
-                                color = Color.Gray,
+                                color = theme.inkMuted,
                                 fontSize = 11.sp,
                                 fontFamily = FontFamily.Monospace
                             )
@@ -694,8 +706,8 @@ fun AiParametersPanel(viewModel: CoreDashboardViewModel) {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .background(Color.White.copy(alpha = 0.02f))
-                                        .border(1.dp, Color.White.copy(alpha = 0.05f))
+                                        .background(theme.ink.copy(alpha = 0.02f))
+                                        .border(1.dp, theme.ink.copy(alpha = 0.05f))
                                         .padding(10.dp)
                                 ) {
                                     Row(
@@ -704,7 +716,7 @@ fun AiParametersPanel(viewModel: CoreDashboardViewModel) {
                                     ) {
                                         Text(
                                             "[WING_${memory.wing}] Room: ${memory.room}",
-                                            color = Color(0xFF00FF9C),
+                                            color = theme.accent,
                                             fontSize = 9.sp,
                                             fontFamily = FontFamily.Monospace,
                                             fontWeight = FontWeight.Bold
@@ -712,7 +724,7 @@ fun AiParametersPanel(viewModel: CoreDashboardViewModel) {
                                         val df = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.US)
                                         Text(
                                             df.format(java.util.Date(memory.timestamp)),
-                                            color = Color.Gray,
+                                            color = theme.inkMuted,
                                             fontSize = 8.sp,
                                             fontFamily = FontFamily.Monospace
                                         )
@@ -737,41 +749,44 @@ fun AiParametersPanel(viewModel: CoreDashboardViewModel) {
 
 @Composable
 fun ModelOption(title: String, desc: String, selected: Boolean, onClick: () -> Unit) {
+    val theme = LocalNeonTheme.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
             .padding(8.dp)
-            .border(1.dp, if (selected) Color(0xFF00FF9C) else Color.Transparent)
+            .border(1.dp, if (selected) theme.accent else Color.Transparent)
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        RadioButton(selected = selected, onClick = onClick, colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF00FF9C)))
+        RadioButton(selected = selected, onClick = onClick, colors = RadioButtonDefaults.colors(selectedColor = theme.accent))
         Column {
-            Text(title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-            Text(desc, color = Color.Gray, fontSize = 10.sp)
+            Text(title, color = theme.ink, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Text(desc, color = theme.inkMuted, fontSize = 10.sp)
         }
     }
 }
 
 @Composable
 fun LabeledSlider(label: String, value: Float, range: ClosedFloatingPointRange<Float>, suffix: String = "", onValueChange: (Float) -> Unit) {
+    val theme = LocalNeonTheme.current
     Column {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, color = Color.White, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
-            Text("%.2f".format(value) + suffix, color = Color(0xFF00FF9C), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+            Text(label, color = theme.ink, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+            Text("%.2f".format(value) + suffix, color = theme.accent, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
         }
         Slider(
             value = value,
             onValueChange = onValueChange,
             valueRange = range,
-            colors = SliderDefaults.colors(thumbColor = Color(0xFF00FF9C), activeTrackColor = Color(0xFF00FF9C))
+            colors = SliderDefaults.colors(thumbColor = theme.accent, activeTrackColor = theme.accent)
         )
     }
 }
 
 @Composable
 fun DatabankManager(viewModel: CoreDashboardViewModel) {
+    val theme = LocalNeonTheme.current
     val sayings by viewModel.allSayings.collectAsState()
     var newSayingText by remember { mutableStateOf("") }
     
@@ -781,17 +796,17 @@ fun DatabankManager(viewModel: CoreDashboardViewModel) {
                 BasicTextField(
                     value = newSayingText,
                     onValueChange = { newSayingText = it },
-                    textStyle = TextStyle(color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 12.sp),
-                    modifier = Modifier.weight(1f).background(Color.White.copy(alpha = 0.05f)).padding(8.dp),
+                    textStyle = TextStyle(color = theme.ink, fontFamily = FontFamily.Monospace, fontSize = 12.sp),
+                    modifier = Modifier.weight(1f).background(theme.ink.copy(alpha = 0.05f)).padding(8.dp),
                     decorationBox = { innerTextField ->
-                        if (newSayingText.isEmpty()) Text("Add custom wisdom...", color = Color.Gray, fontSize = 12.sp)
+                        if (newSayingText.isEmpty()) Text("Add custom wisdom...", color = theme.inkMuted, fontSize = 12.sp)
                         innerTextField()
                     }
                 )
                 Spacer(Modifier.width(8.dp))
                 Button(
                     onClick = { if (newSayingText.isNotBlank()) { viewModel.addCustomSaying(newSayingText); newSayingText = "" } },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C))
+                    colors = ButtonDefaults.buttonColors(containerColor = theme.accent)
                 ) {
                     Text("+", color = Color.Black)
                 }
@@ -810,7 +825,7 @@ fun DatabankManager(viewModel: CoreDashboardViewModel) {
                     ) {
                         Text(
                             text = "> \"${saying.text}\"", 
-                            color = if (saying.category == "Custom") Color(0xFF00FF9C) else Color.Gray, 
+                            color = if (saying.category == "Custom") theme.accent else theme.inkMuted, 
                             fontSize = 11.sp, 
                             fontFamily = FontFamily.Monospace,
                             modifier = Modifier.weight(1f)
@@ -823,7 +838,7 @@ fun DatabankManager(viewModel: CoreDashboardViewModel) {
                             Switch(
                                 checked = saying.isEnabled,
                                 onCheckedChange = { viewModel.toggleSayingEnabled(saying) },
-                                colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF00FF9C), checkedTrackColor = Color(0xFF00FF9C).copy(alpha = 0.3f))
+                                colors = SwitchDefaults.colors(checkedThumbColor = theme.accent, checkedTrackColor = theme.accent.copy(alpha = 0.3f))
                             )
                         }
                     }
@@ -845,6 +860,7 @@ fun DatabankManager(viewModel: CoreDashboardViewModel) {
 
 @Composable
 fun DiagnosticsLogs(viewModel: CoreDashboardViewModel) {
+    val theme = LocalNeonTheme.current
     val hackHistory by viewModel.hackHistory.collectAsState()
     val isNetrunnerOn by viewModel.isNetrunnerMode.collectAsState()
 
@@ -859,7 +875,7 @@ fun DiagnosticsLogs(viewModel: CoreDashboardViewModel) {
         CyberFrame(label = "SYSTEM_DIAGNOSTICS") {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 systemLogs.forEach { log ->
-                    Text("> $log", color = Color(0xFF00FF9C), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                    Text("> $log", color = theme.accent, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
                 }
             }
         }
@@ -867,21 +883,21 @@ fun DiagnosticsLogs(viewModel: CoreDashboardViewModel) {
         CyberFrame(label = "HACK_HISTORY_L60M") {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (hackHistory.isEmpty()) {
-                    Text("NO RECENT ACTIVITY", color = Color.Gray, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                    Text("NO RECENT ACTIVITY", color = theme.inkMuted, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
                 } else {
                     hackHistory.forEach { event ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .border(1.dp, if (isNetrunnerOn) Color.Red.copy(alpha = 0.3f) else Color.Gray.copy(alpha = 0.1f))
+                                .border(1.dp, if (isNetrunnerOn) Color.Red.copy(alpha = 0.3f) else theme.inkMuted.copy(alpha = 0.1f))
                                 .clickable(enabled = isNetrunnerOn) { viewModel.claimBounty(event) }
                                 .padding(8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(event.type, color = if (isNetrunnerOn) Color.Red else Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                Text(event.details, color = Color.Gray, fontSize = 9.sp)
+                                Text(event.type, color = if (isNetrunnerOn) Color.Red else theme.inkMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text(event.details, color = theme.inkMuted, fontSize = 9.sp)
                             }
                             if (isNetrunnerOn) {
                                 Text("CLAIM €${event.bounty}", color = Color(0xFFFFCC00), fontSize = 10.sp, fontWeight = FontWeight.Bold)

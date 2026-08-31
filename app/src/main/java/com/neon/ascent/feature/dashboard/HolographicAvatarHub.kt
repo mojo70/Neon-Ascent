@@ -41,6 +41,8 @@ import com.neon.ascent.feature.terminal.ui.TerminalViewModel
 import com.neon.ascent.core.domain.character.models.UserCharacter
 import com.neon.ascent.domain.model.UserStory
 import com.neon.ascent.ui.*
+import com.neon.ascent.core.common.*
+import com.neon.ascent.core.common.VisualMode
 import kotlinx.coroutines.delay
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -81,6 +83,8 @@ fun HolographicAvatarHub(
     val liveMetrics by healthViewModel.liveMetrics.collectAsState()
     val isNetrunnerMode by viewModel.isNetrunnerMode.collectAsState()
     val isReligionEnabled by viewModel.isReligionShortcutEnabled.collectAsState()
+    
+    val theme = LocalNeonTheme.current
 
     var selectedAttribute by remember { mutableStateOf<SpecialType?>(null) }
     val sheetState = rememberModalBottomSheetState()
@@ -116,17 +120,19 @@ fun HolographicAvatarHub(
         else -> userCharacter?.archetype ?: "OPERATIVE"
     }
 
-    val titleColor = if (isNeuromancer) Color(0xFFFF006E) else Color(0xFF00FF9C).copy(alpha = 0.6f)
+    val titleColor = if (isNeuromancer) theme.secondary else theme.accent.copy(alpha = 0.6f)
     val titleFontWeight = if (isNeuromancer) FontWeight.ExtraBold else FontWeight.Normal
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF020202))) {
-        PerspectiveGrid()
-        Scanlines()
-        StaticNoise(intensity = displayLoad)
-        Vignette()
-        FloatingParticles(intensity = displayLoad)
-        GlitchOverlay(intensity = displayLoad)
-        HudCornerAccents(color = Color(0xFF00FF9C).copy(alpha = 0.2f))
+    Box(modifier = Modifier.fillMaxSize().background(theme.canvas)) {
+        if (theme.mode == VisualMode.CYBER) {
+            PerspectiveGrid()
+            Scanlines()
+            StaticNoise(intensity = displayLoad)
+            Vignette()
+            FloatingParticles(intensity = displayLoad)
+            GlitchOverlay(intensity = displayLoad)
+            HudCornerAccents(color = theme.accent.copy(alpha = 0.2f))
+        }
 
         Column(
             modifier = Modifier
@@ -139,8 +145,8 @@ fun HolographicAvatarHub(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 8.dp)
-                    .neonBorder(Color(0xFF00FF9C).copy(alpha = 0.4f), cornerRadius = 8.dp),
-                color = Color.Black.copy(alpha = 0.6f),
+                    .neonBorder(theme.accent.copy(alpha = 0.4f), cornerRadius = 8.dp),
+                color = theme.overlay,
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Row(
@@ -171,7 +177,7 @@ fun HolographicAvatarHub(
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = Color(0xFF00FF9C),
                                     unfocusedBorderColor = Color(0xFF00FF9C).copy(alpha = 0.5f),
-                                    focusedTextColor = Color.White
+                                    focusedTextColor = theme.ink
                                 ),
                                 textStyle = MaterialTheme.typography.labelLarge.copy(fontFamily = FontFamily.Monospace),
                                 trailingIcon = {
@@ -408,7 +414,7 @@ fun HolographicAvatarHub(
                                 onClickLabel = "View neural insights",
                                 onClick = { onNavigateToBiohacking("insight") }
                             )
-                            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(4.dp)),
+                            .border(1.dp, theme.ink.copy(alpha = 0.1f), RoundedCornerShape(4.dp)),
                         color = Color.Black.copy(alpha = 0.4f)
                     ) {
                         Column(modifier = Modifier.padding(8.dp)) {
@@ -448,7 +454,7 @@ fun HolographicAvatarHub(
                             val advice by viewModel.systemAdvice.collectAsState()
                             Text(
                                 text = advice,
-                                color = Color.White.copy(alpha = 0.8f),
+                                color = theme.ink.copy(alpha = 0.8f),
                                 fontSize = 8.sp,
                                 fontFamily = FontFamily.Monospace,
                                 lineHeight = 10.sp,
@@ -487,14 +493,14 @@ fun HolographicAvatarHub(
                             ) {
                                 Text(
                                     text = "[${type.name.take(1)}] ${type.name}",
-                                    color = Color.White,
+                                    color = theme.ink,
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace,
                                     modifier = Modifier.width(130.dp)
                                 )
                                 Text(
                                     text = ": ${attr?.currentValue ?: 5}",
-                                    color = Color.White,
+                                    color = theme.ink,
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Bold
@@ -539,7 +545,7 @@ fun HolographicAvatarHub(
                 ) {
                     Text(
                         text = state.cyberLoreSnippet,
-                        color = Color.White.copy(alpha = 0.9f),
+                        color = theme.ink.copy(alpha = 0.9f),
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontFamily = FontFamily.Monospace,
                             lineHeight = 16.sp
@@ -593,7 +599,7 @@ fun HolographicAvatarHub(
                     }
                 }
                 
-                CyberFrame(label = "TERMINAL_OUTPUT", accentColor = Color.Gray, modifier = Modifier.weight(1.2f)) {
+                CyberFrame(label = "TERMINAL_OUTPUT", accentColor = theme.inkMuted, modifier = Modifier.weight(1.2f)) {
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                         items(state.recentLogMessages.take(5)) { log ->
                             Text(
@@ -647,24 +653,25 @@ fun HolographicAvatarHub(
 
 @Composable
 fun EnergyBar(label: String, value: Float) {
+    val theme = LocalNeonTheme.current
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, color = Color(0xFF00FF9C), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
-            Text("${(value * 100).toInt()}%", color = Color.White, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+            Text(label, color = theme.accent, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+            Text("${(value * 100).toInt()}%", color = theme.ink, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
         }
         Spacer(Modifier.height(4.dp))
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(12.dp)
-                .background(Color.Black)
-                .border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.3f))
+                .background(theme.canvas)
+                .border(1.dp, theme.accent.copy(alpha = 0.3f))
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth(value)
                     .fillMaxHeight()
-                    .background(Brush.horizontalGradient(listOf(Color(0xFF00FF9C).copy(alpha = 0.5f), Color(0xFF00FF9C))))
+                    .background(Brush.horizontalGradient(listOf(theme.accent.copy(alpha = 0.5f), theme.accent)))
             )
         }
     }
@@ -672,28 +679,29 @@ fun EnergyBar(label: String, value: Float) {
 
 @Composable
 fun MemorySlotsDisplay(character: UserCharacter?) {
+    val theme = LocalNeonTheme.current
     val totalRam = character?.ramSlots ?: 8
     val usedRam = character?.usedRam ?: 0
     val totalHacks = character?.quickhackSlots ?: 4
     val loadedHacks = character?.getQuickhackList() ?: emptyList()
 
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-        Text("CYBERDECK_RAM", color = Color(0xFF00FFFF), fontSize = 9.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+        Text("CYBERDECK_RAM", color = theme.accent, fontSize = 9.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(4.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
             repeat(totalRam) { i ->
                 Box(
                     modifier = Modifier
                         .size(8.dp, 14.dp)
-                        .border(1.dp, if (i < usedRam) Color(0xFFFF006E) else Color(0xFF00FFFF))
-                        .background(if (i < usedRam) Color(0xFFFF006E).copy(alpha = 0.6f) else Color.Transparent)
+                        .border(1.dp, if (i < usedRam) theme.secondary else theme.accent)
+                        .background(if (i < usedRam) theme.secondary.copy(alpha = 0.6f) else Color.Transparent)
                 )
             }
         }
 
         Spacer(Modifier.height(12.dp))
 
-        Text("ACTIVE_QUICKHACKS", color = Color(0xFF00FF9C), fontSize = 9.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+        Text("ACTIVE_QUICKHACKS", color = theme.accent, fontSize = 9.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(4.dp))
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             repeat(totalHacks) { i ->
@@ -702,13 +710,13 @@ fun MemorySlotsDisplay(character: UserCharacter?) {
                     Box(
                         modifier = Modifier
                             .size(6.dp)
-                            .border(1.dp, if (hackName != null) Color(0xFF00FF9C) else Color.Gray.copy(alpha = 0.4f))
-                            .background(if (hackName != null) Color(0xFF00FF9C) else Color.Transparent)
+                            .border(1.dp, if (hackName != null) theme.accent else theme.inkMuted.copy(alpha = 0.4f))
+                            .background(if (hackName != null) theme.accent else Color.Transparent)
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
                         text = hackName ?: "EMPTY_SLOT",
-                        color = if (hackName != null) Color.White else Color.Gray.copy(alpha = 0.5f),
+                        color = if (hackName != null) theme.ink else theme.inkMuted.copy(alpha = 0.5f),
                         fontSize = 8.sp,
                         fontFamily = FontFamily.Monospace
                     )
@@ -836,6 +844,7 @@ fun CyberwareLabelOverlay(item: String) {
 
 @Composable
 fun AttributeRadarChart(stats: Map<String, Int>, modifier: Modifier) {
+    val theme = LocalNeonTheme.current
     Canvas(modifier = modifier) {
         val center = Offset(size.width / 2, size.height / 2)
         val radius = size.minDimension / 2
@@ -851,8 +860,8 @@ fun AttributeRadarChart(stats: Map<String, Int>, modifier: Modifier) {
             if (i == 0) bgPath.moveTo(x, y) else bgPath.lineTo(x, y)
         }
         bgPath.close()
-        drawPath(bgPath, Color.White.copy(alpha = 0.05f))
-        drawPath(bgPath, Color.White.copy(alpha = 0.1f), style = Stroke(1f))
+        drawPath(bgPath, theme.ink.copy(alpha = 0.05f))
+        drawPath(bgPath, theme.ink.copy(alpha = 0.1f), style = Stroke(1f))
         
         // Data path
         val dataPath = Path()
@@ -864,8 +873,8 @@ fun AttributeRadarChart(stats: Map<String, Int>, modifier: Modifier) {
             if (i == 0) dataPath.moveTo(x, y) else dataPath.lineTo(x, y)
         }
         dataPath.close()
-        drawPath(dataPath, Color(0xFF00FF9C).copy(alpha = 0.3f))
-        drawPath(dataPath, Color(0xFF00FF9C), style = Stroke(2f))
+        drawPath(dataPath, theme.accent.copy(alpha = 0.3f))
+        drawPath(dataPath, theme.accent, style = Stroke(2f))
     }
 }
 
@@ -984,26 +993,27 @@ fun HeartbeatTrace(bpm: Int?, modifier: Modifier = Modifier) {
 @Composable
 fun SnapshotPreviewDialog(character: UserCharacter?, viewModel: DashboardViewModel, onDismiss: () -> Unit) {
     val snapshotSaying by viewModel.snapshotSaying.collectAsState()
+    val theme = LocalNeonTheme.current
 
     Dialog(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
-                .background(Color.Black)
-                .neonBorder(Color(0xFF00FF9C), cornerRadius = 12.dp)
+                .background(theme.canvas)
+                .neonBorder(theme.accent, cornerRadius = 12.dp)
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("SNAPSHOT_PREVIEW", color = Color(0xFF00FF9C), fontWeight = FontWeight.Black, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
+            Text("SNAPSHOT_PREVIEW", color = theme.accent, fontWeight = FontWeight.Black, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
             Spacer(Modifier.height(16.dp))
             
             // "Clean" image with saying overlay
             Box(
                 modifier = Modifier
                     .size(280.dp)
-                    .background(Color(0xFF050505))
-                    .border(1.dp, Color.White.copy(alpha = 0.1f)),
+                    .background(theme.surface)
+                    .border(1.dp, theme.ink.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
                 AvatarImage(character, modifier = Modifier.fillMaxSize())
@@ -1014,20 +1024,20 @@ fun SnapshotPreviewDialog(character: UserCharacter?, viewModel: DashboardViewMod
                 ) {
                     Text(
                         text = "\"$snapshotSaying\"",
-                        color = Color.White,
+                        color = theme.ink,
                         fontSize = 14.sp,
                         fontFamily = FontFamily.Monospace,
                         fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
                         textAlign = TextAlign.Center,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color.Black.copy(alpha = 0.8f))
+                            .background(theme.canvas.copy(alpha = 0.8f))
                             .padding(12.dp)
                     )
                     Spacer(Modifier.height(12.dp))
                     Text(
                         text = "@${character?.netrunnerName ?: "RUNNER"} // ${character?.archetype ?: "OPERATIVE"} // NEON_ASCENT",
-                        color = Color(0xFF00FF9C),
+                        color = theme.accent,
                         fontSize = 8.sp,
                         fontFamily = FontFamily.Monospace,
                         modifier = Modifier.align(Alignment.End)
@@ -1038,7 +1048,7 @@ fun SnapshotPreviewDialog(character: UserCharacter?, viewModel: DashboardViewMod
             Spacer(Modifier.height(16.dp))
             
             TextButton(onClick = { viewModel.refreshSnapshotSaying() }) {
-                Text("RE-ROLL SAYING", color = Color(0xFF00FFFF), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                Text("RE-ROLL SAYING", color = theme.accent, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
             }
             
             Spacer(Modifier.height(16.dp))
@@ -1047,16 +1057,16 @@ fun SnapshotPreviewDialog(character: UserCharacter?, viewModel: DashboardViewMod
                 Button(
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f).clip(CyberButtonShape),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
+                    colors = ButtonDefaults.buttonColors(containerColor = theme.surfaceRaised)
                 ) {
-                    Text("CANCEL", color = Color.White, fontSize = 10.sp)
+                    Text("CANCEL", color = theme.ink, fontSize = 10.sp)
                 }
                 Button(
                     onClick = { /* Implement sharing logic */ onDismiss() },
                     modifier = Modifier.weight(1f).clip(CyberButtonShape),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C))
+                    colors = ButtonDefaults.buttonColors(containerColor = theme.accent)
                 ) {
-                    Text("POST TO X", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text("POST TO X", color = theme.canvas, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -1073,13 +1083,14 @@ fun SpecialAttributeSheet(
     onProtocolClick: (Protocol) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     val detail = AttributeData.attributes[attribute.type.name]
-    val accentColor = detail?.accentColor ?: NeonCyan
+    val accentColor = detail?.accentColor ?: theme.accent
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFF0A080C))
+            .background(theme.canvas)
             .padding(24.dp)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(24.dp)
@@ -1107,7 +1118,7 @@ fun SpecialAttributeSheet(
                 Column {
                     Text(
                         text = it.description,
-                        color = Color.White,
+                        color = theme.ink,
                         fontSize = 14.sp,
                         fontFamily = FontFamily.Monospace
                     )
@@ -1134,7 +1145,7 @@ fun SpecialAttributeSheet(
             Column {
                 Text(
                     "TRAINING_PROTOCOLS",
-                    color = Color.White,
+                    color = theme.ink,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
@@ -1159,7 +1170,7 @@ fun SpecialAttributeSheet(
                         Row {
                             Text(">", color = accentColor, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.width(8.dp))
-                            Text(tip, color = Color.White, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                            Text(tip, color = theme.ink, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
                         }
                     }
                 }
@@ -1169,7 +1180,7 @@ fun SpecialAttributeSheet(
         // Suggested Protocols (New feature to keep)
         Text(
             "SUGGESTED_PROTOCOLS",
-            color = Color.White,
+            color = theme.ink,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             fontFamily = FontFamily.Monospace
@@ -1192,7 +1203,7 @@ fun SpecialAttributeSheet(
                     SpecialType.INTELLIGENCE -> "NEURAL_EFFICIENCY: STABLE"
                     else -> "BIOMETRIC_SYNC: STABLE"
                 }
-                Text(trendInfo, color = Color.White, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                Text(trendInfo, color = theme.ink, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.KeyboardArrowUp, contentDescription = null, tint = NeonCyan)
                     Text("稳定", color = NeonCyan, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
@@ -1229,12 +1240,13 @@ fun QuickGameCard(
     accentColor: Color,
     onClick: () -> Unit = {}
 ) {
+    val theme = LocalNeonTheme.current
     Box(
         modifier = Modifier
             .width(200.dp)
             .height(120.dp)
             .clip(CyberButtonShape)
-            .background(Color(0xFF0A0A0A))
+            .background(theme.surface)
             .border(1.dp, accentColor.copy(alpha = 0.4f), CyberButtonShape)
             .clickable { onClick() }
             .padding(12.dp)
@@ -1249,7 +1261,7 @@ fun QuickGameCard(
             )
             Text(
                 text = game.description,
-                color = Color.White.copy(alpha = 0.7f),
+                color = theme.inkMuted,
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace,
                 modifier = Modifier.weight(1f).padding(top = 4.dp)
@@ -1268,12 +1280,13 @@ fun QuickGameCard(
 
 @Composable
 fun ProtocolCard(protocol: Protocol, onClick: () -> Unit) {
+    val theme = LocalNeonTheme.current
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .neonBorder(Color.White.copy(alpha = 0.2f), cornerRadius = 8.dp),
-        color = Color.White.copy(alpha = 0.05f),
+            .neonBorder(theme.ink.copy(alpha = 0.2f), cornerRadius = 8.dp),
+        color = theme.ink.copy(alpha = 0.05f),
         shape = RoundedCornerShape(8.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -1283,14 +1296,14 @@ fun ProtocolCard(protocol: Protocol, onClick: () -> Unit) {
             ) {
                 Text(
                     text = protocol.title.uppercase(),
-                    color = NeonCyan,
+                    color = theme.accent,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace
                 )
                 Text(
                     text = "ADD",
-                    color = Color.White.copy(alpha = 0.4f),
+                    color = theme.inkMuted,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace
                 )
@@ -1298,13 +1311,13 @@ fun ProtocolCard(protocol: Protocol, onClick: () -> Unit) {
             Spacer(Modifier.height(4.dp))
             Text(
                 text = protocol.description,
-                color = Color.White.copy(alpha = 0.7f),
+                color = theme.ink.copy(alpha = 0.7f),
                 fontSize = 12.sp
             )
             Spacer(Modifier.height(8.dp))
             Text(
                 text = "EST_IMPACT: ${protocol.impact}",
-                color = NeonPink.copy(alpha = 0.8f),
+                color = theme.secondary.copy(alpha = 0.8f),
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace
             )
@@ -1358,6 +1371,7 @@ fun StatusCard(
     color: Color,
     onClick: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     val animatedColor by animateColorAsState(
         targetValue = color,
         animationSpec = tween(1000),
@@ -1405,7 +1419,7 @@ fun StatusCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = value, 
-                        color = Color.White, 
+                        color = theme.ink, 
                         fontSize = 14.sp, 
                         fontWeight = FontWeight.Black, 
                         fontFamily = FontFamily.Monospace
@@ -1440,6 +1454,7 @@ fun SpecialLetterHex(
     onAttributeClick: (SpecialType) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val theme = LocalNeonTheme.current
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         val types = listOf(
             SpecialType.STRENGTH,
@@ -1481,7 +1496,7 @@ fun SpecialLetterHex(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = (attr?.currentValue ?: 5).toString(),
-                        color = Color.White.copy(alpha = 0.7f),
+                        color = theme.ink.copy(alpha = 0.7f),
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace
                     )

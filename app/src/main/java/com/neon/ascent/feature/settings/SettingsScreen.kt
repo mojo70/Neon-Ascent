@@ -36,6 +36,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.ui.*
+import com.neon.ascent.core.common.*
 import com.neon.ascent.util.BiometricAuthManager
 import com.neon.ascent.util.findFragmentActivity
 import kotlinx.coroutines.delay
@@ -43,6 +44,7 @@ import kotlin.random.Random
 
 @Composable
 fun MatrixRainBackground() {
+    val theme = LocalNeonTheme.current
     val columns = 15
     val rainState = remember { Array(columns) { Random.nextFloat() * 40f } }
     val infiniteTransition = rememberInfiniteTransition(label = "MatrixRain")
@@ -62,10 +64,15 @@ fun MatrixRainBackground() {
             val x = (size.width / columns) * i
             for (j in 0 until 15) {
                 val y = (rainState[i] + j) * (size.height / 40)
-                val alpha = (1f - (j / 15f)) * 0.08f
+                val alpha = if (theme.mode == VisualMode.CYBER) {
+                    (1f - (j / 15f)) * 0.08f
+                } else {
+                    0.04f // Steve: gray ticks @ 4%
+                }
+                
                 if (y > 0 && y < size.height) {
                     drawRect(
-                        color = Color(0xFF00FF9C).copy(alpha = alpha),
+                        color = theme.ink.copy(alpha = alpha),
                         topLeft = Offset(x, y),
                         size = Size(2.dp.toPx(), 8.dp.toPx())
                     )
@@ -85,7 +92,11 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
+    val theme = LocalNeonTheme.current
     
+    // Theme Mode State
+    val visualMode by viewModel.visualMode.collectAsState()
+
     // Notifications State
     val isNeuralBriefEnabled by viewModel.isNeuralBriefEnabled.collectAsState()
     val quietHoursStart by viewModel.quietHoursStart.collectAsState()
@@ -133,7 +144,7 @@ fun SettingsScreen(
         }
     }
     
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0A0A0A))) {
+    Box(modifier = Modifier.fillMaxSize().background(theme.canvas)) {
         MatrixRainBackground()
         
         Box(
@@ -141,7 +152,7 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .drawWithContent {
                     drawContent()
-                    val scanlineColor = Color.Black.copy(alpha = 0.1f)
+                    val scanlineColor = theme.ink.copy(alpha = if (theme.mode == VisualMode.CYBER) 0.1f else 0.04f)
                     for (i in 0 until size.height.toInt() step 6) {
                         drawLine(scanlineColor, Offset(0f, i.toFloat()), Offset(size.width, i.toFloat()), strokeWidth = 1f)
                     }
@@ -162,12 +173,12 @@ fun SettingsScreen(
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     onBack()
                 }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF00FF9C))
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = theme.ink)
                 }
                 Text(
                     "//SYS_SETTINGS_CONSOLIDATED",
                     style = MaterialTheme.typography.headlineSmall.copy(
-                        color = Color(0xFF00FF9C),
+                        color = theme.ink,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 2.sp
@@ -185,7 +196,7 @@ fun SettingsScreen(
                 
                 AnimatedVisibility(visible = isNeuralBriefEnabled) {
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Text("QUIET HOURS", color = Color(0xFF00FF9C).copy(alpha = 0.6f), fontSize = 10.sp)
+                        Text("QUIET HOURS", color = theme.ink.copy(alpha = 0.6f), fontSize = 10.sp)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             TimeField(label = "START", time = quietHoursStart, modifier = Modifier.weight(1f), onTimeSelected = {
                                 viewModel.setQuietHoursStart(it)
@@ -195,7 +206,7 @@ fun SettingsScreen(
                             })
                         }
                         
-                        Text("FREQUENCY", color = Color(0xFF00FF9C).copy(alpha = 0.6f), fontSize = 10.sp)
+                        Text("FREQUENCY", color = theme.ink.copy(alpha = 0.6f), fontSize = 10.sp)
                         Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             listOf("DAILY", "BI_DAILY", "WEEKLY").forEach { freq ->
                                 CyberTabButton(
@@ -209,10 +220,10 @@ fun SettingsScreen(
                         
                         Button(
                             onClick = { viewModel.debugTriggerTestBrief() },
-                            modifier = Modifier.fillMaxWidth().height(44.dp).border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.5f), CyberButtonShape),
+                            modifier = Modifier.fillMaxWidth().height(44.dp).border(1.dp, theme.ink.copy(alpha = 0.5f), CyberButtonShape),
                             colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
                         ) {
-                            Text("TEST NEURAL BRIEF", color = Color(0xFF00FF9C), fontSize = 11.sp)
+                            Text("TEST NEURAL BRIEF", color = theme.ink, fontSize = 11.sp)
                         }
                     }
                 }
@@ -223,7 +234,7 @@ fun SettingsScreen(
             // 2. Neon Guide
             SettingsSection(label = "NEON_GUIDE_CORE", icon = Icons.Default.Psychology) {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("VERBOSITY", color = Color(0xFF00FF9C).copy(alpha = 0.6f), fontSize = 10.sp)
+                    Text("VERBOSITY", color = theme.ink.copy(alpha = 0.6f), fontSize = 10.sp)
                     Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf("MINIMAL", "STANDARD", "VERBOSE").forEach { verb ->
                             CyberTabButton(
@@ -239,7 +250,7 @@ fun SettingsScreen(
                         viewModel.setCloudFallbackEnabled(it)
                     }
 
-                    Text("EXPERT WEIGHTING", color = Color(0xFF00FF9C).copy(alpha = 0.6f), fontSize = 10.sp)
+                    Text("EXPERT WEIGHTING", color = theme.ink.copy(alpha = 0.6f), fontSize = 10.sp)
                     Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf("LOGIC", "BALANCED", "CREATIVE").forEach { weight ->
                             CyberTabButton(
@@ -261,10 +272,10 @@ fun SettingsScreen(
                     if (!isHealthGranted) {
                         Button(
                             onClick = { healthPermissionsLauncher.launch(viewModel.getHealthPermissions()) },
-                            modifier = Modifier.fillMaxWidth().height(48.dp).border(1.dp, Color(0xFF00FF9C), CyberButtonShape),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A1A1A))
+                            modifier = Modifier.fillMaxWidth().height(48.dp).border(1.dp, theme.ink, CyberButtonShape),
+                            colors = ButtonDefaults.buttonColors(containerColor = theme.surfaceRaised)
                         ) {
-                            Text("+ JACK IN HEALTH CONNECT", color = Color(0xFF00FF9C), fontSize = 12.sp)
+                            Text("+ JACK IN HEALTH CONNECT", color = theme.ink, fontSize = 12.sp)
                         }
                     } else {
                         DeviceStatusCard("HEALTH_CONNECT_API", "OPTIMAL", "SYNC_ACTIVE")
@@ -276,10 +287,10 @@ fun SettingsScreen(
                     
                     Button(
                         onClick = { viewModel.checkHealthConnectStatus() },
-                        modifier = Modifier.fillMaxWidth().height(44.dp).border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.5f), CyberButtonShape),
+                        modifier = Modifier.fillMaxWidth().height(44.dp).border(1.dp, theme.ink.copy(alpha = 0.5f), CyberButtonShape),
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
                     ) {
-                        Text("FORCE MANUAL UPLINK", color = Color(0xFF00FF9C), fontSize = 11.sp)
+                        Text("FORCE MANUAL UPLINK", color = theme.ink, fontSize = 11.sp)
                     }
                 }
             }
@@ -306,18 +317,49 @@ fun SettingsScreen(
             // 5. Appearance & Theme
             SettingsSection(label = "VISUAL_STIMULI", icon = Icons.Default.Palette) {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("NEON INTENSITY", color = Color(0xFF00FF9C).copy(alpha = 0.6f), fontSize = 10.sp)
+                    Text("MODE", color = theme.ink.copy(alpha = 0.6f), fontSize = 10.sp)
+                    Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        VisualMode.entries.forEach { mode ->
+                            val previewPalette = when(mode) {
+                                VisualMode.CYBER -> NeonThemeData.cyber(neonIntensity)
+                                VisualMode.STEVE -> NeonThemeData.steve(neonIntensity)
+                            }
+                            CyberTabButton(
+                                selected = visualMode == mode,
+                                onClick = { viewModel.setVisualMode(mode) },
+                                label = mode.name,
+                                modifier = Modifier.weight(1f),
+                                palette = previewPalette
+                            )
+                        }
+                    }
+                    Text(
+                        if (visualMode == VisualMode.CYBER) "NIGHT HUD // NEON ON VOID" else "DAY HUD // INK ON PAPER",
+                        color = theme.ink.copy(alpha = 0.4f),
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text("NEON INTENSITY", color = theme.ink.copy(alpha = 0.6f), fontSize = 10.sp)
                     Slider(
                         value = neonIntensity,
                         onValueChange = { viewModel.setNeonIntensity(it) },
-                        colors = SliderDefaults.colors(thumbColor = Color(0xFF00FF9C), activeTrackColor = Color(0xFF00FF9C))
+                        colors = SliderDefaults.colors(thumbColor = theme.ink, activeTrackColor = theme.ink)
+                    )
+                    Text(
+                        if (visualMode == VisualMode.CYBER) "NIGHT HUD // GLOW GAIN" else "DAY HUD // INK WEIGHT",
+                        color = theme.ink.copy(alpha = 0.4f),
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
                     )
                     
                     SettingsItem("CUSTOM AVATAR MODULE") {
                         // TODO: Open avatar selection
                     }
                     
-                    SettingsItem("COLOR SCHEME: MATRIX_EMERALD") {
+                    SettingsItem(if (visualMode == VisualMode.CYBER) "COLOR SCHEME: MATRIX_EMERALD" else "COLOR SCHEME: STEVE_HI-CON") {
                         // TODO: Theme picker
                     }
                 }
@@ -359,17 +401,17 @@ fun SettingsScreen(
                         }
                     }
 
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+                    HorizontalDivider(color = theme.ink.copy(alpha = 0.05f))
 
                     SettingsItem("EXPORT NEURAL LOG [.MD]") {
                         viewModel.exportNeuralLog()
                     }
 
-                    SettingsItem("WIPE NEURAL PROFILE", color = Color(0xFFFF006E)) {
+                    SettingsItem("WIPE NEURAL PROFILE", color = theme.secondary) {
                         showResetDialog = true
                     }
 
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+                    HorizontalDivider(color = theme.ink.copy(alpha = 0.05f))
 
                     Button(
                         onClick = { viewModel.initializeWorkoutLibrary() },
@@ -388,7 +430,7 @@ fun SettingsScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         "EXTERNAL_ASSETS //",
-                        color = Color(0xFF00FF9C).copy(alpha = 0.6f),
+                        color = theme.ink.copy(alpha = 0.6f),
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold
@@ -396,7 +438,7 @@ fun SettingsScreen(
                     
                     Text(
                         "gong.wav by reinsamba -- https://freesound.org/s/46062/ -- License: Attribution 4.0",
-                        color = Color.White.copy(alpha = 0.8f),
+                        color = theme.ink.copy(alpha = 0.8f),
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
                         lineHeight = 16.sp
@@ -406,7 +448,7 @@ fun SettingsScreen(
 
                     Text(
                         "TRAINING_ORIGINS //",
-                        color = Color(0xFF00FF9C).copy(alpha = 0.6f),
+                        color = theme.ink.copy(alpha = 0.6f),
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold
@@ -414,7 +456,7 @@ fun SettingsScreen(
 
                     Text(
                         "CyberCrapp is based on the DoggCrapp (DC) training system created by Dante Trudel. Originally posted on the IntenseMuscle forums.",
-                        color = Color.White.copy(alpha = 0.8f),
+                        color = theme.ink.copy(alpha = 0.8f),
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
                         lineHeight = 16.sp
@@ -422,7 +464,7 @@ fun SettingsScreen(
 
                     Text(
                         "https://www.intensemuscle.com/forum/main-forums/the-dogg-pound/20286-updated-dc-training-newbies-read-this-first-and-then-ask-questions-later",
-                        color = Color(0xFF00FF9C).copy(alpha = 0.5f),
+                        color = theme.ink.copy(alpha = 0.5f),
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace,
                         lineHeight = 14.sp,
@@ -433,7 +475,7 @@ fun SettingsScreen(
                     
                     Text(
                         "CORE_OS // NEON_ASCENT_LABS",
-                        color = Color.White.copy(alpha = 0.4f),
+                        color = theme.ink.copy(alpha = 0.4f),
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace
                     )
@@ -449,7 +491,7 @@ fun SettingsScreen(
             ) {
                 Text(
                     text = "BUILD_HASH: 7F2A91X_CONSOLIDATED", 
-                    color = Color.Gray, 
+                    color = theme.inkMuted, 
                     fontSize = 10.sp, 
                     fontFamily = FontFamily.Monospace,
                     modifier = Modifier
@@ -462,7 +504,7 @@ fun SettingsScreen(
                         }
                         .padding(16.dp)
                 )
-                Text("JACK OUT", color = Color(0xFFFF006E), fontWeight = FontWeight.Black, letterSpacing = 4.sp, modifier = Modifier.clickable { onBack() })
+                Text("JACK OUT", color = theme.secondary, fontWeight = FontWeight.Black, letterSpacing = 4.sp, modifier = Modifier.clickable { onBack() })
             }
         }
 
@@ -500,12 +542,13 @@ fun SettingsSection(
     content: @Composable () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val theme = LocalNeonTheme.current
     
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color(0xFF00FF9C).copy(alpha = if (expanded) 0.5f else 0.1f), CyberButtonShape)
-            .background(Color(0xFF111111).copy(alpha = 0.5f), CyberButtonShape)
+            .border(1.dp, theme.ink.copy(alpha = if (expanded) 0.5f else 0.1f), CyberButtonShape)
+            .background(theme.surface.copy(alpha = 0.5f), CyberButtonShape)
             .clip(CyberButtonShape)
     ) {
         Row(
@@ -517,11 +560,11 @@ fun SettingsSection(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(icon, contentDescription = null, tint = Color(0xFF00FF9C), modifier = Modifier.size(20.dp))
+                Icon(icon, contentDescription = null, tint = theme.ink, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(12.dp))
                 Text(
                     label,
-                    color = Color(0xFF00FF9C),
+                    color = theme.ink,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp
@@ -530,7 +573,7 @@ fun SettingsSection(
             Icon(
                 if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                 contentDescription = null,
-                tint = Color.Gray
+                tint = theme.inkMuted
             )
         }
         
@@ -550,20 +593,21 @@ fun SettingsSection(
 fun TimeField(label: String, time: String, modifier: Modifier = Modifier, onTimeSelected: (String) -> Unit) {
     var showDialog by remember { mutableStateOf(false) }
     var tempTime by remember { mutableStateOf(time) }
+    val theme = LocalNeonTheme.current
 
     Column(modifier = modifier) {
-        Text(label, color = Color.Gray, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+        Text(label, color = theme.inkMuted, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(44.dp)
-                .background(Color(0xFF1A1A1A))
-                .border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.2f))
+                .background(theme.surfaceRaised)
+                .border(1.dp, theme.ink.copy(alpha = 0.2f))
                 .clickable { showDialog = true }
                 .padding(horizontal = 12.dp),
             contentAlignment = Alignment.CenterStart
         ) {
-            Text(time, color = Color.White, fontSize = 13.sp, fontFamily = FontFamily.Monospace)
+            Text(time, color = theme.ink, fontSize = 13.sp, fontFamily = FontFamily.Monospace)
         }
     }
 
@@ -572,21 +616,21 @@ fun TimeField(label: String, time: String, modifier: Modifier = Modifier, onTime
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFF0F0F0F))
-                    .border(1.dp, Color(0xFF00FF9C))
+                    .background(theme.surface)
+                    .border(1.dp, theme.ink)
                     .padding(24.dp)
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("MANUAL_TIME_ENTRY", color = Color(0xFF00FF9C), fontWeight = FontWeight.Bold)
+                    Text("MANUAL_TIME_ENTRY", color = theme.ink, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(16.dp))
                     OutlinedTextField(
                         value = tempTime,
                         onValueChange = { tempTime = it },
-                        placeholder = { Text("HH:mm", color = Color.Gray) },
+                        placeholder = { Text("HH:mm", color = theme.inkMuted) },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF00FF9C),
-                            unfocusedBorderColor = Color.DarkGray,
-                            focusedTextColor = Color.White
+                            focusedBorderColor = theme.ink,
+                            unfocusedBorderColor = theme.inkMuted,
+                            focusedTextColor = theme.ink
                         )
                     )
                     Spacer(Modifier.height(24.dp))
@@ -595,9 +639,9 @@ fun TimeField(label: String, time: String, modifier: Modifier = Modifier, onTime
                             onTimeSelected(tempTime)
                             showDialog = false
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C))
+                        colors = ButtonDefaults.buttonColors(containerColor = theme.ink)
                     ) {
-                        Text("SET_TIME", color = Color.Black)
+                        Text("SET_TIME", color = theme.canvas)
                     }
                 }
             }
@@ -607,51 +651,55 @@ fun TimeField(label: String, time: String, modifier: Modifier = Modifier, onTime
 
 @Composable
 fun ToggleSetting(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    val theme = LocalNeonTheme.current
     Row(
         modifier = Modifier.fillMaxWidth().height(48.dp), 
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, color = Color.White, fontSize = 13.sp)
+        Text(label, color = theme.ink, fontSize = 13.sp)
         Switch(
             checked = checked, 
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = Color(0xFF00FF9C),
-                checkedTrackColor = Color(0xFF00FF9C).copy(alpha = 0.3f),
-                uncheckedThumbColor = Color.DarkGray
+                checkedThumbColor = theme.ink,
+                checkedTrackColor = theme.ink.copy(alpha = 0.3f),
+                uncheckedThumbColor = theme.inkMuted
             )
         )
     }
 }
 
 @Composable
-fun SettingsItem(label: String, color: Color = Color(0xFF00FF9C), onClick: () -> Unit) {
+fun SettingsItem(label: String, color: Color? = null, onClick: () -> Unit) {
+    val theme = LocalNeonTheme.current
+    val finalColor = color ?: theme.ink
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
             .padding(vertical = 12.dp)
     ) {
-        Text(label, color = color, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, fontSize = 13.sp)
+        Text(label, color = finalColor, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, fontSize = 13.sp)
     }
 }
 
 @Composable
 fun DeviceStatusCard(name: String, signal: String, status: String) {
+    val theme = LocalNeonTheme.current
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFF0F0F0F))
-            .border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.2f))
+            .background(theme.surface)
+            .border(1.dp, theme.ink.copy(alpha = 0.2f))
             .padding(12.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Column {
-                Text(name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                Text("SIGNAL: $signal", color = Color(0xFF00FF9C), fontSize = 9.sp)
+                Text(name, color = theme.ink, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Text("SIGNAL: $signal", color = theme.ink.copy(alpha = 0.6f), fontSize = 9.sp)
             }
-            Text(status, color = Color(0xFF00FF9C), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Text(status, color = theme.ink, fontSize = 10.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -660,28 +708,29 @@ fun DeviceStatusCard(name: String, signal: String, status: String) {
 fun SecretPasswordDialog(onCorrectPassword: () -> Unit, onDismiss: () -> Unit) {
     var password by remember { mutableStateOf("") }
     val haptic = LocalHapticFeedback.current
+    val theme = LocalNeonTheme.current
     
     Dialog(onDismissRequest = onDismiss) {
         Box(
             modifier = Modifier
                 .clip(CyberButtonShape)
-                .background(Color(0xFF0F0F0F))
-                .border(2.dp, Color(0xFFFF006E), CyberButtonShape)
+                .background(theme.surface)
+                .border(2.dp, theme.secondary, CyberButtonShape)
                 .padding(24.dp)
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(">>> ACCESS_RESTRICTED <<<", color = Color(0xFFFF006E), fontWeight = FontWeight.Black, fontSize = 18.sp)
+                Text(">>> ACCESS_RESTRICTED <<<", color = theme.secondary, fontWeight = FontWeight.Black, fontSize = 18.sp)
                 Spacer(Modifier.height(16.dp))
                 
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
-                    placeholder = { Text("ENTER PASSWORD", color = Color.Gray) },
+                    placeholder = { Text("ENTER PASSWORD", color = theme.inkMuted) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFFFF006E),
-                        unfocusedBorderColor = Color.DarkGray,
-                        focusedTextColor = Color.White
+                        focusedBorderColor = theme.secondary,
+                        unfocusedBorderColor = theme.inkMuted,
+                        focusedTextColor = theme.ink
                     )
                 )
                 
@@ -697,7 +746,7 @@ fun SecretPasswordDialog(onCorrectPassword: () -> Unit, onDismiss: () -> Unit) {
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(50.dp).clip(CyberButtonShape),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF006E))
+                    colors = ButtonDefaults.buttonColors(containerColor = theme.secondary)
                 ) {
                     Text("BREAK ICE", color = Color.White, fontWeight = FontWeight.Bold)
                 }
@@ -717,6 +766,7 @@ fun CyberConfirmDialog(
     var input by remember { mutableStateOf("") }
     var countdown by remember { mutableStateOf(3) }
     val haptic = LocalHapticFeedback.current
+    val theme = LocalNeonTheme.current
     
     LaunchedEffect(Unit) {
         while(countdown > 0) {
@@ -729,25 +779,25 @@ fun CyberConfirmDialog(
         Box(
             modifier = Modifier
                 .clip(CyberButtonShape)
-                .background(Color(0xFF0F0F0F))
-                .border(2.dp, Color(0xFFFF006E), CyberButtonShape)
+                .background(theme.surface)
+                .border(2.dp, theme.secondary, CyberButtonShape)
                 .padding(24.dp)
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(title, color = Color(0xFFFF006E), fontWeight = FontWeight.Black, fontSize = 20.sp)
+                Text(title, color = theme.secondary, fontWeight = FontWeight.Black, fontSize = 20.sp)
                 Spacer(Modifier.height(8.dp))
-                Text(description, color = Color.White, fontSize = 12.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                Text(description, color = theme.ink, fontSize = 12.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 Spacer(Modifier.height(16.dp))
                 
                 OutlinedTextField(
                     value = input,
                     onValueChange = { input = it.uppercase() },
-                    placeholder = { Text("TYPE TO CONFIRM", color = Color.Gray) },
+                    placeholder = { Text("TYPE TO CONFIRM", color = theme.inkMuted) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFFFF006E),
-                        unfocusedBorderColor = Color.DarkGray,
-                        focusedTextColor = Color.White
+                        focusedBorderColor = theme.secondary,
+                        unfocusedBorderColor = theme.inkMuted,
+                        focusedTextColor = theme.ink
                     )
                 )
                 
@@ -761,8 +811,8 @@ fun CyberConfirmDialog(
                     enabled = input == confirmText && countdown == 0,
                     modifier = Modifier.fillMaxWidth().height(50.dp).clip(CyberButtonShape),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFF006E),
-                        disabledContainerColor = Color.DarkGray
+                        containerColor = theme.secondary,
+                        disabledContainerColor = theme.inkMuted
                     )
                 ) {
                     Text(if (countdown > 0) "WAITING... $countdown" else "EXECUTE OVERRIDE", color = Color.White)

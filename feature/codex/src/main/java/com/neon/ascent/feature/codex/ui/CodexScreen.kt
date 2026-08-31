@@ -79,7 +79,7 @@ fun CodexScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.Black)
+                        .background(MaterialTheme.colorScheme.background)
                         .statusBarsPadding()
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -89,7 +89,7 @@ fun CodexScreen(
 
                     Text(
                         text = "NEURAL_ARCHIVE",
-                        color = Color(0xFF00FF9C),
+                        color = MaterialTheme.colorScheme.primary,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Black,
                         fontSize = 20.sp,
@@ -98,12 +98,12 @@ fun CodexScreen(
 
                     Box {
                         IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "OPTIONS", tint = Color(0xFF00FF9C))
+                            Icon(Icons.Default.MoreVert, contentDescription = "OPTIONS", tint = MaterialTheme.colorScheme.primary)
                         }
                         DropdownMenu(
                             expanded = showMenu,
                             onDismissRequest = { showMenu = false },
-                            modifier = Modifier.background(Color(0xFF0A0A0A))
+                            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                         ) {
                             DropdownMenuItem(
                                 text = { Text("EXPORT_LOGS (.JSON)", color = Color.White, fontSize = 12.sp, fontFamily = FontFamily.Monospace) },
@@ -116,7 +116,7 @@ fun CodexScreen(
                     }
                 }
             },
-            containerColor = Color.Black
+            containerColor = MaterialTheme.colorScheme.background
         ) { padding ->
             Column(
                 modifier = Modifier
@@ -173,7 +173,7 @@ fun WingSwitcher(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .background(Color(0xFF1A1A1A), RoundedCornerShape(4.dp))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(4.dp))
             .padding(2.dp)
             .semantics { contentDescription = "ARCHIVE_WING_SWITCHER" }
     ) {
@@ -184,7 +184,7 @@ fun WingSwitcher(
                     .weight(1f)
                     .height(32.dp)
                     .background(
-                        if (isSelected) Color(0xFF00FF9C) else Color.Transparent,
+                        if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
                         RoundedCornerShape(2.dp)
                     )
                     .clickable(
@@ -195,7 +195,7 @@ fun WingSwitcher(
             ) {
                 Text(
                     text = wing.name.replace("_", " "),
-                    color = if (isSelected) Color.Black else Color.Gray,
+                    color = if (isSelected) MaterialTheme.colorScheme.background else Color.Gray,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Black,
                     fontFamily = FontFamily.Monospace
@@ -261,7 +261,7 @@ fun OpsLogWing(
 
             var showPicker by remember { mutableStateOf(false) }
             IconButton(onClick = { showPicker = true }) {
-                Icon(Icons.Default.Search, contentDescription = "PICKER", tint = Color(0xFF00FF9C))
+                Icon(Icons.Default.Search, contentDescription = "PICKER", tint = MaterialTheme.colorScheme.primary)
             }
             
             if (showPicker) {
@@ -288,7 +288,7 @@ fun OpsLogWing(
         // Protocol Metrics
         SectionHeader("PROTOCOL_SYNC")
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            ProtocolMetric("HIT_RATE", "${(uiState.hitRate * 100).toInt()}%", Color(0xFF00FF9C), Modifier.weight(1f))
+            ProtocolMetric("HIT_RATE", "${(uiState.hitRate * 100).toInt()}%", MaterialTheme.colorScheme.primary, Modifier.weight(1f))
             ProtocolMetric("ROTATION", "${uiState.sessionSummaries.filter { it.date.isAfter(LocalDate.now().minusDays(9)) }.size}/3", Color(0xFF00CCFF), Modifier.weight(1f))
         }
         Text(
@@ -453,15 +453,15 @@ fun VitalsWing(
                         ) 
                     },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0xFF00FF9C).copy(alpha = 0.2f),
-                        selectedLabelColor = Color(0xFF00FF9C),
+                        selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                        selectedLabelColor = MaterialTheme.colorScheme.primary,
                         labelColor = Color.Gray
                     ),
                     border = FilterChipDefaults.filterChipBorder(
                         enabled = true,
                         selected = isSelected,
                         borderColor = Color.DarkGray,
-                        selectedBorderColor = Color(0xFF00FF9C)
+                        selectedBorderColor = MaterialTheme.colorScheme.primary
                     )
                 )
             }
@@ -560,7 +560,7 @@ fun SerumWing(
         ) {
             SectionHeader("BIOMARKER_ARCHIVE")
             IconButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = "ADD_SAMPLE", tint = Color(0xFF00FF9C))
+                Icon(Icons.Default.Add, contentDescription = "ADD_SAMPLE", tint = MaterialTheme.colorScheme.primary)
             }
         }
 
@@ -607,7 +607,7 @@ fun MarkerRow(status: BiomarkerStatus, onClick: (String) -> Unit) {
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .clickable { onClick(latest.markerKey) },
-        color = Color(0xFF0A0A0A),
+        color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)),
         shape = RoundedCornerShape(4.dp)
     ) {
@@ -617,12 +617,12 @@ fun MarkerRow(status: BiomarkerStatus, onClick: (String) -> Unit) {
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(latest.displayName.uppercase(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
-                Text("${latest.value} ${latest.unit}", color = Color(0xFF00FF9C), fontSize = 14.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
+                Text("${latest.value} ${latest.unit}", color = MaterialTheme.colorScheme.primary, fontSize = 14.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
             }
 
             if (status.delta != null) {
                 val delta = status.delta!!
-                val color = if (delta > 0) Color(0xFF00FF9C) else Color(0xFFFF006E)
+                val color = if (delta > 0) MaterialTheme.colorScheme.primary else Color(0xFFFF006E)
                 val sign = if (delta > 0) "+" else ""
                 Text(
                     text = "$sign${"%.2f".format(delta)}",
@@ -679,16 +679,16 @@ fun MarkerDossierPane(
                 },
                 actions = {
                     IconButton(onClick = { showAddDialog = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "ADD", tint = Color(0xFF00FF9C))
+                        Icon(Icons.Default.Add, contentDescription = "ADD", tint = MaterialTheme.colorScheme.primary)
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color.Black,
-                    titleContentColor = Color(0xFF00FF9C)
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.primary
                 )
             )
         },
-        containerColor = Color.Black
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(
             modifier = Modifier
@@ -729,6 +729,7 @@ fun MarkerDossierPane(
 @Composable
 fun MarkerChart(history: List<BiomarkerSample>) {
     val data = history.reversed()
+    val primaryColor = MaterialTheme.colorScheme.primary
     Canvas(
         modifier = Modifier
             .fillMaxWidth()
@@ -753,7 +754,7 @@ fun MarkerChart(history: List<BiomarkerSample>) {
         data.forEachIndexed { index, sample ->
             val x = index * (width / (data.size - 1).coerceAtLeast(1))
             val y = height - ((sample.value.toFloat() - minVal) / range * height)
-            drawCircle(Color(0xFF00FF9C), 3.dp.toPx(), Offset(x, y))
+            drawCircle(primaryColor, 3.dp.toPx(), Offset(x, y))
         }
     }
 }
@@ -810,12 +811,12 @@ fun AddBiomarkerDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            color = Color(0xFF0A0A0A),
+            color = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(8.dp),
-            border = BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.5f))
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
         ) {
             Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
-                Text("ADD_BIOMARKER_DRAW", color = Color(0xFF00FF9C), fontWeight = FontWeight.Black, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
+                Text("ADD_BIOMARKER_DRAW", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Black, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Suggestions
@@ -828,8 +829,8 @@ fun AddBiomarkerDialog(
                                 name = n
                             },
                             shape = RoundedCornerShape(2.dp),
-                            color = if (key == k) Color(0xFF00FF9C).copy(alpha = 0.2f) else Color.Transparent,
-                            border = BorderStroke(1.dp, if (key == k) Color(0xFF00FF9C) else Color.DarkGray)
+                            color = if (key == k) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent,
+                            border = BorderStroke(1.dp, if (key == k) MaterialTheme.colorScheme.primary else Color.DarkGray)
                         ) {
                             Text(n, color = Color.White, fontSize = 9.sp, modifier = Modifier.padding(6.dp))
                         }
@@ -872,7 +873,7 @@ fun AddBiomarkerDialog(
                         onSave(key.ifBlank { name.lowercase().replace(" ", "_") }, name, dVal, unit, Instant.now(), notes.ifBlank { null })
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C), contentColor = Color.Black)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.background)
                 ) {
                     Text("UPLOAD_BIO_DATA", fontWeight = FontWeight.Black)
                 }
@@ -893,12 +894,12 @@ fun AddSampleQuickDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            color = Color(0xFF0A0A0A),
+            color = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(8.dp),
-            border = BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.5f))
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("ADD_SAMPLE: $markerName", color = Color(0xFF00FF9C), fontWeight = FontWeight.Black, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
+                Text("ADD_SAMPLE: $markerName", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Black, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
@@ -922,7 +923,7 @@ fun AddSampleQuickDialog(
                         onSave(dVal, Instant.now(), notes.ifBlank { null })
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C), contentColor = Color.Black)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.background)
                 ) {
                     Text("SAVE_SAMPLE", fontWeight = FontWeight.Black)
                 }
@@ -938,7 +939,7 @@ fun SessionRow(summary: SessionSummary) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
-        color = Color(0xFF0A0A0A),
+        color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)),
         shape = RoundedCornerShape(4.dp)
     ) {
@@ -965,7 +966,7 @@ fun SessionRow(summary: SessionSummary) {
                     if (summary.dayType != null) {
                         Text(
                             " · ${summary.dayType.name}",
-                            color = Color(0xFF00FF9C),
+                            color = MaterialTheme.colorScheme.primary,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(start = 4.dp)
@@ -1007,7 +1008,7 @@ fun SessionRow(summary: SessionSummary) {
 @Composable
 fun RecoverySparklineRow(uiState: CodexUiState) {
     Surface(
-        color = Color(0xFF0A0A0A),
+        color = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(4.dp),
         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
     ) {
@@ -1020,7 +1021,7 @@ fun RecoverySparklineRow(uiState: CodexUiState) {
                 Text(
                     text = "${uiState.recoveryScore?.totalScore ?: "--"}%", 
                     color = when (uiState.recoveryScore?.status) {
-                        com.neon.ascent.core.domain.workout.models.RecoveryStatus.OPTIMAL -> Color(0xFF00FF9C)
+                        com.neon.ascent.core.domain.workout.models.RecoveryStatus.OPTIMAL -> MaterialTheme.colorScheme.primary
                         com.neon.ascent.core.domain.workout.models.RecoveryStatus.CAUTION -> Color.Yellow
                         else -> Color.Red
                     },
@@ -1074,6 +1075,7 @@ fun RecoveryMetric(label: String, value: String, color: Color, modifier: Modifie
 @Composable
 fun VitalsChart(data: List<com.neon.ascent.feature.codex.ui.VitalsPoint>, sessionSummaries: List<SessionSummary>) {
     if (data.isEmpty()) return
+    val primaryColor = MaterialTheme.colorScheme.primary
 
     val minVal = data.minOf { it.value }.toFloat()
     val maxVal = data.maxOf { it.value }.toFloat()
@@ -1100,7 +1102,7 @@ fun VitalsChart(data: List<com.neon.ascent.feature.codex.ui.VitalsPoint>, sessio
                 val d = java.time.temporal.ChronoUnit.DAYS.between(startDate, session.date)
                 val x = (d.toFloat() / daysRange) * width
                 drawLine(
-                    color = Color(0xFF00FF9C).copy(alpha = 0.3f),
+                    color = primaryColor.copy(alpha = 0.3f),
                     start = Offset(x, 0f),
                     end = Offset(x, height),
                     strokeWidth = 1.dp.toPx()
@@ -1171,6 +1173,7 @@ fun FuelEmptyState() {
 @Composable
 fun FuelChart(history: List<com.neon.ascent.core.domain.workout.models.FuelSnapshot>) {
     val data = history.sortedBy { it.timestamp }
+    val primaryColor = MaterialTheme.colorScheme.primary
     Column {
         Canvas(
             modifier = Modifier
@@ -1217,12 +1220,12 @@ fun FuelChart(history: List<com.neon.ascent.core.domain.workout.models.FuelSnaps
                 val y = height - ((snapshot.weightKg - minWeight) / weightRange * height)
                 if (i == 0) weightPath.moveTo(x, y) else weightPath.lineTo(x, y)
             }
-            drawPath(weightPath, Color(0xFF00FF9C), style = Stroke(2.dp.toPx()))
+            drawPath(weightPath, primaryColor, style = Stroke(2.dp.toPx()))
             
             data.forEach { snapshot ->
                 val x = (snapshot.timestamp.toEpochMilli() - start) / timeRange * width
                 val y = height - ((snapshot.weightKg - minWeight) / weightRange * height)
-                drawCircle(Color(0xFF00FF9C), 3.dp.toPx(), Offset(x, y))
+                drawCircle(primaryColor, 3.dp.toPx(), Offset(x, y))
             }
         }
         
@@ -1231,7 +1234,7 @@ fun FuelChart(history: List<com.neon.ascent.core.domain.workout.models.FuelSnaps
         // Latest Metrics
         val latest = data.last()
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FuelMetric("WEIGHT", "${latest.weightKg}kg", Color(0xFF00FF9C), Modifier.weight(1f))
+            FuelMetric("WEIGHT", "${latest.weightKg}kg", MaterialTheme.colorScheme.primary, Modifier.weight(1f))
             FuelMetric("TDEE", "${latest.tdee}", Color(0xFF00CCFF), Modifier.weight(1f))
             FuelMetric("PROTEIN", "${latest.protein}g", Color(0xFFFF006E), Modifier.weight(1f))
         }
@@ -1256,11 +1259,11 @@ fun FuelMetric(label: String, value: String, color: Color, modifier: Modifier = 
 fun LoadingWing(label: String) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            CircularProgressIndicator(color = Color(0xFF00FF9C), modifier = Modifier.size(32.dp))
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "$label...",
-                color = Color(0xFF00FF9C),
+                color = MaterialTheme.colorScheme.primary,
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
@@ -1291,12 +1294,12 @@ fun ExerciseDossierPane(
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color.Black,
-                    titleContentColor = Color(0xFF00FF9C)
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.primary
                 )
             )
         },
-        containerColor = Color.Black
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         if (dossier == null) {
             LoadingWing("COMPILING_DOSSIER")
@@ -1318,7 +1321,7 @@ fun ExerciseDossierPane(
             if (dossier.nextIncrementCopy != null) {
                 ProgressionBanner(
                     text = dossier.nextIncrementCopy!!,
-                    color = Color(0xFF00FF9C),
+                    color = MaterialTheme.colorScheme.primary,
                     icon = Icons.Default.Bolt
                 )
                 Spacer(modifier = Modifier.height(24.dp))
@@ -1366,7 +1369,7 @@ fun DossierSessionRow(session: DossierSession) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
-        color = Color(0xFF0A0A0A),
+        color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)),
         shape = RoundedCornerShape(4.dp)
     ) {
@@ -1379,7 +1382,7 @@ fun DossierSessionRow(session: DossierSession) {
                 Text(session.date.toString(), color = Color.Gray, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
                 Text("${session.weight.toInt()} LBS", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
             }
-            Text(session.displaySummary, color = Color(0xFF00FF9C), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+            Text(session.displaySummary, color = MaterialTheme.colorScheme.primary, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
         }
     }
 }
@@ -1439,14 +1442,14 @@ fun MuscleFrequencyRow(frequency: Map<String, Int>) {
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         items(frequency.toList().sortedByDescending { it.second }) { (group, count) ->
             Surface(
-                color = Color.Black,
+                color = MaterialTheme.colorScheme.background,
                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
                 shape = RoundedCornerShape(2.dp)
             ) {
                 Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(group.uppercase(), color = Color.LightGray, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("$count", color = Color(0xFF00FF9C), fontSize = 10.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
+                    Text("$count", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
                 }
             }
         }
@@ -1455,6 +1458,7 @@ fun MuscleFrequencyRow(frequency: Map<String, Int>) {
 
 @Composable
 fun SessionHeatmap(summaries: List<SessionSummary>, period: CodexPeriod) {
+    val primaryColor = MaterialTheme.colorScheme.primary
     val daysToShow = when (period) {
         CodexPeriod.SEVEN_DAYS -> 7
         CodexPeriod.THIRTY_DAYS -> 35
@@ -1493,8 +1497,8 @@ fun SessionHeatmap(summaries: List<SessionSummary>, period: CodexPeriod) {
                         .background(
                             when {
                                 isFuture -> Color.Transparent
-                                isDeload -> Color(0xFF00FF9C).copy(alpha = 0.3f)
-                                isHit -> Color(0xFF00FF9C)
+                                isDeload -> primaryColor.copy(alpha = 0.3f)
+                                isHit -> primaryColor
                                 else -> Color.White.copy(alpha = 0.05f)
                             }
                         )
@@ -1508,7 +1512,7 @@ fun SessionHeatmap(summaries: List<SessionSummary>, period: CodexPeriod) {
 fun StatBox(label: String, value: String, subValue: String, icon: ImageVector, color: Color, modifier: Modifier = Modifier) {
     Surface(
         modifier = modifier.height(90.dp),
-        color = Color(0xFF0A0A0A),
+        color = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(4.dp),
         border = BorderStroke(1.dp, color.copy(alpha = 0.2f))
     ) {
@@ -1552,7 +1556,7 @@ fun PrRail(prs: List<PrDisplayData>, onSelect: (String) -> Unit) {
                 modifier = Modifier
                     .width(220.dp)
                     .clickable { onSelect(pr.exerciseId) },
-                color = Color(0xFF0A0A0A),
+                color = MaterialTheme.colorScheme.surface,
                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
                 shape = RoundedCornerShape(4.dp)
             ) {
@@ -1573,7 +1577,7 @@ fun PrRail(prs: List<PrDisplayData>, onSelect: (String) -> Unit) {
                     
                     if (pr.bestClusterDate != null) {
                         Spacer(modifier = Modifier.height(4.dp))
-                        PrRow("CLUSTER", "${pr.bestClusterReps} REPS @ ${pr.bestClusterWeight.toInt()}", Color(0xFF00FF9C))
+                        PrRow("CLUSTER", "${pr.bestClusterReps} REPS @ ${pr.bestClusterWeight.toInt()}", MaterialTheme.colorScheme.primary)
                     }
                 }
             }
@@ -1633,8 +1637,8 @@ fun ExercisePicker(
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF0A0A0A),
-        scrimColor = Color.Black.copy(alpha = 0.7f)
+        containerColor = MaterialTheme.colorScheme.surface,
+        scrimColor = MaterialTheme.colorScheme.background.copy(alpha = 0.7f)
     ) {
         Column(modifier = Modifier.padding(16.dp).fillMaxHeight(0.8f)) {
             OutlinedTextField(
@@ -1644,7 +1648,7 @@ fun ExercisePicker(
                 placeholder = { Text("SEARCH_EXERCISE", color = Color.DarkGray) },
                 textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF00FF9C),
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = Color.DarkGray
                 ),
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.Gray) }
@@ -1661,8 +1665,8 @@ fun ExercisePicker(
                     val isRecent = uiState.periodExerciseIds.contains(exercise.id)
                     Surface(
                         onClick = { onSelect(exercise.id) },
-                        color = Color.Black,
-                        border = BorderStroke(1.dp, if (isRecent) Color(0xFF00FF9C).copy(alpha = 0.3f) else Color.White.copy(alpha = 0.05f)),
+                        color = MaterialTheme.colorScheme.background,
+                        border = BorderStroke(1.dp, if (isRecent) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.05f)),
                         shape = RoundedCornerShape(4.dp)
                     ) {
                         Row(
@@ -1672,7 +1676,7 @@ fun ExercisePicker(
                         ) {
                             Text(exercise.name, color = Color.White, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
                             if (isRecent) {
-                                Text("RECENT", color = Color(0xFF00FF9C), fontSize = 8.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                                Text("RECENT", color = MaterialTheme.colorScheme.primary, fontSize = 8.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                             }
                         }
                     }

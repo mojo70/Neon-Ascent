@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.neon.ascent.core.common.*
 import com.neon.ascent.core.domain.workout.models.SetLog
 import com.neon.ascent.core.domain.workout.models.SetType
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -38,8 +39,9 @@ fun SetLogRow(
     onCompleteToggle: () -> Unit,
     onSetLabelClick: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     val haptic = LocalHapticFeedback.current
-    val backgroundColor = if (setNumber % 2 == 0) Color.Transparent else Color(0xFF1C1C1E).copy(alpha = 0.3f)
+    val backgroundColor = if (setNumber % 2 == 0) Color.Transparent else theme.surfaceRaised.copy(alpha = 0.3f)
     val weightPlaceholder = prescribedWeight?.let { if (it % 1 == 0f) it.toInt().toString() else it.toString() } 
         ?: previousWeight?.let { if (it % 1 == 0f) it.toInt().toString() else it.toString() } ?: "0"
     
@@ -58,18 +60,23 @@ fun SetLogRow(
         SetType.STRETCH -> "STR"
         SetType.MAX_EFFORT -> "ME"
     }
-    val labelColor = when (set.type) {
-        SetType.WARMUP -> Color(0xFFFFA500)
-        SetType.DROP -> Color(0xFF00CCFF)
-        SetType.FAILURE -> Color(0xFFFF4444)
-        SetType.REST_PAUSE -> Color(0xFF00FFAA)
-        SetType.WIDOWMAKER -> Color(0xFFFF00FF)
-        SetType.POWER -> Color(0xFFFFD700)
-        SetType.GS -> Color(0xFF00CCFF)
-        SetType.PARTIAL -> Color(0xFF00FF9C)
-        SetType.STRETCH -> Color(0xFFFF006E)
-        SetType.MAX_EFFORT -> Color(0xFFFF0000)
-        else -> Color.White
+    
+    val labelColor = if (theme.mode == VisualMode.STEVE) {
+        theme.ink
+    } else {
+        when (set.type) {
+            SetType.WARMUP -> Color(0xFFFFA500)
+            SetType.DROP -> Color(0xFF00CCFF)
+            SetType.FAILURE -> Color(0xFFFF4444)
+            SetType.REST_PAUSE -> Color(0xFF00FFAA)
+            SetType.WIDOWMAKER -> Color(0xFFFF00FF)
+            SetType.POWER -> Color(0xFFFFD700)
+            SetType.GS -> Color(0xFF00CCFF)
+            SetType.PARTIAL -> theme.accent
+            SetType.STRETCH -> Color(0xFFFF006E)
+            SetType.MAX_EFFORT -> Color(0xFFFF0000)
+            else -> theme.ink
+        }
     }
 
     Column(
@@ -97,10 +104,10 @@ fun SetLogRow(
                 Column(modifier = Modifier.weight(1.5f), horizontalAlignment = Alignment.CenterHorizontally) {
                     val repsText = if (isAmrap) "${prescribedReps ?: ""} +" else (prescribedReps ?: "").toString()
                     Text("$repsText @ ${if (prescribedWeight!! % 1 == 0f) prescribedWeight.toInt() else prescribedWeight}", 
-                         color = Color(0xFF00FF9C), fontSize = 10.sp, fontWeight = FontWeight.Black)
+                         color = theme.accent, fontSize = 10.sp, fontWeight = FontWeight.Black)
                     
                     val subText = if (percentOfMax != null) "${(percentOfMax * 100).toInt()}% TM" else "TARGET"
-                    Text(subText, color = Color.Gray, fontSize = 8.sp)
+                    Text(subText, color = theme.inkMuted, fontSize = 8.sp)
                 }
             } else if (showGoal && zoomLevel < 1.5f) {
                 val isGoalMandatory = set.type == SetType.WIDOWMAKER
@@ -115,7 +122,7 @@ fun SetLogRow(
 
             // Previous Data (Standard)
             if (zoomLevel < 1.5f) {
-                Text(previousData, color = Color.Gray, fontSize = 14.sp, modifier = Modifier.weight(2f))
+                Text(previousData, color = theme.inkMuted, fontSize = 14.sp, modifier = Modifier.weight(2f))
             }
             
             // Weight Input
@@ -143,7 +150,7 @@ fun SetLogRow(
                 modifier = Modifier
                     .size(24.dp)
                     .background(
-                        if (set.isCompleted) Color(0xFF4CD964) else Color.Gray.copy(alpha = 0.5f), 
+                        if (set.isCompleted) Color(0xFF4CD964) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f), 
                         RoundedCornerShape(4.dp)
                     )
                     .clickable {
@@ -155,7 +162,7 @@ fun SetLogRow(
                 Icon(
                     Icons.Default.Check, 
                     contentDescription = null, 
-                    tint = if (set.isCompleted) Color.Black else Color.White.copy(alpha = 0.5f),
+                    tint = if (set.isCompleted) Color.Black else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                     modifier = Modifier.size(16.dp)
                 )
             }
@@ -174,7 +181,7 @@ fun SetLogRow(
                     val goalText = if (prescribedReps != null) "$repsText @ ${prescribedWeight}" else (set.goalReps ?: "-")
                     Text(
                         "GOAL: $goalText", 
-                        color = if (prescribedReps != null) Color(0xFF00FF9C) else Color.Gray, 
+                        color = if (prescribedReps != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), 
                         fontSize = 10.sp, 
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f)
@@ -182,7 +189,7 @@ fun SetLogRow(
                 }
                 Text(
                     "PREV: $previousData", 
-                    color = Color.Gray, 
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), 
                     fontSize = 10.sp, 
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)

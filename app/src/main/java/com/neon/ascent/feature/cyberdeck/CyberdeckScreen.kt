@@ -29,6 +29,7 @@ import com.neon.ascent.feature.biohacking.AiType
 import com.neon.ascent.model.DifficultyTier
 import com.neon.ascent.model.SkillType
 import com.neon.ascent.ui.CyberFrame
+import com.neon.ascent.core.common.*
 import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.cos
@@ -67,18 +68,22 @@ fun CyberdeckScreen(
         viewModel.setExternalFeeds(tickerMessages)
     }
 
+    val theme = LocalNeonTheme.current
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF020508)) // Darker for high contrast neon
+            .background(theme.canvas)
     ) {
         // 1. Grid Background
         Canvas(modifier = Modifier.fillMaxSize()) {
-            drawGrid()
+            drawGrid(theme)
         }
 
         // 2. Ambient Haze
-        AtmosphericHaze()
+        if (theme.mode == VisualMode.CYBER) {
+            AtmosphericHaze()
+        }
 
         Column(
             modifier = Modifier.fillMaxSize()
@@ -100,6 +105,7 @@ fun CyberdeckScreen(
                 // 3. Triple Base Wires + Traffic Pulse
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     paths.forEach { (path, color) ->
+                        val finalColor = if (theme.mode == VisualMode.STEVE) theme.ink else color
                         val offsets = listOf(-5f, 0f, 5f)
                         offsets.forEachIndexed { index, offset ->
                             withTransform({
@@ -107,11 +113,11 @@ fun CyberdeckScreen(
                             }) {
                                 drawPath(
                                     path = path,
-                                    color = color.copy(alpha = 0.15f),
+                                    color = finalColor.copy(alpha = 0.15f),
                                     style = Stroke(width = 1.5f)
                                 )
-                                if (index == 1) {
-                                    drawTrafficPulse(path, color, pulsePhase, width = 3.5f)
+                                if (index == 1 && theme.mode == VisualMode.CYBER) {
+                                    drawTrafficPulse(path, finalColor, pulsePhase, width = 3.5f)
                                 }
                             }
                         }
@@ -141,8 +147,10 @@ fun CyberdeckScreen(
         }
 
         // Decorative accents
-        Box(Modifier.width(4.dp).fillMaxHeight().background(Color(0xFFFF0088)).align(Alignment.CenterStart))
-        Box(Modifier.width(4.dp).fillMaxHeight().background(Color(0xFF00CCFF)).align(Alignment.CenterEnd))
+        if (theme.mode == VisualMode.CYBER) {
+            Box(Modifier.width(4.dp).fillMaxHeight().background(Color(0xFFFF0088)).align(Alignment.CenterStart))
+            Box(Modifier.width(4.dp).fillMaxHeight().background(Color(0xFF00CCFF)).align(Alignment.CenterEnd))
+        }
 
         // 6. Overlays
         currentChallenge?.let { challenge ->
@@ -196,14 +204,15 @@ fun AtmosphericHaze() {
 
 @Composable
 private fun TopStatusBar(onIceBreachClick: () -> Unit) {
+    val theme = LocalNeonTheme.current
     Row(
         modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
-            Text("CYBERDECK_TERMINAL", color = Color(0xFF00FFAA), fontSize = 18.sp, fontFamily = FontFamily.Monospace, letterSpacing = 2.sp)
-            Text("CONNECTED_VIA // NEURAL_GATE_01", color = Color(0xFF00FFAA).copy(alpha = 0.6f), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+            Text("CYBERDECK_TERMINAL", color = theme.accent, fontSize = 18.sp, fontFamily = FontFamily.Monospace, letterSpacing = 2.sp)
+            Text("CONNECTED_VIA // NEURAL_GATE_01", color = theme.accent.copy(alpha = 0.6f), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
         }
 
         // SEC Hex with ICE effect
@@ -213,6 +222,7 @@ private fun TopStatusBar(onIceBreachClick: () -> Unit) {
 
 @Composable
 private fun SecCoreWithIce(onClick: () -> Unit) {
+    val theme = LocalNeonTheme.current
     val infiniteTransition = rememberInfiniteTransition(label = "SecIce")
     val rotation by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -237,47 +247,50 @@ private fun SecCoreWithIce(onClick: () -> Unit) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val center = Offset(size.width / 2, size.height / 2)
             val baseRadius = size.width * 0.32f
-            val iceColor = Color(0xFFFF0088)
+            val iceColor = if (theme.mode == VisualMode.STEVE) theme.secondary else Color(0xFFFF0088)
 
             // ICE Protective Barriers (Rotating Rings)
-            rotate(rotation) {
-                drawArc(
-                    color = iceColor.copy(alpha = 0.3f),
-                    startAngle = 0f,
-                    sweepAngle = 90f,
-                    useCenter = false,
-                    style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Butt),
-                    topLeft = Offset(center.x - baseRadius * 1.4f, center.y - baseRadius * 1.4f),
-                    size = Size(baseRadius * 2.8f, baseRadius * 2.8f)
-                )
-                drawArc(
-                    color = iceColor.copy(alpha = 0.3f),
-                    startAngle = 180f,
-                    sweepAngle = 90f,
-                    useCenter = false,
-                    style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Butt),
-                    topLeft = Offset(center.x - baseRadius * 1.4f, center.y - baseRadius * 1.4f),
-                    size = Size(baseRadius * 2.8f, baseRadius * 2.8f)
-                )
-            }
+            if (theme.mode == VisualMode.CYBER) {
+                rotate(rotation) {
+                    drawArc(
+                        color = iceColor.copy(alpha = 0.3f),
+                        startAngle = 0f,
+                        sweepAngle = 90f,
+                        useCenter = false,
+                        style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Butt),
+                        topLeft = Offset(center.x - baseRadius * 1.4f, center.y - baseRadius * 1.4f),
+                        size = Size(baseRadius * 2.8f, baseRadius * 2.8f)
+                    )
+                    drawArc(
+                        color = iceColor.copy(alpha = 0.3f),
+                        startAngle = 180f,
+                        sweepAngle = 90f,
+                        useCenter = false,
+                        style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Butt),
+                        topLeft = Offset(center.x - baseRadius * 1.4f, center.y - baseRadius * 1.4f),
+                        size = Size(baseRadius * 2.8f, baseRadius * 2.8f)
+                    )
+                }
 
-            rotate(-rotation * 0.7f) {
-                drawArc(
-                    color = iceColor.copy(alpha = 0.2f),
-                    startAngle = 45f,
-                    sweepAngle = 120f,
-                    useCenter = false,
-                    style = Stroke(width = 1.dp.toPx(), cap = StrokeCap.Round, pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 10f))),
-                    topLeft = Offset(center.x - baseRadius * 1.7f, center.y - baseRadius * 1.7f),
-                    size = Size(baseRadius * 3.4f, baseRadius * 3.4f)
-                )
+                rotate(-rotation * 0.7f) {
+                    drawArc(
+                        color = iceColor.copy(alpha = 0.2f),
+                        startAngle = 45f,
+                        sweepAngle = 120f,
+                        useCenter = false,
+                        style = Stroke(width = 1.dp.toPx(), cap = StrokeCap.Round, pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 10f))),
+                        topLeft = Offset(center.x - baseRadius * 1.7f, center.y - baseRadius * 1.7f),
+                        size = Size(baseRadius * 3.4f, baseRadius * 3.4f)
+                    )
+                }
             }
 
             // Main Core Hexagon
             drawNeonHexagon(
                 center = center,
                 radius = baseRadius * pulse,
-                color = iceColor
+                color = iceColor,
+                theme = theme
             )
         }
         Text(
@@ -286,7 +299,7 @@ private fun SecCoreWithIce(onClick: () -> Unit) {
                 scaleX = pulse
                 scaleY = pulse
             },
-            color = Color(0xFFFF0088),
+            color = if (theme.mode == VisualMode.STEVE) theme.canvas else Color(0xFFFF0088),
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
             fontFamily = FontFamily.Monospace
@@ -304,6 +317,7 @@ private fun CoreLayout(
     aiType: AiType,
     viewModel: CyberdeckViewModel
 ) {
+    val theme = LocalNeonTheme.current
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         // Core background glow
         Box(
@@ -325,8 +339,8 @@ private fun CoreLayout(
             AiType.NONE -> "OFFLINE"
         }
         val coreColor = when (aiType) {
-            AiType.LOCAL -> Color(0xFFFFFF00)
-            AiType.CLOUD -> Color(0xFF00CCFF)
+            AiType.LOCAL -> if (theme.mode == VisualMode.STEVE) Color(0xFF666600) else Color(0xFFFFFF00)
+            AiType.CLOUD -> if (theme.mode == VisualMode.STEVE) Color(0xFF005577) else Color(0xFF00CCFF)
             AiType.NONE -> Color.Red
         }
         HexCore(
@@ -340,7 +354,7 @@ private fun CoreLayout(
         // NET CORE (North)
         HexCore(
             label = "NET",
-            color = Color(0xFF00FF99),
+            color = if (theme.mode == VisualMode.STEVE) Color(0xFF006644) else Color(0xFF00FF99),
             modifier = Modifier.align(Alignment.Center).offset(y = -offsetDistance),
             onClick = onNetworkClick
         )
@@ -348,7 +362,7 @@ private fun CoreLayout(
         // EXPLOITS (West)
         HexCore(
             label = "EXPLOITS",
-            color = Color(0xFFFF0088),
+            color = if (theme.mode == VisualMode.STEVE) Color(0xFF880044) else Color(0xFFFF0088),
             modifier = Modifier.align(Alignment.Center).offset(x = -offsetDistance),
             onClick = onExploitsClick
         )
@@ -356,7 +370,7 @@ private fun CoreLayout(
         // WALLET (East)
         HexCore(
             label = "WALLET",
-            color = Color(0xFF00CCFF),
+            color = if (theme.mode == VisualMode.STEVE) Color(0xFF005577) else Color(0xFF00CCFF),
             modifier = Modifier.align(Alignment.Center).offset(x = offsetDistance),
             onClick = onWalletClick
         )
@@ -364,7 +378,7 @@ private fun CoreLayout(
         // DATABASE (South)
         HexCore(
             label = "DATABASE",
-            color = Color(0xFF00CCFF),
+            color = if (theme.mode == VisualMode.STEVE) Color(0xFF005577) else Color(0xFF00CCFF),
             modifier = Modifier.align(Alignment.Center).offset(y = offsetDistance),
             onClick = onDatabaseClick
         )
@@ -373,6 +387,7 @@ private fun CoreLayout(
 
 @Composable
 private fun HexCore(label: String, color: Color, modifier: Modifier, aiType: AiType? = null, onClick: () -> Unit = {}) {
+    val theme = LocalNeonTheme.current
     val infiniteTransition = rememberInfiniteTransition(label = "HexEffect")
     
     // Local AI Swirl
@@ -422,21 +437,30 @@ private fun HexCore(label: String, color: Color, modifier: Modifier, aiType: AiT
             val path = createHexagonPath(center, radius)
             
             // 3D Inner Shading
-            drawPath(
-                path = path,
-                brush = Brush.linearGradient(
-                    listOf(color.copy(alpha = 0.15f), Color.Transparent, color.copy(alpha = 0.05f)),
-                    start = Offset(0f, 0f),
-                    end = Offset(size.width, size.height)
-                ),
-                style = Fill
-            )
+            if (theme.mode == VisualMode.CYBER) {
+                drawPath(
+                    path = path,
+                    brush = Brush.linearGradient(
+                        listOf(color.copy(alpha = 0.15f), Color.Transparent, color.copy(alpha = 0.05f)),
+                        start = Offset(0f, 0f),
+                        end = Offset(size.width, size.height)
+                    ),
+                    style = Fill
+                )
+            } else {
+                drawPath(
+                    path = path,
+                    color = theme.surface,
+                    style = Fill
+                )
+            }
             
             // Local AI Swirling Feature
             if (aiType == AiType.LOCAL) {
+                val swirlColor = if (theme.mode == VisualMode.STEVE) theme.ink.copy(alpha = 0.4f) else Color(0xFFFFFF00).copy(alpha = pulseAlpha)
                 rotate(rotation) {
                     drawArc(
-                        color = Color(0xFFFFFF00).copy(alpha = pulseAlpha),
+                        color = swirlColor,
                         startAngle = 0f,
                         sweepAngle = 120f,
                         useCenter = false,
@@ -445,7 +469,7 @@ private fun HexCore(label: String, color: Color, modifier: Modifier, aiType: AiT
                         size = Size(radius * 2.5f, radius * 2.5f)
                     )
                     drawArc(
-                        color = Color(0xFFFFFF00).copy(alpha = pulseAlpha),
+                        color = swirlColor,
                         startAngle = 180f,
                         sweepAngle = 120f,
                         useCenter = false,
@@ -457,7 +481,7 @@ private fun HexCore(label: String, color: Color, modifier: Modifier, aiType: AiT
             }
 
             // Enhanced Neon Hexagon Border
-            drawNeonHexagon(center, radius, color)
+            drawNeonHexagon(center, radius, color, theme)
         }
         Text(
             text = label,
@@ -469,7 +493,7 @@ private fun HexCore(label: String, color: Color, modifier: Modifier, aiType: AiT
                         alpha = if (Random.nextFloat() > 0.92f) 0.4f else 1f
                     }
                 },
-            color = if (aiType == AiType.NONE) Color.Red else Color.White,
+            color = if (aiType == AiType.NONE) Color.Red else (if (theme.mode == VisualMode.STEVE) theme.ink else Color.White),
             fontSize = 12.sp,
             fontFamily = FontFamily.Monospace,
             textAlign = TextAlign.Center,
@@ -578,8 +602,8 @@ private fun DrawScope.drawTrafficPulse(path: Path, color: Color, phase: Float, w
     drawPath(segment.asComposePath(), color.copy(alpha = 0.2f), style = Stroke(width = width * 3, cap = StrokeCap.Round))
 }
 
-private fun DrawScope.drawGrid() {
-    val color = Color(0xFF1A2A3A).copy(alpha = 0.4f)
+private fun DrawScope.drawGrid(theme: NeonThemeData) {
+    val color = theme.grid.copy(alpha = 0.4f)
     val step = 40.dp.toPx()
     for (x in 0..size.width.toInt() step step.toInt()) drawLine(color, Offset(x.toFloat(), 0f), Offset(x.toFloat(), size.height), 1f)
     for (y in 0..size.height.toInt() step step.toInt()) drawLine(color, Offset(0f, y.toFloat()), Offset(size.width, y.toFloat()), 1f)
@@ -597,29 +621,33 @@ private fun createHexagonPath(center: Offset, radius: Float): Path {
     }
 }
 
-private fun DrawScope.drawNeonHexagon(center: Offset, radius: Float, color: Color) {
+private fun DrawScope.drawNeonHexagon(center: Offset, radius: Float, color: Color, theme: NeonThemeData) {
     val path = createHexagonPath(center, radius)
     
     // Outer glow layers (halo effect on the hexagon path)
-    for (i in 0..8) {
-        val f = i.toFloat()
-        val alphaVal = (0.15f - f * 0.015f).coerceAtLeast(0f)
-        if (alphaVal > 0f) {
-            drawPath(
-                path = path,
-                color = color.copy(alpha = alphaVal),
-                style = Stroke(width = 4f + f * 8f, cap = StrokeCap.Round)
-            )
+    if (theme.glowEnabled) {
+        for (i in 0..8) {
+            val f = i.toFloat()
+            val alphaVal = (0.15f - f * 0.015f).coerceAtLeast(0f)
+            if (alphaVal > 0f) {
+                drawPath(
+                    path = path,
+                    color = color.copy(alpha = alphaVal),
+                    style = Stroke(width = 4f + f * 8f, cap = StrokeCap.Round)
+                )
+            }
         }
     }
 
     // Main sharp neon highlight
-    drawPath(path, color, style = Stroke(width = 4f, cap = StrokeCap.Round))
+    drawPath(path, color, style = Stroke(width = if (theme.mode == VisualMode.STEVE) 2.dp.toPx() else 4f, cap = StrokeCap.Round))
     
-    // Inner white highlight for depth and "etched light" feel
-    drawPath(
-        path = path,
-        color = Color.White.copy(alpha = 0.5f),
-        style = Stroke(width = 1.5f, cap = StrokeCap.Round)
-    )
+    // Inner white highlight
+    if (theme.mode == VisualMode.CYBER) {
+        drawPath(
+            path = path,
+            color = Color.White.copy(alpha = 0.5f),
+            style = Stroke(width = 1.5f, cap = StrokeCap.Round)
+        )
+    }
 }

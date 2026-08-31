@@ -51,19 +51,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.neon.ascent.core.common.FloatingParticles
-import com.neon.ascent.core.common.NeonCyan
-import com.neon.ascent.core.common.NeonGreen
-import com.neon.ascent.core.common.NeonPink
-import com.neon.ascent.core.common.Scanlines
-import com.neon.ascent.core.common.StaticNoise
-import com.neon.ascent.core.common.Vignette
-import com.neon.ascent.core.common.neonBorder
+import com.neon.ascent.core.common.*
 import com.neon.ascent.ui.CyberActionButton
 import com.neon.ascent.ui.CyberCutShape
 import com.neon.ascent.ui.GlitchText
 import com.neon.ascent.ui.HudCornerAccents
 import com.neon.ascent.ui.SoftGridBackground
+
 import java.util.Locale
 
 @Composable
@@ -72,17 +66,20 @@ fun StilljackScreen(
     viewModel: StilljackViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    val theme = LocalNeonTheme.current
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF010403))
+            .background(theme.canvas)
     ) {
         // Multi-layered cyber background
-        SoftGridBackground()
-        Vignette()
-        Scanlines(intensity = 0.12f)
-        FloatingParticles(intensity = 0.08f)
+        if (theme.mode == VisualMode.CYBER) {
+            SoftGridBackground()
+            Vignette()
+            Scanlines(intensity = 0.12f)
+            FloatingParticles(intensity = 0.08f)
+        }
 
         if (state.noiseEnabled && state.isRunning) {
             StaticNoise(intensity = 0.06f)
@@ -110,7 +107,7 @@ fun StilljackScreen(
             // Header: Title & Glitch Effect
             GlitchText(
                 text = "STILLJACK",
-                color = Color.White,
+                color = theme.ink,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Black
             )
@@ -120,7 +117,7 @@ fun StilljackScreen(
             // Subtitle / Status line
             Text(
                 text = "FEED: MUTED  //  ICE: STANDBY  //  NO_WORD  //  NO_COLLECT  //  HOLD",
-                color = NeonCyan.copy(alpha = 0.75f),
+                color = theme.accent.copy(alpha = 0.75f),
                 fontSize = 9.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
@@ -139,13 +136,13 @@ fun StilljackScreen(
                 Box(
                     modifier = Modifier
                         .clip(CyberCutShape)
-                        .background(Color(0xFF04120C).copy(alpha = 0.8f))
-                        .neonBorder(NeonGreen.copy(alpha = 0.6f), width = 1.dp, cornerRadius = 0.dp)
+                        .background(theme.surface.copy(alpha = 0.8f))
+                        .neonBorder(theme.accent.copy(alpha = 0.6f), width = 1.dp, cornerRadius = 0.dp)
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Text(
                         text = "+40 XP / CITADEL",
-                        color = NeonGreen,
+                        color = theme.accent,
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.ExtraBold,
@@ -189,10 +186,10 @@ fun StilljackScreen(
                                     .height(42.dp)
                                     .clip(CyberCutShape)
                                     .background(
-                                        if (isSelected) NeonGreen else Color(0xFF06100B).copy(alpha = 0.85f)
+                                        if (isSelected) theme.accent else theme.surface.copy(alpha = 0.85f)
                                     )
                                     .neonBorder(
-                                        color = if (isSelected) NeonGreen else NeonGreen.copy(alpha = 0.35f),
+                                        color = if (isSelected) theme.accent else theme.accent.copy(alpha = 0.35f),
                                         width = if (isSelected) 1.5.dp else 1.dp,
                                         glowIntensity = if (isSelected) 0.8f else 0.2f,
                                         cornerRadius = 0.dp
@@ -202,7 +199,7 @@ fun StilljackScreen(
                             ) {
                                 Text(
                                     text = "${mins}M",
-                                    color = if (isSelected) Color.Black else Color.White.copy(alpha = 0.9f),
+                                    color = if (isSelected) theme.canvas else theme.ink.copy(alpha = 0.9f),
                                     fontSize = 13.sp,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Black,
@@ -260,7 +257,7 @@ fun StilljackScreen(
             // Primary CTA Button
             CyberActionButton(
                 label = if (state.isRunning) "ABORT HOLD" else "BEGIN STILLJACK",
-                color = if (state.isRunning) NeonPink else NeonGreen,
+                color = if (state.isRunning) theme.secondary else theme.accent,
                 onClick = {
                     if (state.isRunning) {
                         viewModel.stopStilljack()
@@ -287,7 +284,7 @@ fun StilljackScreen(
             Icon(
                 imageVector = Icons.Default.Close,
                 contentDescription = "Close Stilljack",
-                tint = Color.White.copy(alpha = 0.8f)
+                tint = theme.ink.copy(alpha = 0.8f)
             )
         }
     }
@@ -300,6 +297,7 @@ private fun HoldRing(
     isRunning: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val theme = LocalNeonTheme.current
     val infiniteTransition = rememberInfiniteTransition(label = "StilljackHoldRing")
 
     // Slow 4-6s scale breath pulse
@@ -338,13 +336,15 @@ private fun HoldRing(
             val center = Offset(size.width / 2f, size.height / 2f)
             val outerRadius = (size.minDimension - strokeWidth * 6) / 2f
             val innerRadius = outerRadius * 0.78f
+            
+            val baseColor = theme.accent
 
             // 1. Subtle inner breath pulse circle
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        NeonGreen.copy(alpha = 0.08f * (breathScale - 0.9f) * 6f),
-                        NeonGreen.copy(alpha = 0.02f),
+                        baseColor.copy(alpha = 0.08f * (breathScale - 0.9f) * 6f),
+                        baseColor.copy(alpha = 0.02f),
                         Color.Transparent
                     ),
                     center = center,
@@ -354,43 +354,44 @@ private fun HoldRing(
             )
 
             drawCircle(
-                color = NeonCyan.copy(alpha = 0.12f),
+                color = baseColor.copy(alpha = 0.12f),
                 radius = innerRadius * breathScale,
                 style = Stroke(width = 1.5.dp.toPx())
             )
 
-            // 2. Base track (faint circular track)
+            // 2. Base track
             drawCircle(
-                color = NeonGreen.copy(alpha = 0.15f),
+                color = baseColor.copy(alpha = 0.15f),
                 radius = outerRadius,
                 style = Stroke(width = strokeWidth)
             )
 
-            // Inner concentric guide ring
+            // Inner guide ring
             drawCircle(
-                color = NeonGreen.copy(alpha = 0.08f),
+                color = baseColor.copy(alpha = 0.08f),
                 radius = outerRadius - 12.dp.toPx(),
                 style = Stroke(width = 1.dp.toPx())
             )
 
-            // 3. Active Hold Arc / Full Glow
+            // 3. Active Hold Arc
             val sweepAngle = if (isRunning) progress * 360f else 360f
-            val baseColor = NeonGreen
             val glowMult = if (isRunning) 1f else idleGlowAlpha
 
-            for (i in 0..5) {
-                val f = i.toFloat()
-                val glowAlpha = ((0.22f - f * 0.035f).coerceAtLeast(0f) * glowMult).coerceIn(0f, 1f)
-                drawArc(
-                    color = baseColor.copy(alpha = glowAlpha),
-                    startAngle = -90f,
-                    sweepAngle = sweepAngle,
-                    useCenter = false,
-                    style = Stroke(
-                        width = strokeWidth + f * 7f,
-                        cap = StrokeCap.Round
+            if (theme.glowEnabled) {
+                for (i in 0..5) {
+                    val f = i.toFloat()
+                    val glowAlpha = ((0.22f - f * 0.035f).coerceAtLeast(0f) * glowMult).coerceIn(0f, 1f)
+                    drawArc(
+                        color = baseColor.copy(alpha = glowAlpha),
+                        startAngle = -90f,
+                        sweepAngle = sweepAngle,
+                        useCenter = false,
+                        style = Stroke(
+                            width = strokeWidth + f * 7f,
+                            cap = StrokeCap.Round
+                        )
                     )
-                )
+                }
             }
 
             drawArc(
@@ -403,20 +404,20 @@ private fun HoldRing(
 
             // Outer subtle boundary ring
             drawCircle(
-                color = NeonGreen.copy(alpha = 0.2f),
+                color = baseColor.copy(alpha = 0.2f),
                 radius = outerRadius + 8.dp.toPx(),
                 style = Stroke(width = 1.dp.toPx())
             )
         }
 
-        // Centered Timer Inside Ring
+        // Centered Timer
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Text(
                 text = formatSeconds(remainingSeconds),
-                color = Color.White,
+                color = theme.ink,
                 fontSize = 38.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Black,
@@ -425,7 +426,7 @@ private fun HoldRing(
             Spacer(Modifier.height(2.dp))
             Text(
                 text = "/ ${formatSeconds(totalSeconds)}",
-                color = Color.White.copy(alpha = 0.45f),
+                color = theme.ink.copy(alpha = 0.45f),
                 fontSize = 18.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
@@ -442,16 +443,17 @@ private fun StilljackAudioToggleRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val theme = LocalNeonTheme.current
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(44.dp)
             .clip(CyberCutShape)
             .background(
-                if (enabled) Color(0xFF04180F).copy(alpha = 0.9f) else Color(0xFF050807).copy(alpha = 0.7f)
+                if (enabled) theme.accent.copy(alpha = 0.15f) else theme.surface.copy(alpha = 0.7f)
             )
             .neonBorder(
-                color = if (enabled) NeonGreen.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.15f),
+                color = if (enabled) theme.accent else theme.ink.copy(alpha = 0.15f),
                 width = 1.dp,
                 glowIntensity = if (enabled) 0.5f else 0.05f,
                 cornerRadius = 0.dp
@@ -467,7 +469,7 @@ private fun StilljackAudioToggleRow(
         ) {
             Text(
                 text = label,
-                color = if (enabled) Color.White else Color.White.copy(alpha = 0.45f),
+                color = if (enabled) theme.ink else theme.ink.copy(alpha = 0.45f),
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
@@ -475,7 +477,7 @@ private fun StilljackAudioToggleRow(
             )
             Text(
                 text = if (enabled) "ON" else "OFF",
-                color = if (enabled) NeonGreen else Color.White.copy(alpha = 0.35f),
+                color = if (enabled) theme.accent else theme.ink.copy(alpha = 0.35f),
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Black,

@@ -50,6 +50,8 @@ import com.neon.ascent.core.domain.goals.models.*
 import com.neon.ascent.feature.goals.ui.ascension.QuickTaskBottomSheet
 import com.neon.ascent.core.common.CelebrationOverlay
 import com.neon.ascent.ui.*
+import com.neon.ascent.core.common.*
+import com.neon.ascent.core.common.VisualMode
 import java.time.LocalDateTime
 import java.time.LocalDate
 import java.time.ZoneId
@@ -59,14 +61,18 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun CyberCutFrame(
     modifier: Modifier = Modifier,
-    borderColor: Color = Color.White.copy(alpha = 0.2f),
-    backgroundColor: Color = Color.Black.copy(alpha = 0.4f),
+    borderColor: Color? = null,
+    backgroundColor: Color? = null,
     content: @Composable () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
+    val finalBorder = borderColor ?: theme.hairline
+    val finalBg = backgroundColor ?: theme.overlay
+
     Box(
         modifier = modifier
-            .background(backgroundColor, CyberCutShape)
-            .border(1.dp, borderColor, CyberCutShape)
+            .background(finalBg, CyberCutShape)
+            .border(1.dp, finalBorder, CyberCutShape)
             .padding(16.dp)
     ) {
         content()
@@ -85,6 +91,9 @@ fun SlimChromeHeader(
     onSettingsClick: () -> Unit,
     systemColor: Color
 ) {
+    val theme = LocalNeonTheme.current
+    val accentColor = if (theme.mode == VisualMode.STEVE) theme.secondary else Color(0xFFFF006E)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -103,10 +112,10 @@ fun SlimChromeHeader(
                     .size(56.dp)
                     .clickable { onAvatarClick() }
             ) {
-                HudBracket(Modifier.align(Alignment.TopStart), systemColor)
-                HudBracket(Modifier.align(Alignment.TopEnd), systemColor, rotate = 90f)
-                HudBracket(Modifier.align(Alignment.BottomStart), systemColor, rotate = 270f)
-                HudBracket(Modifier.align(Alignment.BottomEnd), systemColor, rotate = 180f)
+                HudBracket(Modifier.align(Alignment.TopStart), theme.ink)
+                HudBracket(Modifier.align(Alignment.TopEnd), theme.ink, rotate = 90f)
+                HudBracket(Modifier.align(Alignment.BottomStart), theme.ink, rotate = 270f)
+                HudBracket(Modifier.align(Alignment.BottomEnd), theme.ink, rotate = 180f)
                 
                 AvatarImage(
                     character = character,
@@ -120,7 +129,7 @@ fun SlimChromeHeader(
             Column {
                 Text(
                     text = "RUNNER // ${character?.netrunnerName?.uppercase() ?: "UNKNOWN"}",
-                    color = Color.White,
+                    color = theme.ink,
                     fontSize = 14.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
@@ -130,7 +139,7 @@ fun SlimChromeHeader(
                 )
                 Text(
                     text = "RANK_0${character?.level ?: 1}",
-                    color = Color(0xFFFF006E),
+                    color = accentColor,
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold
@@ -156,7 +165,7 @@ fun SlimChromeHeader(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "${weatherState.temperature}°",
-                        color = Color.White.copy(alpha = 0.6f),
+                        color = theme.inkMuted,
                         fontSize = 13.sp,
                         fontFamily = FontFamily.Monospace
                     )
@@ -165,7 +174,7 @@ fun SlimChromeHeader(
                         Icon(
                             Icons.Outlined.FavoriteBorder,
                             contentDescription = null,
-                            tint = Color(0xFFFF006E),
+                            tint = accentColor,
                             modifier = Modifier.size(12.dp)
                         )
                     }
@@ -181,7 +190,7 @@ fun SlimChromeHeader(
                 Icon(
                     imageVector = Icons.Default.Adjust,
                     contentDescription = "JACK IN",
-                    tint = Color(0xFFFF006E),
+                    tint = accentColor,
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -208,6 +217,7 @@ fun NeuralBriefCard(
     systemColor: Color,
     briefActive: Boolean = false
 ) {
+    val theme = LocalNeonTheme.current
     val isWorkout = primaryActionTask?.tags?.any { 
         it.contains("workout", ignoreCase = true) || it.contains("lift", ignoreCase = true) 
     } == true
@@ -224,7 +234,7 @@ fun NeuralBriefCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "TODAY'S INTELLIGENCE // NEURAL_BRIEF /",
-                        color = Color(0xFF00CCFF),
+                        color = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00CCFF),
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
@@ -232,7 +242,7 @@ fun NeuralBriefCard(
                     )
                     Text(
                         text = "Insight: $insight",
-                        color = Color.White.copy(alpha = 0.8f),
+                        color = theme.ink.copy(alpha = 0.8f),
                         fontSize = 14.sp,
                         fontFamily = FontFamily.Monospace,
                         fontStyle = FontStyle.Italic,
@@ -243,7 +253,7 @@ fun NeuralBriefCard(
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(start = 16.dp)) {
                     Canvas(modifier = Modifier.size(80.dp)) {
                         drawArc(
-                            color = Color.White.copy(alpha = 0.1f),
+                            color = theme.ink.copy(alpha = 0.1f),
                             startAngle = 0f,
                             sweepAngle = 360f,
                             useCenter = false,
@@ -259,7 +269,7 @@ fun NeuralBriefCard(
                     }
                     Text(
                         "${(neuralLoad * 100).toInt()}%",
-                        color = Color.White,
+                        color = theme.ink,
                         fontSize = 16.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold
@@ -329,38 +339,39 @@ fun HeroPulseRow(
     onComplete: () -> Unit,
     systemColor: Color
 ) {
+    val theme = LocalNeonTheme.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color.White.copy(alpha = 0.1f), CyberCutShape)
-            .background(Color.Black.copy(alpha = 0.4f), CyberCutShape)
+            .border(1.dp, theme.hairline, CyberCutShape)
+            .background(theme.overlay, CyberCutShape)
             .padding(vertical = 16.dp, horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = Icons.Outlined.CheckBoxOutlineBlank,
             contentDescription = null,
-            tint = Color.White.copy(alpha = 0.4f),
+            tint = theme.ink.copy(alpha = 0.4f),
             modifier = Modifier.size(20.dp).clickable { onComplete() }
         )
         Spacer(Modifier.width(14.dp))
         Text(
             text = "DIURNAL_PULSE • ${task.title.uppercase()}",
-            color = Color.White,
+            color = theme.ink,
             fontSize = 12.sp,
             fontFamily = FontFamily.Monospace,
             modifier = Modifier.weight(1f)
         )
         Text(
             text = "AM",
-            color = Color.White.copy(alpha = 0.6f),
+            color = theme.inkMuted,
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
             modifier = Modifier.padding(end = 14.dp)
         )
         Text(
             text = "LOG >>",
-            color = Color.White,
+            color = theme.ink,
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Bold
@@ -374,6 +385,7 @@ fun MetricPillRow(
     kcal: Int,
     streak: Int
 ) {
+    val theme = LocalNeonTheme.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -395,7 +407,7 @@ fun MetricPillRow(
         MetricPill(
             label = "STREAK",
             value = streak.toString(),
-            color = Color(0xFF00FF9C),
+            color = theme.accent,
             icon = Icons.Default.Whatshot,
             modifier = Modifier.weight(1f).height(86.dp)
         )
@@ -404,18 +416,22 @@ fun MetricPillRow(
 
 @Composable
 fun MetricPill(label: String, value: String, color: Color, icon: ImageVector, modifier: Modifier = Modifier) {
+    val theme = LocalNeonTheme.current
+    val pillColor = if (theme.mode == VisualMode.STEVE) theme.ink else color
+    val pillBg = if (theme.mode == VisualMode.STEVE) theme.surface else Color.Black.copy(alpha = 0.2f)
+
     Column(
         modifier = modifier
-            .border(1.dp, color.copy(alpha = 0.4f), CyberCutShape)
-            .background(Color.Black.copy(alpha = 0.2f), CyberCutShape)
+            .border(1.dp, if (theme.mode == VisualMode.STEVE) theme.hairline else color.copy(alpha = 0.4f), CyberCutShape)
+            .background(pillBg, CyberCutShape)
             .padding(12.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, color = color, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
-            Icon(icon, contentDescription = null, tint = color.copy(alpha = 0.8f), modifier = Modifier.size(16.dp))
+            Text(label, color = pillColor, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+            Icon(icon, contentDescription = null, tint = pillColor.copy(alpha = 0.8f), modifier = Modifier.size(16.dp))
         }
         Spacer(Modifier.height(8.dp))
-        Text(value, color = color, fontSize = 22.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Black)
+        Text(value, color = pillColor, fontSize = 22.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Black)
     }
 }
 
@@ -476,6 +492,7 @@ fun DashboardScreen(
     onNavigateToWorkout: (String?) -> Unit = {},
     onNavigateToGuide: () -> Unit = {}
 ) {
+    val theme = LocalNeonTheme.current
     val userCharacter by viewModel.userCharacter.collectAsState()
     val weatherState by viewModel.weatherState.collectAsState()
     val systemAdvice by viewModel.systemAdvice.collectAsState()
@@ -488,7 +505,7 @@ fun DashboardScreen(
     val neuralLoad = userCharacter?.neuralLoad ?: 0.2f
     
     val systemColor by animateColorAsState(
-        targetValue = if (neuralLoad > 0.7f) Color(0xFFFF006E) else Color(0xFF00FF9C),
+        targetValue = if (theme.mode == VisualMode.STEVE) theme.ink else if (neuralLoad > 0.7f) Color(0xFFFF006E) else Color(0xFF00FF9C),
         animationSpec = tween(500),
         label = "SystemColor"
     )
@@ -504,9 +521,11 @@ fun DashboardScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF010101))) {
+    Box(modifier = Modifier.fillMaxSize().background(theme.canvas)) {
         SoftGridBackground()
-        Vignette()
+        if (theme.mode == VisualMode.CYBER) {
+            Vignette()
+        }
         
         HudCornerAccents(color = systemColor.copy(alpha = 0.1f))
 
@@ -662,6 +681,7 @@ fun AiTerminal(
     accentColor: Color,
     onGuideClick: () -> Unit = {}
 ) {
+    val theme = LocalNeonTheme.current
     CyberCutFrame(
         modifier = if (!isExpanded) Modifier.clickable { onToggleExpand() } else Modifier,
         borderColor = accentColor.copy(alpha = 0.2f)
@@ -671,14 +691,14 @@ fun AiTerminal(
             Box(
                 modifier = Modifier
                     .size(8.dp)
-                    .background(Color(0xFF00F5FF), CircleShape)
+                    .background(if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00F5FF), CircleShape)
                     .align(Alignment.TopEnd)
             )
 
             Column(modifier = Modifier.fillMaxWidth().animateContentSize()) {
                 Text(
                     text = "AI_TERMINAL // CYBR-TES",
-                    color = Color.White.copy(alpha = 0.6f),
+                    color = theme.ink.copy(alpha = 0.6f),
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace,
                     modifier = Modifier.padding(bottom = 10.dp)
@@ -703,7 +723,7 @@ fun AiTerminal(
                             Spacer(Modifier.width(10.dp))
                             Text(
                                 "[NEON_GUIDE]",
-                                color = Color(0xFF00FFFF),
+                                color = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00FFFF),
                                 fontSize = 11.sp,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Black,
@@ -733,7 +753,7 @@ fun AiTerminal(
                         messages.forEach { msg ->
                             Text(
                                 text = if (msg.isFromUser) "> ${msg.text}" else "CYBR-TES: ${msg.text}",
-                                color = if (msg.isFromUser) Color.White else accentColor,
+                                color = if (msg.isFromUser) theme.ink else accentColor,
                                 fontSize = 13.sp,
                                 fontFamily = FontFamily.Monospace,
                                 modifier = Modifier.padding(vertical = 6.dp)
@@ -745,14 +765,14 @@ fun AiTerminal(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(10.dp)
-                            .background(Color.Black.copy(alpha = 0.4f)),
+                            .background(theme.surface.copy(alpha = 0.4f)),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         BasicTextField(
                             value = inputValue,
                             onValueChange = onInputChange,
                             textStyle = TextStyle(
-                                color = Color.White,
+                                color = theme.ink,
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 13.sp
                             ),
@@ -762,7 +782,7 @@ fun AiTerminal(
                                 if (inputValue.isEmpty()) {
                                     Text(
                                         "ENTER_COMMAND...",
-                                        color = Color.White.copy(alpha = 0.3f),
+                                        color = theme.ink.copy(alpha = 0.3f),
                                         fontSize = 13.sp,
                                         fontFamily = FontFamily.Monospace
                                     )
@@ -782,7 +802,7 @@ fun AiTerminal(
                 } else {
                     Text(
                         text = messages.lastOrNull()?.text ?: "WAITING_FOR_INPUT...",
-                        color = Color.White,
+                        color = theme.ink,
                         fontSize = 12.sp,
                         fontFamily = FontFamily.Monospace,
                         maxLines = 1,
@@ -804,12 +824,13 @@ fun AllTasksDialog(
     onDismiss: () -> Unit,
     systemColor: Color
 ) {
+    val theme = LocalNeonTheme.current
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color(0xFF0F0F0F))
+                .background(theme.canvas)
                 .border(2.dp, systemColor, RoundedCornerShape(8.dp))
                 .padding(24.dp)
         ) {
@@ -857,7 +878,7 @@ fun AllTasksDialog(
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = systemColor)
                 ) {
-                    Text("CLOSE", color = Color.Black, fontWeight = FontWeight.Bold)
+                    Text("CLOSE", color = theme.canvas, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -866,13 +887,17 @@ fun AllTasksDialog(
 
 @Composable
 fun DashboardTaskItem(task: AscensionTask, onComplete: () -> Unit, onClick: () -> Unit, isWorkout: Boolean = false) {
+    val theme = LocalNeonTheme.current
     val isCompleted = task.lastCompleted != null && 
         task.lastCompleted!!.atZone(ZoneId.systemDefault()).toLocalDate() == LocalDate.now()
+    
+    val workoutColor = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00CCFF)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.Black.copy(alpha = 0.4f))
-            .border(1.dp, if (isWorkout) Color(0xFF00CCFF).copy(alpha = 0.5f) else if (isCompleted) Color(0xFF00FF9C).copy(alpha = 0.3f) else Color.White.copy(alpha = 0.1f))
+            .background(theme.overlay)
+            .border(1.dp, if (isWorkout) workoutColor.copy(alpha = 0.5f) else if (isCompleted) theme.ink.copy(alpha = 0.3f) else theme.ink.copy(alpha = 0.1f))
             .clickable { if (!isCompleted) onClick() }
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -884,12 +909,12 @@ fun DashboardTaskItem(task: AscensionTask, onComplete: () -> Unit, onClick: () -
             Box(
                 modifier = Modifier
                     .size(18.dp)
-                    .border(1.dp, if (isCompleted) Color(0xFF00FF9C) else Color.White.copy(alpha = 0.4f))
-                    .background(if (isCompleted) Color(0xFF00FF9C).copy(alpha = 0.2f) else Color.Transparent),
+                    .border(1.dp, if (isCompleted) theme.ink else theme.ink.copy(alpha = 0.4f))
+                    .background(if (isCompleted) theme.ink.copy(alpha = 0.2f) else Color.Transparent),
                 contentAlignment = Alignment.Center
             ) {
                 if (isCompleted) {
-                    Icon(Icons.Default.Favorite, contentDescription = null, tint = Color(0xFF00FF9C), modifier = Modifier.size(12.dp))
+                    Icon(Icons.Default.Favorite, contentDescription = null, tint = theme.ink, modifier = Modifier.size(12.dp))
                 }
             }
         }
@@ -903,7 +928,7 @@ fun DashboardTaskItem(task: AscensionTask, onComplete: () -> Unit, onClick: () -
             
             Text(
                 displayTitle,
-                color = if (isCompleted) Color.Gray else Color.White,
+                color = if (isCompleted) theme.inkMuted else theme.ink,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontFamily = FontFamily.Monospace,
                     textDecoration = if (isCompleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else null
@@ -912,7 +937,7 @@ fun DashboardTaskItem(task: AscensionTask, onComplete: () -> Unit, onClick: () -
             if (isWorkout && !isCompleted) {
                 Text(
                     "LOG SESSION >>",
-                    color = Color(0xFF00CCFF),
+                    color = workoutColor,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold
@@ -923,27 +948,29 @@ fun DashboardTaskItem(task: AscensionTask, onComplete: () -> Unit, onClick: () -
 }
 
 @Composable
-fun DashboardMissionCardV3(mission: AscensionMission, accentColor: Color = Color(0xFFFF006E)) {
+fun DashboardMissionCardV3(mission: AscensionMission, accentColor: Color? = null) {
+    val theme = LocalNeonTheme.current
+    val finalAccent = accentColor ?: theme.secondary
     CyberFrame(
         label = "MISSION // ${mission.title.uppercase()}",
-        borderColor = accentColor.copy(alpha = 0.4f)
+        borderColor = finalAccent.copy(alpha = 0.4f)
     ) {
         Column {
             Text(
                 mission.description,
-                color = Color.White.copy(alpha = 0.8f),
+                color = theme.ink.copy(alpha = 0.8f),
                 style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                 modifier = Modifier.padding(bottom = 8.dp)
             )
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
                     "STATUS: ${mission.status}",
-                    color = Color.White,
+                    color = theme.ink,
                     style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace)
                 )
                 Text(
                     "${(mission.progress * 100).toInt()}%",
-                    color = accentColor,
+                    color = finalAccent,
                     style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                 )
             }
@@ -952,13 +979,13 @@ fun DashboardMissionCardV3(mission: AscensionMission, accentColor: Color = Color
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(4.dp)
-                    .background(Color.White.copy(alpha = 0.1f))
+                    .background(theme.ink.copy(alpha = 0.1f))
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(mission.progress)
                         .fillMaxHeight()
-                        .background(accentColor)
+                        .background(finalAccent)
                 )
             }
         }
@@ -967,17 +994,19 @@ fun DashboardMissionCardV3(mission: AscensionMission, accentColor: Color = Color
 
 @Composable
 fun BioAgeDashboardCard(result: com.neon.ascent.model.BioAgeResult, modifier: Modifier = Modifier) {
+    val theme = LocalNeonTheme.current
+    val accentColor = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00FFFF)
     CyberFrame(
         label = "BIOLOGICAL_AGE_SCAN",
-        accentColor = Color(0xFF00FFFF),
-        borderColor = Color(0xFF00FFFF).copy(alpha = 0.6f),
+        accentColor = accentColor,
+        borderColor = accentColor.copy(alpha = 0.6f),
         modifier = modifier
     ) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = String.format(java.util.Locale.US, "%.1f", result.biologicalAge),
-                    color = Color(0xFF00FFFF),
+                    color = accentColor,
                     style = MaterialTheme.typography.headlineMedium.copy(
                         fontWeight = FontWeight.Black,
                         fontFamily = FontFamily.Monospace
@@ -986,13 +1015,13 @@ fun BioAgeDashboardCard(result: com.neon.ascent.model.BioAgeResult, modifier: Mo
                 Spacer(Modifier.width(8.dp))
                 Text(
                     "YEARS_OLD",
-                    color = Color.White.copy(alpha = 0.6f),
+                    color = theme.ink.copy(alpha = 0.6f),
                     style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace)
                 )
             }
             Text(
                 result.explanation.take(100) + "...",
-                color = Color.White.copy(alpha = 0.8f),
+                color = theme.ink.copy(alpha = 0.8f),
                 style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                 modifier = Modifier.padding(top = 8.dp)
             )

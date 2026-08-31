@@ -16,8 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.neon.ascent.core.common.NeonCyan
-import com.neon.ascent.core.common.NeonPink
+import com.neon.ascent.core.common.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,6 +26,7 @@ fun AscensionReviewScreen(
     viewModel: AscensionReviewViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val theme = LocalNeonTheme.current
 
     LaunchedEffect(directiveId) {
         viewModel.loadReview(directiveId)
@@ -38,31 +38,36 @@ fun AscensionReviewScreen(
                 title = { Text("CYBR-TES // DIALECTIC_REVIEW", fontFamily = FontFamily.Monospace) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = NeonCyan)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = theme.accent)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = theme.canvas,
+                    titleContentColor = theme.accent
+                )
             )
-        }
+        },
+        containerColor = theme.canvas
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color.Black)
+                .background(theme.canvas)
                 .padding(20.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             CyberFrame(
                 label = "OPERATOR: ${uiState.directive?.title?.uppercase() ?: "UNKNOWN"}",
-                accentColor = NeonPink
+                accentColor = theme.secondary
             ) {
                 if (uiState.isLoading) {
-                    CircularProgressIndicator(color = NeonCyan, modifier = Modifier.padding(24.dp))
+                    CircularProgressIndicator(color = theme.accent, modifier = Modifier.padding(24.dp))
                 } else {
                     Text(
                         text = uiState.reviewText,
-                        color = Color.White,
+                        color = theme.ink,
                         fontFamily = FontFamily.Monospace,
                         fontSize = 14.sp,
                         lineHeight = 20.sp,
@@ -76,7 +81,7 @@ fun AscensionReviewScreen(
             if (!uiState.isLoading) {
                 Text(
                     "\"The unexamined life is not worth jacking in.\"",
-                    color = Color.Gray,
+                    color = theme.inkMuted,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold

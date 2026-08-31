@@ -58,7 +58,7 @@ fun WorkoutSettingsScreen(
                 letterSpacing = 2.sp
             )
             TextButton(onClick = onSave) {
-                Text("SAVE", color = Color(0xFF00FF9C), fontWeight = FontWeight.Bold)
+                Text("SAVE", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -71,7 +71,7 @@ fun WorkoutSettingsScreen(
         ) {
             // Category: INTELLIGENT SEQUENCE
             item {
-                SettingsCategoryHeader("INTELLIGENT SEQUENCE", Color(0xFF00FF9C))
+                SettingsCategoryHeader("INTELLIGENT SEQUENCE", MaterialTheme.colorScheme.primary)
                 
                 SettingsToggleRow(
                     label = "Dashboard Sequencer",
@@ -95,10 +95,10 @@ fun WorkoutSettingsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             color = Color(0xFF1C1C1E),
                             shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.3f))
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
                         ) {
                             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Adjust, contentDescription = null, tint = Color(0xFF00FF9C))
+                                Icon(Icons.Default.Adjust, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                 Spacer(Modifier.width(16.dp))
                                 Column {
                                     Text("Protocol Managed", color = Color.White, fontWeight = FontWeight.Bold)
@@ -124,7 +124,7 @@ fun WorkoutSettingsScreen(
                                 shape = RoundedCornerShape(8.dp)
                             ) {
                                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Text("${index + 1}", color = Color(0xFF00FF9C), fontWeight = FontWeight.Black, modifier = Modifier.width(24.dp))
+                                    Text("${index + 1}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Black, modifier = Modifier.width(24.dp))
                                     Text(routineName, color = Color.White, fontSize = 14.sp)
                                 }
                             }
@@ -302,8 +302,8 @@ fun SettingsToggleRow(label: String, description: String, checked: Boolean, onCh
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = Color(0xFF00FF9C),
-                checkedTrackColor = Color(0xFF00FF9C).copy(alpha = 0.3f)
+                checkedThumbColor = MaterialTheme.colorScheme.primary,
+                checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
             )
         )
     }

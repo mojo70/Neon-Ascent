@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neon.ascent.core.lore.data.Megacorp
 import com.neon.ascent.core.common.neonBorder
-import com.neon.ascent.ui.theme.LocalNeonTheme
+import com.neon.ascent.core.common.*
 
 @Composable
 fun CeoContactCard(

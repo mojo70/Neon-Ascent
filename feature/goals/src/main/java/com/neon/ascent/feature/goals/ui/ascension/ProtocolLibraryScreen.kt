@@ -21,8 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.neon.ascent.core.common.NeonCyan
-import com.neon.ascent.core.common.NeonPink
+import com.neon.ascent.core.common.*
 import com.neon.ascent.core.domain.goals.models.Protocol
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,6 +32,7 @@ fun ProtocolLibraryScreen(
     viewModel: ProtocolLibraryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val theme = LocalNeonTheme.current
 
     Scaffold(
         topBar = {
@@ -40,11 +40,16 @@ fun ProtocolLibraryScreen(
                 title = { Text("PROTOCOLS // CANONICAL_INDEX", fontFamily = FontFamily.Monospace) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = NeonCyan)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = theme.accent)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = theme.canvas,
+                    titleContentColor = theme.accent
+                )
             )
-        }
+        },
+        containerColor = theme.canvas
     ) { padding ->
         Column(
             modifier = Modifier
@@ -57,11 +62,13 @@ fun ProtocolLibraryScreen(
                 value = uiState.searchQuery,
                 onValueChange = viewModel::updateSearchQuery,
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("SEARCH_PROTOCOLS...", color = Color.Gray, fontSize = 12.sp) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = NeonCyan) },
+                placeholder = { Text("SEARCH_PROTOCOLS...", color = theme.inkMuted, fontSize = 12.sp) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = theme.accent) },
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = NeonCyan,
-                    unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f)
+                    focusedBorderColor = theme.accent,
+                    unfocusedBorderColor = theme.inkMuted.copy(alpha = 0.5f),
+                    unfocusedContainerColor = theme.surface,
+                    focusedContainerColor = theme.surface
                 ),
                 shape = RoundedCornerShape(4.dp)
             )
@@ -78,8 +85,10 @@ fun ProtocolLibraryScreen(
                         onClick = { viewModel.selectCategory(if (category == "All") null else category) },
                         label = { Text(category.uppercase(), fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = NeonCyan.copy(alpha = 0.2f),
-                            selectedLabelColor = NeonCyan
+                            selectedContainerColor = theme.accent.copy(alpha = 0.2f),
+                            selectedLabelColor = theme.accent,
+                            containerColor = theme.surface,
+                            labelColor = theme.inkMuted
                         )
                     )
                 }
@@ -89,7 +98,7 @@ fun ProtocolLibraryScreen(
 
             if (uiState.isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = NeonCyan)
+                    CircularProgressIndicator(color = theme.accent)
                 }
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -104,12 +113,13 @@ fun ProtocolLibraryScreen(
 
 @Composable
 fun ProtocolCard(protocol: Protocol, onClick: () -> Unit) {
+    val theme = LocalNeonTheme.current
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .border(1.dp, NeonCyan.copy(alpha = 0.3f), RoundedCornerShape(8.dp)),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF0A080C))
+            .border(1.dp, theme.accent.copy(alpha = 0.3f), RoundedCornerShape(8.dp)),
+        colors = CardDefaults.cardColors(containerColor = theme.surfaceRaised)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -119,20 +129,20 @@ fun ProtocolCard(protocol: Protocol, onClick: () -> Unit) {
             ) {
                 Text(
                     text = protocol.title,
-                    color = Color.White,
+                    color = theme.ink,
                     fontSize = 16.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold
                 )
                 Surface(
-                    color = NeonPink.copy(alpha = 0.1f),
+                    color = theme.secondary.copy(alpha = 0.1f),
                     shape = RoundedCornerShape(4.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, NeonPink.copy(alpha = 0.5f))
+                    border = androidx.compose.foundation.BorderStroke(1.dp, theme.secondary.copy(alpha = 0.5f))
                 ) {
                     Text(
                         text = protocol.category.uppercase(),
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        color = NeonPink,
+                        color = theme.secondary,
                         fontSize = 8.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold
@@ -142,7 +152,7 @@ fun ProtocolCard(protocol: Protocol, onClick: () -> Unit) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = protocol.description,
-                color = Color.Gray,
+                color = theme.inkMuted,
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace
             )
@@ -151,7 +161,7 @@ fun ProtocolCard(protocol: Protocol, onClick: () -> Unit) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     "CANONICAL_STEPS:",
-                    color = NeonCyan.copy(alpha = 0.5f),
+                    color = theme.accent.copy(alpha = 0.5f),
                     fontSize = 9.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold
@@ -159,7 +169,7 @@ fun ProtocolCard(protocol: Protocol, onClick: () -> Unit) {
                 protocol.canonicalSteps.take(3).forEach { step ->
                     Text(
                         text = "• $step",
-                        color = Color.LightGray,
+                        color = theme.ink.copy(alpha = 0.7f),
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace,
                         modifier = Modifier.padding(start = 4.dp, top = 2.dp)
@@ -175,7 +185,7 @@ fun ProtocolCard(protocol: Protocol, onClick: () -> Unit) {
             ) {
                 Text(
                     text = "SOURCE: ${protocol.source}",
-                    color = NeonCyan.copy(alpha = 0.7f),
+                    color = theme.accent.copy(alpha = 0.7f),
                     fontSize = 9.sp,
                     fontFamily = FontFamily.Monospace
                 )
@@ -183,7 +193,7 @@ fun ProtocolCard(protocol: Protocol, onClick: () -> Unit) {
                 Button(
                     onClick = onClick,
                     modifier = Modifier.height(28.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = Color.Black),
+                    colors = ButtonDefaults.buttonColors(containerColor = theme.accent, contentColor = theme.canvas),
                     shape = RoundedCornerShape(2.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp)
                 ) {

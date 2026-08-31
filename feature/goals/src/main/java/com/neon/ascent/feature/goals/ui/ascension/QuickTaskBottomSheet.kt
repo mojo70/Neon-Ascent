@@ -24,9 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.neon.ascent.core.common.NeonCyan
-import com.neon.ascent.core.common.NeonPink
-import com.neon.ascent.core.common.neonBorder
+import com.neon.ascent.core.common.*
 import com.neon.ascent.core.domain.goals.models.AscensionDirective
 import com.neon.ascent.core.domain.goals.models.AscensionMission
 import com.neon.ascent.core.domain.goals.models.RecurrenceTypeV3
@@ -44,6 +42,7 @@ fun QuickTaskBottomSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
+    val theme = LocalNeonTheme.current
 
     // Fields
     var title by remember { mutableStateOf("") }
@@ -91,20 +90,21 @@ fun QuickTaskBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Color(0xFF020508),
-        scrimColor = Color.Black.copy(alpha = 0.85f),
+        containerColor = theme.canvas,
+        scrimColor = Color.Black.copy(alpha = 0.6f),
         dragHandle = {
             Box(
                 modifier = Modifier
                     .padding(vertical = 12.dp)
                     .size(40.dp, 4.dp)
-                    .background(NeonCyan.copy(alpha = 0.5f), RoundedCornerShape(2.dp))
+                    .background(theme.accent.copy(alpha = 0.5f), RoundedCornerShape(2.dp))
             )
         }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(theme.canvas)
                 .padding(horizontal = 16.dp, vertical = 8.dp)
                 .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
@@ -119,7 +119,7 @@ fun QuickTaskBottomSheet(
                     Text(
                         text = "NEW PULSE",
                         style = MaterialTheme.typography.titleMedium.copy(
-                            color = NeonPink,
+                            color = theme.secondary,
                             fontWeight = FontWeight.ExtraBold,
                             fontFamily = FontFamily.Monospace,
                             letterSpacing = 2.sp
@@ -128,21 +128,21 @@ fun QuickTaskBottomSheet(
                     Text(
                         text = "INITIALIZING_PULSE_SYNC_V3",
                         style = MaterialTheme.typography.labelSmall.copy(
-                            color = NeonCyan.copy(alpha = 0.7f),
+                            color = theme.accent.copy(alpha = 0.7f),
                             fontFamily = FontFamily.Monospace
                         )
                     )
                 }
 
                 IconButton(onClick = onDismiss) {
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = NeonCyan)
+                    Icon(Icons.Default.Close, contentDescription = "Close", tint = theme.accent)
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             // MAIN TITLE FIELD
-            CyberFrame(label = "CORE_IDENTIFIER", accentColor = NeonPink) {
+            CyberFrame(label = "CORE_IDENTIFIER", accentColor = theme.secondary) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = title,
@@ -153,7 +153,7 @@ fun QuickTaskBottomSheet(
                         placeholder = {
                             Text(
                                 "e.g. Drink 16oz water upon waking",
-                                color = Color.Gray,
+                                color = theme.inkMuted,
                                 fontFamily = FontFamily.Monospace
                             )
                         },
@@ -161,13 +161,13 @@ fun QuickTaskBottomSheet(
                             .fillMaxWidth()
                             .focusRequester(focusRequester),
                         textStyle = MaterialTheme.typography.bodyLarge.copy(
-                            color = Color.White,
+                            color = theme.ink,
                             fontFamily = FontFamily.Monospace
                         ),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = NeonPink,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
-                            cursorColor = NeonPink
+                            focusedBorderColor = theme.secondary,
+                            unfocusedBorderColor = theme.ink.copy(alpha = 0.1f),
+                            cursorColor = theme.secondary
                         ),
                         singleLine = true
                     )
@@ -176,21 +176,21 @@ fun QuickTaskBottomSheet(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color.Black.copy(alpha = 0.3f))
-                            .border(1.dp, NeonCyan.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                            .background(theme.surface)
+                            .border(1.dp, theme.accent.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
                             .padding(8.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.Psychology,
                                 contentDescription = null,
-                                tint = NeonCyan,
+                                tint = theme.accent,
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = typedSuggestion,
-                                color = NeonCyan,
+                                color = theme.accent,
                                 fontSize = 11.sp,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold
@@ -203,27 +203,27 @@ fun QuickTaskBottomSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             // DESCRIPTION (Optional)
-            CyberFrame(label = "INTERFACE_DESCR", accentColor = NeonCyan) {
+            CyberFrame(label = "INTERFACE_DESCR", accentColor = theme.accent) {
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
                     placeholder = {
                         Text(
                             "Enter sub-system objectives...",
-                            color = Color.Gray,
+                            color = theme.inkMuted,
                             fontSize = 12.sp,
                             fontFamily = FontFamily.Monospace
                         )
                     },
                     modifier = Modifier.fillMaxWidth(),
                     textStyle = MaterialTheme.typography.bodySmall.copy(
-                        color = Color.White,
+                        color = theme.ink,
                         fontFamily = FontFamily.Monospace
                     ),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = NeonCyan,
-                        unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
-                        cursorColor = NeonCyan
+                        focusedBorderColor = theme.accent,
+                        unfocusedBorderColor = theme.ink.copy(alpha = 0.1f),
+                        cursorColor = theme.accent
                     )
                 )
             }
@@ -231,7 +231,7 @@ fun QuickTaskBottomSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             // PARENT HIERARCHY SELECTOR
-            CyberFrame(label = "DIRECTIVE_AFFINITY", accentColor = NeonCyan) {
+            CyberFrame(label = "DIRECTIVE_AFFINITY", accentColor = theme.accent) {
                 Box(modifier = Modifier.fillMaxWidth()) {
                     val parentName = when {
                         selectedParentId == null -> "Standalone (Neural Node)"
@@ -247,8 +247,8 @@ fun QuickTaskBottomSheet(
                     OutlinedButton(
                         onClick = { showParentDropdown = true },
                         modifier = Modifier.fillMaxWidth(),
-                        border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.4f)),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                        border = BorderStroke(1.dp, theme.accent.copy(alpha = 0.4f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = theme.ink)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -259,12 +259,12 @@ fun QuickTaskBottomSheet(
                                 text = parentName.uppercase(),
                                 fontSize = 11.sp,
                                 fontFamily = FontFamily.Monospace,
-                                color = if (selectedParentId == null) Color.Gray else NeonCyan
+                                color = if (selectedParentId == null) theme.inkMuted else theme.accent
                             )
                             Icon(
                                 imageVector = if (showParentDropdown) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
                                 contentDescription = null,
-                                tint = NeonCyan
+                                tint = theme.accent
                             )
                         }
                     }
@@ -274,15 +274,15 @@ fun QuickTaskBottomSheet(
                         onDismissRequest = { showParentDropdown = false },
                         modifier = Modifier
                             .fillMaxWidth(0.9f)
-                            .background(Color(0xFF050B14))
-                            .border(1.dp, NeonCyan)
+                            .background(theme.surface)
+                            .border(1.dp, theme.accent)
                     ) {
                         DropdownMenuItem(
                             text = {
                                 Text(
                                     "NEURAL_NODE (STANDALONE)",
                                     fontFamily = FontFamily.Monospace,
-                                    color = Color.White,
+                                    color = theme.ink,
                                     fontSize = 11.sp
                                 )
                             },
@@ -293,11 +293,11 @@ fun QuickTaskBottomSheet(
                         )
 
                         if (directives.isNotEmpty()) {
-                            HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                            HorizontalDivider(color = theme.ink.copy(alpha = 0.1f))
                             Box(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
                                 Text(
                                     "DIRECTIVES",
-                                    color = NeonPink,
+                                    color = theme.secondary,
                                     fontSize = 9.sp,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Bold
@@ -309,7 +309,7 @@ fun QuickTaskBottomSheet(
                                         Text(
                                             directive.title.uppercase(),
                                             fontFamily = FontFamily.Monospace,
-                                            color = Color.White,
+                                            color = theme.ink,
                                             fontSize = 11.sp
                                         )
                                     },
@@ -322,11 +322,11 @@ fun QuickTaskBottomSheet(
                         }
 
                         if (missions.isNotEmpty()) {
-                            HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                            HorizontalDivider(color = theme.ink.copy(alpha = 0.1f))
                             Box(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
                                 Text(
                                     "MISSIONS",
-                                    color = NeonCyan,
+                                    color = theme.accent,
                                     fontSize = 9.sp,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Bold
@@ -338,7 +338,7 @@ fun QuickTaskBottomSheet(
                                         Text(
                                             mission.title.uppercase(),
                                             fontFamily = FontFamily.Monospace,
-                                            color = Color.White,
+                                            color = theme.ink,
                                             fontSize = 11.sp
                                         )
                                     },
@@ -356,7 +356,7 @@ fun QuickTaskBottomSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             // RECURRENCE & TIMING PRESETS
-            CyberFrame(label = "PULSE_PATTERN", accentColor = NeonPink) {
+            CyberFrame(label = "PULSE_PATTERN", accentColor = theme.secondary) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     // Segmented Button Mode selector (One-Time / Recurring Daily / Weekdays)
                     Row(
@@ -372,10 +372,10 @@ fun QuickTaskBottomSheet(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .background(if (isSelected) NeonPink.copy(alpha = 0.15f) else Color.Transparent)
+                                    .background(if (isSelected) theme.secondary.copy(alpha = 0.15f) else Color.Transparent)
                                     .border(
                                         1.dp,
-                                        if (isSelected) NeonPink else Color.White.copy(alpha = 0.1f),
+                                        if (isSelected) theme.secondary else theme.ink.copy(alpha = 0.1f),
                                         RoundedCornerShape(4.dp)
                                     )
                                     .clickable {
@@ -389,7 +389,7 @@ fun QuickTaskBottomSheet(
                             ) {
                                 Text(
                                     text = label.uppercase(),
-                                    color = if (isSelected) NeonPink else Color.Gray,
+                                    color = if (isSelected) theme.secondary else theme.inkMuted,
                                     fontSize = 10.sp,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Bold
@@ -398,7 +398,7 @@ fun QuickTaskBottomSheet(
                         }
                     }
 
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+                    HorizontalDivider(color = theme.ink.copy(alpha = 0.05f))
 
                     // TIME WINDOWS
                     Row(
@@ -408,7 +408,7 @@ fun QuickTaskBottomSheet(
                     ) {
                         Text(
                             "TIME_WINDOW:",
-                            color = Color.Gray,
+                            color = theme.inkMuted,
                             fontSize = 10.sp,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold
@@ -418,10 +418,10 @@ fun QuickTaskBottomSheet(
                                 val isSelected = selectedTimeWindow == window
                                 Box(
                                     modifier = Modifier
-                                        .background(if (isSelected) NeonCyan.copy(alpha = 0.15f) else Color.Transparent)
+                                        .background(if (isSelected) theme.accent.copy(alpha = 0.15f) else Color.Transparent)
                                         .border(
                                             1.dp,
-                                            if (isSelected) NeonCyan else Color.White.copy(alpha = 0.1f),
+                                            if (isSelected) theme.accent else theme.ink.copy(alpha = 0.1f),
                                             RoundedCornerShape(2.dp)
                                         )
                                         .clickable { selectedTimeWindow = window }
@@ -429,7 +429,7 @@ fun QuickTaskBottomSheet(
                                 ) {
                                     Text(
                                         text = window.uppercase(),
-                                        color = if (isSelected) NeonCyan else Color.Gray,
+                                        color = if (isSelected) theme.accent else theme.inkMuted,
                                         fontSize = 8.sp,
                                         fontFamily = FontFamily.Monospace,
                                         fontWeight = FontWeight.Bold
@@ -443,8 +443,8 @@ fun QuickTaskBottomSheet(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color.White.copy(alpha = 0.02f))
-                            .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(4.dp))
+                            .background(theme.ink.copy(alpha = 0.02f))
+                            .border(1.dp, theme.ink.copy(alpha = 0.05f), RoundedCornerShape(4.dp))
                             .padding(10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -452,14 +452,14 @@ fun QuickTaskBottomSheet(
                         Column {
                             Text(
                                 "ADAPTIVE_WAKE",
-                                color = Color.White,
+                                color = theme.ink,
                                 fontSize = 11.sp,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
                                 "Align schedule to neural bio-rhythms",
-                                color = Color.Gray,
+                                color = theme.inkMuted,
                                 fontSize = 9.sp,
                                 fontFamily = FontFamily.Monospace
                             )
@@ -468,10 +468,10 @@ fun QuickTaskBottomSheet(
                             checked = adaptiveWakeEnabled,
                             onCheckedChange = { adaptiveWakeEnabled = it },
                             colors = SwitchDefaults.colors(
-                                checkedThumbColor = NeonCyan,
-                                checkedTrackColor = NeonCyan.copy(alpha = 0.3f),
-                                uncheckedThumbColor = Color.Gray,
-                                uncheckedTrackColor = Color.Black
+                                checkedThumbColor = theme.accent,
+                                checkedTrackColor = theme.accent.copy(alpha = 0.3f),
+                                uncheckedThumbColor = theme.inkMuted,
+                                uncheckedTrackColor = theme.surface
                             )
                         )
                     }
@@ -481,7 +481,7 @@ fun QuickTaskBottomSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             // XP ALLOCATION
-            CyberFrame(label = "XP_ALLOCATION // MATRIX_VALUE", accentColor = NeonCyan) {
+            CyberFrame(label = "XP_ALLOCATION // MATRIX_VALUE", accentColor = theme.accent) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -490,7 +490,7 @@ fun QuickTaskBottomSheet(
                     ) {
                         Text(
                             "XP_VALUE: ${xpValue.toInt()} XP",
-                            color = NeonCyan,
+                            color = theme.accent,
                             fontSize = 12.sp,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold
@@ -500,14 +500,14 @@ fun QuickTaskBottomSheet(
                                 val isSelected = xpValue == xp
                                 Box(
                                     modifier = Modifier
-                                        .background(if (isSelected) NeonCyan.copy(alpha = 0.2f) else Color.Transparent)
-                                        .border(1.dp, if (isSelected) NeonCyan else Color.Gray)
+                                        .background(if (isSelected) theme.accent.copy(alpha = 0.2f) else Color.Transparent)
+                                        .border(1.dp, if (isSelected) theme.accent else theme.inkMuted)
                                         .clickable { xpValue = xp }
                                         .padding(horizontal = 8.dp, vertical = 2.dp)
                                 ) {
                                     Text(
                                         "${xp.toInt()}",
-                                        color = if (isSelected) NeonCyan else Color.White,
+                                        color = if (isSelected) theme.accent else theme.ink,
                                         fontSize = 10.sp,
                                         fontFamily = FontFamily.Monospace
                                     )
@@ -521,9 +521,9 @@ fun QuickTaskBottomSheet(
                         valueRange = 5f..30f,
                         steps = 4,
                         colors = SliderDefaults.colors(
-                            thumbColor = NeonCyan,
-                            activeTrackColor = NeonCyan,
-                            inactiveTrackColor = Color.White.copy(alpha = 0.1f)
+                            thumbColor = theme.accent,
+                            activeTrackColor = theme.accent,
+                            inactiveTrackColor = theme.ink.copy(alpha = 0.1f)
                         )
                     )
                 }
@@ -535,7 +535,7 @@ fun QuickTaskBottomSheet(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, Color.White.copy(alpha = 0.05f))
+                    .border(1.dp, theme.ink.copy(alpha = 0.05f))
                     .padding(8.dp)
             ) {
                 Row(
@@ -550,13 +550,13 @@ fun QuickTaskBottomSheet(
                         Icon(
                             imageVector = if (isAdvancedExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                             contentDescription = null,
-                            tint = NeonPink,
+                            tint = theme.secondary,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             "ADVANCED_PARAMETERS",
-                            color = NeonPink,
+                            color = theme.secondary,
                             fontSize = 10.sp,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold
@@ -564,7 +564,7 @@ fun QuickTaskBottomSheet(
                     }
                     Text(
                         if (isAdvancedExpanded) "CLOSE" else "OPEN",
-                        color = Color.Gray,
+                        color = theme.inkMuted,
                         fontSize = 9.sp,
                         fontFamily = FontFamily.Monospace
                     )
@@ -583,7 +583,7 @@ fun QuickTaskBottomSheet(
                         Column {
                             Text(
                                 "GRACE_BUFFER_DAYS: ${graceBufferDays.toInt()} DAYS",
-                                color = Color.White,
+                                color = theme.ink,
                                 fontSize = 10.sp,
                                 fontFamily = FontFamily.Monospace
                             )
@@ -593,9 +593,9 @@ fun QuickTaskBottomSheet(
                                 valueRange = 1f..7f,
                                 steps = 5,
                                 colors = SliderDefaults.colors(
-                                    thumbColor = NeonPink,
-                                    activeTrackColor = NeonPink,
-                                    inactiveTrackColor = Color.White.copy(alpha = 0.1f)
+                                    thumbColor = theme.secondary,
+                                    activeTrackColor = theme.secondary,
+                                    inactiveTrackColor = theme.ink.copy(alpha = 0.1f)
                                 )
                             )
                         }
@@ -606,8 +606,11 @@ fun QuickTaskBottomSheet(
                             onValueChange = { tagsInput = it },
                             label = { Text("TAGS (COMMA SEPARATED)", fontSize = 9.sp, fontFamily = FontFamily.Monospace) },
                             modifier = Modifier.fillMaxWidth(),
-                            textStyle = MaterialTheme.typography.bodySmall.copy(color = Color.White, fontFamily = FontFamily.Monospace),
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonPink)
+                            textStyle = MaterialTheme.typography.bodySmall.copy(color = theme.ink, fontFamily = FontFamily.Monospace),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = theme.secondary,
+                                unfocusedBorderColor = theme.ink.copy(alpha = 0.1f)
+                            )
                         )
 
                         // Notes Template
@@ -616,8 +619,11 @@ fun QuickTaskBottomSheet(
                             onValueChange = { userNotesTemplate = it },
                             label = { Text("REFLECTIVE NOTES TEMPLATE", fontSize = 9.sp, fontFamily = FontFamily.Monospace) },
                             modifier = Modifier.fillMaxWidth(),
-                            textStyle = MaterialTheme.typography.bodySmall.copy(color = Color.White, fontFamily = FontFamily.Monospace),
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonPink)
+                            textStyle = MaterialTheme.typography.bodySmall.copy(color = theme.ink, fontFamily = FontFamily.Monospace),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = theme.secondary,
+                                unfocusedBorderColor = theme.ink.copy(alpha = 0.1f)
+                            )
                         )
 
                         // Linked Archetype (Flavor)
@@ -626,8 +632,11 @@ fun QuickTaskBottomSheet(
                             onValueChange = { linkedArchetype = it },
                             label = { Text("LINKED ARCHETYPE TAG", fontSize = 9.sp, fontFamily = FontFamily.Monospace) },
                             modifier = Modifier.fillMaxWidth(),
-                            textStyle = MaterialTheme.typography.bodySmall.copy(color = Color.White, fontFamily = FontFamily.Monospace),
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonPink)
+                            textStyle = MaterialTheme.typography.bodySmall.copy(color = theme.ink, fontFamily = FontFamily.Monospace),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = theme.secondary,
+                                unfocusedBorderColor = theme.ink.copy(alpha = 0.1f)
+                            )
                         )
                     }
                 }
@@ -671,8 +680,8 @@ fun QuickTaskBottomSheet(
                             }
                         },
                         modifier = Modifier.weight(1f),
-                        border = BorderStroke(1.dp, NeonPink),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonPink),
+                        border = BorderStroke(1.dp, theme.secondary),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = theme.secondary),
                         shape = RoundedCornerShape(4.dp)
                     ) {
                         Text(
@@ -708,7 +717,7 @@ fun QuickTaskBottomSheet(
                             }
                         },
                         modifier = Modifier.weight(1.3f),
-                        colors = ButtonDefaults.buttonColors(containerColor = NeonPink, contentColor = Color.Black),
+                        colors = ButtonDefaults.buttonColors(containerColor = theme.secondary, contentColor = theme.canvas),
                         shape = RoundedCornerShape(4.dp),
                         enabled = title.isNotBlank()
                     ) {
@@ -741,16 +750,16 @@ fun QuickTaskBottomSheet(
                             }
                         }
                     },
-                    containerColor = NeonCyan,
-                    contentColor = Color.Black,
+                    containerColor = theme.accent,
+                    contentColor = theme.canvas,
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
                         .size(48.dp)
-                        .neonBorder(color = NeonCyan, width = 1.dp, cornerRadius = 24.dp),
+                        .neonBorder(color = theme.accent, width = 1.dp, cornerRadius = 24.dp),
                     shape = RoundedCornerShape(24.dp)
                 ) {
                     if (isAiGenerating) {
-                        CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(18.dp))
+                        CircularProgressIndicator(color = theme.canvas, modifier = Modifier.size(18.dp))
                     } else {
                         Icon(
                             imageVector = Icons.Default.AutoAwesome,

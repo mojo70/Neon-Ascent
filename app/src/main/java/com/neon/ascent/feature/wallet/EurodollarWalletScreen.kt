@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.neon.ascent.ui.theme.*
 import com.neon.ascent.core.common.*
 import com.neon.ascent.ui.*
 import com.neon.ascent.feature.dashboard.DashboardViewModel
@@ -26,6 +27,7 @@ fun EurodollarWalletScreen(
     onBack: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
+    val theme = LocalNeonTheme.current
     val char by viewModel.userCharacter.collectAsState()
     val walletAddress = if (char?.walletConnected == true) "0x742d35Cc6634C0532925a3b844Bc454e4438f44e" else "NOT_CONNECTED"
     val secureBalance = char?.secureEddies ?: 0
@@ -33,9 +35,11 @@ fun EurodollarWalletScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(theme.canvas)
     ) {
-        CyberGridBackground()
+        if (theme.mode == VisualMode.CYBER) {
+            CyberGridBackground()
+        }
         
         Column(
             modifier = Modifier
@@ -45,11 +49,11 @@ fun EurodollarWalletScreen(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF00FF9C))
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = theme.accent)
                 }
                 Text(
                     "EURODOLLAR_WALLET // SOLANA",
-                    color = Color(0xFF00FF9C),
+                    color = theme.accent,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Black
                 )
@@ -63,10 +67,10 @@ fun EurodollarWalletScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("SECURE BALANCE", color = Color.Gray, fontSize = 12.sp)
+                    Text("SECURE BALANCE", color = theme.inkMuted, fontSize = 12.sp)
                     Text(
                         "€$ $secureBalance.00 ED",
-                        color = Color.White,
+                        color = theme.ink,
                         fontSize = 36.sp,
                         fontWeight = FontWeight.Black
                     )
@@ -75,7 +79,7 @@ fun EurodollarWalletScreen(
                     
                     Text(
                         "WALLET: ${if (walletAddress.length > 12) walletAddress.take(6) + "..." + walletAddress.takeLast(6) else walletAddress}",
-                        color = Color(0xFF00FF9C).copy(alpha = 0.7f),
+                        color = theme.accent.copy(alpha = 0.7f),
                         fontSize = 10.sp
                     )
                 }
@@ -87,18 +91,18 @@ fun EurodollarWalletScreen(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Button(
                     onClick = { /* TODO: Connect Wallet Logic */ },
-                    modifier = Modifier.weight(1f).height(50.dp).clip(CyberButtonShape).border(1.dp, Color(0xFF00FF9C), CyberButtonShape),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0A0A0A))
+                    modifier = Modifier.weight(1f).height(50.dp).clip(CyberButtonShape).border(1.dp, theme.accent, CyberButtonShape),
+                    colors = ButtonDefaults.buttonColors(containerColor = theme.surface)
                 ) {
-                    Text(if (char?.walletConnected == true) "DISCONNECT" else "CONNECT", color = Color(0xFF00FF9C), fontWeight = FontWeight.Bold)
+                    Text(if (char?.walletConnected == true) "DISCONNECT" else "CONNECT", color = theme.accent, fontWeight = FontWeight.Bold)
                 }
                 
                 Button(
                     onClick = { /* Refresh Balance */ },
-                    modifier = Modifier.weight(1f).height(50.dp).clip(CyberButtonShape).border(1.dp, Color(0xFFFF006E), CyberButtonShape),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0A0A0A))
+                    modifier = Modifier.weight(1f).height(50.dp).clip(CyberButtonShape).border(1.dp, theme.secondary, CyberButtonShape),
+                    colors = ButtonDefaults.buttonColors(containerColor = theme.surface)
                 ) {
-                    Text("REFRESH", color = Color(0xFFFF006E), fontWeight = FontWeight.Bold)
+                    Text("REFRESH", color = theme.secondary, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -119,12 +123,12 @@ fun EurodollarWalletScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column {
-                                Text(tx.label, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                Text(tx.status, color = Color(0xFF00FF9C).copy(alpha = 0.5f), fontSize = 10.sp)
+                                Text(tx.label, color = theme.ink, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(tx.status, color = theme.accent.copy(alpha = 0.5f), fontSize = 10.sp)
                             }
                             Text(
                                 tx.amount, 
-                                color = if (tx.amount.startsWith("+")) Color(0xFF00FF9C) else Color(0xFFFF006E),
+                                color = if (tx.amount.startsWith("+")) theme.accent else theme.secondary,
                                 fontWeight = FontWeight.Black
                             )
                         }

@@ -28,7 +28,7 @@ import com.neon.ascent.core.lore.data.Megacorp
 import com.neon.ascent.ui.CyberFrame
 import com.neon.ascent.core.common.PerspectiveGrid
 import com.neon.ascent.core.common.cyberGlitch
-import com.neon.ascent.ui.theme.LocalNeonTheme
+import com.neon.ascent.core.common.*
 
 @Composable
 fun MegacorpDossierScreen(

@@ -74,8 +74,8 @@ fun AugmentActivationDialog(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF0D0D0D),
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.Gray) }
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)) }
     ) {
         Column(
             modifier = Modifier
@@ -85,20 +85,20 @@ fun AugmentActivationDialog(
         ) {
             Text(
                 augment.name.uppercase(),
-                color = Color(0xFF00FF9C),
+                color = MaterialTheme.colorScheme.primary,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 1.sp
             )
             Text(
                 "SUB-PROTOCOL CONFIGURATION",
-                color = Color.Gray,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 24.dp)
             )
 
-            Text("HOW DOES THIS RUN?", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Black)
+            Text("HOW DOES THIS RUN?", color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp, fontWeight = FontWeight.Black)
             Spacer(modifier = Modifier.height(12.dp))
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -124,7 +124,7 @@ fun AugmentActivationDialog(
 
             if (runMode != "JUST_TODAY") {
                 Spacer(modifier = Modifier.height(24.dp))
-                Text("FOCUS WINDOW. DEFAULT 30 DAYS. THEN REEVALUATE.", color = Color(0xFF00FF9C), fontSize = 11.sp, fontWeight = FontWeight.Black)
+                Text("FOCUS WINDOW. DEFAULT 30 DAYS. THEN REEVALUATE.", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp, fontWeight = FontWeight.Black)
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     LoggingStyleChip("30 DAYS", durationOption == "30_DAYS") { durationOption = "30_DAYS" }
@@ -142,13 +142,13 @@ fun AugmentActivationDialog(
                                 onValueChange = { customDays = it.toInt() },
                                 valueRange = 1f..90f,
                                 modifier = Modifier.weight(1f),
-                                colors = SliderDefaults.colors(thumbColor = Color(0xFF00FF9C), activeTrackColor = Color(0xFF00FF9C))
+                                colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary, activeTrackColor = MaterialTheme.colorScheme.primary)
                             )
-                            Text("$customDays DAYS", color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(start = 12.dp))
+                            Text("$customDays DAYS", color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp, modifier = Modifier.padding(start = 12.dp))
                         }
                     }
                     val endDate = LocalDate.now().plusDays(days.toLong())
-                    Text("ENDS ${endDate.format(DateTimeFormatter.ofPattern("dd MMM"))}", color = Color.Gray, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
+                    Text("ENDS ${endDate.format(DateTimeFormatter.ofPattern("dd MMM"))}", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
                 }
             }
 
@@ -156,7 +156,7 @@ fun AugmentActivationDialog(
 
             when (runMode) {
                 "SOLO" -> {
-                    Text("OWN CALENDAR", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Black)
+                    Text("OWN CALENDAR", color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp, fontWeight = FontWeight.Black)
                     Spacer(modifier = Modifier.height(12.dp))
                     DaySelectionRow(
                         selectedDays = scheduledDays,
@@ -165,7 +165,7 @@ fun AugmentActivationDialog(
                 }
                 "BOLT_ON" -> {
                     if (userProfile?.activeProtocol != null) {
-                        Text("ATTACH TO DAYS", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Black)
+                        Text("ATTACH TO DAYS", color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp, fontWeight = FontWeight.Black)
                         Spacer(modifier = Modifier.height(12.dp))
                         ProtocolDayFilterRow(
                             protocol = userProfile.activeProtocol!!,
@@ -175,13 +175,13 @@ fun AugmentActivationDialog(
                     }
                 }
                 "JUST_TODAY" -> {
-                    Text("No schedule required for ad hoc runs.", color = Color.Gray, fontSize = 12.sp)
+                    Text("No schedule required for ad hoc runs.", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 12.sp)
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text("LOGGING STYLE", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Black)
+            Text("LOGGING STYLE", color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp, fontWeight = FontWeight.Black)
             Spacer(modifier = Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 LoggingStyleChip("INHERIT", loggingStyle == AugmentLoggingStyle.INHERIT) { loggingStyle = AugmentLoggingStyle.INHERIT }
@@ -216,10 +216,10 @@ fun AugmentActivationDialog(
                             onDismiss()
                         },
                         modifier = Modifier.weight(1f).height(56.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("START NOW", color = Color.Black, fontWeight = FontWeight.Black, fontSize = 13.sp)
+                        Text("START NOW", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black, fontSize = 13.sp)
                     }
 
                     Button(
@@ -239,11 +239,11 @@ fun AugmentActivationDialog(
                             onDismiss()
                         },
                         modifier = Modifier.weight(1f).height(56.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C1C1E)),
-                        border = BorderStroke(1.dp, Color(0xFF00FF9C)),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("WAIT FOR ALARM", color = Color(0xFF00FF9C), fontWeight = FontWeight.Black, fontSize = 13.sp)
+                        Text("WAIT FOR ALARM", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Black, fontSize = 13.sp)
                     }
                 }
             } else {
@@ -277,12 +277,12 @@ fun AugmentActivationDialog(
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C)),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
                         if (runMode == "JUST_TODAY") "START AD HOC NOW" else "ACTIVATE SUB-PROTOCOL",
-                        color = Color.Black,
+                        color = MaterialTheme.colorScheme.onPrimary,
                         fontWeight = FontWeight.Black
                     )
                 }
@@ -297,20 +297,20 @@ fun ModeSelectionItem(title: String, description: String, isSelected: Boolean, o
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        color = if (isSelected) Color(0xFF00FF9C).copy(alpha = 0.1f) else Color(0xFF1C1C1E),
+        color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant,
         shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(1.dp, if (isSelected) Color(0xFF00FF9C) else Color.Transparent)
+        border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, color = if (isSelected) Color(0xFF00FF9C) else Color.White, fontSize = 14.sp, fontWeight = FontWeight.Black)
-                Text(description, color = Color.Gray, fontSize = 11.sp)
+                Text(title, color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface, fontSize = 14.sp, fontWeight = FontWeight.Black)
+                Text(description, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 11.sp)
             }
             if (isSelected) {
-                Icon(Icons.Default.Check, contentDescription = null, tint = Color(0xFF00FF9C))
+                Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
             }
         }
     }
@@ -320,13 +320,13 @@ fun ModeSelectionItem(title: String, description: String, isSelected: Boolean, o
 fun LoggingStyleChip(label: String, isSelected: Boolean, onClick: () -> Unit) {
     Surface(
         modifier = Modifier.clickable { onClick() },
-        color = if (isSelected) Color(0xFF00FF9C) else Color(0xFF2C2C2E),
+        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
         shape = RoundedCornerShape(4.dp)
     ) {
         Text(
             label,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-            color = if (isSelected) Color.Black else Color.White,
+            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold
         )
@@ -356,18 +356,18 @@ fun DaySelectionRow(selectedDays: List<ScheduledDay>, onDaysChanged: (List<Sched
                                 onDaysChanged(selectedDays + ScheduledDay(dayId, baseTime))
                             }
                         },
-                    color = if (isSelected) Color(0xFF00FF9C).copy(alpha = 0.2f) else Color(0xFF1C1C1E),
+                    color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant,
                     shape = CircleShape,
-                    border = BorderStroke(1.dp, if (isSelected) Color(0xFF00FF9C) else Color.Gray)
+                    border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Text(label, color = if (isSelected) Color(0xFF00FF9C) else Color.Gray, fontSize = 14.sp)
+                        Text(label, color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 14.sp)
                     }
                 }
                 if (scheduled != null) {
                     Text(
                         scheduled.time,
-                        color = Color(0xFF00FF9C),
+                        color = MaterialTheme.colorScheme.primary,
                         fontSize = 9.sp,
                         modifier = Modifier
                             .padding(top = 4.dp)
@@ -391,11 +391,11 @@ fun DaySelectionRow(selectedDays: List<ScheduledDay>, onDaysChanged: (List<Sched
                     val newTime = "%02d:%02d".format(timePickerState.hour, timePickerState.minute)
                     onDaysChanged(selectedDays.map { it.copy(time = newTime) })
                     showTimePickerForDay = null
-                }) { Text("OK", color = Color(0xFF00FF9C)) }
+                }) { Text("OK", color = MaterialTheme.colorScheme.primary) }
             },
-            title = { Text("SET TIME", color = Color.White) },
+            title = { Text("SET TIME", color = MaterialTheme.colorScheme.onSurface) },
             text = { TimePicker(state = timePickerState) },
-            containerColor = Color(0xFF1C1C1E)
+            containerColor = MaterialTheme.colorScheme.surface
         )
     }
 }
@@ -416,7 +416,7 @@ fun ProtocolDayFilterRow(protocol: WorkoutProtocol, selectedDayType: ProtocolDay
             selected = selectedDayType == null,
             onClick = { onDayTypeSelected(null) },
             label = { Text("ALL MAIN DAYS") },
-            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFF00FF9C))
+            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primary)
         )
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(dayTypes) { type ->
@@ -424,7 +424,7 @@ fun ProtocolDayFilterRow(protocol: WorkoutProtocol, selectedDayType: ProtocolDay
                     selected = selectedDayType == type,
                     onClick = { onDayTypeSelected(type) },
                     label = { Text(type.name.replace("_", " ")) },
-                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFF00FF9C))
+                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primary)
                 )
             }
         }

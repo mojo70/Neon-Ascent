@@ -94,7 +94,7 @@ import com.neon.ascent.feature.biohacking.ui.stilljack.StilljackScreen
 import com.neon.ascent.feature.biohacking.ui.hullpulse.HullPulseScreen
 import com.neon.ascent.feature.wallet.EurodollarWalletScreen
 import com.neon.ascent.core.domain.model.SpecialType
-import com.neon.ascent.core.common.cyberGlitch
+import com.neon.ascent.core.common.*
 import com.neon.ascent.data.AppSessionManager
 import com.neon.ascent.util.derivePersonalityArchetype
 import com.neon.ascent.ui.components.NeonBottomBar
@@ -108,6 +108,7 @@ fun AppNavigation(
     workoutViewModel: com.neon.ascent.feature.workout.ui.WorkoutViewModel = hiltViewModel(),
     loadingViewModel: com.neon.ascent.feature.loading.LoadingViewModel = hiltViewModel()
 ) {
+    val theme = LocalNeonTheme.current
     val navController = rememberNavController()
     val userCharacter by dashboardViewModel.userCharacter.collectAsState()
     val tickerMessages by dashboardViewModel.tickerMessages.collectAsState()
@@ -189,6 +190,7 @@ fun AppNavigation(
         }
         
         composable<Screen.MainHub> {
+            val theme = LocalNeonTheme.current
             val isReligionShortcutEnabled by dashboardViewModel.isReligionShortcutEnabled.collectAsState()
             val totalPages = if (isReligionShortcutEnabled) 7 else 6
             val deckIndex = if (isReligionShortcutEnabled) 3 else 2
@@ -205,6 +207,7 @@ fun AppNavigation(
             val opsIndex = if (isReligionShortcutEnabled) 6 else 5
 
             Scaffold(
+                containerColor = theme.canvas,
                 bottomBar = {
                     NeonBottomBar(
                         selectedIndex = pagerState.currentPage,

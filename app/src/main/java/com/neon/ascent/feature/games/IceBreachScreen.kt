@@ -28,6 +28,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.neon.ascent.core.common.*
+import com.neon.ascent.core.common.VisualMode
 import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.cos
@@ -42,11 +44,12 @@ fun IceBreachScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val userCharacter by viewModel.userCharacter.collectAsState()
+    val theme = LocalNeonTheme.current
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black),
+            .background(theme.canvas),
         contentAlignment = Alignment.Center
     ) {
         BreachBackground()
@@ -66,9 +69,9 @@ fun IceBreachScreen(
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                     shape = RoundedCornerShape(4.dp)
                 ) {
-                    Icon(Icons.Default.Close, contentDescription = "Abort", modifier = Modifier.size(14.dp))
+                    Icon(Icons.Default.Close, contentDescription = "Abort", modifier = Modifier.size(14.dp), tint = Color.Red)
                     Spacer(Modifier.width(4.dp))
-                    Text("ABORT", fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                    Text("ABORT", fontSize = 10.sp, fontFamily = FontFamily.Monospace, color = Color.Red)
                 }
             }
         }
@@ -113,15 +116,19 @@ fun IceBreachScreen(
 
 @Composable
 fun Phase1Screen(state: IceBreachUiState.Phase1, viewModel: IceBreachViewModel) {
+    val theme = LocalNeonTheme.current
+    val systemColor = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00FF9C)
+    val accentColor = if (theme.mode == VisualMode.STEVE) theme.secondary else Color(0xFFFF006E)
+
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("PHASE 1: FREQUENCY MATCH", color = Color.White, fontWeight = FontWeight.Bold)
+        Text("PHASE 1: FREQUENCY MATCH", color = theme.ink, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(32.dp))
         Box(modifier = Modifier.size(300.dp), contentAlignment = Alignment.Center) {
             Canvas(Modifier.fillMaxSize()) {
                 val center = Offset(size.width / 2, size.height / 2)
                 val radius = size.width / 2 - 20f
-                drawWave(center, radius, state.targetFreq, Color(0xFF00FF9C).copy(alpha = 0.5f))
-                drawWave(center, radius, state.currentFreq, Color(0xFFFF006E))
+                drawWave(center, radius, state.targetFreq, systemColor.copy(alpha = 0.5f))
+                drawWave(center, radius, state.currentFreq, accentColor)
             }
         }
         Slider(
@@ -129,34 +136,38 @@ fun Phase1Screen(state: IceBreachUiState.Phase1, viewModel: IceBreachViewModel) 
             onValueChange = { viewModel.updateFrequency(it) },
             valueRange = 0.1f..5f,
             modifier = Modifier.width(250.dp),
-            colors = SliderDefaults.colors(thumbColor = Color(0xFFFF006E), activeTrackColor = Color(0xFFFF006E).copy(alpha = 0.5f))
+            colors = SliderDefaults.colors(thumbColor = accentColor, activeTrackColor = accentColor.copy(alpha = 0.5f))
         )
         Button(
             onClick = { viewModel.submitPhase1() },
             colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-            modifier = Modifier.border(1.dp, Color(0xFF00FF9C), RoundedCornerShape(4.dp))
+            modifier = Modifier.border(1.dp, systemColor, RoundedCornerShape(4.dp))
         ) {
-            Text("LOCK FREQUENCY", color = Color(0xFF00FF9C))
+            Text("LOCK FREQUENCY", color = systemColor)
         }
     }
 }
 
 @Composable
 fun Phase2Screen(state: IceBreachUiState.Phase2, viewModel: IceBreachViewModel) {
+    val theme = LocalNeonTheme.current
+    val systemColor = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00FF9C)
+    val accentColor = if (theme.mode == VisualMode.STEVE) theme.secondary else Color(0xFFFF006E)
+
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("PHASE 2: NODAL BYPASS", color = Color.White, fontWeight = FontWeight.Bold)
+            Text("PHASE 2: NODAL BYPASS", color = theme.ink, fontWeight = FontWeight.Bold)
             Text(
                 "TRACE: ${state.remainingTime}s",
-                color = if (state.remainingTime < 5) Color.Red else Color(0xFFFFCC00),
+                color = if (state.remainingTime < 5) Color.Red else (if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFFFFCC00)),
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
-                modifier = Modifier.border(1.dp, if (state.remainingTime < 5) Color.Red else Color(0xFFFFCC00)).padding(horizontal = 8.dp, vertical = 2.dp)
+                modifier = Modifier.border(1.dp, if (state.remainingTime < 5) Color.Red else (if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFFFFCC00))).padding(horizontal = 8.dp, vertical = 2.dp)
             )
         }
         Spacer(Modifier.height(16.dp))
@@ -164,18 +175,18 @@ fun Phase2Screen(state: IceBreachUiState.Phase2, viewModel: IceBreachViewModel) 
             state.targetSequences.forEachIndexed { index, sequence ->
                 val isCompleted = isSequenceCompleted(state.selectedIndices.map { state.grid[it] }, sequence)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("V${index + 1}:", color = Color.White.copy(alpha = 0.5f), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                    Text("V${index + 1}:", color = theme.inkMuted, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         sequence.forEach { code ->
                             Text(
                                 code,
-                                color = if (isCompleted) Color(0xFF00FF9C) else Color(0xFF00FF9C).copy(alpha = 0.7f),
+                                color = if (isCompleted) systemColor else systemColor.copy(alpha = 0.7f),
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 14.sp,
                                 modifier = Modifier
-                                    .border(1.dp, if (isCompleted) Color(0xFF00FF9C) else Color(0xFF00FF9C).copy(alpha = 0.3f))
+                                    .border(1.dp, if (isCompleted) systemColor else systemColor.copy(alpha = 0.3f))
                                     .padding(horizontal = 4.dp, vertical = 2.dp)
-                                    .background(if (isCompleted) Color(0xFF00FF9C).copy(alpha = 0.1f) else Color.Transparent)
+                                    .background(if (isCompleted) systemColor.copy(alpha = 0.1f) else Color.Transparent)
                             )
                         }
                     }
@@ -184,12 +195,12 @@ fun Phase2Screen(state: IceBreachUiState.Phase2, viewModel: IceBreachViewModel) 
         }
         Spacer(Modifier.height(16.dp))
         Row(modifier = Modifier.height(40.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("BUFFER [", color = Color.White, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+            Text("BUFFER [", color = theme.ink, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
             repeat(state.bufferSize) { i ->
                 val code = state.selectedIndices.getOrNull(i)?.let { state.grid[it] } ?: "__"
-                Text(" $code ", color = if (code == "__") Color.Gray else Color(0xFFFF006E), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                Text(" $code ", color = if (code == "__") theme.inkMuted else accentColor, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
             }
-            Text("]", color = Color.White, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+            Text("]", color = theme.ink, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
         }
         Spacer(Modifier.height(24.dp))
         
@@ -206,17 +217,17 @@ fun Phase2Screen(state: IceBreachUiState.Phase2, viewModel: IceBreachViewModel) 
                         }
                         Box(
                             modifier = Modifier.size(50.dp).border(1.dp, when {
-                                isSelected -> Color(0xFFFF006E)
-                                isSelectable -> Color(0xFF00FF9C)
-                                else -> Color(0xFF00FF9C).copy(alpha = 0.1f)
+                                isSelected -> accentColor
+                                isSelectable -> systemColor
+                                else -> systemColor.copy(alpha = 0.1f)
                             }).background(when {
-                                isSelected -> Color(0xFFFF006E).copy(alpha = 0.4f)
-                                isSelectable -> Color(0xFF00FF9C).copy(alpha = 0.1f)
+                                isSelected -> accentColor.copy(alpha = 0.4f)
+                                isSelectable -> systemColor.copy(alpha = 0.1f)
                                 else -> Color.Transparent
                             }).clickable(enabled = isSelectable && !isSelected) { viewModel.selectNode(index) },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(state.grid[index], color = if (isSelectable || isSelected) Color(0xFF00FF9C) else Color(0xFF00FF9C).copy(alpha = 0.2f), fontSize = 14.sp, fontFamily = FontFamily.Monospace)
+                            Text(state.grid[index], color = if (isSelectable || isSelected) systemColor else systemColor.copy(alpha = 0.2f), fontSize = 14.sp, fontFamily = FontFamily.Monospace)
                         }
                     }
                 }
@@ -239,24 +250,29 @@ private fun isSequenceCompleted(selected: List<String>, target: List<String>): B
 
 @Composable
 fun Phase3Screen(state: IceBreachUiState.Phase3, viewModel: IceBreachViewModel) {
+    val theme = LocalNeonTheme.current
+    val systemColor = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00FF9C)
+    val accentColor = if (theme.mode == VisualMode.STEVE) theme.secondary else Color(0xFFFF006E)
+
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
-        Text("PHASE 3: SEMANTIC OVERRIDE", color = Color.White, fontWeight = FontWeight.Bold)
+        Text("PHASE 3: SEMANTIC OVERRIDE", color = theme.ink, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(16.dp))
-        Text("SELECT DECRYPTION KEY", color = Color(0xFF00FF9C), textAlign = TextAlign.Center, fontFamily = FontFamily.Monospace, fontSize = 12.sp, modifier = Modifier.padding(bottom = 24.dp))
+        Text("SELECT DECRYPTION KEY", color = systemColor, textAlign = TextAlign.Center, fontFamily = FontFamily.Monospace, fontSize = 12.sp, modifier = Modifier.padding(bottom = 24.dp))
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             state.options.forEach { option ->
-                Box(modifier = Modifier.fillMaxWidth().border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.5f), RoundedCornerShape(4.dp)).background(Color.White.copy(alpha = 0.05f)).clickable { viewModel.submitPhase3(option) }.padding(16.dp), contentAlignment = Alignment.Center) {
-                    Text(option.uppercase(), color = Color(0xFFFF006E), fontFamily = FontFamily.Monospace, fontSize = 14.sp, textAlign = TextAlign.Center)
+                Box(modifier = Modifier.fillMaxWidth().border(1.dp, systemColor.copy(alpha = 0.5f), RoundedCornerShape(4.dp)).background(theme.overlay).clickable { viewModel.submitPhase3(option) }.padding(16.dp), contentAlignment = Alignment.Center) {
+                    Text(option.uppercase(), color = accentColor, fontFamily = FontFamily.Monospace, fontSize = 14.sp, textAlign = TextAlign.Center)
                 }
             }
         }
         Spacer(Modifier.height(32.dp))
-        Text("HINT: ${state.phrase.uppercase().take(8)}...", color = Color.White.copy(alpha = 0.3f), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+        Text("HINT: ${state.phrase.uppercase().take(8)}...", color = theme.inkMuted, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
     }
 }
 
 @Composable
 fun SuccessScreen(state: IceBreachUiState.Success, onBreachSuccess: () -> Unit) {
+    val theme = LocalNeonTheme.current
     var showRewards by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         delay(2000)
@@ -266,32 +282,35 @@ fun SuccessScreen(state: IceBreachUiState.Success, onBreachSuccess: () -> Unit) 
     }
     if (!showRewards) CyberSuccessEffect() else {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("ICE BROKEN", color = Color(0xFF00FF9C), fontSize = 32.sp, fontWeight = FontWeight.Black)
+            Text("ICE BROKEN", color = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00FF9C), fontSize = 32.sp, fontWeight = FontWeight.Black)
             Spacer(Modifier.height(16.dp))
-            Text("XP REWARD: +${state.xp}", color = Color.White)
-            Text("EDDIES EARNED: €${state.eddies}", color = Color(0xFFFFCC00))
+            Text("XP REWARD: +${state.xp}", color = theme.ink)
+            Text("EDDIES EARNED: €${state.eddies}", color = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFFFFCC00))
             Spacer(Modifier.height(32.dp))
-            Text("REDIRECTING TO CORE_OS...", color = Color(0xFF00FF9C).copy(alpha = 0.5f), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+            Text("REDIRECTING TO CORE_OS...", color = (if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00FF9C)).copy(alpha = 0.5f), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
         }
     }
 }
 
 @Composable
 fun CyberSuccessEffect() {
+    val theme = LocalNeonTheme.current
     val infiniteTransition = rememberInfiniteTransition(label = "Success")
     val scanlineOffset by infiniteTransition.animateFloat(initialValue = 0f, targetValue = 1f, animationSpec = infiniteRepeatable(tween(200, easing = LinearEasing)), label = "Scanline")
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+    Box(modifier = Modifier.fillMaxSize().background(theme.canvas), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("ACCESS GRANTED", color = Color(0xFF00FF9C), fontSize = 40.sp, fontWeight = FontWeight.ExtraBold, fontFamily = FontFamily.Monospace)
-            Text("DECRYPTING CORE DATA...", color = Color(0xFF00FF9C).copy(alpha = 0.7f), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+            Text("ACCESS GRANTED", color = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00FF9C), fontSize = 40.sp, fontWeight = FontWeight.ExtraBold, fontFamily = FontFamily.Monospace)
+            Text("DECRYPTING CORE DATA...", color = (if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00FF9C)).copy(alpha = 0.7f), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
         }
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val glitchLineY = (scanlineOffset * size.height)
-            drawLine(color = Color(0xFF00FF9C).copy(alpha = 0.3f), start = Offset(0f, glitchLineY), end = Offset(size.width, glitchLineY), strokeWidth = 4f)
-            repeat(10) {
-                val x = Random.nextFloat() * size.width
-                val y = Random.nextFloat() * size.height
-                drawRect(color = Color(0xFF00FF9C).copy(alpha = 0.2f), topLeft = Offset(x, y), size = Size(Random.nextFloat() * 100, Random.nextFloat() * 20))
+        if (theme.mode == VisualMode.CYBER) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val glitchLineY = (scanlineOffset * size.height)
+                drawLine(color = Color(0xFF00FF9C).copy(alpha = 0.3f), start = Offset(0f, glitchLineY), end = Offset(size.width, glitchLineY), strokeWidth = 4f)
+                repeat(10) {
+                    val x = Random.nextFloat() * size.width
+                    val y = Random.nextFloat() * size.height
+                    drawRect(color = Color(0xFF00FF9C).copy(alpha = 0.2f), topLeft = Offset(x, y), size = Size(Random.nextFloat() * 100, Random.nextFloat() * 20))
+                }
             }
         }
     }
@@ -312,11 +331,15 @@ fun FailedScreen(state: IceBreachUiState.Failed, onCancel: () -> Unit) {
 
 @Composable
 fun QuickHackButton(eddies: Int, onQuickHack: () -> Unit) {
+    val theme = LocalNeonTheme.current
+    val systemColor = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00FF9C)
+    val accentColor = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFFFFCC00)
+
     Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.BottomEnd) {
-        Button(onClick = onQuickHack, enabled = eddies >= 20, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9C).copy(alpha = 0.2f), disabledContainerColor = Color.Gray.copy(alpha = 0.1f)), border = BorderStroke(1.dp, if (eddies >= 20) Color(0xFF00FF9C) else Color.Gray), shape = RoundedCornerShape(4.dp)) {
+        Button(onClick = onQuickHack, enabled = eddies >= 20, colors = ButtonDefaults.buttonColors(containerColor = systemColor.copy(alpha = 0.2f), disabledContainerColor = theme.inkMuted.copy(alpha = 0.1f)), border = BorderStroke(1.dp, if (eddies >= 20) systemColor else theme.inkMuted), shape = RoundedCornerShape(4.dp)) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("QUICKHACK", fontSize = 10.sp, color = if (eddies >= 20) Color(0xFF00FF9C) else Color.Gray)
-                Text("20 ED", fontSize = 8.sp, color = if (eddies >= 20) Color(0xFFFFCC00) else Color.Gray)
+                Text("QUICKHACK", fontSize = 10.sp, color = if (eddies >= 20) systemColor else theme.inkMuted)
+                Text("20 ED", fontSize = 8.sp, color = if (eddies >= 20) accentColor else theme.inkMuted)
             }
         }
     }
@@ -324,6 +347,8 @@ fun QuickHackButton(eddies: Int, onQuickHack: () -> Unit) {
 
 @Composable
 fun BreachBackground() {
+    val theme = LocalNeonTheme.current
+    if (theme.mode == VisualMode.STEVE) return
     val infiniteTransition = rememberInfiniteTransition(label = "Background")
     val alpha by infiniteTransition.animateFloat(initialValue = 0.05f, targetValue = 0.15f, animationSpec = infiniteRepeatable(tween(2000), RepeatMode.Reverse), label = "Alpha")
     val density = LocalDensity.current

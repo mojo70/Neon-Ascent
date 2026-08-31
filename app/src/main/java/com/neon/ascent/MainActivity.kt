@@ -16,7 +16,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import androidx.health.connect.client.PermissionController
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.feature.dashboard.DashboardViewModel
@@ -26,6 +28,8 @@ import com.neon.ascent.feature.notifications.data.NeuralBriefManager
 import com.neon.ascent.feature.notifications.data.SmartPingScheduler
 import com.neon.ascent.feature.notifications.ui.NotificationPermissionViewModel
 import com.neon.ascent.ui.theme.NeonAscentTheme
+import com.neon.ascent.ui.theme.ThemeViewModel
+import com.neon.ascent.core.common.VisualMode
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -71,8 +75,20 @@ class MainActivity : FragmentActivity() {
         checkAndRequestNotificationPermission()
 
         setContent {
-            NeonAscentTheme {
+            val themeViewModel: ThemeViewModel = hiltViewModel()
+            val visualMode by themeViewModel.visualMode.collectAsState()
+            val neonIntensity by themeViewModel.neonIntensity.collectAsState()
+
+            NeonAscentTheme(visualMode = visualMode, intensity = neonIntensity) {
                 val context = LocalContext.current
+                val view = LocalView.current
+
+                LaunchedEffect(visualMode) {
+                    val window = (context as? android.app.Activity)?.window ?: return@LaunchedEffect
+                    val insetsController = WindowCompat.getInsetsController(window, view)
+                    insetsController.isAppearanceLightStatusBars = visualMode == VisualMode.STEVE
+                    insetsController.isAppearanceLightNavigationBars = visualMode == VisualMode.STEVE
+                }
 
                 val permissionsLauncher = rememberLauncherForActivityResult(
                     PermissionController.createRequestPermissionResultContract()

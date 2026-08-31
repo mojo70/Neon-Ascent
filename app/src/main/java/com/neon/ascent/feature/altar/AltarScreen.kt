@@ -25,7 +25,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.neon.ascent.core.common.CyberGridBackground
+import com.neon.ascent.core.common.*
 import com.neon.ascent.feature.settings.CyberAltarDialog
 import com.neon.ascent.feature.settings.RebirthOverlay
 import com.neon.ascent.feature.settings.TonguesProtocolDialog
@@ -83,14 +83,17 @@ fun AltarScreen(
         }
     }
 
-    val bgGradient = Color(0xFF03070A)
-    val cardBg = Color(0xFF0A1118).copy(alpha = 0.85f)
-    val cardBorder = Color(0xFF1B2C38)
-    val neonMint = Color(0xFF00FF9C)
-    val lightMint = Color(0xFF50FAC2)
+    val theme = LocalNeonTheme.current
+    val bgGradient = theme.canvas
+    val cardBg = theme.overlay
+    val cardBorder = theme.hairline
+    val neonMint = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00FF9C)
+    val lightMint = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF50FAC2)
 
     Box(modifier = Modifier.fillMaxSize().background(bgGradient)) {
-        CyberGridBackground(color = neonMint.copy(alpha = 0.04f))
+        if (theme.mode == VisualMode.CYBER) {
+            CyberGridBackground(color = neonMint.copy(alpha = 0.04f))
+        }
 
         Scaffold(
             containerColor = Color.Transparent,
@@ -119,13 +122,13 @@ fun AltarScreen(
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                     contentDescription = "BACK",
-                                    tint = Color.Gray,
+                                    tint = theme.inkMuted,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(Modifier.width(4.dp))
                                 Text(
                                     "RETURN",
-                                    color = Color.Gray,
+                                    color = theme.inkMuted,
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace,
                                     letterSpacing = 1.sp
@@ -134,7 +137,7 @@ fun AltarScreen(
                         }
                         Text(
                             "CYBER ALTAR",
-                            color = Color.Gray,
+                            color = theme.inkMuted,
                             fontSize = 11.sp,
                             fontFamily = FontFamily.Monospace,
                             letterSpacing = 2.sp,
@@ -142,7 +145,7 @@ fun AltarScreen(
                         )
                         Text(
                             "Sanctuary",
-                            color = Color.White,
+                            color = theme.ink,
                             fontSize = 26.sp,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold
@@ -160,7 +163,7 @@ fun AltarScreen(
                     ) {
                         Text(
                             if (isTrue) "MODE: TRUE" else "MODE: CYBER",
-                            color = if (isTrue) lightMint else Color.White.copy(alpha = 0.8f),
+                            color = if (isTrue) lightMint else theme.ink.copy(alpha = 0.8f),
                             fontSize = 11.sp,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
@@ -185,7 +188,7 @@ fun AltarScreen(
                         Spacer(Modifier.height(12.dp))
                         Text(
                             text = scriptureText,
-                            color = Color.White,
+                            color = theme.ink,
                             fontSize = 16.sp,
                             lineHeight = 24.sp,
                             fontFamily = FontFamily.Monospace
@@ -193,7 +196,7 @@ fun AltarScreen(
                         Spacer(Modifier.height(14.dp))
                         Text(
                             text = prayer?.scriptureTranslation ?: "KING JAMES",
-                            color = Color.Gray,
+                            color = theme.inkMuted,
                             fontSize = 11.sp,
                             fontFamily = FontFamily.Monospace,
                             letterSpacing = 1.5.sp
@@ -206,7 +209,7 @@ fun AltarScreen(
                     Column(modifier = Modifier.padding(18.dp)) {
                         Text(
                             text = "ADORE",
-                            color = Color.Gray,
+                            color = theme.inkMuted,
                             fontSize = 11.sp,
                             fontFamily = FontFamily.Monospace,
                             letterSpacing = 2.sp,
@@ -215,7 +218,7 @@ fun AltarScreen(
                         Spacer(Modifier.height(8.dp))
                         Text(
                             text = adoreText,
-                            color = Color.White.copy(alpha = 0.95f),
+                            color = theme.ink.copy(alpha = 0.95f),
                             fontSize = 14.sp,
                             lineHeight = 20.sp,
                             fontFamily = FontFamily.Monospace
@@ -228,7 +231,7 @@ fun AltarScreen(
                     Column(modifier = Modifier.padding(18.dp)) {
                         Text(
                             text = "CONFESS",
-                            color = Color.Gray,
+                            color = theme.inkMuted,
                             fontSize = 11.sp,
                             fontFamily = FontFamily.Monospace,
                             letterSpacing = 2.sp,
@@ -237,7 +240,7 @@ fun AltarScreen(
                         Spacer(Modifier.height(8.dp))
                         Text(
                             text = confessText,
-                            color = Color.White.copy(alpha = 0.95f),
+                            color = theme.ink.copy(alpha = 0.95f),
                             fontSize = 14.sp,
                             lineHeight = 20.sp,
                             fontFamily = FontFamily.Monospace
@@ -250,7 +253,7 @@ fun AltarScreen(
                     Column(modifier = Modifier.padding(18.dp)) {
                         Text(
                             text = "ASK",
-                            color = Color.Gray,
+                            color = theme.inkMuted,
                             fontSize = 11.sp,
                             fontFamily = FontFamily.Monospace,
                             letterSpacing = 2.sp,
@@ -259,7 +262,7 @@ fun AltarScreen(
                         Spacer(Modifier.height(8.dp))
                         Text(
                             text = askText,
-                            color = Color.White.copy(alpha = 0.95f),
+                            color = theme.ink.copy(alpha = 0.95f),
                             fontSize = 14.sp,
                             lineHeight = 20.sp,
                             fontFamily = FontFamily.Monospace
@@ -302,7 +305,7 @@ fun AltarScreen(
                         ) {
                             Text(
                                 text = "REMAIN",
-                                color = Color.Gray,
+                                color = theme.inkMuted,
                                 fontSize = 11.sp,
                                 fontFamily = FontFamily.Monospace,
                                 letterSpacing = 2.sp,
@@ -329,7 +332,7 @@ fun AltarScreen(
                                     ) {
                                         Text(
                                             text = label,
-                                            color = if (isSelected) neonMint else Color.Gray,
+                                            color = if (isSelected) neonMint else theme.inkMuted,
                                             fontSize = 10.sp,
                                             fontFamily = FontFamily.Monospace,
                                             fontWeight = FontWeight.Bold
@@ -352,14 +355,14 @@ fun AltarScreen(
                         Row(verticalAlignment = Alignment.Bottom) {
                             Text(
                                 text = "$currentMM:$currentSS",
-                                color = Color.White,
+                                color = theme.ink,
                                 fontSize = 28.sp,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
                                 text = " / $totalMM:$totalSS",
-                                color = Color.Gray,
+                                color = theme.inkMuted,
                                 fontSize = 20.sp,
                                 fontFamily = FontFamily.Monospace,
                                 modifier = Modifier.padding(bottom = 2.dp)
@@ -374,7 +377,7 @@ fun AltarScreen(
                             } else {
                                 "Sit. No feed. Dwell in the Presence. Completing buys a Spirit buff: +12 XP on clears today, and +40 XP for the remain."
                             },
-                            color = if (uiState.isRemainCompletedToday) neonMint else Color.Gray,
+                            color = if (uiState.isRemainCompletedToday) neonMint else theme.inkMuted,
                             fontSize = 12.sp,
                             lineHeight = 18.sp,
                             fontFamily = FontFamily.Monospace
@@ -417,7 +420,7 @@ fun AltarScreen(
                             ) {
                                 Text(
                                     text = buttonText,
-                                    color = Color.White,
+                                    color = theme.ink,
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Bold,
@@ -436,7 +439,7 @@ fun AltarScreen(
                                 ) {
                                     Text(
                                         text = "RESET",
-                                        color = Color.Gray,
+                                        color = theme.inkMuted,
                                         fontSize = 11.sp,
                                         fontFamily = FontFamily.Monospace,
                                         fontWeight = FontWeight.Bold
@@ -467,7 +470,7 @@ fun AltarScreen(
                             )
                             Text(
                                 if (showAdvancedNodes) "[HIDE]" else "[EXPAND]",
-                                color = Color.Gray,
+                                color = theme.inkMuted,
                                 fontSize = 11.sp,
                                 fontFamily = FontFamily.Monospace
                             )
@@ -475,7 +478,7 @@ fun AltarScreen(
 
                         if (showAdvancedNodes) {
                             Spacer(Modifier.height(16.dp))
-                            HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                            HorizontalDivider(color = theme.ink.copy(alpha = 0.1f))
                             Spacer(Modifier.height(12.dp))
 
                             // Sinner's prayer reset / initiate
@@ -500,7 +503,7 @@ fun AltarScreen(
                                     )
                                     Text(
                                         if (hasCompleted) "Purified by the blood of Jesus" else "Surrender & invite Jesus as Lord",
-                                        color = Color.Gray,
+                                        color = theme.inkMuted,
                                         fontSize = 10.sp,
                                         fontFamily = FontFamily.Monospace
                                     )
@@ -508,7 +511,7 @@ fun AltarScreen(
                                 Icon(
                                     imageVector = if (hasCompleted) Icons.Default.Check else Icons.Default.Lock,
                                     contentDescription = null,
-                                    tint = if (hasCompleted) neonMint else Color.Gray,
+                                    tint = if (hasCompleted) neonMint else theme.inkMuted,
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
@@ -531,14 +534,14 @@ fun AltarScreen(
                                 Column {
                                     Text(
                                         "WATER BAPTISM PROTOCOL",
-                                        color = if (userCharacter?.waterBaptized == true) neonMint else Color.White,
+                                        color = if (userCharacter?.waterBaptized == true) neonMint else theme.ink,
                                         fontSize = 12.sp,
                                         fontFamily = FontFamily.Monospace,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
                                         "Outward sign of inward resurrection",
-                                        color = Color.Gray,
+                                        color = theme.inkMuted,
                                         fontSize = 10.sp,
                                         fontFamily = FontFamily.Monospace
                                     )
@@ -564,14 +567,14 @@ fun AltarScreen(
                                 Column {
                                     Text(
                                         "HOLY SPIRIT FIRE & TONGUES",
-                                        color = if (userCharacter?.holySpiritBaptized == true) neonMint else Color.White,
+                                        color = if (userCharacter?.holySpiritBaptized == true) neonMint else theme.ink,
                                         fontSize = 12.sp,
                                         fontFamily = FontFamily.Monospace,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
                                         "Acts 2:4 Pentecostal Empowerment",
-                                        color = Color.Gray,
+                                        color = theme.inkMuted,
                                         fontSize = 10.sp,
                                         fontFamily = FontFamily.Monospace
                                     )

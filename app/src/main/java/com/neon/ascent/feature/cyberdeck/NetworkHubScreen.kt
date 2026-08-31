@@ -47,7 +47,8 @@ import com.neon.ascent.model.InvestorSlide
 import com.neon.ascent.model.SkillType
 import com.neon.ascent.ui.CyberFrame
 import com.neon.ascent.ui.components.CeoContactCard
-import com.neon.ascent.ui.theme.LocalNeonTheme
+import com.neon.ascent.ui.theme.*
+import com.neon.ascent.core.common.*
 import java.util.Locale
 
 @Composable
@@ -61,6 +62,7 @@ fun NetworkHubScreen(
     stockViewModel: StockViewModel = hiltViewModel(),
     netWorthViewModel: NetWorthViewModel = hiltViewModel()
 ) {
+    val theme = LocalNeonTheme.current
     var activeTab by remember { mutableStateOf(NetworkTab.CHATS) }
     var selectedContact by remember { mutableStateOf<String?>(null) }
     var selectedCorpo by remember { mutableStateOf<CorpoNode?>(null) }
@@ -129,7 +131,7 @@ fun NetworkHubScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xFF020508))
+                    .background(theme.canvas)
                     .statusBarsPadding()
                     .navigationBarsPadding()
             ) {
@@ -139,11 +141,11 @@ fun NetworkHubScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF00FF9F))
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = theme.accent)
                     }
                     Text(
                         "NET // V3.0",
-                        color = Color(0xFF00FF9F),
+                        color = theme.accent,
                         fontSize = 20.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold
@@ -251,16 +253,19 @@ fun ChatListArea(
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            val theme = LocalNeonTheme.current
             TextField(
                 value = lookupText,
                 onValueChange = { lookupText = it },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("NETRUNNER_LOOKUP...", color = Color.Gray, fontSize = 12.sp) },
+                placeholder = { Text("NETRUNNER_LOOKUP...", color = theme.inkMuted, fontSize = 12.sp) },
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.White.copy(alpha = 0.05f),
-                    unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
+                    focusedContainerColor = theme.surface,
+                    unfocusedContainerColor = theme.surface,
+                    focusedTextColor = theme.ink,
+                    unfocusedTextColor = theme.ink,
+                    focusedIndicatorColor = theme.accent,
+                    unfocusedIndicatorColor = theme.hairline
                 ),
                 textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, fontSize = 12.sp)
             )
@@ -270,7 +275,7 @@ fun ChatListArea(
                     lookupText = ""
                 }
             }) {
-                Icon(Icons.Default.Search, contentDescription = "Add", tint = Color(0xFF00FF9F))
+                Icon(Icons.Default.Search, contentDescription = "Add", tint = theme.accent)
             }
         }
 
@@ -304,9 +309,10 @@ fun ChatListArea(
             }
 
             item {
+                val theme = LocalNeonTheme.current
                 Text(
                     "// ACTIVE_SESSIONS",
-                    color = Color(0xFF00FF9F),
+                    color = theme.accent,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
@@ -327,6 +333,7 @@ fun ChatListArea(
 
 @Composable
 fun ChatSessionItem(session: ChatSession, onClick: () -> Unit) {
+    val theme = LocalNeonTheme.current
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val alpha by infiniteTransition.animateFloat(
         initialValue = 0.2f,
@@ -340,7 +347,7 @@ fun ChatSessionItem(session: ChatSession, onClick: () -> Unit) {
 
     CyberFrame(
         label = session.contactName,
-        borderColor = if (session.isFixer) Color(0xFFFF0088) else Color(0xFF00FF9F),
+        borderColor = if (session.isFixer) theme.secondary else theme.accent,
         modifier = Modifier.clickable { onClick() }
     ) {
         Row(
@@ -363,13 +370,13 @@ fun ChatSessionItem(session: ChatSession, onClick: () -> Unit) {
             Column {
                 Text(
                     session.lastMessage,
-                    color = Color.White,
+                    color = theme.ink,
                     fontSize = 14.sp,
                     maxLines = 1
                 )
                 Text(
                     java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(session.lastTimestamp),
-                    color = Color.Gray,
+                    color = theme.inkMuted,
                     fontSize = 10.sp
                 )
             }
@@ -379,6 +386,7 @@ fun ChatSessionItem(session: ChatSession, onClick: () -> Unit) {
 
 @Composable
 fun NetScanArea(viewModel: NetworkHubViewModel, chatViewModel: ChatViewModel) {
+    val theme = LocalNeonTheme.current
     val state by viewModel.scanningState.collectAsState()
     
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxSize()) {
@@ -386,26 +394,26 @@ fun NetScanArea(viewModel: NetworkHubViewModel, chatViewModel: ChatViewModel) {
             Box(modifier = Modifier.fillMaxWidth().height(250.dp), contentAlignment = Alignment.Center) {
                 when (val s = state) {
                     is ScanningState.Idle -> {
-                        Text("INITIATE_PROXIMITY_TRACE", color = Color.Gray)
+                        Text("INITIATE_PROXIMITY_TRACE", color = theme.inkMuted)
                     }
                     is ScanningState.Scanning -> {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator(color = Color(0xFF00FF9F))
+                            CircularProgressIndicator(color = theme.accent)
                             Spacer(modifier = Modifier.height(16.dp))
-                            Text("ACQUIRING_TARGET...", color = Color(0xFF00FF9F), fontSize = 12.sp)
+                            Text("ACQUIRING_TARGET...", color = theme.accent, fontSize = 12.sp)
                         }
                     }
                     is ScanningState.Tracing -> {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("TARGET_LOCKED", color = Color.Red, fontWeight = FontWeight.Bold)
-                            Text("DISTANCE: ${String.format(Locale.getDefault(), "%.1f", s.distanceMeters)}m", color = Color.White, fontSize = 24.sp, fontFamily = FontFamily.Monospace)
-                            Text("PHYSICALLY_MOVE_TOWARDS_SIGNAL", color = Color.Gray, fontSize = 10.sp)
+                            Text("TARGET_LOCKED", color = theme.secondary, fontWeight = FontWeight.Bold)
+                            Text("DISTANCE: ${String.format(Locale.getDefault(), "%.1f", s.distanceMeters)}m", color = theme.ink, fontSize = 24.sp, fontFamily = FontFamily.Monospace)
+                            Text("PHYSICALLY_MOVE_TOWARDS_SIGNAL", color = theme.inkMuted, fontSize = 10.sp)
                         }
                     }
                     is ScanningState.Found -> {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("SIGNAL_CAPTURED!", color = Color(0xFF00FF9F), fontWeight = FontWeight.Bold)
-                            Text(s.name, color = Color.White, fontSize = 20.sp)
+                            Text("SIGNAL_CAPTURED!", color = theme.accent, fontWeight = FontWeight.Bold)
+                            Text(s.name, color = theme.ink, fontSize = 20.sp)
                             Button(onClick = { 
                                 chatViewModel.addContact(s.name)
                                 viewModel.stopScan()
@@ -415,7 +423,7 @@ fun NetScanArea(viewModel: NetworkHubViewModel, chatViewModel: ChatViewModel) {
                         }
                     }
                     is ScanningState.Error -> {
-                        Text("ERROR: ${s.message}", color = Color.Red)
+                        Text("ERROR: ${s.message}", color = theme.secondary)
                     }
                 }
             }
@@ -427,22 +435,23 @@ fun NetScanArea(viewModel: NetworkHubViewModel, chatViewModel: ChatViewModel) {
             onClick = { 
                 if (state == ScanningState.Idle) viewModel.startScan() else viewModel.stopScan()
             },
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9F))
+            colors = ButtonDefaults.buttonColors(containerColor = theme.accent)
         ) {
-            Text(if (state == ScanningState.Idle) "START_TRACE" else "ABORT_TRACE", color = Color.Black)
+            Text(if (state == ScanningState.Idle) "START_TRACE" else "ABORT_TRACE", color = theme.canvas)
         }
     }
 }
 
 @Composable
 fun NetworkTabItem(label: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val theme = LocalNeonTheme.current
     Column(
         modifier = modifier.clickable { onClick() },
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             label,
-            color = if (selected) Color(0xFF00FF9F) else Color.Gray,
+            color = if (selected) theme.accent else theme.inkMuted,
             fontSize = 12.sp,
             fontFamily = FontFamily.Monospace
         )
@@ -451,7 +460,7 @@ fun NetworkTabItem(label: String, selected: Boolean, modifier: Modifier, onClick
             modifier = Modifier
                 .fillMaxWidth()
                 .height(2.dp)
-                .background(if (selected) Color(0xFF00FF9F) else Color.Transparent)
+                .background(if (selected) theme.accent else Color.Transparent)
         )
     }
 }
@@ -1304,9 +1313,10 @@ fun UserDossierCard(
     character: com.neon.ascent.core.domain.character.models.UserCharacter?,
     onDossierClick: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     CyberFrame(
         label = "PERSONAL_DOSSIER // ${character?.netrunnerName ?: "RUNNER"}",
-        borderColor = Color(0xFF00FF9F),
+        borderColor = theme.accent,
         modifier = Modifier.clickable { onDossierClick() }
     ) {
         Row(
@@ -1317,18 +1327,18 @@ fun UserDossierCard(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .border(1.dp, Color(0xFF00FF9F), CircleShape),
+                    .border(1.dp, theme.accent, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 com.neon.ascent.ui.AvatarImage(character, modifier = Modifier.fillMaxSize(), alpha = 1f)
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column {
-                Text("RANK_0${character?.level ?: 1} OPERATIVE", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                Text("NETWATCH_STATUS: UNDER_SURVEILLANCE", color = Color.Yellow, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                Text("RANK_0${character?.level ?: 1} OPERATIVE", color = theme.ink, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("NETWATCH_STATUS: UNDER_SURVEILLANCE", color = theme.secondary, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
             }
             Spacer(modifier = Modifier.weight(1f))
-            Icon(Icons.Default.Terminal, contentDescription = null, tint = Color(0xFF00FF9F), modifier = Modifier.size(20.dp))
+            Icon(Icons.Default.Terminal, contentDescription = null, tint = theme.accent, modifier = Modifier.size(20.dp))
         }
     }
 }
@@ -1339,6 +1349,7 @@ fun CorpoLoginDialog(
     onDismiss: () -> Unit,
     onLogin: (String, String) -> Boolean
 ) {
+    val theme = LocalNeonTheme.current
     var user by remember { mutableStateOf("") }
     var pass by remember { mutableStateOf("") }
     var error by remember { mutableStateOf(false) }
@@ -1347,13 +1358,13 @@ fun CorpoLoginDialog(
         CyberFrame(label = "SECURE_LOGIN // $corpoName") {
             Column(
                 modifier = Modifier
-                    .background(Color(0xFF020508))
+                    .background(theme.canvas)
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
                     "AUTHORIZED_PERSONNEL_ONLY",
-                    color = Color.Red,
+                    color = theme.secondary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace
@@ -1365,12 +1376,12 @@ fun CorpoLoginDialog(
                     value = user,
                     onValueChange = { user = it; error = false },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("USERNAME", color = Color.Gray) },
+                    placeholder = { Text("USERNAME", color = theme.inkMuted) },
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.White.copy(alpha = 0.05f),
-                        unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        focusedContainerColor = theme.surface,
+                        unfocusedContainerColor = theme.surface,
+                        focusedTextColor = theme.ink,
+                        unfocusedTextColor = theme.ink
                     )
                 )
 
@@ -1380,20 +1391,20 @@ fun CorpoLoginDialog(
                     value = pass,
                     onValueChange = { pass = it; error = false },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("EXECUTIVE_KEY", color = Color.Gray) },
+                    placeholder = { Text("EXECUTIVE_KEY", color = theme.inkMuted) },
                     visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.White.copy(alpha = 0.05f),
-                        unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        focusedContainerColor = theme.surface,
+                        unfocusedContainerColor = theme.surface,
+                        focusedTextColor = theme.ink,
+                        unfocusedTextColor = theme.ink
                     )
                 )
 
                 if (error) {
                     Text(
                         "INVALID_CREDENTIALS",
-                        color = Color.Red,
+                        color = theme.secondary,
                         fontSize = 10.sp,
                         modifier = Modifier.padding(top = 8.dp)
                     )
@@ -1405,9 +1416,9 @@ fun CorpoLoginDialog(
                     Button(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Gray.copy(alpha = 0.2f))
+                        colors = ButtonDefaults.buttonColors(containerColor = theme.surfaceRaised)
                     ) {
-                        Text("CANCEL")
+                        Text("CANCEL", color = theme.ink)
                     }
                     Button(
                         onClick = {
@@ -1416,10 +1427,10 @@ fun CorpoLoginDialog(
                             }
                         },
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF9F).copy(alpha = 0.2f)),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF00FF9F))
+                        colors = ButtonDefaults.buttonColors(containerColor = theme.accent.copy(alpha = 0.2f)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, theme.accent)
                     ) {
-                        Text("LOGIN", color = Color(0xFF00FF9F))
+                        Text("LOGIN", color = theme.accent)
                     }
                 }
             }
@@ -1432,12 +1443,13 @@ fun InvestorDeckOverlay(
     slides: List<com.neon.ascent.model.InvestorSlide>,
     onDismiss: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     val pagerState = rememberPagerState(pageCount = { slides.size })
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.9f))
+            .background(theme.overlay)
             .clickable { onDismiss() } // Dimmed background click closes
             .statusBarsPadding()
             .navigationBarsPadding()
@@ -1455,12 +1467,12 @@ fun InvestorDeckOverlay(
             ) {
                 Text(
                     "INVESTOR_DECK // SLIDE ${pagerState.currentPage + 1}/${slides.size}",
-                    color = Color(0xFF00CCFF),
+                    color = theme.accent,
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace
                 )
                 IconButton(onClick = onDismiss) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Close", tint = Color.Red)
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Close", tint = theme.secondary)
                 }
             }
 
@@ -1473,7 +1485,7 @@ fun InvestorDeckOverlay(
                 val slide = slides[index]
                 CyberFrame(
                     label = slide.title,
-                    borderColor = Color(0xFF00CCFF).copy(alpha = 0.5f)
+                    borderColor = theme.accent.copy(alpha = 0.5f)
                 ) {
                     Column(
                         modifier = Modifier
@@ -1483,7 +1495,7 @@ fun InvestorDeckOverlay(
                     ) {
                         Text(
                             slide.title,
-                            color = Color(0xFF00CCFF),
+                            color = theme.accent,
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace
@@ -1491,7 +1503,7 @@ fun InvestorDeckOverlay(
                         slide.subtitle?.let {
                             Text(
                                 it,
-                                color = Color.White,
+                                color = theme.ink,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.padding(top = 8.dp)
@@ -1500,7 +1512,7 @@ fun InvestorDeckOverlay(
                         Spacer(modifier = Modifier.height(24.dp))
                         Text(
                             slide.body,
-                            color = Color.White.copy(alpha = 0.8f),
+                            color = theme.ink.copy(alpha = 0.8f),
                             fontSize = 14.sp,
                             lineHeight = 22.sp,
                             fontFamily = FontFamily.Monospace
@@ -1519,7 +1531,7 @@ fun InvestorDeckOverlay(
                 horizontalArrangement = Arrangement.Center
             ) {
                 repeat(slides.size) { iteration ->
-                    val color = if (pagerState.currentPage == iteration) Color(0xFF00CCFF) else Color.Gray.copy(alpha = 0.5f)
+                    val color = if (pagerState.currentPage == iteration) theme.accent else theme.inkMuted.copy(alpha = 0.5f)
                     Box(
                         modifier = Modifier
                             .padding(horizontal = 4.dp)

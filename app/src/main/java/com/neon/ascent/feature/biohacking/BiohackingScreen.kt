@@ -123,10 +123,11 @@ fun BiohackingScreen(
     }
 
     val scope = rememberCoroutineScope()
-
-    val neonCyan = Color(0xFF00F5FF)
-    val neonMagenta = Color(0xFFFF0088)
-    val voidBg = Color(0xFF0A0F14)
+    val theme = LocalNeonTheme.current
+    val visualMode = LocalVisualMode.current
+    val neonCyan = if (visualMode == VisualMode.STEVE) theme.ink else Color(0xFF00F5FF)
+    val neonMagenta = if (visualMode == VisualMode.STEVE) theme.secondary else Color(0xFFFF0088)
+    val voidBg = theme.canvas
 
     if (showPermissionRationale) {
         com.neon.ascent.feature.health.ui.PermissionRationaleDialog(
@@ -174,7 +175,8 @@ fun BiohackingScreen(
                 ) }
             },
             neonCyan = neonCyan,
-            neonMagenta = neonMagenta
+            neonMagenta = neonMagenta,
+            overlayColor = theme.overlay.copy(alpha = 0.95f)
         )
     }
 
@@ -182,10 +184,12 @@ fun BiohackingScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(voidBg)
-            .cyberGlitch(intensity = scanProgress * 0.75f)
+            .cyberGlitch(intensity = if (visualMode == VisualMode.STEVE) 0f else scanProgress * 0.75f)
     ) {
-        CyberGridBackground()
-        FloatingParticles(intensity = displayChar.neuralLoad + (scanProgress * 0.5f))
+        if (visualMode == VisualMode.CYBER) {
+            CyberGridBackground()
+            FloatingParticles(intensity = displayChar.neuralLoad + (scanProgress * 0.5f))
+        }
         
         Scaffold(
             containerColor = Color.Transparent,
@@ -194,7 +198,7 @@ fun BiohackingScreen(
                     Surface(
                         modifier = Modifier.padding(16.dp),
                         shape = CyberCutShape,
-                        color = Color.Black.copy(alpha = 0.8f),
+                        color = theme.overlay,
                         border = BorderStroke(1.dp, neonCyan)
                     ) {
                         Text(
@@ -410,7 +414,7 @@ fun BiohackingScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             "LAST_SYNC: ${uiState.lastSyncTimestamp?.let { java.time.Instant.ofEpochMilli(it).toString() } ?: "NEVER"}",
-                            color = Color.Gray,
+                            color = theme.inkMuted,
                             fontSize = 8.sp,
                             fontFamily = FontFamily.Monospace
                         )
@@ -482,7 +486,7 @@ fun BiohackingScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
                                 "Local AI capabilities require the Neural Engine core (Gemma 2B). Download now to enable secure, on-device biohacking protocols.",
-                                color = Color.White,
+                                color = theme.ink,
                                 fontSize = 12.sp,
                                 fontFamily = FontFamily.Monospace,
                                 textAlign = TextAlign.Center
@@ -516,7 +520,7 @@ fun BiohackingScreen(
 
                 CyberActionButton(
                     label = if (uiState.enableOnDeviceNeuralCore) "INITIATE NEURAL_CORE_SCAN" else "INITIATE AI_DEEP_SCAN",
-                    color = if (isLocalAiAvailable || !uiState.enableOnDeviceNeuralCore) neonCyan else Color.Gray,
+                    color = if (isLocalAiAvailable || !uiState.enableOnDeviceNeuralCore) neonCyan else theme.inkMuted,
                     enabled = isLocalAiAvailable || !uiState.enableOnDeviceNeuralCore,
                     onClick = { viewModel.initiateLocalScan(selectedSector) }
                 )
@@ -535,7 +539,7 @@ fun BiohackingScreen(
                                     ) {
                                         Text(
                                             text = insight.content,
-                                            color = Color.White,
+                                            color = theme.ink,
                                             fontSize = 12.sp,
                                             fontFamily = FontFamily.Monospace,
                                             fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
@@ -636,7 +640,7 @@ fun BiohackingScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.8f))
+                    .background(theme.overlay)
                     .zIndex(20f),
                 contentAlignment = Alignment.Center
             ) {
@@ -672,7 +676,7 @@ fun BiohackingScreen(
             Canvas(modifier = Modifier.fillMaxSize()) {
                 drawCircle(
                     brush = Brush.radialGradient(
-                        listOf(Color.White, neonCyan.copy(alpha = 0.5f), Color.Transparent),
+                        listOf(theme.ink, neonCyan.copy(alpha = 0.5f), Color.Transparent),
                         center = center,
                         radius = scanProgress * size.maxDimension
                     ),
@@ -817,22 +821,24 @@ fun BoxScope.SectorLabel(label: String, alignment: Alignment, isSelected: Boolea
 fun PrivacyOnboarding(
     onComplete: (anon: Boolean, wearable: Boolean, genetic: Boolean, neuralCore: Boolean) -> Unit,
     neonCyan: Color,
-    neonMagenta: Color
+    neonMagenta: Color,
+    overlayColor: Color
 ) {
+    val theme = LocalNeonTheme.current
     var anon by remember { mutableStateOf(false) }
     var wearable by remember { mutableStateOf(false) }
     var genetic by remember { mutableStateOf(false) }
     var neuralCore by remember { mutableStateOf(true) }
 
     Box(
-        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.95f)).zIndex(30f).padding(24.dp),
+        modifier = Modifier.fillMaxSize().background(overlayColor).zIndex(30f).padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
         CyberFrame(label = "PRIVACY_ENCRYPTION_INIT", borderColor = neonCyan) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(
                     "Select your data sharing protocols. All data is end-to-end encrypted on-device.",
-                    color = Color.White,
+                    color = theme.ink,
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace
                 )
@@ -874,13 +880,14 @@ fun PrivacyOnboarding(
 
 @Composable
 fun PrivacyToggle(label: String, checked: Boolean, color: Color, onCheckedChange: (Boolean) -> Unit) {
+    val theme = LocalNeonTheme.current
     Row(verticalAlignment = Alignment.CenterVertically) {
         Checkbox(
             checked = checked, 
             onCheckedChange = onCheckedChange,
             colors = CheckboxDefaults.colors(checkedColor = color, uncheckedColor = color.copy(alpha = 0.3f))
         )
-        Text(label, color = Color.White, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+        Text(label, color = theme.ink, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
     }
 }
 
@@ -892,14 +899,15 @@ fun ProtocolReport(
     onForgeClick: (String) -> Unit = {},
     onLogClick: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     CyberFrame(label = "AI_GENERATED_PROTOCOL", borderColor = magenta, accentColor = cyan) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (report == null) {
-                Text("ANALYZING_SYNAPTIC_INPUTS...", color = Color.Gray, fontSize = 12.sp)
+                Text("ANALYZING_SYNAPTIC_INPUTS...", color = theme.inkMuted, fontSize = 12.sp)
             } else {
                 Text(
                     report,
-                    color = Color.White,
+                    color = theme.ink,
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
                     modifier = Modifier.fillMaxWidth()
@@ -940,6 +948,7 @@ fun ProtocolReport(
 
 @Composable
 fun EffectivenessLoggerPanel(onLog: (Int, Int, Int, Int, String, String) -> Unit, neonCyan: Color) {
+    val theme = LocalNeonTheme.current
     var energy by remember { mutableFloatStateOf(5f) }
     var sleep by remember { mutableFloatStateOf(5f) }
     var notes by remember { mutableStateOf("") }
@@ -954,7 +963,7 @@ fun EffectivenessLoggerPanel(onLog: (Int, Int, Int, Int, String, String) -> Unit
                 onValueChange = { notes = it },
                 label = { Text("NOTES_FROM_THE_MATRIX", color = neonCyan.copy(alpha = 0.5f), fontSize = 10.sp) },
                 modifier = Modifier.fillMaxWidth(),
-                textStyle = MaterialTheme.typography.bodySmall.copy(color = Color.White, fontFamily = FontFamily.Monospace),
+                textStyle = MaterialTheme.typography.bodySmall.copy(color = theme.ink, fontFamily = FontFamily.Monospace),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent, 
                     unfocusedContainerColor = Color.Transparent,
@@ -972,11 +981,12 @@ fun EffectivenessLoggerPanel(onLog: (Int, Int, Int, Int, String, String) -> Unit
 
 @Composable
 fun CommunityStatsHeatmap(cyan: Color) {
+    val theme = LocalNeonTheme.current
     CyberFrame(label = "COMMUNITY_INSIGHTS", borderColor = cyan.copy(alpha = 0.4f)) {
         Column {
             Text(
                 "82% of similar users reported +15% Focus on this stack.",
-                color = Color.White,
+                color = theme.ink,
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace
             )
@@ -984,7 +994,8 @@ fun CommunityStatsHeatmap(cyan: Color) {
             // Mock Heatmap
             Row(Modifier.fillMaxWidth().height(4.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                 repeat(20) { i ->
-                    Box(Modifier.weight(1f).fillMaxHeight().background(if (i < 16) cyan else Color.Gray.copy(alpha = 0.2f)))
+                    val color: Color = if (i < 16) cyan else theme.inkMuted.copy(alpha = 0.2f)
+                    Box(Modifier.weight(1f).fillMaxHeight().background(color))
                 }
             }
         }
@@ -993,12 +1004,13 @@ fun CommunityStatsHeatmap(cyan: Color) {
 
 @Composable
 fun EffectivenessLogItem(log: BioProtocolLog, cyan: Color) {
+    val theme = LocalNeonTheme.current
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).background(Color(0xFF080808)).padding(8.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).background(theme.surfaceRaised).padding(8.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text("LOG_${log.timestamp}", color = cyan, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
-        Text("ENERGY: ${log.energyScore}", color = Color.White, fontSize = 9.sp)
+        Text("ENERGY: ${log.energyScore}", color = theme.ink, fontSize = 9.sp)
     }
 }
 
@@ -1040,18 +1052,20 @@ fun ExpandableBioSection(
 
 @Composable
 fun BioReadOnlyField(label: String, value: String, modifier: Modifier = Modifier, color: Color) {
+    val theme = LocalNeonTheme.current
     Column(modifier = modifier) {
         Text(label, color = color.copy(alpha = 0.6f), fontSize = 8.sp, fontWeight = FontWeight.Bold)
-        Text(value, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
+        Text(value, color = theme.ink, fontSize = 14.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
     }
 }
 
 @Composable
 fun BioSliderField(label: String, value: Float, range: ClosedFloatingPointRange<Float>, color: Color, onValueChange: (Float) -> Unit) {
+    val theme = LocalNeonTheme.current
     Column {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(label, color = color.copy(alpha = 0.6f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            Text(value.toInt().toString(), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Black)
+            Text(value.toInt().toString(), color = theme.ink, fontSize = 10.sp, fontWeight = FontWeight.Black)
         }
         Slider(
             value = value,
@@ -1064,22 +1078,24 @@ fun BioSliderField(label: String, value: Float, range: ClosedFloatingPointRange<
 
 @Composable
 fun BioInputField(label: String, value: String, color: Color) {
+    val theme = LocalNeonTheme.current
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFF050505))
+            .background(theme.surface)
             .border(0.5.dp, color.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
             .padding(12.dp)
     ) {
         Column {
             Text(label, color = color.copy(alpha = 0.6f), fontSize = 8.sp, fontWeight = FontWeight.Bold)
-            Text(value, color = Color.White, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+            Text(value, color = theme.ink, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
         }
     }
 }
 
 @Composable
 fun BioAgeCard(bioAge: Float, calendarAge: Int, neonCyan: Color, neonMagenta: Color) {
+    val theme = LocalNeonTheme.current
     val delta = bioAge - calendarAge
     val color = if (delta <= 0) neonCyan else neonMagenta
     
@@ -1091,8 +1107,8 @@ fun BioAgeCard(bioAge: Float, calendarAge: Int, neonCyan: Color, neonMagenta: Co
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("CALENDAR", color = Color.Gray, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
-                    Text("$calendarAge", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
+                    Text("CALENDAR", color = theme.inkMuted, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                    Text("$calendarAge", color = theme.ink, fontSize = 24.sp, fontWeight = FontWeight.Black)
                 }
                 Text(" VS ", color = color, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp))
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1115,9 +1131,10 @@ fun BioAgeCard(bioAge: Float, calendarAge: Int, neonCyan: Color, neonMagenta: Co
 
 @Composable
 fun UploadCard(label: String, modifier: Modifier = Modifier, color: Color, onClick: () -> Unit = {}) {
+    val theme = LocalNeonTheme.current
     Column(
         modifier = modifier
-            .background(Color(0xFF080808))
+            .background(theme.surfaceRaised)
             .border(1.dp, color.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
             .clickable { onClick() }
             .padding(16.dp),
@@ -1131,23 +1148,24 @@ fun UploadCard(label: String, modifier: Modifier = Modifier, color: Color, onCli
 
 @Composable
 fun ReportCard(title: String, detail: String, description: String, magenta: Color, cyan: Color) {
+    val theme = LocalNeonTheme.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFF080808))
+            .background(theme.surfaceRaised)
             .neonBorder(magenta.copy(alpha = 0.4f), width = 1.dp, cornerRadius = 8.dp)
             .padding(12.dp)
     ) {
-        Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
+        Text(title, color = theme.ink, fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
         Text(detail, color = magenta, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
         Spacer(Modifier.height(6.dp))
-        Text(description, color = Color.Gray, fontSize = 11.sp, fontFamily = FontFamily.Monospace, lineHeight = 14.sp)
+        Text(description, color = theme.inkMuted, fontSize = 11.sp, fontFamily = FontFamily.Monospace, lineHeight = 14.sp)
         
         Spacer(Modifier.height(14.dp))
         Button(
             onClick = {},
             modifier = Modifier.height(34.dp).align(Alignment.End),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF151515)),
+            colors = ButtonDefaults.buttonColors(containerColor = theme.surface),
             contentPadding = PaddingValues(horizontal = 14.dp),
             shape = RoundedCornerShape(4.dp)
         ) {
@@ -1167,6 +1185,7 @@ fun UplinkStatusPanel(
     isLiveMonitoringEnabled: Boolean,
     onLiveMonitoringToggle: (Boolean) -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     CyberFrame(label = "NEURAL_UPLINK_STATUS", borderColor = neonCyan.copy(alpha = 0.6f)) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(
@@ -1176,7 +1195,7 @@ fun UplinkStatusPanel(
             ) {
                 Text(
                     "LIVE_MONITORING (BLE)",
-                    color = Color.White,
+                    color = theme.ink,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace
                 )
@@ -1196,7 +1215,7 @@ fun UplinkStatusPanel(
             if (syncStatuses.isEmpty()) {
                 Text(
                     "NO_ACTIVE_UPLINKS_FOUND",
-                    color = Color.Gray,
+                    color = theme.inkMuted,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace
                 )
@@ -1240,13 +1259,14 @@ fun UplinkStatusItem(
     neonMagenta: Color,
     onRelink: (UplinkProvider) -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     val statusColor = when (syncStatus.currentStatus) {
         is UplinkStatus.Connected -> neonCyan
         is UplinkStatus.Error -> neonMagenta
         is UplinkStatus.PermissionRequired -> neonMagenta
         is UplinkStatus.NeedsReAuth -> neonMagenta
         is UplinkStatus.Syncing -> Color.Yellow
-        else -> Color.Gray
+        else -> theme.inkMuted
     }
 
     val statusText = when (val s = syncStatus.currentStatus) {
@@ -1267,7 +1287,7 @@ fun UplinkStatusItem(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = syncStatus.provider.name.replace("_", " "),
-                color = Color.White,
+                color = theme.ink,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace
@@ -1283,7 +1303,7 @@ fun UplinkStatusItem(
                 val timeAgo = formatTimeAgo(lastSync)
                 Text(
                     text = "LAST_SYNC: $timeAgo",
-                    color = Color.Gray,
+                    color = theme.inkMuted,
                     fontSize = 8.sp,
                     fontFamily = FontFamily.Monospace
                 )
@@ -1332,6 +1352,7 @@ fun BiometricTrendsSection(
     onNavigateToGuide: (String?) -> Unit,
     onNavigateToDopamineMenu: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     val ranges = mapOf(7 to "7D", 30 to "30D", 90 to "90D")
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1353,7 +1374,7 @@ fun BiometricTrendsSection(
                 ranges.forEach { (days, label) ->
                     Text(
                         text = label,
-                        color = if (selectedRange == days) neonCyan else Color.Gray,
+                        color = if (selectedRange == days) neonCyan else theme.inkMuted,
                         fontSize = 9.sp,
                         fontWeight = if (selectedRange == days) FontWeight.Bold else FontWeight.Normal,
                         fontFamily = FontFamily.Monospace,
@@ -1372,16 +1393,16 @@ fun BiometricTrendsSection(
                     .fillMaxWidth()
                     .height(140.dp)
                     .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
-                    .border(1.dp, Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                    .border(1.dp, theme.inkMuted.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
                     .clickable { onNavigateToDopamineMenu() },
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
-                    Icon(Icons.Default.Analytics, contentDescription = null, tint = Color.Gray.copy(alpha = 0.5f), modifier = Modifier.size(32.dp))
+                    Icon(Icons.Default.Analytics, contentDescription = null, tint = theme.inkMuted.copy(alpha = 0.5f), modifier = Modifier.size(32.dp))
                     Spacer(Modifier.height(8.dp))
                     Text(
                         "NO_UPLINK_DATA_DETECTED",
-                        color = Color.Gray,
+                        color = theme.inkMuted,
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace
                     )
@@ -1421,6 +1442,7 @@ fun TrendCard(
     onNavigateToGuide: (String?) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val theme = LocalNeonTheme.current
     var isExpanded by remember { mutableStateOf(false) }
     
     // Threshold-based color coding
@@ -1445,7 +1467,7 @@ fun TrendCard(
             ) {
                 Text(
                     text = trend.currentValue,
-                    color = Color.White,
+                    color = theme.ink,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Black,
                     fontFamily = FontFamily.Monospace
@@ -1477,7 +1499,7 @@ fun TrendCard(
             if (trend.insight != null) {
                 Text(
                     text = trend.insight,
-                    color = Color.White.copy(alpha = 0.8f),
+                    color = theme.ink.copy(alpha = 0.8f),
                     fontSize = 9.sp,
                     fontFamily = FontFamily.Monospace,
                     lineHeight = 12.sp,
@@ -1493,7 +1515,7 @@ fun TrendCard(
                     
                     Text(
                         "ANALYSIS: Correlation detected between ${trend.label} and recent Mission adherence. Suggesting neural load optimization.",
-                        color = Color.Gray,
+                        color = theme.inkMuted,
                         fontSize = 8.sp,
                         fontFamily = FontFamily.Monospace
                     )
@@ -1522,6 +1544,7 @@ fun TrendCard(
 
 @Composable
 fun NutritionMacrosCard(macros: com.neon.ascent.core.domain.workout.rules.Macros, neonCyan: Color, neonMagenta: Color) {
+    val theme = LocalNeonTheme.current
     CyberFrame(label = "BIOMETRIC_NUTRITION_UPLINK", borderColor = neonCyan) {
         Column {
             Row(
@@ -1530,14 +1553,14 @@ fun NutritionMacrosCard(macros: com.neon.ascent.core.domain.workout.rules.Macros
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text("DAILY_TARGET", color = Color.Gray, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
-                    Text("${macros.calories}", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Black)
+                    Text("DAILY_TARGET", color = theme.inkMuted, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                    Text("${macros.calories}", color = theme.ink, fontSize = 28.sp, fontWeight = FontWeight.Black)
                     Text("KCAL", color = neonCyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
                 
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     MacroSubStat("PRO", "${macros.protein}g", neonCyan)
-                    MacroSubStat("CHO", "${macros.carbs}g", Color.White)
+                    MacroSubStat("CHO", "${macros.carbs}g", theme.ink)
                     MacroSubStat("FAT", "${macros.fat}g", neonMagenta)
                 }
             }
@@ -1548,7 +1571,7 @@ fun NutritionMacrosCard(macros: com.neon.ascent.core.domain.workout.rules.Macros
             Row(modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp))) {
                 val total = (macros.protein * 4 + macros.carbs * 4 + macros.fat * 9).toFloat()
                 Box(Modifier.weight(macros.protein * 4 / total).fillMaxHeight().background(neonCyan))
-                Box(Modifier.weight(macros.carbs * 4 / total).fillMaxHeight().background(Color.White.copy(alpha = 0.6f)))
+                Box(Modifier.weight(macros.carbs * 4 / total).fillMaxHeight().background(theme.ink.copy(alpha = 0.6f)))
                 Box(Modifier.weight(macros.fat * 9 / total).fillMaxHeight().background(neonMagenta))
             }
         }
@@ -1557,9 +1580,10 @@ fun NutritionMacrosCard(macros: com.neon.ascent.core.domain.workout.rules.Macros
 
 @Composable
 fun MacroSubStat(label: String, value: String, color: Color) {
+    val theme = LocalNeonTheme.current
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(label, color = color, fontSize = 8.sp, fontWeight = FontWeight.Black)
-        Text(value, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+        Text(value, color = theme.ink, fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
     }
 }
 
