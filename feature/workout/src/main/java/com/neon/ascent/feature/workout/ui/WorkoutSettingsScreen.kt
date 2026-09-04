@@ -28,7 +28,8 @@ fun WorkoutSettingsScreen(
     onBack: () -> Unit,
     onSave: () -> Unit,
     onUpdateProfile: (UserWorkoutProfile) -> Unit,
-    onResetProfile: () -> Unit
+    onResetProfile: () -> Unit,
+    onUpdateRestTimerMode: (RestTimerMode) -> Unit
 ) {
     val tempProfile = uiState.tempSettingsProfile ?: uiState.userProfile ?: return
     var showResetConfirmation by remember { mutableStateOf(false) }
@@ -174,7 +175,7 @@ fun WorkoutSettingsScreen(
                         Surface(
                             modifier = Modifier
                                 .weight(1f)
-                                .clickable { /* ViewModel call to update UI state rest mode */ },
+                                .clickable { onUpdateRestTimerMode(mode) },
                             color = if (isSelected) Color(0xFFFF006E).copy(alpha = 0.2f) else Color(0xFF1C1C1E),
                             shape = RoundedCornerShape(8.dp),
                             border = BorderStroke(1.dp, if (isSelected) Color(0xFFFF006E) else Color.Transparent)

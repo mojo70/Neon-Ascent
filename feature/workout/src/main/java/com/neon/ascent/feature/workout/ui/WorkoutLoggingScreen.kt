@@ -179,7 +179,8 @@ fun WorkoutLoggingScreen(
                             onBack = { viewModel.hideSettings() },
                             onSave = { viewModel.saveWorkoutSettings() },
                             onUpdateProfile = { viewModel.updateTempSettingsProfile(it) },
-                            onResetProfile = { viewModel.resetWorkoutProfile() }
+                            onResetProfile = { viewModel.resetWorkoutProfile() },
+                            onUpdateRestTimerMode = { viewModel.updateRestTimerMode(it) }
                         )
                     } else if (uiState.selectedProtocolForDetail != null) {
                         ProtocolDetailScreen(
@@ -574,7 +575,10 @@ fun WorkoutLoggingScreen(
             CyberFinisherDialog(onDone = { reps -> viewModel.startStretch(reps) })
         }
         if (uiState.showLoadedStretch && uiState.workoutPhase == RestPausePhase.LOADED_STRETCH) {
-            LoadedStretchDialog(remaining = uiState.stretchTimeRemaining)
+            LoadedStretchDialog(
+                remaining = uiState.stretchTimeRemaining,
+                onSkip = { viewModel.skipStretchTimer() }
+            )
         }
 
         if (showRestTimerAdjustment) {
@@ -585,7 +589,10 @@ fun WorkoutLoggingScreen(
             )
         }
 
-        if (uiState.isResting && (uiState.restTimerMode == RestTimerMode.POPUP || uiState.restTimerMode == RestTimerMode.BOTH)) {
+        val isClusterActiveTimer = uiState.workoutPhase == RestPausePhase.MINI_SET_2 ||
+                                   uiState.workoutPhase == RestPausePhase.MINI_SET_3
+
+        if (uiState.isResting && !isClusterActiveTimer && (uiState.restTimerMode == RestTimerMode.POPUP || uiState.restTimerMode == RestTimerMode.BOTH)) {
             RestTimerPopup(
                 remaining = uiState.restTimeRemaining,
                 total = uiState.restTimerTotalSeconds,
@@ -594,7 +601,7 @@ fun WorkoutLoggingScreen(
             )
         }
 
-        if (uiState.isResting && uiState.session != null) {
+        if (uiState.isResting && !isClusterActiveTimer && uiState.session != null && uiState.restTimerMode != RestTimerMode.POPUP) {
             StickyBottomTimer(
                 remaining = uiState.restTimeRemaining,
                 total = uiState.restTimerTotalSeconds,
@@ -4488,7 +4495,10 @@ fun WorkoutLogCard(
                     (item as? List<SetLog>)?.any { it.id == uiState.lastCompletedSetId } == true
                 }
                 
-                if (uiState.isResting && isMatch && 
+                val isClusterActiveTimer = uiState.workoutPhase == RestPausePhase.MINI_SET_2 ||
+                                           uiState.workoutPhase == RestPausePhase.MINI_SET_3
+
+                if (uiState.isResting && !isClusterActiveTimer && isMatch && 
                     (uiState.restTimerMode == RestTimerMode.INLINE || uiState.restTimerMode == RestTimerMode.BOTH)) {
                     InlineRestTimer(
                         remaining = uiState.restTimeRemaining,
@@ -4963,7 +4973,10 @@ fun CyberFinisherDialog(onDone: (Int) -> Unit) {
 }
 
 @Composable
-fun LoadedStretchDialog(remaining: Int) {
+fun LoadedStretchDialog(
+    remaining: Int,
+    onSkip: () -> Unit
+) {
     val theme = LocalNeonTheme.current
     Dialog(onDismissRequest = { /* Force completion */ }) {
         Surface(
@@ -4978,15 +4991,29 @@ fun LoadedStretchDialog(remaining: Int) {
                 modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    "LOADED STRETCH",
-                    color = Color(0xFFFF006E),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 2.sp
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(modifier = Modifier.size(24.dp))
+                    Text(
+                        "LOADED STRETCH",
+                        color = Color(0xFFFF006E),
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 2.sp
+                    )
+                    IconButton(onClick = onSkip, modifier = Modifier.size(24.dp)) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Skip Stretch",
+                            tint = theme.inkMuted
+                        )
+                    }
+                }
                 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
                 
                 Box(contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(
@@ -5027,7 +5054,7 @@ fun LoadedStretchDialog(remaining: Int) {
                     modifier = Modifier.padding(top = 8.dp)
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
                 LinearProgressIndicator(
                     progress = { remaining / 45f }, // Approx default
@@ -5035,9 +5062,22 @@ fun LoadedStretchDialog(remaining: Int) {
                     color = Color(0xFFFF006E),
                     trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                TextButton(
+                    onClick = onSkip,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        "SKIP STRETCH",
+                        color = Color(0xFFFF006E),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                }
             }
         }
-
     }
 }
 
@@ -5060,10 +5100,18 @@ fun ClusterSetRow(
     val prevTotalReps = previousSets.sumOf { it.reps }
     val weightPlaceholder = previousWeight?.let { if (it % 1 == 0f) it.toInt().toString() else it.toString() } ?: "0"
 
+    val rowGreenHighlight = if (theme.mode == VisualMode.STEVE) {
+        Color(0xFF4CD964).copy(alpha = 0.22f)
+    } else {
+        Color(0xFF4CD964).copy(alpha = 0.15f)
+    }
+    val defaultBackgroundColor = if (theme.mode == VisualMode.STEVE) theme.surfaceRaised.copy(alpha = 0.5f) else Color(0xFF00FFAA).copy(alpha = 0.05f)
+    val rowBackgroundColor = if (isCompleted) rowGreenHighlight else defaultBackgroundColor
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(if (theme.mode == VisualMode.STEVE) theme.surfaceRaised.copy(alpha = 0.5f) else Color(0xFF00FFAA).copy(alpha = 0.05f), RoundedCornerShape(4.dp))
+            .background(rowBackgroundColor, RoundedCornerShape(4.dp))
             .padding(vertical = 4.dp, horizontal = 4.dp)
     ) {
         Row(
@@ -5308,14 +5356,26 @@ fun ClusterLoggingDialog(
                 sets.sortedBy { it.clusterMiniSetIndex }.forEachIndexed { index, set ->
                     val prevSet = previousSets.find { it.clusterMiniSetIndex == set.clusterMiniSetIndex }
                     val isActive = !set.isCompleted && (index == 0 || sets[index - 1].isCompleted) && !uiState.isResting
+                    val miniSetRowGreenHighlight = if (theme.mode == VisualMode.STEVE) {
+                        Color(0xFF4CD964).copy(alpha = 0.22f)
+                    } else {
+                        Color(0xFF4CD964).copy(alpha = 0.15f)
+                    }
+                    val surfaceColor = if (set.isCompleted) {
+                        miniSetRowGreenHighlight
+                    } else if (isActive) {
+                        Color(0xFF00FFAA).copy(alpha = 0.05f)
+                    } else {
+                        Color.Transparent
+                    }
                     
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp),
-                        color = if (isActive) Color(0xFF00FFAA).copy(alpha = 0.05f) else Color.Transparent,
+                        color = surfaceColor,
                         shape = RoundedCornerShape(8.dp),
-                        border = if (isActive) BorderStroke(1.dp, Color(0xFF00FFAA).copy(alpha = 0.3f)) else null
+                        border = if (isActive && !set.isCompleted) BorderStroke(1.dp, Color(0xFF00FFAA).copy(alpha = 0.3f)) else null
                     ) {
                         Row(
                             modifier = Modifier.padding(8.dp),

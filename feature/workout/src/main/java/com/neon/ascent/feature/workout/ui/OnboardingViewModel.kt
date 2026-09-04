@@ -289,13 +289,34 @@ class OnboardingViewModel @Inject constructor(
             }
             
             // 3. Schedule Recurring Tasks for training days
-            profile.scheduledDays.forEach { scheduled ->
-                val dayName = java.time.DayOfWeek.of(scheduled.dayOfWeek).name
+            val protocolRoutines = if (profile.activeProtocol != null) {
+                workoutRepository.getAllRoutines().first().filter { it.protocol == profile.activeProtocol }
+            } else emptyList()
+
+            profile.scheduledDays.forEachIndexed { scheduledIndex, scheduled ->
+                val assignedRoutine = if (protocolRoutines.isNotEmpty()) {
+                    protocolRoutines[scheduledIndex % protocolRoutines.size]
+                } else null
+
+                val titleText = if (assignedRoutine != null) {
+                    "TRAINING SESSION: ${assignedRoutine.name.uppercase()}"
+                } else {
+                    "TRAINING SESSION: ${profile.activeProtocol?.displayName ?: "GENERAL"}"
+                }
+
+                val tagsList = mutableListOf("workout_session")
+                if (profile.activeProtocol != null) {
+                    tagsList.add("protocol_${profile.activeProtocol?.name}")
+                }
+                if (assignedRoutine != null) {
+                    tagsList.add("routine_${assignedRoutine.id}")
+                }
+
                 val task = AscensionTask(
                     id = UUID.randomUUID().toString(),
                     parentId = null,
-                    title = "TRAINING SESSION: ${profile.activeProtocol?.displayName ?: "GENERAL"}",
-                    description = "Sync with the next routine in your protocol rotation.",
+                    title = titleText,
+                    description = "Sync with ${assignedRoutine?.name ?: "your scheduled protocol"}.",
                     type = AscensionTaskType.RECURRING,
                     recurrence = com.neon.ascent.core.domain.goals.models.RecurrenceV3(
                         type = com.neon.ascent.core.domain.goals.models.RecurrenceTypeV3.DAYS_OF_WEEK,
@@ -304,7 +325,7 @@ class OnboardingViewModel @Inject constructor(
                     timeWindows = listOf(scheduled.time),
                     reminderEnabled = true,
                     xpValue = 25,
-                    tags = listOf("workout_session", "protocol_${profile.activeProtocol?.name}")
+                    tags = tagsList
                 )
                 ascensionRepository.insertTask(task)
             }

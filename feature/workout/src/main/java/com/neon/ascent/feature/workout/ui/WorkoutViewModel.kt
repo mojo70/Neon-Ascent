@@ -1135,7 +1135,20 @@ class WorkoutViewModel @Inject constructor(
         viewModelScope.launch {
             val task = ascensionRepository.getTaskById(taskId).first() ?: return@launch
             
-            // Check for independent augment start
+            // 1. Check for specific routine tag
+            val routineTag = task.tags.find { it.startsWith("routine_") }
+            if (routineTag != null) {
+                val routineId = routineTag.removePrefix("routine_")
+                val routine = repository.getAllRoutines().first().find { it.id == routineId }
+                if (routine != null) {
+                    if (_uiState.value.session == null) {
+                        startRoutine(routine)
+                    }
+                    return@launch
+                }
+            }
+
+            // 2. Check for independent augment start
             val actTag = task.tags.find { it.startsWith("augment_act_") }
             val isIndependent = task.tags.contains("independent_start")
             
@@ -1143,20 +1156,50 @@ class WorkoutViewModel @Inject constructor(
                 val actId = actTag.removePrefix("augment_act_")
                 val activation = _uiState.value.augmentActivations.find { it.id == actId }
                 if (activation != null) {
-                    startIndependentAugmentSession(activation)
+                    if (_uiState.value.session == null) {
+                        startIndependentAugmentSession(activation)
+                    }
                     return@launch
                 }
             }
+
+            // 3. Check for general augment schedule
+            val augmentTag = task.tags.find { it.startsWith("augment_") && !it.startsWith("augment_act_") }
+            if (augmentTag != null) {
+                val augmentId = augmentTag.removePrefix("augment_")
+                val augment = (uiState.value.augments + uiState.value.exploreAugments).find { it.id == augmentId }
+                if (augment != null) {
+                    val activation = _uiState.value.augmentActivations.find { it.augmentId == augment.id }
+                    if (activation != null && _uiState.value.session == null) {
+                        startIndependentAugmentSession(activation)
+                        return@launch
+                    }
+                }
+            }
             
-            // Fallback: Start normal session or resume
+            // 4. Fallback: Check protocol or next sequenced routine
             if (_uiState.value.session == null) {
-                // If the task has a protocol tag, start that session
                 val protocolTag = task.tags.find { it.startsWith("protocol_") }
                 if (protocolTag != null) {
                     val protocolName = protocolTag.removePrefix("protocol_")
-                    runCatching { WorkoutProtocol.valueOf(protocolName) }.getOrNull()?.let { protocol ->
-                        startSession(protocol)
+                    val protocol = runCatching { WorkoutProtocol.valueOf(protocolName) }.getOrNull()
+                    if (protocol != null) {
+                        // Find matching routine in this protocol sequence if available
+                        val matchingRoutine = _uiState.value.routines.find { it.protocol == protocol }
+                        if (matchingRoutine != null) {
+                            startRoutine(matchingRoutine)
+                        } else {
+                            startSession(protocol)
+                        }
+                        return@launch
                     }
+                }
+
+                val nextRoutine = _uiState.value.nextSequencedRoutine ?: _uiState.value.routines.firstOrNull { it.protocol == _uiState.value.userProfile?.activeProtocol }
+                if (nextRoutine != null) {
+                    startRoutine(nextRoutine)
+                } else if (_uiState.value.userProfile?.activeProtocol != null) {
+                    startSession(_uiState.value.userProfile!!.activeProtocol!!)
                 }
             }
         }
@@ -1400,12 +1443,28 @@ class WorkoutViewModel @Inject constructor(
         }
 
         // 3. Normal schedule reminders
-        profile.scheduledDays.forEach { scheduled ->
+        val protocolRoutines = _uiState.value.routines.filter { it.protocol == protocol }
+        profile.scheduledDays.forEachIndexed { scheduledIndex, scheduled ->
+            val assignedRoutine = if (protocolRoutines.isNotEmpty()) {
+                protocolRoutines[scheduledIndex % protocolRoutines.size]
+            } else null
+            
+            val titleText = if (assignedRoutine != null) {
+                "TRAINING SESSION: ${assignedRoutine.name.uppercase()}"
+            } else {
+                "TRAINING SESSION: ${protocol.displayName}"
+            }
+
+            val tagsList = mutableListOf("workout_session", "protocol_${protocol.name}")
+            if (assignedRoutine != null) {
+                tagsList.add("routine_${assignedRoutine.id}")
+            }
+
             val task = AscensionTask(
                 id = UUID.randomUUID().toString(),
                 parentId = null,
-                title = "TRAINING SESSION: ${protocol.displayName}",
-                description = "Sync with the next routine in your protocol rotation.",
+                title = titleText,
+                description = "Sync with ${assignedRoutine?.name ?: "your scheduled protocol"}.",
                 type = AscensionTaskType.RECURRING,
                 recurrence = com.neon.ascent.core.domain.goals.models.RecurrenceV3(
                     type = com.neon.ascent.core.domain.goals.models.RecurrenceTypeV3.DAYS_OF_WEEK,
@@ -1414,7 +1473,7 @@ class WorkoutViewModel @Inject constructor(
                 timeWindows = listOf(scheduled.time),
                 reminderEnabled = true,
                 xpValue = 25,
-                tags = listOf("workout_session", "protocol_${protocol.name}")
+                tags = tagsList
             )
             ascensionRepository.insertTask(task)
         }
@@ -2621,6 +2680,46 @@ class WorkoutViewModel @Inject constructor(
         viewModelScope.launch {
             repository.saveWorkoutLog(workoutLog)
             loadPreviousData(exercise.id)
+
+            // If CyberCrapp protocol, create standard 2 warmups + 3 mini-set cluster
+            if (session.protocol == WorkoutProtocol.CYBER_CRAPP) {
+                var globalTimestamp = java.time.Instant.now()
+                val warmupGoal = CyberCrappRules.resolve(session.protocol, exercise, SetType.WARMUP, false, _uiState.value.repTargets).label
+                val workingGoal = if (session.isDeload) "DELOAD (RIR 3-4)" else CyberCrappRules.resolve(session.protocol, exercise, SetType.REST_PAUSE, false, _uiState.value.repTargets).label
+
+                // 2 Warmups
+                for (i in 1..2) {
+                    globalTimestamp = globalTimestamp.plusMillis(1)
+                    val warmupSet = SetLog(
+                        id = UUID.randomUUID().toString(),
+                        workoutLogId = workoutLog.id,
+                        weight = 0f,
+                        reps = 0,
+                        type = SetType.WARMUP,
+                        goalReps = warmupGoal,
+                        timestamp = globalTimestamp
+                    )
+                    repository.saveSetLog(warmupSet)
+                }
+
+                // 3 Mini-sets or deload sets
+                val typeToSave = if (session.isDeload) SetType.NORMAL else SetType.REST_PAUSE
+                for (i in 1..3) {
+                    globalTimestamp = globalTimestamp.plusMillis(1)
+                    val clusterSet = SetLog(
+                        id = UUID.randomUUID().toString(),
+                        workoutLogId = workoutLog.id,
+                        weight = 0f,
+                        reps = 0,
+                        type = typeToSave,
+                        goalReps = workingGoal,
+                        clusterMiniSetIndex = if (session.isDeload) null else i,
+                        timestamp = globalTimestamp,
+                        rir = if (session.isDeload) 4 else null
+                    )
+                    repository.saveSetLog(clusterSet)
+                }
+            }
         }
     }
 
@@ -2989,19 +3088,7 @@ class WorkoutViewModel @Inject constructor(
     }
 
     fun replaceWorkoutLog(oldLog: WorkoutLog, newExercise: Exercise) {
-        viewModelScope.launch {
-            // Simplest replacement: delete old, add new at same order
-            repository.deleteWorkoutLog(oldLog.id)
-            val newLog = WorkoutLog(
-                id = UUID.randomUUID().toString(),
-                sessionId = oldLog.sessionId,
-                exerciseId = newExercise.id,
-                order = oldLog.order,
-                exerciseName = newExercise.name
-            )
-            repository.saveWorkoutLog(newLog)
-            loadPreviousData(newExercise.id)
-        }
+        substituteExercise(oldLog.exerciseId, newExercise)
     }
 
     fun removeSet(setLog: SetLog) {
@@ -3647,6 +3734,46 @@ class WorkoutViewModel @Inject constructor(
                 activeCyberCrappLogId = null
             ) }
         }
+    }
+
+    fun skipStretchTimer() {
+        stretchTimerJob?.cancel()
+        
+        // Save Loaded Stretch log with actual elapsed or standard stretch duration
+        val logId = _uiState.value.activeCyberCrappLogId
+        if (logId != null) {
+            val stretchSet = SetLog(
+                id = UUID.randomUUID().toString(),
+                workoutLogId = logId,
+                weight = 0f,
+                reps = calculateStretchDuration(),
+                type = SetType.STRETCH,
+                isLoadedStretch = true,
+                stretchDurationSeconds = calculateStretchDuration(),
+                isCompleted = true
+            )
+            
+            _uiState.update { state ->
+                val newLogs = state.logs.map { (log, sets) ->
+                    if (log.id == logId) {
+                        log to (sets + stretchSet).sortedWith(compareBy({ it.timestamp }, { it.id }))
+                    } else {
+                        log to sets
+                    }
+                }
+                state.copy(logs = newLogs)
+            }
+            
+            viewModelScope.launch {
+                repository.saveSetLog(stretchSet)
+            }
+        }
+        
+        _uiState.update { it.copy(
+            showLoadedStretch = false, 
+            workoutPhase = RestPausePhase.NOT_ACTIVE,
+            activeCyberCrappLogId = null
+        ) }
     }
 
     fun startStretch(partialReps: Int) {

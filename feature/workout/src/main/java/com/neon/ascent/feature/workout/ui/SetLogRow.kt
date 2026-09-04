@@ -41,7 +41,13 @@ fun SetLogRow(
 ) {
     val theme = LocalNeonTheme.current
     val haptic = LocalHapticFeedback.current
-    val backgroundColor = if (setNumber % 2 == 0) Color.Transparent else theme.surfaceRaised.copy(alpha = 0.3f)
+    val rowGreenHighlight = if (theme.mode == VisualMode.STEVE) {
+        Color(0xFF4CD964).copy(alpha = 0.22f)
+    } else {
+        Color(0xFF4CD964).copy(alpha = 0.15f)
+    }
+    val defaultBackgroundColor = if (setNumber % 2 == 0) Color.Transparent else theme.surfaceRaised.copy(alpha = 0.3f)
+    val backgroundColor = if (set.isCompleted) rowGreenHighlight else defaultBackgroundColor
     val weightPlaceholder = prescribedWeight?.let { if (it % 1 == 0f) it.toInt().toString() else it.toString() } 
         ?: previousWeight?.let { if (it % 1 == 0f) it.toInt().toString() else it.toString() } ?: "0"
     
@@ -82,8 +88,8 @@ fun SetLogRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(backgroundColor)
-            .padding(vertical = 4.dp)
+            .background(backgroundColor, RoundedCornerShape(4.dp))
+            .padding(vertical = 4.dp, horizontal = 4.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
