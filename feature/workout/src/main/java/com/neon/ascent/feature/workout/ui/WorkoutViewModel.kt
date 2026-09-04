@@ -963,6 +963,10 @@ class WorkoutViewModel @Inject constructor(
     fun saveAugmentActivation(activation: AugmentActivation) {
         viewModelScope.launch {
             repository.saveAugmentActivation(activation)
+            val augment = (uiState.value.augments + uiState.value.exploreAugments).find { it.id == activation.augmentId }
+            if (augment != null && !augment.isAddedToLibrary) {
+                repository.saveAugment(augment.copy(isAddedToLibrary = true))
+            }
             syncAugmentReminders(activation)
         }
     }
@@ -1032,6 +1036,9 @@ class WorkoutViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            if (!augment.isAddedToLibrary) {
+                repository.saveAugment(augment.copy(isAddedToLibrary = true))
+            }
             _uiState.update { it.copy(isLoading = true) }
             val sessionId = UUID.randomUUID().toString()
             

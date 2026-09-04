@@ -456,6 +456,7 @@ fun WorkoutLoggingScreen(
                     viewModel.editAugment(showAugmentActionMenuFor!!)
                     showAugmentActionMenuFor = null
                 },
+                onToggleLibrary = { viewModel.toggleAugmentLibrary(showAugmentActionMenuFor!!) },
                 onSchedule = {
                     showAugmentScheduleDialogFor = showAugmentActionMenuFor
                     showAugmentActionMenuFor = null
@@ -473,6 +474,7 @@ fun WorkoutLoggingScreen(
             AugmentDossierSheet(
                 augment = dossierAugment,
                 activation = dossierActivation,
+                onAddAugment = { viewModel.toggleAugmentLibrary(it) },
                 onActivate = {
                     showAugmentDossierFor = null
                     showAugmentScheduleDialogFor = dossierAugment
@@ -1879,6 +1881,7 @@ fun SubProtocolsHubRail(
 fun AugmentDossierSheet(
     augment: WorkoutAugment,
     activation: AugmentActivation? = null,
+    onAddAugment: (WorkoutAugment) -> Unit,
     onActivate: () -> Unit,
     onLaunchSolo: () -> Unit,
     onActionClick: () -> Unit,
@@ -1954,6 +1957,34 @@ fun AugmentDossierSheet(
             }
 
             Spacer(modifier = Modifier.height(28.dp))
+
+            Button(
+                onClick = { onAddAugment(augment) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (augment.isAddedToLibrary) theme.surface else theme.surfaceRaised
+                ),
+                shape = RoundedCornerShape(8.dp),
+                border = if (!augment.isAddedToLibrary) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        if (augment.isAddedToLibrary) Icons.Default.CheckCircle else Icons.Default.Download,
+                        contentDescription = null,
+                        tint = if (augment.isAddedToLibrary) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        if (augment.isAddedToLibrary) "SUB-PROTOCOL ARCHIVED" else "ADD TO MY SUB-PROTOCOLS",
+                        color = if (augment.isAddedToLibrary) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             if (isLive) {
                 if (activation != null && activation.mode == AugmentRunMode.INDEPENDENT) {
@@ -2990,6 +3021,7 @@ fun WorkoutAugmentActionMenu(
     onShare: () -> Unit,
     onDuplicate: () -> Unit,
     onEdit: () -> Unit,
+    onToggleLibrary: () -> Unit,
     onSchedule: () -> Unit,
     onPause: (AugmentActivation) -> Unit,
     onEnd: (AugmentActivation) -> Unit,
@@ -3049,6 +3081,14 @@ fun WorkoutAugmentActionMenu(
                 HorizontalDivider(color = theme.inkMuted.copy(alpha = 0.2f))
             }
 
+            ActionMenuItem(
+                icon = if (augment.isAddedToLibrary) Icons.Default.RemoveCircleOutline else Icons.Default.AddCircleOutline,
+                label = if (augment.isAddedToLibrary) "Remove from My Sub-Protocols" else "Add to My Sub-Protocols",
+                onClick = {
+                    onToggleLibrary()
+                    onDismiss()
+                }
+            )
             ActionMenuItem(
                 icon = Icons.Default.Share,
                 label = "Share Sub Protocol",
