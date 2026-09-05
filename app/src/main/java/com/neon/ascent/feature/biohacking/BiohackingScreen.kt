@@ -83,6 +83,7 @@ fun BiohackingScreen(
     val rhrSeries by viewModel.rhrSeries.collectAsState()
     val hrvSeries by viewModel.hrvSeries.collectAsState()
     val recoveryScore by viewModel.recoveryScore.collectAsState()
+    val neonCharge by viewModel.neonCharge.collectAsState()
     val hasNutritionPermission by viewModel.hasNutritionPermission.collectAsState()
     val completedSessions by viewModel.completedSessionsThisWeek.collectAsState()
     val scheduledSessions by viewModel.scheduledSessionsThisWeek.collectAsState()
@@ -361,6 +362,7 @@ fun BiohackingScreen(
                     completedSessions = completedSessions,
                     scheduledSessions = scheduledSessions,
                     recoveryScore = recoveryScore,
+                    neonCharge = neonCharge,
                     macros = macros,
                     hasNutritionPermission = hasNutritionPermission,
                     neonCyan = neonCyan,
@@ -1454,9 +1456,8 @@ fun TrendCard(
     // Threshold-based color coding
     val statusColor = when (trend.label) {
         "SLEEP" -> if ((trend.currentValue.toFloatOrNull() ?: 8f) < 6.5f) neonMagenta else neonCyan
-        "HRV" -> if ((trend.currentValue.toFloatOrNull() ?: 50f) < 35f) neonMagenta else neonCyan
+        "HRV" -> if ((trend.currentValue.toFloatOrNull() ?: 35f) < 35f) neonMagenta else neonCyan
         "STEPS" -> if ((trend.currentValue.toFloatOrNull() ?: 10000f) < 5000f) neonMagenta else neonCyan
-        "RECOVERY" -> if ((trend.currentValue.toFloatOrNull() ?: 100f) < 40f) neonMagenta else neonCyan
         else -> neonCyan
     }
     

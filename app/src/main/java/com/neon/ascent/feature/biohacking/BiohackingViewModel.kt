@@ -44,6 +44,10 @@ import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.text.PDFTextStripper
 import com.neon.ascent.core.domain.health.HealthManager
+import com.neon.ascent.core.domain.health.NeonCharge
+import com.neon.ascent.core.domain.health.NeonChargeEngine
+import com.neon.ascent.core.domain.health.NeonChargeInput
+import com.neon.ascent.core.domain.health.SessionLoad
 import com.neon.ascent.core.domain.health.models.VitalsSnapshot
 import com.neon.ascent.core.domain.workout.models.RecoveryScore
 import kotlinx.serialization.encodeToString
@@ -167,6 +171,47 @@ class BiohackingViewModel @Inject constructor(
 
     val recoveryScore: StateFlow<RecoveryScore?> = workoutRepository.getRecoveryScore()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val neonCharge: StateFlow<NeonCharge?> = combine(
+        vitalsSnapshot,
+        rhrSeries,
+        hrvSeries,
+        workoutRepository.getFullHistory()
+    ) { snapshot, rhrList, hrvList, history ->
+        val now = Instant.now()
+        val startOfDay = now.atZone(ZoneId.systemDefault()).toLocalDate().atStartOfDay(ZoneId.systemDefault()).toInstant()
+
+        val todaysSessions = history.filter { (session, _) ->
+            !session.date.isBefore(startOfDay)
+        }.map { (session, _) ->
+            SessionLoad(
+                sessionRpe = session.sessionRpe,
+                protocol = session.protocol,
+                startedAt = session.date,
+                durationSeconds = session.durationSeconds
+            )
+        }
+
+        val hrSamples = try { healthManager.heartRateSamples(startOfDay, now) } catch (e: Exception) { emptyList() }
+        val exerciseWindows = try { healthManager.exerciseSessions(startOfDay, now) } catch (e: Exception) { emptyList() }
+
+        val input = NeonChargeInput(
+            sleepMinutesLastNight = snapshot?.sleepDurationMinutes,
+            sleepEndedAt = null,
+            rhrToday = snapshot?.restingHeartRate?.toDouble(),
+            rhr7d = rhrList.map { it.second },
+            hrvToday = snapshot?.hrvRmssd,
+            hrv7d = hrvList.map { it.second },
+            stepsToday = snapshot?.steps ?: 0L,
+            todaysSessions = todaysSessions,
+            hrSamplesToday = hrSamples,
+            exerciseWindowsToday = exerciseWindows,
+            napsMinutesToday = 0,
+            now = now
+        )
+
+        NeonChargeEngine.calculateCharge(input)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val hasNutritionPermission: StateFlow<Boolean> = flow {
         while (true) {

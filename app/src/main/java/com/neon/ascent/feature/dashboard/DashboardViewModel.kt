@@ -74,7 +74,9 @@ class DashboardViewModel @Inject constructor(
     private val insightRepository: com.neon.ascent.core.domain.repository.InsightProjectionRepository,
     private val insightDao: InsightDao,
     private val insightProcessor: InsightProjectionProcessor,
-    private val briefPrefs: BriefPreferencesDataStore
+    private val briefPrefs: BriefPreferencesDataStore,
+    private val healthManager: com.neon.ascent.core.domain.health.HealthManager,
+    private val workoutRepository: com.neon.ascent.core.domain.repository.WorkoutRepository
 ) : ViewModel() {
     val userCharacter: StateFlow<UserCharacter?> = characterRepository.getUserCharacter()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -96,6 +98,45 @@ class DashboardViewModel @Inject constructor(
 
     val socraticInsight: StateFlow<com.neon.ascent.core.domain.repository.SocraticInsight?> = insightRepository.getLatestInsight()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val neonCharge: StateFlow<com.neon.ascent.core.domain.health.NeonCharge?> = combine(
+        uplinkManager.combinedVitalsSnapshot,
+        workoutRepository.getFullHistory()
+    ) { snapshot, history ->
+        val now = java.time.Instant.now()
+        val startOfDay = now.atZone(ZoneId.systemDefault()).toLocalDate().atStartOfDay(ZoneId.systemDefault()).toInstant()
+
+        val todaysSessions = history.filter { (session, _) ->
+            !session.date.isBefore(startOfDay)
+        }.map { (session, _) ->
+            com.neon.ascent.core.domain.health.SessionLoad(
+                sessionRpe = session.sessionRpe,
+                protocol = session.protocol,
+                startedAt = session.date,
+                durationSeconds = session.durationSeconds
+            )
+        }
+
+        val hrSamples = try { healthManager.heartRateSamples(startOfDay, now) } catch (e: Exception) { emptyList() }
+        val exerciseWindows = try { healthManager.exerciseSessions(startOfDay, now) } catch (e: Exception) { emptyList() }
+
+        val input = com.neon.ascent.core.domain.health.NeonChargeInput(
+            sleepMinutesLastNight = snapshot?.sleepDurationMinutes,
+            sleepEndedAt = null,
+            rhrToday = snapshot?.restingHeartRate?.toDouble(),
+            rhr7d = emptyList(),
+            hrvToday = snapshot?.hrvRmssd,
+            hrv7d = emptyList(),
+            stepsToday = snapshot?.steps ?: 0L,
+            todaysSessions = todaysSessions,
+            hrSamplesToday = hrSamples,
+            exerciseWindowsToday = exerciseWindows,
+            napsMinutesToday = 0,
+            now = now
+        )
+
+        com.neon.ascent.core.domain.health.NeonChargeEngine.calculateCharge(input)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private val _systemAdvice = MutableStateFlow("NEURAL_LINK_ESTABLISHED. SCANNING_SYSTEM...")
     val systemAdvice: StateFlow<String> = _systemAdvice.asStateFlow()

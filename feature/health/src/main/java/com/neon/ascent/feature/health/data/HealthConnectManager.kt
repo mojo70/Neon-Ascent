@@ -39,7 +39,8 @@ class HealthConnectManager @Inject constructor(
         HealthPermission.getReadPermission(DistanceRecord::class),
         HealthPermission.getReadPermission(HeartRateRecord::class),
         HealthPermission.getReadPermission(RestingHeartRateRecord::class),
-        HealthPermission.getReadPermission(NutritionRecord::class)
+        HealthPermission.getReadPermission(NutritionRecord::class),
+        HealthPermission.getReadPermission(ExerciseSessionRecord::class)
     )
 
     /** Check if Health Connect is available and permissions are granted */
@@ -97,7 +98,8 @@ class HealthConnectManager @Inject constructor(
         DistanceRecord::class.simpleName!! to "Distance walked/run boosts Agility progression.",
         HeartRateRecord::class.simpleName!! to "Real-time heart rate monitoring for your neural link stability.",
         RestingHeartRateRecord::class.simpleName!! to "Resting HR is a recovery signal, not live pulse.",
-        NutritionRecord::class.simpleName!! to "Logged meals from Fit or other apps vs your TDEE target."
+        NutritionRecord::class.simpleName!! to "Logged meals from Fit or other apps vs your TDEE target.",
+        ExerciseSessionRecord::class.simpleName!! to "Mask workouts so HR load is not double-counted."
     )
 
     /** 
@@ -216,6 +218,17 @@ class HealthConnectManager @Inject constructor(
             .flatMap { it.samples }
             .filter { it.beatsPerMinute > 0 }
             .lastOrNull()?.beatsPerMinute?.toInt()
+    }
+
+    override suspend fun heartRateSamples(start: Instant, end: Instant): List<Pair<Instant, Int>> {
+        return readRecords<HeartRateRecord>(start, end)
+            .flatMap { record -> record.samples.map { sample -> sample.time to sample.beatsPerMinute.toInt() } }
+            .filter { it.second > 0 }
+    }
+
+    override suspend fun exerciseSessions(start: Instant, end: Instant): List<Pair<Instant, Instant>> {
+        return readRecords<ExerciseSessionRecord>(start, end)
+            .map { record -> record.startTime to record.endTime }
     }
 
     override suspend fun sleepSessions(start: Instant, end: Instant): List<SleepSessionRecord> {

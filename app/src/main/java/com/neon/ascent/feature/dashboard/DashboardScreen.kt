@@ -267,13 +267,22 @@ fun NeuralBriefCard(
                             style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round)
                         )
                     }
-                    Text(
-                        "${(neuralLoad * 100).toInt()}%",
-                        color = theme.ink,
-                        fontSize = 16.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            "${(neuralLoad * 100).toInt()}%",
+                            color = theme.ink,
+                            fontSize = 15.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "CHARGE",
+                            color = theme.ink.copy(alpha = 0.6f),
+                            fontSize = 8.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
             
@@ -501,9 +510,11 @@ fun DashboardScreen(
     val briefBody by viewModel.briefBody.collectAsState()
     val liveMetrics by healthViewModel.liveMetrics.collectAsState()
     val vitalsSnapshot by healthViewModel.vitalsSnapshot.collectAsState()
+    val neonCharge by viewModel.neonCharge.collectAsState()
     val currentTime = remember { mutableStateOf(LocalDateTime.now()) }
     
-    val neuralLoad = userCharacter?.neuralLoad ?: 0.2f
+    val chargeVal = (neonCharge?.value ?: 62) / 100f
+    val neuralLoad = chargeVal
     
     val systemColor by animateColorAsState(
         targetValue = if (theme.mode == VisualMode.STEVE) theme.ink else if (neuralLoad > 0.7f) Color(0xFFFF006E) else Color(0xFF00FF9C),

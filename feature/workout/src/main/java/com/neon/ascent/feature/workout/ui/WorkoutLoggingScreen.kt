@@ -665,11 +665,10 @@ fun PostWorkoutCheckInDialog(
 
                 Text("SESSION RPE: ${rpe.toInt()}", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                 Text(
-                    when {
-                        rpe < 4 -> "Light recovery work."
-                        rpe < 7 -> "Moderate training effort."
-                        rpe < 9 -> "Hard session. Near limit."
-                        else -> "Max effort. All-out intensity."
+                    when (rpe.toInt()) {
+                        in 1..4 -> "CAKE (1–4) · Light recovery work."
+                        in 5..7 -> "WORK (5–7) · Moderate training effort."
+                        else -> "GRIND (8–10) · Hard to max effort intensity."
                     },
                     color = theme.inkMuted,
                     fontSize = 12.sp
