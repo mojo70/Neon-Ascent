@@ -84,6 +84,7 @@ class HealthConnectUplink @Inject constructor(
 
                 val now = Instant.now()
                 val startOfDay = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()
+                val sleepWindowStart = LocalDate.now().minusDays(1).atTime(18, 0).atZone(ZoneId.systemDefault()).toInstant()
                 
                 // Use aggregates for totals to avoid double-counting
                 val steps = healthConnectManager.aggregateSteps(startOfDay, now).takeIf { it > 0 }
@@ -95,15 +96,24 @@ class HealthConnectUplink @Inject constructor(
                 }
                 val caloriesVal = calories.takeIf { it > 0 }
 
+                // Nutrition calories consumed today
+                val caloriesConsumed = healthConnectManager.aggregateNutritionKcal(startOfDay, now)
+
                 // RHR and HRV (latest today)
                 val rhr = healthConnectManager.latestRestingHr(startOfDay, now)
                 val hrv = healthConnectManager.latestHrvRmssd(startOfDay, now)
                 
-                // Longest sleep session duration
-                val sleepSessions = healthConnectManager.sleepSessions(startOfDay, now)
-                val longestSleepMinutes = sleepSessions.maxOfOrNull { 
+                // Sleep window: 18:00 local yesterday -> now
+                val sleepSessions = healthConnectManager.sleepSessions(sleepWindowStart, now)
+                val longestSession = sleepSessions.maxByOrNull { 
+                    java.time.Duration.between(it.startTime, it.endTime).toMillis() 
+                }
+                val longestSleepMinutes = longestSession?.let { 
                     java.time.Duration.between(it.startTime, it.endTime).toMinutes() 
                 }
+                val sleepStages = longestSession?.let { 
+                    healthConnectManager.parseSleepStages(it) 
+                } ?: emptyMap()
 
                 updateStatus(UplinkStatus.Connected)
                 val syncTime = System.currentTimeMillis()
@@ -118,6 +128,7 @@ class HealthConnectUplink @Inject constructor(
                 return DeepBiometrics(
                     stepsToday = steps,
                     caloriesToday = caloriesVal,
+                    caloriesConsumedToday = caloriesConsumed,
                     sleepScore = null, // HC does not provide scores
                     bodyBattery = null,
                     stressLevel = null,
@@ -125,6 +136,7 @@ class HealthConnectUplink @Inject constructor(
                     restingHeartRate = rhr,
                     hrvRmssd = hrv,
                     sleepDurationMinutes = longestSleepMinutes,
+                    sleepStages = sleepStages,
                     lastSyncTimestamp = syncTime
                 )
             } catch (e: Exception) {

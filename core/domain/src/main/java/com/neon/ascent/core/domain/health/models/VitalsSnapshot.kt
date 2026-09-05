@@ -7,6 +7,7 @@ package com.neon.ascent.core.domain.health.models
 data class VitalsSnapshot(
     val steps: Long? = null,
     val calories: Double? = null,
+    val caloriesConsumed: Double? = null,
     val distance: Double? = null,
     val sleepDurationMinutes: Long? = null,
     val sleepScore: Int? = null,

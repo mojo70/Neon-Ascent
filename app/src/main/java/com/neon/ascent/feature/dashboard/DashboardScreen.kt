@@ -500,6 +500,7 @@ fun DashboardScreen(
     val briefTitle by viewModel.briefTitle.collectAsState()
     val briefBody by viewModel.briefBody.collectAsState()
     val liveMetrics by healthViewModel.liveMetrics.collectAsState()
+    val vitalsSnapshot by healthViewModel.vitalsSnapshot.collectAsState()
     val currentTime = remember { mutableStateOf(LocalDateTime.now()) }
     
     val neuralLoad = userCharacter?.neuralLoad ?: 0.2f
@@ -573,8 +574,8 @@ fun DashboardScreen(
             }
 
             MetricPillRow(
-                steps = liveMetrics?.stepsToday?.toInt() ?: 0,
-                kcal = liveMetrics?.caloriesToday?.toInt() ?: 0,
+                steps = (vitalsSnapshot?.steps ?: liveMetrics?.stepsToday)?.toInt() ?: 0,
+                kcal = (vitalsSnapshot?.calories ?: liveMetrics?.caloriesToday)?.toInt() ?: 0,
                 streak = state.totalHabitDays
             )
 

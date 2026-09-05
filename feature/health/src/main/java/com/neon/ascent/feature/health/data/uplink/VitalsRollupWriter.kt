@@ -25,6 +25,10 @@ class VitalsRollupWriter @Inject constructor(
             rollups.add(DailyVitalRollupEntity(today, "KCAL_TOTAL", it, "HC_AGG", "OK", now))
         }
 
+        metrics.caloriesConsumedToday?.let {
+            rollups.add(DailyVitalRollupEntity(today, "KCAL_EATEN", it, "HC", "OK", now))
+        }
+
         metrics.restingHeartRate?.let {
             rollups.add(DailyVitalRollupEntity(today, "RHR", it.toDouble(), "HC", "OK", now))
         }
@@ -34,21 +38,7 @@ class VitalsRollupWriter @Inject constructor(
         }
 
         metrics.sleepDurationMinutes?.let {
-            val source = if (metrics.sleepStages.isNotEmpty()) "GARMIN" else "HC"
-            rollups.add(DailyVitalRollupEntity(today, "SLEEP_MIN", it.toDouble(), source, "OK", now))
-        }
-
-        metrics.sleepScore?.let {
-            // Never write SLEEP_SCORE unless source is GARMIN
-            rollups.add(DailyVitalRollupEntity(today, "SLEEP_SCORE", it.toDouble(), "GARMIN", "OK", now))
-        }
-
-        metrics.bodyBattery?.let {
-            rollups.add(DailyVitalRollupEntity(today, "BODY_BATTERY", it.toDouble(), "GARMIN", "OK", now))
-        }
-
-        metrics.stressLevel?.let {
-            rollups.add(DailyVitalRollupEntity(today, "STRESS", it.toDouble(), "GARMIN", "OK", now))
+            rollups.add(DailyVitalRollupEntity(today, "SLEEP_MIN", it.toDouble(), "HC", "OK", now))
         }
 
         if (rollups.isNotEmpty()) {

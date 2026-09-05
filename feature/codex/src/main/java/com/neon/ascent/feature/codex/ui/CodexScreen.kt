@@ -470,14 +470,7 @@ fun VitalsWing(
         Spacer(modifier = Modifier.height(24.dp))
 
         // Chart
-        if (uiState.vitalsType == VitalsType.FUEL) {
-            if (uiState.fuelHistory.isEmpty()) {
-                FuelEmptyState()
-            } else {
-                SectionHeader("FUEL_METRICS // SNAPSHOTS")
-                FuelChart(uiState.fuelHistory)
-            }
-        } else if (uiState.vitalsData.isEmpty()) {
+        if (uiState.vitalsData.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

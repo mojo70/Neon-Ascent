@@ -95,16 +95,10 @@ class NeuralUplinkManager @Inject constructor(
                 hcLive?.heartRate
             }
 
-            // Source footer logic
-            val sourceFooter = when {
-                garminLive != null && hcLive != null -> "HC+GARMIN_HR"
-                garminLive != null -> "GARMIN"
-                else -> "HC"
-            }
-
             VitalsSnapshot(
                 steps = deep?.stepsToday ?: hcLive?.stepsToday ?: garminLive?.stepsToday,
                 calories = deep?.caloriesToday ?: hcLive?.caloriesToday ?: garminLive?.caloriesToday,
+                caloriesConsumed = deep?.caloriesConsumedToday,
                 distance = deep?.vo2Max, // Placeholder if needed
                 sleepDurationMinutes = deep?.sleepDurationMinutes,
                 sleepScore = deep?.sleepScore,
@@ -114,7 +108,7 @@ class NeuralUplinkManager @Inject constructor(
                 liveHeartRate = liveHr,
                 bodyBattery = deep?.bodyBattery,
                 stressLevel = deep?.stressLevel,
-                sourceFooter = sourceFooter,
+                sourceFooter = "HC",
                 timestamp = now
             )
         }.onEach { snapshot ->
@@ -153,16 +147,17 @@ class NeuralUplinkManager @Inject constructor(
         val merged = DeepBiometrics(
             stepsToday = hcDeep.stepsToday ?: garminDeep?.stepsToday,
             caloriesToday = hcDeep.caloriesToday ?: garminDeep?.caloriesToday,
-            sleepScore = garminDeep?.sleepScore, // Garmin only
-            bodyBattery = garminDeep?.bodyBattery,
-            stressLevel = garminDeep?.stressLevel,
+            caloriesConsumedToday = hcDeep.caloriesConsumedToday,
+            sleepScore = null, // Garmin dark, HC provides no score
+            bodyBattery = null,
+            stressLevel = null,
             recoveryTimeMinutes = garminDeep?.recoveryTimeMinutes,
             trainingReadiness = garminDeep?.trainingReadiness,
             vo2Max = hcDeep.vo2Max ?: garminDeep?.vo2Max,
-            restingHeartRate = hcDeep.restingHeartRate, // HC Aggregate/Latest
+            restingHeartRate = hcDeep.restingHeartRate,
             hrvRmssd = hcDeep.hrvRmssd ?: garminDeep?.hrvRmssd,
-            sleepDurationMinutes = if ((garminDeep?.sleepDurationMinutes ?: 0L) > 0) garminDeep?.sleepDurationMinutes else hcDeep.sleepDurationMinutes,
-            sleepStages = garminDeep?.sleepStages ?: emptyMap(),
+            sleepDurationMinutes = hcDeep.sleepDurationMinutes ?: garminDeep?.sleepDurationMinutes,
+            sleepStages = if (hcDeep.sleepStages.isNotEmpty()) hcDeep.sleepStages else (garminDeep?.sleepStages ?: emptyMap()),
             lastSyncTimestamp = System.currentTimeMillis()
         )
         

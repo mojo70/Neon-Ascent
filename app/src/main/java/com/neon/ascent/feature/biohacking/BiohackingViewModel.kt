@@ -45,6 +45,7 @@ import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.text.PDFTextStripper
 import com.neon.ascent.core.domain.health.HealthManager
 import com.neon.ascent.core.domain.health.models.VitalsSnapshot
+import com.neon.ascent.core.domain.workout.models.RecoveryScore
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 import java.util.*
@@ -163,6 +164,20 @@ class BiohackingViewModel @Inject constructor(
 
     private val _hrvSeries = MutableStateFlow<List<Pair<LocalDate, Double>>>(emptyList())
     val hrvSeries: StateFlow<List<Pair<LocalDate, Double>>> = _hrvSeries.asStateFlow()
+
+    val recoveryScore: StateFlow<RecoveryScore?> = workoutRepository.getRecoveryScore()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val hasNutritionPermission: StateFlow<Boolean> = flow {
+        while (true) {
+            val missing = healthManager.getPermissionsToRequest()
+            val nutritionPerm = androidx.health.connect.client.permission.HealthPermission.getReadPermission(
+                androidx.health.connect.client.records.NutritionRecord::class
+            )
+            emit(!missing.contains(nutritionPerm))
+            delay(5000)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     private val _completedSessionsThisWeek = MutableStateFlow(0)
     val completedSessionsThisWeek: StateFlow<Int> = _completedSessionsThisWeek.asStateFlow()
@@ -338,22 +353,6 @@ class BiohackingViewModel @Inject constructor(
                         dataPoints = sleepData,
                         unit = "HRS",
                         insight = insight
-                    ))
-                }
-
-                // Proxy for Body Battery / Recovery using HRV and Sleep
-                if (hrv.isNotEmpty() && sleep.isNotEmpty()) {
-                    val recoveryScore = ((hrv.last().second / 100.0) * 50.0 + (sleep.last().second / 8.0) * 50.0).coerceIn(0.0, 100.0)
-                    val recoveryData = List(steps.size) { _ ->
-                        // Mocking a recovery trend based on hrv/sleep if we don't have historical daily recovery
-                        (recoveryScore * (0.8 + 0.4 * Math.random())).toFloat().coerceIn(0f, 100f)
-                    }
-                    trendsList.add(HealthTrend(
-                        label = "RECOVERY",
-                        currentValue = String.format(Locale.US, "%.0f", recoveryScore),
-                        dataPoints = recoveryData,
-                        unit = "%",
-                        insight = "Neural battery depleted. Consider dopamine reset."
                     ))
                 }
 
@@ -589,6 +588,19 @@ class BiohackingViewModel @Inject constructor(
                 val status = HealthConnectClient.getSdkStatus(context)
                 if (status == HealthConnectClient.SDK_UNAVAILABLE) {
                     android.util.Log.e("BiohackingVM", "Health Connect SDK unavailable")
+                    Toast.makeText(context, "Health Connect unavailable on this device", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                if (status == HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED) {
+                    try {
+                        val intent = android.content.Intent(
+                            android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse("market://details?id=com.google.android.apps.healthdata")
+                        ).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Health Connect update required", Toast.LENGTH_SHORT).show()
+                    }
                     return@launch
                 }
                 

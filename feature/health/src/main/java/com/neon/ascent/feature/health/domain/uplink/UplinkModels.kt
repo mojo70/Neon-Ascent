@@ -15,6 +15,7 @@ data class LiveBiometrics(
 data class DeepBiometrics(
     val stepsToday: Long? = null,
     val caloriesToday: Double? = null,
+    val caloriesConsumedToday: Double? = null,
     val sleepScore: Int? = null,
     val bodyBattery: Int? = null,
     val stressLevel: Int? = null,

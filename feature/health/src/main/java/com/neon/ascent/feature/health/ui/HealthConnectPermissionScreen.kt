@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.PermissionController
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -127,18 +128,34 @@ fun PermissionRationaleDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Neural Access Required", color = NeonCyan) },
+        title = { 
+            Text(
+                "Health Connect Permissions Required", 
+                color = NeonCyan,
+                fontWeight = FontWeight.Bold,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+            ) 
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Establishing a neural link requires access to the following biometric streams:")
-                rationale.forEach { (type, explanation) ->
-                    Text("• $explanation", style = MaterialTheme.typography.bodySmall)
+                Text(
+                    "Health Connect needs permissions to sync your biometric data. Would you like to add permissions now?",
+                    color = Color.White.copy(alpha = 0.9f)
+                )
+                Spacer(Modifier.height(4.dp))
+                rationale.forEach { (_, explanation) ->
+                    Text(
+                        "• $explanation", 
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                    )
                 }
             }
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("ESTABLISH LINK", color = NeonPink)
+                Text("ADD PERMISSIONS", color = NeonPink, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {

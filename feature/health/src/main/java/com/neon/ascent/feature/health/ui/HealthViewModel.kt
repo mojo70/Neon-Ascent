@@ -36,6 +36,9 @@ class HealthViewModel @Inject constructor(
     val liveMetrics: StateFlow<LiveBiometrics?> = uplinkManager.combinedLiveMetrics
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
 
+    val vitalsSnapshot: StateFlow<com.neon.ascent.core.domain.health.models.VitalsSnapshot?> = uplinkManager.combinedVitalsSnapshot
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
+
     val activeUplinks = uplinkManager.activeUplinks
 
     // Backward compatibility for existing screen

@@ -40,7 +40,8 @@ class HealthRepository @Inject constructor(
         HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
         HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
         HealthPermission.getReadPermission(DistanceRecord::class),
-        HealthPermission.getReadPermission(RestingHeartRateRecord::class)
+        HealthPermission.getReadPermission(RestingHeartRateRecord::class),
+        HealthPermission.getReadPermission(NutritionRecord::class)
     )
 
     suspend fun todaySnapshot(): VitalsSnapshot {

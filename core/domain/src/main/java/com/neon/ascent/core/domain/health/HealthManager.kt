@@ -27,6 +27,8 @@ interface HealthManager {
     suspend fun latestHrvRmssd(start: Instant, end: Instant): Double?
     suspend fun latestHeartRate(start: Instant, end: Instant): Int?
     suspend fun sleepSessions(start: Instant, end: Instant): List<SleepSessionRecord>
+    suspend fun aggregateNutritionKcal(start: Instant, end: Instant): Double?
+    fun parseSleepStages(session: SleepSessionRecord): Map<String, Int>
 }
 
 data class HealthDataSnapshot(

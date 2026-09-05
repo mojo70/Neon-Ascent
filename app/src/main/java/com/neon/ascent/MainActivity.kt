@@ -90,56 +90,12 @@ class MainActivity : FragmentActivity() {
                     insetsController.isAppearanceLightNavigationBars = visualMode == VisualMode.STEVE
                 }
 
-                val permissionsLauncher = rememberLauncherForActivityResult(
-                    PermissionController.createRequestPermissionResultContract()
-                ) { granted ->
-                    // Permissions updated
-                }
-
-                val locationPermissionLauncher = rememberLauncherForActivityResult(
-                    ActivityResultContracts.RequestMultiplePermissions()
-                ) { _ ->
-                    // Permissions updated
-                }
-
-                val bluetoothPermissionLauncher = rememberLauncherForActivityResult(
-                    ActivityResultContracts.RequestMultiplePermissions()
-                ) { _ ->
-                    // Handle bluetooth permissions result
-                }
-
                 val notificationTitle = intent.getStringExtra(NeuralBriefManager.EXTRA_NOTIFICATION_TITLE)
                 val notificationMessage = intent.getStringExtra(NeuralBriefManager.EXTRA_NOTIFICATION_MESSAGE)
                 val notificationTaskId = intent.getStringExtra(com.neon.ascent.feature.notifications.data.NeuralPingManager.EXTRA_TASK_ID)
                 
                 LaunchedEffect(notificationTitle, notificationMessage, notificationTaskId) {
                     notificationViewModel.setPendingNotification(notificationTitle, notificationMessage, notificationTaskId)
-                }
-
-                LaunchedEffect(Unit) {
-                    // Sequentially check and request permissions to avoid collisions
-                    if (!healthRepository.hasAllPermissions()) {
-                        permissionsLauncher.launch(healthRepository.permissions)
-                        // Give some buffer for the OS dialog to appear
-                        kotlinx.coroutines.delay(1000)
-                    }
-
-                    val hasFineLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                    val hasCoarseLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                    
-                    if (!hasFineLocation && !hasCoarseLocation) {
-                        locationPermissionLauncher.launch(
-                            arrayOf(
-                                Manifest.permission.ACCESS_FINE_LOCATION,
-                                Manifest.permission.ACCESS_COARSE_LOCATION
-                            )
-                        )
-                        kotlinx.coroutines.delay(1000)
-                    }
-
-                    // For Bluetooth, combined with location if needed on older versions, 
-                    // but minSdk 31 handles it separately
-                    checkAndRequestBluetoothPermissions(bluetoothPermissionLauncher)
                 }
 
                 AppNavigation(notificationViewModel = notificationViewModel)
@@ -185,26 +141,5 @@ class MainActivity : FragmentActivity() {
         val notificationMessage = intent.getStringExtra(NeuralBriefManager.EXTRA_NOTIFICATION_MESSAGE)
         val notificationTaskId = intent.getStringExtra(com.neon.ascent.feature.notifications.data.NeuralPingManager.EXTRA_TASK_ID)
         notificationViewModel.setPendingNotification(notificationTitle, notificationMessage, notificationTaskId)
-    }
-
-    private fun checkAndRequestBluetoothPermissions(launcher: androidx.activity.result.ActivityResultLauncher<Array<String>>) {
-        val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            arrayOf(
-                Manifest.permission.BLUETOOTH_SCAN,
-                Manifest.permission.BLUETOOTH_CONNECT
-            )
-        } else {
-            arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION
-            )
-        }
-
-        val missingPermissions = permissions.filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-        }
-
-        if (missingPermissions.isNotEmpty()) {
-            launcher.launch(missingPermissions.toTypedArray())
-        }
     }
 }

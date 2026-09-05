@@ -82,6 +82,8 @@ fun BiohackingScreen(
     val vitalsSnapshot by viewModel.vitalsSnapshot.collectAsState()
     val rhrSeries by viewModel.rhrSeries.collectAsState()
     val hrvSeries by viewModel.hrvSeries.collectAsState()
+    val recoveryScore by viewModel.recoveryScore.collectAsState()
+    val hasNutritionPermission by viewModel.hasNutritionPermission.collectAsState()
     val completedSessions by viewModel.completedSessionsThisWeek.collectAsState()
     val scheduledSessions by viewModel.scheduledSessionsThisWeek.collectAsState()
     val selectedTimeRange by viewModel.selectedTimeRange.collectAsState()
@@ -358,9 +360,13 @@ fun BiohackingScreen(
                     hrvSeries = hrvSeries,
                     completedSessions = completedSessions,
                     scheduledSessions = scheduledSessions,
+                    recoveryScore = recoveryScore,
+                    macros = macros,
+                    hasNutritionPermission = hasNutritionPermission,
                     neonCyan = neonCyan,
                     neonMagenta = neonMagenta,
-                    onNavigateToOps = onNavigateToOps
+                    onNavigateToOps = onNavigateToOps,
+                    onRequestNutritionPermission = { viewModel.relink(UplinkProvider.HEALTH_CONNECT) }
                 )
                 
                 Spacer(modifier = Modifier.height(24.dp))

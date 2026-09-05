@@ -79,10 +79,9 @@ enum class VitalsType(val label: String, val rollupMetric: String) {
     STEPS("STEPS", "STEPS"),
     RHR("RHR", "RHR"),
     HRV("HRV", "HRV_RMSSD"),
-    SLEEP_MIN("SLEEP_MIN", "SLEEP_MIN"),
-    SLEEP_SCORE("SLEEP_SCORE", "SLEEP_SCORE"),
-    BODY_BATTERY("BODY_BATTERY", "BODY_BATTERY"),
-    FUEL("FUEL", "FUEL")
+    SLEEP_MIN("SLEEP", "SLEEP_MIN"),
+    KCAL_TOTAL("KCAL_TOTAL", "KCAL_TOTAL"),
+    KCAL_EATEN("KCAL_EATEN", "KCAL_EATEN")
 }
 
 data class VitalsPoint(
@@ -275,11 +274,7 @@ class CodexViewModel @Inject constructor(
 
     fun selectVitalsType(type: VitalsType) {
         _uiState.update { it.copy(vitalsType = type) }
-        if (type == VitalsType.FUEL) {
-            loadFuelHistory(_uiState.value.selectedPeriod)
-        } else {
-            loadVitalsData(_uiState.value.selectedPeriod, type)
-        }
+        loadVitalsData(_uiState.value.selectedPeriod, type)
     }
 
     private fun loadFuelHistory(period: CodexPeriod) {
@@ -330,10 +325,6 @@ class CodexViewModel @Inject constructor(
     }
 
     private fun loadVitalsData(period: CodexPeriod, type: VitalsType) {
-        if (type == VitalsType.FUEL) {
-            loadFuelHistory(period)
-            return
-        }
         val (start, end) = getRangeForPeriod(period)
         val zone = ZoneId.systemDefault()
         val startDate = start.atZone(zone).toLocalDate().toString()
