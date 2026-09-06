@@ -162,13 +162,13 @@ fun SettingsScreen(
     }
 
     val openDocumentLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         uri?.let { contentUri ->
             val jsonContent = context.contentResolver.openInputStream(contentUri)?.use { input ->
                 input.bufferedReader().use { it.readText() }
             }
-            jsonContent?.let { json ->
+            jsonContent?.trim()?.removePrefix("\uFEFF")?.takeIf { it.isNotBlank() }?.let { json ->
                 viewModel.onRestoreFileSelected(json)
             }
         }
@@ -440,7 +440,7 @@ fun SettingsScreen(
                         }
 
                         Button(
-                            onClick = { openDocumentLauncher.launch("application/json") },
+                            onClick = { openDocumentLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) },
                             modifier = Modifier.weight(1f).height(44.dp).border(1.dp, theme.ink.copy(alpha = 0.5f), CyberButtonShape),
                             colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
                         ) {

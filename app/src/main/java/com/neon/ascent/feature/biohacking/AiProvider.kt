@@ -1,6 +1,7 @@
 package com.neon.ascent.feature.biohacking
 
 import android.util.Log
+import com.neon.ascent.core.ai.EmbeddedLocalEngine
 import com.neon.ascent.core.ai.GemmaClient
 import com.neon.ascent.core.domain.ai.AiCore
 import com.neon.ascent.core.domain.ai.AiResult
@@ -22,6 +23,7 @@ enum class AiType {
 enum class EngineStatus {
     LOCAL_GEMMA_READY,
     LOCAL_NANO_READY,
+    EMBEDDED_LOCAL_READY,
     CLOUD_READY,
     MODEL_MISSING,
     DOWNLOADING_MODEL,
@@ -38,6 +40,7 @@ data class AiEngineTelemetry(
 class AiProvider @Inject constructor(
     private val geminiNanoClient: GeminiNanoClient,
     private val gemmaClient: GemmaClient,
+    private val embeddedLocalEngine: EmbeddedLocalEngine,
     private val cloudGeminiClient: CloudGeminiClient,
     private val settingsRepository: SettingsRepository
 ) : AiCore {
@@ -49,6 +52,8 @@ class AiProvider @Inject constructor(
 
     suspend fun initialize() {
         try {
+            embeddedLocalEngine.initialize()
+
             when {
                 gemmaClient.isAvailable() -> {
                     gemmaClient.initialize()
@@ -75,6 +80,17 @@ class AiProvider @Inject constructor(
                     }
                 }
             }
+
+            if (embeddedLocalEngine.isReady()) {
+                _activeAiType.value = AiType.LOCAL
+                _engineTelemetry.value = AiEngineTelemetry(
+                    status = EngineStatus.EMBEDDED_LOCAL_READY,
+                    badgeLabel = "[EMBEDDED_LOCAL_AI]",
+                    activeType = AiType.LOCAL
+                )
+                return
+            }
+
             _activeAiType.value = AiType.CLOUD
             _engineTelemetry.value = AiEngineTelemetry(
                 status = EngineStatus.CLOUD_READY,
@@ -83,11 +99,11 @@ class AiProvider @Inject constructor(
             )
         } catch (e: Exception) {
             Log.e("AiProvider", "Error initializing AiProvider", e)
-            _activeAiType.value = AiType.CLOUD
+            _activeAiType.value = AiType.LOCAL
             _engineTelemetry.value = AiEngineTelemetry(
-                status = EngineStatus.ERROR,
-                badgeLabel = "[INIT_ERROR]",
-                activeType = AiType.NONE
+                status = EngineStatus.EMBEDDED_LOCAL_READY,
+                badgeLabel = "[EMBEDDED_LOCAL_AI]",
+                activeType = AiType.LOCAL
             )
         }
     }
@@ -95,6 +111,7 @@ class AiProvider @Inject constructor(
     override suspend fun isReady(): Boolean = true
 
     override suspend fun warmup() {
+        embeddedLocalEngine.initialize()
         if (gemmaClient.isAvailable()) gemmaClient.warmup()
         if (geminiNanoClient.isSupported()) geminiNanoClient.warmup()
     }
@@ -143,6 +160,22 @@ class AiProvider @Inject constructor(
             }
         } else {
             failureReasons.add("NANO: AICore unsupported or uninitialized")
+        }
+
+        // 3. Try Embedded Local Engine (Instant On-Device Tier)
+        if (embeddedLocalEngine.isReady()) {
+            when (val localResult = embeddedLocalEngine.generate(prompt)) {
+                is AiResult.Success -> {
+                    _activeAiType.value = AiType.LOCAL
+                    _engineTelemetry.value = AiEngineTelemetry(
+                        status = EngineStatus.EMBEDDED_LOCAL_READY,
+                        badgeLabel = "[EMBEDDED_LOCAL_AI]",
+                        activeType = AiType.LOCAL
+                    )
+                    return localResult
+                }
+                is AiResult.Failure -> failureReasons.add("EMBEDDED_LOCAL: ${localResult.reason}")
+            }
         }
 
         if (shouldForceLocal) {

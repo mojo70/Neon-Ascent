@@ -35,6 +35,7 @@ import com.neon.ascent.data.backup.GoogleDriveBackupManager
 import com.neon.ascent.data.backup.FullBackupWorker
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import java.util.UUID
 import javax.inject.Inject
@@ -101,7 +102,11 @@ class SettingsViewModel @Inject constructor(
     private val _pendingRestoreJson = MutableStateFlow<String?>(null)
     val pendingRestoreJson = _pendingRestoreJson.asStateFlow()
 
-    private val _backupExportEvent = MutableSharedFlow<String>()
+    private val _backupExportEvent = MutableSharedFlow<String>(
+        replay = 1,
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
     val backupExportEvent = _backupExportEvent.asSharedFlow()
 
     private val _exportEvent = kotlinx.coroutines.flow.MutableSharedFlow<String>()

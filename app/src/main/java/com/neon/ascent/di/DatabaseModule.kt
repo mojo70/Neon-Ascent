@@ -1,6 +1,7 @@
 package com.neon.ascent.di
 
 import android.content.Context
+import android.util.Log
 import androidx.room.Room
 import com.neon.ascent.data.local.AppDatabase
 import com.neon.ascent.data.local.BenchmarkDao
@@ -44,14 +45,17 @@ object DatabaseModule {
         // Pre-verification
         val dbFile = context.getDatabasePath(dbName)
         if (dbFile.exists()) {
+            var db: SQLiteDatabase? = null
             try {
                 SQLiteDatabase.loadLibs(context)
-                val db = SQLiteDatabase.openDatabase(dbFile.absolutePath, passphraseString, null, SQLiteDatabase.OPEN_READWRITE)
+                db = SQLiteDatabase.openDatabase(dbFile.absolutePath, passphraseString, null, SQLiteDatabase.OPEN_READWRITE)
                 db.rawQuery("SELECT count(*) FROM sqlite_master", null)?.use { it.moveToFirst() }
-                db.close()
-            } catch (e: Exception) {
-                android.util.Log.e("DatabaseModule", "AppDatabase verification failed. Wiping.", e)
+            } catch (e: Throwable) {
+                Log.e("DatabaseModule", "AppDatabase verification failed. Wiping.", e)
+                try { db?.close() } catch (_: Throwable) {}
                 context.deleteDatabase(dbName)
+            } finally {
+                try { db?.close() } catch (_: Throwable) {}
             }
         }
 

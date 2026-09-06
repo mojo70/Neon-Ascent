@@ -1,6 +1,7 @@
 package com.neon.ascent.core.data
 
 import android.content.Context
+import android.util.Log
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.neon.ascent.core.data.local.UplinkSecurityManager
@@ -44,11 +45,15 @@ object DatabaseModule {
         val dbFile = context.getDatabasePath(dbName)
         
         // Load SQLCipher libraries early
-        SQLiteDatabase.loadLibs(context)
+        try {
+            SQLiteDatabase.loadLibs(context)
+        } catch (e: Throwable) {
+            Log.e("DatabaseModule", "Failed to load SQLCipher libs", e)
+        }
         
         val passphraseBytes = try {
             securityManager.getDatabasePassphrase()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             android.util.Log.e("DatabaseModule", "Failed to get passphrase", e)
             "fallback_key".toByteArray()
         }
@@ -66,11 +71,12 @@ object DatabaseModule {
                 )
                 // Minimal query to verify encryption
                 db.rawQuery("SELECT count(*) FROM sqlite_master", null)?.use { it.moveToFirst() }
-            } catch (e: Exception) {
-                android.util.Log.e("DatabaseModule", "Database verification failed. Wiping.", e)
+            } catch (e: Throwable) {
+                Log.e("DatabaseModule", "Database verification failed. Wiping.", e)
+                try { db?.close() } catch (_: Throwable) {}
                 context.deleteDatabase(dbName)
             } finally {
-                db?.close()
+                try { db?.close() } catch (_: Throwable) {}
             }
         }
 

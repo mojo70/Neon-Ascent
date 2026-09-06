@@ -18,7 +18,9 @@ import com.neon.ascent.core.domain.notifications.brief.TemplateCopyWriter
 import com.neon.ascent.core.domain.notifications.models.BriefStance
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.util.concurrent.TimeUnit
 
@@ -71,7 +73,13 @@ class NeuralBriefWorker @AssistedInject constructor(
             Log.d(TAG, "// STANCE: ${stance.name} | Headline: ${copy.headline}")
 
             // 5. Foreground Check
-            val isForeground = ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+            val isForeground = try {
+                withContext(Dispatchers.Main) {
+                    ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+                }
+            } catch (e: Throwable) {
+                false
+            }
 
             if (isForeground) {
                 Log.i(TAG, "// APP_IN_FOREGROUND: Skipping notification, updating card holder.")

@@ -1,6 +1,7 @@
 package com.neon.ascent
 
 import android.app.Application
+import android.util.Log
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.neon.ascent.core.domain.ai.AiCore
@@ -22,11 +23,19 @@ class NeonAscentApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
-        SQLiteDatabase.loadLibs(this)
+        try {
+            SQLiteDatabase.loadLibs(this)
+        } catch (e: Throwable) {
+            Log.e("NeonAscentApplication", "Failed to load SQLCipher libs", e)
+        }
         
         // P1: Warmup AI core from background
         CoroutineScope(Dispatchers.IO).launch {
-            aiCore.warmup()
+            try {
+                aiCore.warmup()
+            } catch (e: Throwable) {
+                Log.e("NeonAscentApplication", "Failed to warmup AI core", e)
+            }
         }
     }
 

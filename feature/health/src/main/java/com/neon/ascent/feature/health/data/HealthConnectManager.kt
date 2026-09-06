@@ -73,7 +73,7 @@ class HealthConnectManager @Inject constructor(
             }
             
             coreGranted
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             android.util.Log.e("HealthConnectManager", "Error checking permissions", e)
             false
         }
@@ -89,7 +89,7 @@ class HealthConnectManager @Inject constructor(
             val granted = healthConnectClient.permissionController.getGrantedPermissions()
             val nutritionPerm = HealthPermission.getReadPermission(NutritionRecord::class)
             nutritionPerm in granted
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e("HealthConnectManager", "Error checking nutrition permission", e)
             false
         }
@@ -99,8 +99,17 @@ class HealthConnectManager @Inject constructor(
      * Get permissions to request.
      */
     override suspend fun getPermissionsToRequest(): Set<String> {
-        val granted = healthConnectClient.permissionController.getGrantedPermissions()
-        return requiredPermissions - granted
+        return try {
+            val availability = HealthConnectClient.getSdkStatus(context)
+            if (availability != HealthConnectClient.SDK_AVAILABLE) {
+                return requiredPermissions
+            }
+            val granted = healthConnectClient.permissionController.getGrantedPermissions()
+            requiredPermissions - granted
+        } catch (e: Throwable) {
+            Log.e("HealthConnectManager", "Error getting permissions to request", e)
+            requiredPermissions
+        }
     }
 
     /**

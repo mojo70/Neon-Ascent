@@ -4,6 +4,7 @@ import android.content.Context
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
+import android.util.Log
 import com.neon.ascent.model.BioAgeResult
 import com.neon.ascent.model.Driver
 import com.neon.ascent.model.ModelConfig
@@ -20,7 +21,7 @@ import javax.inject.Singleton
 class BioAgeRepository @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
-    private val ortEnv = OrtEnvironment.getEnvironment()
+    private var ortEnv: OrtEnvironment? = null
     private var ortSession: OrtSession? = null
     private var shapData: ShapData? = null
     private var modelConfig: ModelConfig? = null
@@ -39,9 +40,13 @@ class BioAgeRepository @Inject constructor(
 
     private fun loadModel() {
         try {
+            if (ortEnv == null) {
+                ortEnv = OrtEnvironment.getEnvironment()
+            }
+            val env = ortEnv ?: return
             val modelBytes = context.assets.open("bioage_xgboost_final.onnx").readBytes()
-            ortSession = ortEnv.createSession(modelBytes)
-        } catch (e: Exception) {
+            ortSession = env.createSession(modelBytes)
+        } catch (e: Throwable) {
             e.printStackTrace()
         }
     }
@@ -90,35 +95,41 @@ class BioAgeRepository @Inject constructor(
     )
 
     fun predictBiologicalAge(biomarkers: Map<String, Float>): BioAgeResult {
+        val env = ortEnv ?: return BioAgeResult(0f, "ORT_ENV_NOT_INITIALIZED", emptyList())
         val session = ortSession ?: return BioAgeResult(0f, "ORT_SESSION_NOT_INITIALIZED", emptyList())
         val config = modelConfig ?: return BioAgeResult(0f, "MODEL_CONFIG_NOT_LOADED", emptyList())
         
-        val features = config.features
-        val medianValues = config.medianValues
+        try {
+            val features = config.features
+            val medianValues = config.medianValues
 
-        val inputArray = FloatArray(features.size)
-        for (i in features.indices) {
-            val featureName = features[i]
-            inputArray[i] = biomarkers[featureName] ?: medianValues[featureName] ?: 0f
+            val inputArray = FloatArray(features.size)
+            for (i in features.indices) {
+                val featureName = features[i]
+                inputArray[i] = biomarkers[featureName] ?: medianValues[featureName] ?: 0f
+            }
+
+            val floatBuffer = FloatBuffer.wrap(inputArray)
+            val inputName = session.inputNames.firstOrNull() ?: "float_input"
+            val inputTensor = OnnxTensor.createTensor(env, floatBuffer, longArrayOf(1, features.size.toLong()))
+
+            val inputs = mapOf(inputName to inputTensor)
+            val outputs = session.run(inputs)
+            
+            val predictedAge = (outputs?.get(0)?.value as? Array<FloatArray>)?.get(0)?.get(0) ?: 0f
+            
+            val drivers = generateShapDrivers(biomarkers, config)
+            val explanation = buildNaturalExplanation(predictedAge, drivers)
+
+            return BioAgeResult(
+                biologicalAge = predictedAge,
+                explanation = explanation,
+                keyDrivers = drivers
+            )
+        } catch (e: Throwable) {
+            Log.e("BioAgeRepository", "Prediction failed", e)
+            return BioAgeResult(0f, "PREDICTION_FAILED: ${e.message}", emptyList())
         }
-
-        val floatBuffer = FloatBuffer.wrap(inputArray)
-        val inputName = session.inputNames.firstOrNull() ?: "float_input"
-        val inputTensor = OnnxTensor.createTensor(ortEnv, floatBuffer, longArrayOf(1, features.size.toLong()))
-
-        val inputs = mapOf(inputName to inputTensor)
-        val outputs = session.run(inputs)
-        
-        val predictedAge = (outputs?.get(0)?.value as? Array<FloatArray>)?.get(0)?.get(0) ?: 0f
-        
-        val drivers = generateShapDrivers(biomarkers, config)
-        val explanation = buildNaturalExplanation(predictedAge, drivers)
-
-        return BioAgeResult(
-            biologicalAge = predictedAge,
-            explanation = explanation,
-            keyDrivers = drivers
-        )
     }
 
     private fun generateShapDrivers(biomarkers: Map<String, Float>, config: ModelConfig): List<Driver> {

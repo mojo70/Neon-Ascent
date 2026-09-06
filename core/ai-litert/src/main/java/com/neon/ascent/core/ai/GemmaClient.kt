@@ -25,19 +25,21 @@ class GemmaClient(private val context: Context) {
         get() = findModelFile()?.absolutePath ?: File(context.getExternalFilesDir(null), "gemma.litertlm").absolutePath
 
     fun findModelFile(): File? {
+        val minValidSize = 500_000_000L // Minimum valid size for Gemma 2B LiteRT model (500MB)
+
         // 1. App's private external files dir
         val appFile = File(context.getExternalFilesDir(null), "gemma.litertlm")
-        if (appFile.exists() && appFile.length() > 0) return appFile
+        if (appFile.exists() && appFile.length() > minValidSize) return appFile
 
         val appE2B = File(context.getExternalFilesDir(null), "gemma-4-E2B-it.litertlm")
-        if (appE2B.exists() && appE2B.length() > 0) return appE2B
+        if (appE2B.exists() && appE2B.length() > minValidSize) return appE2B
 
         // 2. Google AI Edge Gallery model storage directory
         try {
             val galleryDir = File("/storage/emulated/0/Android/data/com.google.ai.edge.gallery/files/")
             if (galleryDir.exists()) {
                 val litertFiles = galleryDir.walkTopDown()
-                    .filter { it.isFile && it.name.endsWith(".litertlm") && it.length() > 0 }
+                    .filter { it.isFile && it.name.endsWith(".litertlm") && it.length() > minValidSize }
                     .toList()
                 if (litertFiles.isNotEmpty()) {
                     val found = litertFiles.maxByOrNull { it.length() }
@@ -49,23 +51,6 @@ class GemmaClient(private val context: Context) {
             }
         } catch (e: Exception) {
             Log.w("GemmaClient", "Error searching gallery directory", e)
-        }
-
-        // 3. Downloads directory
-        try {
-            val downloadsDir = File("/storage/emulated/0/Download/")
-            if (downloadsDir.exists()) {
-                val downloadFiles = downloadsDir.listFiles { _, name -> name.endsWith(".litertlm") }
-                if (!downloadFiles.isNullOrEmpty()) {
-                    val found = downloadFiles.firstOrNull { it.length() > 0 }
-                    if (found != null) {
-                        Log.i("GemmaClient", "Found Download LiteRT model at: ${found.absolutePath}")
-                        return found
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.w("GemmaClient", "Error searching downloads directory", e)
         }
 
         return null
