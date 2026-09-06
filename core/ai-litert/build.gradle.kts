@@ -35,6 +35,9 @@ android {
 dependencies {
     implementation(project(":core:domain"))
     implementation("androidx.core:core-ktx:1.15.0")
+    implementation("javax.inject:javax.inject:1")
+    implementation("com.google.dagger:hilt-android:2.51.1")
     implementation("com.google.ai.edge.litertlm:litertlm-android:0.10.0")
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 }

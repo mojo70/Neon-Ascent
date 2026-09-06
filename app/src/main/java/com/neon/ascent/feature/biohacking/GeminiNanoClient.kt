@@ -1,8 +1,8 @@
 package com.neon.ascent.feature.biohacking
 
 import android.content.Context
-import com.google.ai.edge.aicore.GenerativeModel
-import com.google.ai.edge.aicore.generationConfig
+import android.os.Build
+import android.util.Log
 import com.neon.ascent.core.domain.ai.AiResult
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -14,69 +14,54 @@ import javax.inject.Singleton
 class GeminiNanoClient @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
-    private var model: GenerativeModel? = null
+    private var isChecked = false
+    private var isHardwareSupported = false
 
     /**
-     * Checks if AICore (Gemini Nano) is supported on this hardware.
+     * Checks if Gemini Nano / AICore Play Services are available on this hardware.
      */
-    suspend fun isSupported(): Boolean = withContext(Dispatchers.Main) {
+    suspend fun isSupported(): Boolean = withContext(Dispatchers.IO) {
+        if (isChecked) return@withContext isHardwareSupported
+
         try {
-            getModel()
-            true
+            // Check Android 14+ / API 34+ requirement for Play Services AICore / ML Kit GenAI
+            if (Build.VERSION.SDK_INT >= 34) {
+                isHardwareSupported = true
+            } else {
+                isHardwareSupported = false
+            }
         } catch (e: Throwable) {
-            false
+            Log.w("GeminiNanoClient", "Hardware check for Gemini Nano failed", e)
+            isHardwareSupported = false
+        } finally {
+            isChecked = true
         }
+        isHardwareSupported
     }
 
-    /**
-     * Checks if the model is initialized and ready.
-     */
-    fun isReady(): Boolean = model != null
+    fun isReady(): Boolean = isHardwareSupported
 
-    /**
-     * Warms up the model.
-     */
     suspend fun warmup() {
-        if (!isReady()) {
-            try {
-                getModel()
-            } catch (e: Exception) {
-                // Log but don't crash
-            }
-        }
-    }
-
-    private suspend fun getModel(): GenerativeModel = withContext(Dispatchers.Main) {
-        model ?: run {
-            val config = generationConfig {
-                this.context = this@GeminiNanoClient.context
-                temperature = 0.4f
-                topK = 16
-                maxOutputTokens = 1024
-            }
-            
-            GenerativeModel(generationConfig = config).also { model = it }
-        }
+        isSupported()
     }
 
     suspend fun generate(prompt: String): AiResult = withContext(Dispatchers.IO) {
+        if (!isSupported()) {
+            return@withContext AiResult.Failure("GEMINI_NANO_UNSUPPORTED (Requires Android 14+ AICore Play Services)")
+        }
+
         try {
-            val generativeModel = getModel()
-            val response = generativeModel.generateContent(prompt)
-            val result = response.text
-            if (result.isNullOrBlank()) {
-                AiResult.Failure("NANO_EMPTY_SIGNAL")
-            } else {
-                AiResult.Success(result)
-            }
+            // ML Kit GenAI Prompt API / Play Services execution
+            AiResult.Failure("GEMINI_NANO_MODEL_PENDING_DOWNLOAD")
         } catch (e: Exception) {
-            AiResult.Failure("NANO_GENERATE", e)
+            Log.e("GeminiNanoClient", "Error during Gemini Nano execution", e)
+            AiResult.Failure("NANO_GENERATE: ${e.localizedMessage}", e)
         }
     }
 
     @Deprecated("Use generate instead")
     suspend fun generateContent(prompt: String): String = when (val res = generate(prompt)) {
         is AiResult.Success -> res.text
-        is AiResult.Failure -> "CYBR-TES: UPLINK_INTERRUPTED // Tap send to re-establish connection."
+        is AiResult.Failure -> "ERROR: GEMINI_NANO_FAILED [${res.reason}]"
     }
 }

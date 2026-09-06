@@ -157,9 +157,7 @@ dependencies {
     // Guava (Required for CameraX ListenableFuture)
     implementation("com.google.guava:guava:33.2.1-android")
 
-    // AI Core (Experimental Local Gemini Nano)
-    // Updated to latest experimental version for improved stability
-    implementation("com.google.ai.edge.aicore:aicore:0.0.1-exp02")
+
     
     // LiteRT LLM (Local Gemma)
     implementation(project(":core:ai-litert"))

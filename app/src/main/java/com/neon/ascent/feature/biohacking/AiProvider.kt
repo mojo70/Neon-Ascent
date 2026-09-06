@@ -56,7 +56,7 @@ class AiProvider @Inject constructor(
                         _activeAiType.value = AiType.LOCAL
                         _engineTelemetry.value = AiEngineTelemetry(
                             status = EngineStatus.LOCAL_GEMMA_READY,
-                            badgeLabel = "[GEMMA_2B_LOCAL]",
+                            badgeLabel = "[GEMMA_LOCAL]",
                             activeType = AiType.LOCAL
                         )
                         return
@@ -77,7 +77,7 @@ class AiProvider @Inject constructor(
             }
             _activeAiType.value = AiType.CLOUD
             _engineTelemetry.value = AiEngineTelemetry(
-                status = EngineStatus.MODEL_MISSING,
+                status = EngineStatus.CLOUD_READY,
                 badgeLabel = "[CLOUD_GEMINI]",
                 activeType = AiType.CLOUD
             )
@@ -105,7 +105,7 @@ class AiProvider @Inject constructor(
 
         val failureReasons = mutableListOf<String>()
 
-        // 1. Try Local Gemma if ready
+        // 1. Try Local Gemma if ready and available
         if (gemmaClient.isAvailable() && gemmaClient.isReady()) {
             when (val localResult = gemmaClient.generate(prompt)) {
                 is AiResult.Success -> {
@@ -155,7 +155,7 @@ class AiProvider @Inject constructor(
             return AiResult.Failure("LOCAL_AI_FAILED ($failureMsg)")
         }
 
-        // 3. Try Cloud Gemini if configured
+        // 3. Try Cloud Gemini Flash (Gemini 2.0 Flash)
         val cloudResult = cloudGeminiClient.generate(prompt)
         if (cloudResult is AiResult.Success) {
             _activeAiType.value = AiType.CLOUD
@@ -168,7 +168,7 @@ class AiProvider @Inject constructor(
         } else if (cloudResult is AiResult.Failure) {
             failureReasons.add("CLOUD: ${cloudResult.reason}")
             if (cloudResult.reason != "NO_API_KEY") {
-                // Retry only on genuine network failure
+                // Retry on genuine network failure
                 val maxRetries = 2
                 for (attempt in 1..maxRetries) {
                     delay(attempt * 200L)

@@ -799,8 +799,15 @@ fun AiTerminal(
                             .padding(10.dp)
                     ) {
                         messages.forEach { msg ->
+                            val formattedText = if (msg.isFromUser) {
+                                "> ${msg.text}"
+                            } else if (msg.text.startsWith("CYBR-TES")) {
+                                msg.text
+                            } else {
+                                "CYBR-TES: ${msg.text}"
+                            }
                             Text(
-                                text = if (msg.isFromUser) "> ${msg.text}" else "CYBR-TES: ${msg.text}",
+                                text = formattedText,
                                 color = if (msg.isFromUser) theme.ink else accentColor,
                                 fontSize = 13.sp,
                                 fontFamily = FontFamily.Monospace,
