@@ -19,7 +19,10 @@ import com.neon.ascent.core.domain.workout.models.UserWorkoutProfile
 import com.neon.ascent.core.domain.workout.models.WorkoutLog
 import com.neon.ascent.core.domain.workout.models.SetLog
 import com.neon.ascent.core.domain.workout.rules.CyberCrappRules
+import com.neon.ascent.core.domain.backup.models.BackupScope
+import com.neon.ascent.core.domain.repository.FullDataBackupRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -145,11 +148,19 @@ class CodexViewModel @Inject constructor(
     private val rollupDao: DailyVitalRollupDao,
     private val dataStore: HealthPreferencesDataStore,
     private val insightDao: InsightDao,
-    private val healthManager: HealthManager
+    private val healthManager: HealthManager,
+    private val fullDataBackupRepository: FullDataBackupRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CodexUiState())
     val uiState: StateFlow<CodexUiState> = _uiState.asStateFlow()
+
+    private val _exportJsonEvent = MutableSharedFlow<String>(
+        replay = 1,
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+    val exportJsonEvent = _exportJsonEvent.asSharedFlow()
 
     init {
         viewModelScope.launch {
@@ -227,12 +238,10 @@ class CodexViewModel @Inject constructor(
         }
     }
 
-    fun exportHistory() {
+    fun exportLogs(scope: BackupScope = BackupScope()) {
         viewModelScope.launch {
-            val json = workoutRepository.exportHistoryToJson()
-            // In a real app, we'd use a FileProvider or copy to clipboard
-            // For this prompt, we just call the repo method as requested
-            android.util.Log.d("CodexExport", json)
+            val json = fullDataBackupRepository.exportBackupJson(scope)
+            _exportJsonEvent.emit(json)
         }
     }
 

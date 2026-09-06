@@ -29,9 +29,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.core.common.Scanlines
+import com.neon.ascent.core.domain.backup.models.BackupScope
 import com.neon.ascent.core.domain.codex.models.BiomarkerKeys
 import com.neon.ascent.core.domain.codex.models.BiomarkerSample
 import com.neon.ascent.core.domain.codex.models.BiomarkerStatus
@@ -49,7 +54,38 @@ fun CodexScreen(
     onRequestNutritionPermission: (() -> Unit)? = null,
     viewModel: CodexViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
+    var showExportDialog by remember { mutableStateOf(false) }
+
+    val createDocumentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        uri?.let { contentUri ->
+            viewModel.exportJsonEvent.replayCache.lastOrNull()?.let { json ->
+                context.contentResolver.openOutputStream(contentUri)?.use { out ->
+                    out.write(json.toByteArray(Charsets.UTF_8))
+                }
+                Toast.makeText(context, "Neural logs exported successfully", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.exportJsonEvent.collect { _ ->
+            createDocumentLauncher.launch("neural_archive_export_${System.currentTimeMillis()}.json")
+        }
+    }
+
+    if (showExportDialog) {
+        ExportLogsPromptDialog(
+            onDismiss = { showExportDialog = false },
+            onExport = { scope ->
+                viewModel.exportLogs(scope)
+                showExportDialog = false
+            }
+        )
+    }
 
     if (uiState.selectedExerciseId != null) {
         ExerciseDossierPane(
@@ -111,7 +147,7 @@ fun CodexScreen(
                             DropdownMenuItem(
                                 text = { Text("EXPORT_LOGS (.JSON)", color = Color.White, fontSize = 12.sp, fontFamily = FontFamily.Monospace) },
                                 onClick = {
-                                    viewModel.exportHistory()
+                                    showExportDialog = true
                                     showMenu = false
                                 }
                             )
@@ -1909,5 +1945,126 @@ fun ExercisePicker(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ExportLogsPromptDialog(
+    onDismiss: () -> Unit,
+    onExport: (BackupScope) -> Unit
+) {
+    var includeWorkout by remember { mutableStateOf(true) }
+    var includeBiometrics by remember { mutableStateOf(true) }
+    var includeCodex by remember { mutableStateOf(true) }
+    var includeJournal by remember { mutableStateOf(true) }
+    var includeCharacter by remember { mutableStateOf(true) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surface)
+                .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                .padding(20.dp)
+        ) {
+            Column {
+                Text(
+                    text = "NEURAL_ARCHIVE_EXPORT",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Select which log categories to compile into the JSON archive:",
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                ExportLogOptionRow("Workout & Operations Logs", includeWorkout) { includeWorkout = it }
+                ExportLogOptionRow("Biometrics & Health Vitals", includeBiometrics) { includeBiometrics = it }
+                ExportLogOptionRow("Codex & Knowledge Vault", includeCodex) { includeCodex = it }
+                ExportLogOptionRow("Journal & Reflections", includeJournal) { includeJournal = it }
+                ExportLogOptionRow("Character & Progression", includeCharacter) { includeCharacter = it }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = "CANCEL",
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            onExport(
+                                BackupScope(
+                                    includeWorkout = includeWorkout,
+                                    includeBiometrics = includeBiometrics,
+                                    includeCodex = includeCodex,
+                                    includeJournal = includeJournal,
+                                    includeCharacter = includeCharacter
+                                )
+                            )
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text(
+                            text = "EXPORT (.JSON)",
+                            color = Color.Black,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExportLogOptionRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 13.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        Checkbox(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = CheckboxDefaults.colors(
+                checkedColor = MaterialTheme.colorScheme.primary,
+                uncheckedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                checkmarkColor = Color.Black
+            )
+        )
     }
 }
