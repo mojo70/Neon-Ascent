@@ -72,7 +72,7 @@ class HealthConnectUplink @Inject constructor(
 
     private suspend fun fetchDeepMetricsWithRetry(maxAttempts: Int = 3, initialDelay: Long = 1000): DeepBiometrics {
         var currentDelay = initialDelay
-        var lastException: Exception? = null
+        var lastException: Throwable? = null
 
         repeat(maxAttempts) { attempt ->
             try {
@@ -132,17 +132,21 @@ class HealthConnectUplink @Inject constructor(
                     sleepScore = null, // HC does not provide scores
                     bodyBattery = null,
                     stressLevel = null,
-                    vo2Max = null, // Deleted mock VO2
+                    vo2Max = null,
                     restingHeartRate = rhr,
                     hrvRmssd = hrv,
                     sleepDurationMinutes = longestSleepMinutes,
                     sleepStages = sleepStages,
                     lastSyncTimestamp = syncTime
                 )
-            } catch (e: Exception) {
+            } catch (e: SecurityException) {
+                Log.w("HealthConnectUplink", "HealthConnect SecurityException: ${e.message}")
+                updateStatus(UplinkStatus.PermissionRequired)
+                return DeepBiometrics()
+            } catch (e: Throwable) {
                 lastException = e
                 if (e.message == "No Permission") {
-                    throw e
+                    return DeepBiometrics()
                 }
             }
 
@@ -152,7 +156,7 @@ class HealthConnectUplink @Inject constructor(
                 currentDelay *= 2
             }
         }
-        throw lastException ?: Exception("Unknown sync failure")
+        return DeepBiometrics()
     }
 
     private fun handleSyncError(e: Exception) {

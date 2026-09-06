@@ -17,6 +17,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.Instant
+import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -319,36 +320,42 @@ class HealthConnectManager @Inject constructor(
     /** Reactive flow for real-time dashboard updates */
     override fun liveMetricsFlow(): kotlinx.coroutines.flow.Flow<LiveMetrics> = kotlinx.coroutines.flow.flow {
         while (true) {
-            val availability = try {
-                HealthConnectClient.getSdkStatus(context)
-            } catch (e: Exception) {
-                HealthConnectClient.SDK_UNAVAILABLE
-            }
-
-            if (availability == HealthConnectClient.SDK_AVAILABLE) {
-                val now = Instant.now()
-                val startOfDay = now.atZone(java.time.ZoneId.systemDefault()).toLocalDate().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()
-
-                val steps = aggregateSteps(startOfDay, now)
-
-                // Try to get total calories, fall back to active if total is not available/granted
-                var calories = aggregateTotalCaloriesKcal(startOfDay, now)
-                if (calories <= 0.0) {
-                    calories = aggregateActiveCaloriesKcal(startOfDay, now)
+            try {
+                val availability = try {
+                    HealthConnectClient.getSdkStatus(context)
+                } catch (e: Throwable) {
+                    HealthConnectClient.SDK_UNAVAILABLE
                 }
 
-                val recentHR = latestHeartRate(now.minusSeconds(300), now)
-                val recentHRV = latestHrvRmssd(now.minusSeconds(3600), now)
-                val rhr = latestRestingHr(startOfDay, now)
-                
-                emit(LiveMetrics(
-                    heartRate = recentHR,
-                    stepsToday = if (steps > 0) steps else null,
-                    caloriesToday = if (calories > 0.0) calories else null,
-                    heartRateVariability = recentHRV,
-                    restingHeartRate = rhr
-                ))
-            } else {
+                if (availability == HealthConnectClient.SDK_AVAILABLE) {
+                    val now = Instant.now()
+                    val startOfDay = now.atZone(ZoneId.systemDefault()).toLocalDate().atStartOfDay(
+                        ZoneId.systemDefault()).toInstant()
+
+                    val steps = aggregateSteps(startOfDay, now)
+
+                    // Try to get total calories, fall back to active if total is not available/granted
+                    var calories = aggregateTotalCaloriesKcal(startOfDay, now)
+                    if (calories <= 0.0) {
+                        calories = aggregateActiveCaloriesKcal(startOfDay, now)
+                    }
+
+                    val recentHR = latestHeartRate(now.minusSeconds(300), now)
+                    val recentHRV = latestHrvRmssd(now.minusSeconds(3600), now)
+                    val rhr = latestRestingHr(startOfDay, now)
+                    
+                    emit(LiveMetrics(
+                        heartRate = recentHR,
+                        stepsToday = if (steps > 0) steps else null,
+                        caloriesToday = if (calories > 0.0) calories else null,
+                        heartRateVariability = recentHRV,
+                        restingHeartRate = rhr
+                    ))
+                } else {
+                    emit(LiveMetrics())
+                }
+            } catch (e: Throwable) {
+                // Silently swallow background permission or SDK exceptions to prevent crashes
                 emit(LiveMetrics())
             }
             kotlinx.coroutines.delay(30000) // 30s update

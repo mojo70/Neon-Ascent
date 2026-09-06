@@ -34,24 +34,8 @@ class GemmaClient(private val context: Context) {
         val appE2B = File(context.getExternalFilesDir(null), "gemma-4-E2B-it.litertlm")
         if (appE2B.exists() && appE2B.length() > minValidSize) return appE2B
 
-        // 2. Google AI Edge Gallery model storage directory
-        try {
-            val galleryDir = File("/storage/emulated/0/Android/data/com.google.ai.edge.gallery/files/")
-            if (galleryDir.exists()) {
-                val litertFiles = galleryDir.walkTopDown()
-                    .filter { it.isFile && it.name.endsWith(".litertlm") && it.length() > minValidSize }
-                    .toList()
-                if (litertFiles.isNotEmpty()) {
-                    val found = litertFiles.maxByOrNull { it.length() }
-                    if (found != null) {
-                        Log.i("GemmaClient", "Found AI Edge Gallery LiteRT model at: ${found.absolutePath}")
-                        return found
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.w("GemmaClient", "Error searching gallery directory", e)
-        }
+        // Do not search external third-party package directories (e.g. AI Edge Gallery)
+        // as unverified external binaries cause native JNI SIGSEGV crashes in liblitertlm_jni.so
 
         return null
     }
@@ -167,11 +151,11 @@ class GemmaClient(private val context: Context) {
             } else {
                 AiResult.Success(result)
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e("GemmaClient", "Error during Gemma inference", e)
             try {
                 activeConversation?.close()
-            } catch (_: Exception) {}
+            } catch (_: Throwable) {}
             activeConversation = null
             AiResult.Failure("GEMMA_GENERATE: ${e.localizedMessage}", e)
         }
@@ -187,7 +171,7 @@ class GemmaClient(private val context: Context) {
         try {
             activeConversation?.close()
             engine?.close()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.w("GemmaClient", "Error closing LiteRT engine", e)
         } finally {
             activeConversation = null
