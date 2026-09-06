@@ -90,6 +90,16 @@ class DashboardViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
+    init {
+        viewModelScope.launch {
+            aiProvider.engineTelemetry.collect { telemetry ->
+                _uiState.update { current ->
+                    current.copy(aiEngineTelemetry = telemetry)
+                }
+            }
+        }
+    }
+
     private val _weatherState = MutableStateFlow(WeatherState())
     val weatherState: StateFlow<WeatherState> = _weatherState.asStateFlow()
 
@@ -285,7 +295,9 @@ class DashboardViewModel @Inject constructor(
                 _uiState.update { current ->
                     state.copy(
                         terminalInput = current.terminalInput,
-                        terminalMessages = current.terminalMessages
+                        terminalMessages = current.terminalMessages,
+                        isTerminalProcessing = current.isTerminalProcessing,
+                        aiEngineTelemetry = current.aiEngineTelemetry
                     )
                 }
             }
@@ -577,35 +589,49 @@ class DashboardViewModel @Inject constructor(
 
     fun sendTerminalMessage() {
         val input = _uiState.value.terminalInput
-        if (input.isBlank()) return
+        if (input.isBlank() || _uiState.value.isTerminalProcessing) return
 
         viewModelScope.launch {
             val userMsg = TerminalMessage(input, isFromUser = true)
             _uiState.update { state ->
                 state.copy(
                     terminalMessages = state.terminalMessages + userMsg,
-                    terminalInput = ""
+                    terminalInput = "",
+                    isTerminalProcessing = true
                 )
             }
 
-            // Fetch Memory Palace Context
-            val palaceContext = memoryPalaceManager.fetchContext(input)
-            
-            val context = "Memory Palace Fragments:\n$palaceContext\n\n" +
-                "Conversation history: " + _uiState.value.terminalMessages.takeLast(5).joinToString { if(it.isFromUser) "Runner: ${it.text}" else "CYBR-TES: ${it.text}" }
-            
-            val prompt = AiPersona.getSocratesPrompt(context) + "\nRunner: $input\nRespond as CYBR-TES."
-            
-            val response = aiProvider.generateContent(prompt)
-            val cleanedResponse = response.substringAfter("CYBR-TES:").trim()
-            val aiMsg = TerminalMessage(cleanedResponse, isFromUser = false)
-            
-            _uiState.update { state ->
-                state.copy(terminalMessages = state.terminalMessages + aiMsg)
-            }
+            try {
+                // Fetch Memory Palace Context
+                val palaceContext = memoryPalaceManager.fetchContext(input)
+                
+                val context = "Memory Palace Fragments:\n$palaceContext\n\n" +
+                    "Conversation history: " + _uiState.value.terminalMessages.takeLast(5).joinToString { if(it.isFromUser) "Runner: ${it.text}" else "CYBR-TES: ${it.text}" }
+                
+                val prompt = AiPersona.getSocratesPrompt(context) + "\nRunner: $input\nRespond as CYBR-TES."
+                
+                val response = aiProvider.generateContent(prompt)
+                val cleanedResponse = response.substringAfter("CYBR-TES:").trim()
+                val aiMsg = TerminalMessage(cleanedResponse, isFromUser = false)
+                
+                _uiState.update { state ->
+                    state.copy(
+                        terminalMessages = state.terminalMessages + aiMsg,
+                        isTerminalProcessing = false
+                    )
+                }
 
-            // Log to Palace
-            memoryPalaceManager.logDialogue(input, cleanedResponse)
+                // Log to Palace
+                memoryPalaceManager.logDialogue(input, cleanedResponse)
+            } catch (e: Exception) {
+                val errorMsg = TerminalMessage("ERROR // LINK_INTERRUPTED. Cyber Tes connection timed out.", isFromUser = false)
+                _uiState.update { state ->
+                    state.copy(
+                        terminalMessages = state.terminalMessages + errorMsg,
+                        isTerminalProcessing = false
+                    )
+                }
+            }
         }
     }
 

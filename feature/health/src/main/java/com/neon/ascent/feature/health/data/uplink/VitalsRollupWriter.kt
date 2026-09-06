@@ -25,7 +25,7 @@ class VitalsRollupWriter @Inject constructor(
             rollups.add(DailyVitalRollupEntity(today, "KCAL_TOTAL", it, "HC_AGG", "OK", now))
         }
 
-        metrics.caloriesConsumedToday?.let {
+        metrics.caloriesConsumedToday?.takeIf { it > 0.0 }?.let {
             rollups.add(DailyVitalRollupEntity(today, "KCAL_EATEN", it, "HC", "OK", now))
         }
 

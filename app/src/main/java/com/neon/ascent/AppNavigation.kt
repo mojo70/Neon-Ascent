@@ -96,6 +96,8 @@ import com.neon.ascent.feature.wallet.EurodollarWalletScreen
 import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.core.common.*
 import com.neon.ascent.data.AppSessionManager
+import com.neon.ascent.feature.biohacking.BiohackingViewModel
+import com.neon.ascent.feature.health.domain.uplink.UplinkProvider
 import com.neon.ascent.util.derivePersonalityArchetype
 import com.neon.ascent.ui.components.NeonBottomBar
 import com.neon.ascent.ui.components.NavItem
@@ -227,6 +229,7 @@ fun AppNavigation(
                     when {
                         page == codexIndex -> {
                             val loreViewModel: LoreViewModel = hiltViewModel()
+                            val biohackingViewModel: BiohackingViewModel = hiltViewModel()
                             CodexScreen(
                                 onBack = {
                                     coroutineScope.launch {
@@ -235,6 +238,9 @@ fun AppNavigation(
                                 },
                                 chronicleContent = {
                                     LoreScreenContent(viewModel = loreViewModel)
+                                },
+                                onRequestNutritionPermission = {
+                                    biohackingViewModel.relink(UplinkProvider.HEALTH_CONNECT)
                                 }
                             )
                         }
@@ -995,6 +1001,7 @@ fun AppNavigation(
             val exerciseId = backStackEntry.toRoute<Screen.CodexDossier>().exerciseId
             val loreViewModel: LoreViewModel = hiltViewModel()
             val codexViewModel: CodexViewModel = hiltViewModel()
+            val biohackingViewModel: BiohackingViewModel = hiltViewModel()
             
             // Set initial state
             LaunchedEffect(exerciseId) {
@@ -1005,6 +1012,9 @@ fun AppNavigation(
                 onBack = { navController.popBackStack() },
                 chronicleContent = {
                     LoreScreenContent(viewModel = loreViewModel)
+                },
+                onRequestNutritionPermission = {
+                    biohackingViewModel.relink(UplinkProvider.HEALTH_CONNECT)
                 },
                 viewModel = codexViewModel
             )

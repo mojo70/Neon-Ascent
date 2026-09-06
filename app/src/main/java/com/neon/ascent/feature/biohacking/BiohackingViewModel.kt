@@ -215,11 +215,7 @@ class BiohackingViewModel @Inject constructor(
 
     val hasNutritionPermission: StateFlow<Boolean> = flow {
         while (true) {
-            val missing = healthManager.getPermissionsToRequest()
-            val nutritionPerm = androidx.health.connect.client.permission.HealthPermission.getReadPermission(
-                androidx.health.connect.client.records.NutritionRecord::class
-            )
-            emit(!missing.contains(nutritionPerm))
+            emit(healthManager.hasNutritionPermission())
             delay(5000)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
@@ -649,7 +645,7 @@ class BiohackingViewModel @Inject constructor(
                     return@launch
                 }
                 
-                if (healthManager.isAvailableAndHasPermissions()) {
+                if (healthManager.isAvailableAndHasPermissions() && healthManager.hasNutritionPermission()) {
                     android.util.Log.i("BiohackingVM", "Permissions already granted. Syncing.")
                     syncWearable()
                 } else {

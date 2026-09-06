@@ -21,9 +21,9 @@ class GeminiNanoClient @Inject constructor(
      */
     suspend fun isSupported(): Boolean = withContext(Dispatchers.Main) {
         try {
-            // Check if service is available
-            true 
-        } catch (e: Exception) {
+            getModel()
+            true
+        } catch (e: Throwable) {
             false
         }
     }
@@ -77,6 +77,6 @@ class GeminiNanoClient @Inject constructor(
     @Deprecated("Use generate instead")
     suspend fun generateContent(prompt: String): String = when (val res = generate(prompt)) {
         is AiResult.Success -> res.text
-        is AiResult.Failure -> "Neural link unstable. Re-transmitting..."
+        is AiResult.Failure -> "CYBR-TES: UPLINK_INTERRUPTED // Tap send to re-establish connection."
     }
 }

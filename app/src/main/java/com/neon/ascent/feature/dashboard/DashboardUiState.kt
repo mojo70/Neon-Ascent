@@ -6,6 +6,7 @@ import com.neon.ascent.model.TerminalEvent
 import com.neon.ascent.core.domain.goals.models.*
 import com.neon.ascent.core.common.DopamineEvent
 import com.neon.ascent.core.common.OperatorIdentity
+import com.neon.ascent.feature.biohacking.AiEngineTelemetry
 
 data class DashboardUiState(
     val userStory: UserStory = UserStory(),
@@ -25,7 +26,9 @@ data class DashboardUiState(
         TerminalMessage("DECK_OS_STABLE", isFromUser = false),
         TerminalMessage("WAITING_FOR_INPUT...", isFromUser = false)
     ),
-    val terminalInput: String = ""
+    val terminalInput: String = "",
+    val isTerminalProcessing: Boolean = false,
+    val aiEngineTelemetry: AiEngineTelemetry = AiEngineTelemetry()
 )
 
 data class TerminalMessage(

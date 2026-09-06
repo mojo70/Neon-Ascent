@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.neon.ascent.core.data.datastore.HealthPreferencesDataStore
 import com.neon.ascent.core.data.local.dao.DailyVitalRollupDao
+import com.neon.ascent.core.domain.health.HealthManager
 import com.neon.ascent.core.domain.repository.WorkoutRepository
 import com.neon.ascent.core.data.local.dao.InsightDao
 import com.neon.ascent.core.domain.codex.models.BiomarkerKeys
@@ -57,6 +58,7 @@ data class CodexUiState(
     // Vitals State
     val vitalsType: VitalsType = VitalsType.HRV,
     val vitalsData: List<VitalsPoint> = emptyList(),
+    val hasNutritionPermission: Boolean = true,
     val fuelHistory: List<com.neon.ascent.core.domain.workout.models.FuelSnapshot> = emptyList(),
     val latestInsight: String? = null,
     val recoveryScore: RecoveryScore? = null,
@@ -142,7 +144,8 @@ class CodexViewModel @Inject constructor(
     private val biomarkerRepository: BiomarkerRepository,
     private val rollupDao: DailyVitalRollupDao,
     private val dataStore: HealthPreferencesDataStore,
-    private val insightDao: InsightDao
+    private val insightDao: InsightDao,
+    private val healthManager: HealthManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CodexUiState())
@@ -324,6 +327,20 @@ class CodexViewModel @Inject constructor(
         }
     }
 
+    fun refreshPermissions() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(hasNutritionPermission = healthManager.hasNutritionPermission()) }
+        }
+    }
+
+    suspend fun getPermissionsToRequest(): Set<String> {
+        return healthManager.getPermissionsToRequest()
+    }
+
+    fun getPermissionRationale(): Map<String, String> {
+        return healthManager.getPermissionRationale()
+    }
+
     private fun loadVitalsData(period: CodexPeriod, type: VitalsType) {
         val (start, end) = getRangeForPeriod(period)
         val zone = ZoneId.systemDefault()
@@ -331,8 +348,12 @@ class CodexViewModel @Inject constructor(
         val endDate = end.atZone(zone).toLocalDate().toString()
 
         viewModelScope.launch {
+            val hasNutr = healthManager.hasNutritionPermission()
+            _uiState.update { it.copy(hasNutritionPermission = hasNutr) }
             rollupDao.getRange(type.rollupMetric, startDate, endDate).collect { list ->
-                val points = list.map { VitalsPoint(LocalDate.parse(it.localDate), it.value) }
+                val points = list
+                    .filter { if (type == VitalsType.KCAL_EATEN) it.value > 0.0 else true }
+                    .map { VitalsPoint(LocalDate.parse(it.localDate), it.value) }
                 _uiState.update { it.copy(vitalsData = points) }
             }
         }

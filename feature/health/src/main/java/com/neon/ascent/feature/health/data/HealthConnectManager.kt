@@ -1,6 +1,7 @@
 package com.neon.ascent.feature.health.data
 
 import android.content.Context
+import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
@@ -74,6 +75,22 @@ class HealthConnectManager @Inject constructor(
             coreGranted
         } catch (e: Exception) {
             android.util.Log.e("HealthConnectManager", "Error checking permissions", e)
+            false
+        }
+    }
+
+    /** Check if Nutrition read permission is granted specifically */
+    override suspend fun hasNutritionPermission(): Boolean {
+        return try {
+            val availability = HealthConnectClient.getSdkStatus(context)
+            if (availability != HealthConnectClient.SDK_AVAILABLE) {
+                return false
+            }
+            val granted = healthConnectClient.permissionController.getGrantedPermissions()
+            val nutritionPerm = HealthPermission.getReadPermission(NutritionRecord::class)
+            nutritionPerm in granted
+        } catch (e: Exception) {
+            Log.e("HealthConnectManager", "Error checking nutrition permission", e)
             false
         }
     }

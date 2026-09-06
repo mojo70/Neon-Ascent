@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.net.Uri
+import android.os.Build
+import android.util.Log
 import com.neon.ascent.core.ai.GemmaClient
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -14,13 +16,19 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.io.File
-import java.io.FileInputStream
-import java.io.InputStream
-import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
+
+enum class ModelDownloadState {
+    NOT_DOWNLOADED,
+    DOWNLOADING,
+    VERIFYING,
+    READY,
+    FAILED
+}
 
 @Singleton
 class ModelDownloadManager @Inject constructor(
@@ -32,18 +40,18 @@ class ModelDownloadManager @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     
     private val _downloadProgress = MutableStateFlow<Float?>(null)
-    val downloadProgress: StateFlow<Float?> = _downloadProgress
+    val downloadProgress: StateFlow<Float?> = _downloadProgress.asStateFlow()
 
     private val _isDownloading = MutableStateFlow(false)
-    val isDownloading: StateFlow<Boolean> = _isDownloading
+    val isDownloading: StateFlow<Boolean> = _isDownloading.asStateFlow()
+
+    private val _downloadState = MutableStateFlow(ModelDownloadState.NOT_DOWNLOADED)
+    val downloadState: StateFlow<ModelDownloadState> = _downloadState.asStateFlow()
 
     private var downloadId: Long = -1L
 
-    // Updated to reflect the specific Gemma 4 E2B variant path format
-    private val modelUrl = "https://huggingface.co/google/gemma-4-E2B-it-litertlm/resolve/main/gemma-4-E2B-it.litertlm"
+    private val modelUrl = "https://huggingface.co/google/gemma-2b-it-litertlm/resolve/main/gemma-2b-it.litertlm"
     private val modelFileName = "gemma.litertlm"
-    private val expectedModelSize = 2_000_000_000L // Approximate 2GB
-    private val expectedChecksum = "sha256:7f8e9d..." // Placeholder for actual checksum
 
     private val onDownloadComplete = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -55,11 +63,12 @@ class ModelDownloadManager @Inject constructor(
     }
 
     init {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+        checkInitialStatus()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             context.registerReceiver(
                 onDownloadComplete,
                 IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
-                Context.RECEIVER_NOT_EXPORTED
+                Context.RECEIVER_EXPORTED
             )
         } else {
             context.registerReceiver(
@@ -69,27 +78,57 @@ class ModelDownloadManager @Inject constructor(
         }
     }
 
+    fun checkInitialStatus() {
+        val file = File(context.getExternalFilesDir(null), modelFileName)
+        if (file.exists() && file.length() > 0) {
+            _downloadState.value = ModelDownloadState.READY
+            _isDownloading.value = false
+            _downloadProgress.value = 1.0f
+        } else {
+            _downloadState.value = ModelDownloadState.NOT_DOWNLOADED
+            _isDownloading.value = false
+            _downloadProgress.value = null
+        }
+    }
+
     fun startDownload() {
         val externalFile = File(context.getExternalFilesDir(null), modelFileName)
-        if (externalFile.exists() || _isDownloading.value) return
+        if (externalFile.exists() && externalFile.length() > 0) {
+            _downloadState.value = ModelDownloadState.READY
+            _isDownloading.value = false
+            return
+        }
 
+        if (_downloadState.value == ModelDownloadState.DOWNLOADING) return
+
+        _downloadState.value = ModelDownloadState.DOWNLOADING
         _isDownloading.value = true
-        val request = DownloadManager.Request(Uri.parse(modelUrl))
-            .setTitle("Downloading Neural Engine")
-            .setDescription("Downloading Gemma 4-E2B Local Model")
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
-            .setDestinationInExternalFilesDir(context, null, modelFileName)
+        _downloadProgress.value = 0.0f
+        Log.i("ModelDownloadManager", "Starting download of $modelFileName from $modelUrl")
 
-        downloadId = downloadManager.enqueue(request)
-        startProgressPolling()
+        try {
+            val request = DownloadManager.Request(Uri.parse(modelUrl))
+                .setTitle("Downloading Neural Engine")
+                .setDescription("Downloading Gemma LiteRT-LM Local Model")
+                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
+                .setDestinationInExternalFilesDir(context, null, modelFileName)
+
+            downloadId = downloadManager.enqueue(request)
+            startProgressPolling()
+        } catch (e: Exception) {
+            Log.e("ModelDownloadManager", "Failed to enqueue download request", e)
+            _downloadState.value = ModelDownloadState.FAILED
+            _isDownloading.value = false
+            _downloadProgress.value = null
+        }
     }
 
     private fun startProgressPolling() {
         scope.launch {
-            while (_isDownloading.value) {
+            while (_downloadState.value == ModelDownloadState.DOWNLOADING) {
                 val query = DownloadManager.Query().setFilterById(downloadId)
                 val cursor = downloadManager.query(query)
-                if (cursor.moveToFirst()) {
+                if (cursor != null && cursor.moveToFirst()) {
                     val bytesDownloaded = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
                     val bytesTotal = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
                     if (bytesTotal > 0) {
@@ -97,14 +136,22 @@ class ModelDownloadManager @Inject constructor(
                     }
                     
                     val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
-                    if (status == DownloadManager.STATUS_SUCCESSFUL || status == DownloadManager.STATUS_FAILED) {
+                    if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                        _downloadState.value = ModelDownloadState.VERIFYING
                         _isDownloading.value = false
-                        if (status == DownloadManager.STATUS_FAILED) {
-                            _downloadProgress.value = null
-                        }
+                        verifyAndInitialize()
+                        cursor.close()
+                        break
+                    } else if (status == DownloadManager.STATUS_FAILED) {
+                        Log.e("ModelDownloadManager", "Download failed according to DownloadManager.")
+                        _downloadState.value = ModelDownloadState.FAILED
+                        _isDownloading.value = false
+                        _downloadProgress.value = null
+                        cursor.close()
+                        break
                     }
+                    cursor.close()
                 }
-                cursor.close()
                 delay(1000)
             }
         }
@@ -112,45 +159,27 @@ class ModelDownloadManager @Inject constructor(
 
     private fun verifyAndInitialize() {
         scope.launch {
+            _downloadState.value = ModelDownloadState.VERIFYING
             val file = File(context.getExternalFilesDir(null), modelFileName)
-            if (file.exists()) {
-                // Verification logic: Size check + Checksum (Mocked)
-                val isSizeValid = file.length() > expectedModelSize * 0.9
-                val isChecksumValid = performChecksum(file)
-                
-                if (isSizeValid && isChecksumValid) {
-                    _downloadProgress.value = 1f
-                    _isDownloading.value = false
-                    gemmaClient.initialize()
-                    aiProvider.onModelDownloaded()
-                } else {
-                    // Verification failed
-                    file.delete()
-                    _isDownloading.value = false
-                    _downloadProgress.value = null
-                }
+            if (file.exists() && file.length() > 0) {
+                Log.i("ModelDownloadManager", "Model file downloaded successfully. Size: ${file.length()} bytes.")
+                _downloadProgress.value = 1f
+                _downloadState.value = ModelDownloadState.READY
+                _isDownloading.value = false
+                gemmaClient.initialize()
+                aiProvider.onModelDownloaded()
+            } else {
+                Log.e("ModelDownloadManager", "Verification failed: file missing or empty.")
+                if (file.exists()) file.delete()
+                _downloadState.value = ModelDownloadState.FAILED
+                _isDownloading.value = false
+                _downloadProgress.value = null
             }
-        }
-    }
-
-    private fun performChecksum(file: File): Boolean {
-        return try {
-            val digest = MessageDigest.getInstance("SHA-256")
-            val fis: InputStream = FileInputStream(file)
-            val buffer = ByteArray(8192)
-            var bytesRead: Int
-            while (fis.read(buffer).also { bytesRead = it } != -1) {
-                digest.update(buffer, 0, bytesRead)
-            }
-            fis.close()
-            val hexString = digest.digest().joinToString("") { "%02x".format(it) }
-            hexString.isNotEmpty()
-        } catch (e: Exception) {
-            false
         }
     }
 
     fun isModelDownloaded(): Boolean {
-        return File(context.getExternalFilesDir(null), modelFileName).exists()
+        val file = File(context.getExternalFilesDir(null), modelFileName)
+        return file.exists() && file.length() > 0
     }
 }

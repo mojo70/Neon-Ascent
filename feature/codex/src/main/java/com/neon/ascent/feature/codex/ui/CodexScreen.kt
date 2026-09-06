@@ -38,12 +38,15 @@ import com.neon.ascent.core.domain.codex.models.BiomarkerStatus
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.Instant
+import java.time.temporal.ChronoUnit
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun CodexScreen(
     onBack: () -> Unit,
     chronicleContent: @Composable () -> Unit,
+    onRequestNutritionPermission: (() -> Unit)? = null,
     viewModel: CodexViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -146,7 +149,8 @@ fun CodexScreen(
                             uiState = uiState,
                             isLoading = uiState.isLoading,
                             onTypeSelected = { viewModel.selectVitalsType(it) },
-                            onPeriodSelected = { viewModel.selectPeriod(it) }
+                            onPeriodSelected = { viewModel.selectPeriod(it) },
+                            onRequestNutritionPermission = { onRequestNutritionPermission?.invoke() }
                         )
                         CodexWing.SERUM -> SerumWing(
                             uiState = uiState,
@@ -391,7 +395,8 @@ fun VitalsWing(
     uiState: CodexUiState,
     isLoading: Boolean = false,
     onTypeSelected: (VitalsType) -> Unit,
-    onPeriodSelected: (CodexPeriod) -> Unit
+    onPeriodSelected: (CodexPeriod) -> Unit,
+    onRequestNutritionPermission: () -> Unit
 ) {
     if (isLoading) {
         LoadingWing("SYNCING_BIOMETRICS")
@@ -441,27 +446,39 @@ fun VitalsWing(
         ) {
             items(VitalsType.entries) { type ->
                 val isSelected = uiState.vitalsType == type
+                val isEatenAndNoPerm = type == VitalsType.KCAL_EATEN && !uiState.hasNutritionPermission
+                val chipLabel = if (isEatenAndNoPerm) {
+                    "KCAL_EATEN [GRANT_NUTRITION]"
+                } else {
+                    type.label
+                }
                 FilterChip(
                     selected = isSelected,
-                    onClick = { onTypeSelected(type) },
+                    onClick = {
+                        onTypeSelected(type)
+                        if (isEatenAndNoPerm) {
+                            onRequestNutritionPermission()
+                        }
+                    },
                     label = { 
                         Text(
-                            type.label, 
+                            chipLabel, 
                             fontSize = 10.sp, 
                             fontFamily = FontFamily.Monospace,
-                            fontWeight = if (isSelected) FontWeight.Black else FontWeight.Normal
+                            fontWeight = if (isSelected) FontWeight.Black else FontWeight.Normal,
+                            color = if (isEatenAndNoPerm) Color(0xFFFF8C00) else Color.Unspecified
                         ) 
                     },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                        selectedLabelColor = MaterialTheme.colorScheme.primary,
+                        selectedContainerColor = if (isEatenAndNoPerm) Color(0xFFFF8C00).copy(alpha = 0.2f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                        selectedLabelColor = if (isEatenAndNoPerm) Color(0xFFFF8C00) else MaterialTheme.colorScheme.primary,
                         labelColor = Color.Gray
                     ),
                     border = FilterChipDefaults.filterChipBorder(
                         enabled = true,
                         selected = isSelected,
-                        borderColor = Color.DarkGray,
-                        selectedBorderColor = MaterialTheme.colorScheme.primary
+                        borderColor = if (isEatenAndNoPerm) Color(0xFFFF8C00).copy(alpha = 0.5f) else Color.DarkGray,
+                        selectedBorderColor = if (isEatenAndNoPerm) Color(0xFFFF8C00) else MaterialTheme.colorScheme.primary
                     )
                 )
             }
@@ -475,27 +492,67 @@ fun VitalsWing(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
-                    .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp)),
+                    .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+                    .then(
+                        if (uiState.vitalsType == VitalsType.KCAL_EATEN && !uiState.hasNutritionPermission) {
+                            Modifier.clickable { onRequestNutritionPermission() }
+                        } else Modifier
+                    ),
                 contentAlignment = Alignment.Center
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        "NO_ROLLUPS_YET",
-                        color = Color.Gray,
-                        fontSize = 12.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    Text(
-                        "SYNC_HEALTH_FROM_LABS",
-                        color = Color.DarkGray,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
+                    if (uiState.vitalsType == VitalsType.KCAL_EATEN) {
+                        if (!uiState.hasNutritionPermission) {
+                            Text(
+                                "GRANT_NUTRITION",
+                                color = Color(0xFFFF8C00),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "Tap to grant Health Connect Nutrition permission.",
+                                color = Color.Gray,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
+                                textAlign = TextAlign.Center
+                            )
+                        } else {
+                            Text(
+                                "NOT_LOGGED",
+                                color = Color.Gray,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "Log meals in Google Fit or another app connected to Health Connect.",
+                                color = Color.DarkGray,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    } else {
+                        Text(
+                            "NO_ROLLUPS_YET",
+                            color = Color.Gray,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Text(
+                            "SYNC_HEALTH_FROM_LABS",
+                            color = Color.DarkGray,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
                 }
             }
         } else {
-            SectionHeader("${uiState.vitalsType.name}_TIMELINE")
-            VitalsChart(uiState.vitalsData, uiState.sessionSummaries)
+            VitalsChart(uiState.vitalsData, uiState.sessionSummaries, uiState.vitalsType)
         }
 
         // Recovery & Volume Sparkline
@@ -503,21 +560,48 @@ fun VitalsWing(
         SectionHeader("RECOVERY_ANALYSIS")
         RecoverySparklineRow(uiState)
 
-        // Socratic Insight
-        uiState.latestInsight?.let {
+        // NEURAL_ANALYSIS
+        val hasData = uiState.vitalsData.isNotEmpty()
+        val rawInsight = uiState.latestInsight ?: ""
+        val cleanInsight = if (rawInsight.contains("remarkable cardiovascular stability", ignoreCase = true) && !rawInsight.any { it.isDigit() }) {
+            ""
+        } else {
+            rawInsight.replace(Regex("(?i)remarkable cardiovascular stability"), "").trim()
+        }
+
+        if (hasData || cleanInsight.isNotBlank()) {
             Spacer(modifier = Modifier.height(24.dp))
             SectionHeader("NEURAL_ANALYSIS")
+            
+            val textToDisplay = if (hasData) {
+                val lastPt = uiState.vitalsData.last().value
+                val minPt = uiState.vitalsData.minOf { it.value }
+                val maxPt = uiState.vitalsData.maxOf { it.value }
+                
+                val lastStr = formatHeaderValue(lastPt, uiState.vitalsType)
+                val minStr = formatHeaderValue(minPt, uiState.vitalsType)
+                val maxStr = formatHeaderValue(maxPt, uiState.vitalsType)
+                
+                val statsSummary = "${uiState.vitalsType.name}: LATEST $lastStr // 30D RANGE: $minStr - $maxStr"
+                if (cleanInsight.isNotBlank()) {
+                    "$statsSummary\n\n$cleanInsight"
+                } else {
+                    statsSummary
+                }
+            } else {
+                cleanInsight
+            }
+
             Surface(
                 color = Color.White.copy(alpha = 0.03f),
                 shape = RoundedCornerShape(4.dp),
                 border = BorderStroke(1.dp, Color(0xFFFF006E).copy(alpha = 0.2f))
             ) {
                 Text(
-                    text = it,
+                    text = textToDisplay,
                     color = Color.White.copy(alpha = 0.9f),
                     fontSize = 11.sp,
-                    fontFamily = FontFamily.Serif,
-                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                    fontFamily = FontFamily.Monospace,
                     modifier = Modifier.padding(12.dp)
                 )
             }
@@ -1065,74 +1149,223 @@ fun RecoveryMetric(label: String, value: String, color: Color, modifier: Modifie
     }
 }
 
-@Composable
-fun VitalsChart(data: List<com.neon.ascent.feature.codex.ui.VitalsPoint>, sessionSummaries: List<SessionSummary>) {
-    if (data.isEmpty()) return
-    val primaryColor = MaterialTheme.colorScheme.primary
+fun formatHeaderValue(value: Double, type: VitalsType): String {
+    return when (type) {
+        VitalsType.STEPS -> {
+            if (value >= 1000) {
+                String.format(Locale.US, "%.1fK STEPS", value / 1000.0)
+            } else {
+                "${value.toInt()} STEPS"
+            }
+        }
+        VitalsType.RHR -> "${value.toInt()} BPM"
+        VitalsType.HRV -> "${value.toInt()} ms"
+        VitalsType.SLEEP_MIN -> {
+            val hours = value / 60.0
+            String.format(Locale.US, "%.1f H", hours)
+        }
+        VitalsType.KCAL_TOTAL, VitalsType.KCAL_EATEN -> "${value.toInt()} KCAL"
+    }
+}
 
-    val minVal = data.minOf { it.value }.toFloat()
-    val maxVal = data.maxOf { it.value }.toFloat()
-    val range = (maxVal - minVal).coerceAtLeast(1f)
+fun formatAxisValue(value: Double, type: VitalsType): String {
+    return when (type) {
+        VitalsType.STEPS -> {
+            if (value >= 1000) {
+                String.format(Locale.US, "%.1fK", value / 1000.0)
+            } else {
+                "${value.toInt()}"
+            }
+        }
+        VitalsType.RHR, VitalsType.HRV -> "${value.toInt()}"
+        VitalsType.SLEEP_MIN -> {
+            val hours = value / 60.0
+            String.format(Locale.US, "%.1fH", hours)
+        }
+        VitalsType.KCAL_TOTAL, VitalsType.KCAL_EATEN -> "${value.toInt()}"
+    }
+}
+
+@Composable
+fun VitalsChart(
+    data: List<VitalsPoint>,
+    sessionSummaries: List<SessionSummary>,
+    vitalsType: VitalsType
+) {
+    if (data.isEmpty()) return
+
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val cyanColor = Color(0xFF00CCFF)
+    val gridColor = Color.White.copy(alpha = 0.08f)
+    val labelColor = Color.Gray
+
+    val rawMin = data.minOf { it.value }
+    val rawMax = data.maxOf { it.value }
+    val rawRange = rawMax - rawMin
+
+    val canBeZero = vitalsType == VitalsType.STEPS || 
+                    vitalsType == VitalsType.KCAL_TOTAL || 
+                    vitalsType == VitalsType.KCAL_EATEN
+
+    val padding = if (rawRange == 0.0) {
+        if (rawMin == 0.0) 1.0 else rawMin * 0.05
+    } else {
+        rawRange * 0.05
+    }
+
+    val minY = if (canBeZero) 0.0 else (rawMin - padding).coerceAtLeast(0.0)
+    val maxY = rawMax + padding
+    val midY = (minY + maxY) / 2.0
+    val rangeY = (maxY - minY).coerceAtLeast(1.0)
+
+    val lastValue = data.last().value
+    val headerText = formatHeaderValue(lastValue, vitalsType)
 
     val startDate = data.first().date
     val endDate = data.last().date
     val daysRange = java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate).coerceAtLeast(1)
 
-    Canvas(
+    val midIndex = data.size / 2
+    val midDate = data[midIndex].date
+
+    val dateFormatter = DateTimeFormatter.ofPattern("M/d")
+    val startDateStr = startDate.format(dateFormatter)
+    val midDateStr = midDate.format(dateFormatter)
+    val endDateStr = endDate.format(dateFormatter)
+
+    val maxLabel = formatAxisValue(maxY, vitalsType)
+    val midLabel = formatAxisValue(midY, vitalsType)
+    val minLabel = formatAxisValue(minY, vitalsType)
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(200.dp)
             .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
-            .padding(top = 16.dp, bottom = 32.dp, start = 16.dp, end = 16.dp)
+            .padding(12.dp)
     ) {
-        val width = size.width
-        val height = size.height
-
-        // Session Ticks
-        sessionSummaries.forEach { session ->
-            if ((session.date.isAfter(startDate) || session.date.isEqual(startDate)) && 
-                (session.date.isBefore(endDate) || session.date.isEqual(endDate))) {
-                val d = java.time.temporal.ChronoUnit.DAYS.between(startDate, session.date)
-                val x = (d.toFloat() / daysRange) * width
-                drawLine(
-                    color = primaryColor.copy(alpha = 0.3f),
-                    start = Offset(x, 0f),
-                    end = Offset(x, height),
-                    strokeWidth = 1.dp.toPx()
-                )
-            }
-        }
-
-        // Data Path
-        val path = Path()
-        data.forEachIndexed { index, point ->
-            val d = java.time.temporal.ChronoUnit.DAYS.between(startDate, point.date)
-            val x = (d.toFloat() / daysRange) * width
-            val y = height - ((point.value.toFloat() - minVal) / range * height)
-
-            if (index == 0) {
-                path.moveTo(x, y)
-            } else {
-                path.lineTo(x, y)
-            }
-        }
-
-        drawPath(
-            path = path,
-            color = Color(0xFF00CCFF),
-            style = Stroke(width = 2.dp.toPx())
-        )
-
-        // Points
-        data.forEach { point ->
-            val d = java.time.temporal.ChronoUnit.DAYS.between(startDate, point.date)
-            val x = (d.toFloat() / daysRange) * width
-            val y = height - ((point.value.toFloat() - minVal) / range * height)
-            drawCircle(
-                color = Color(0xFF00CCFF),
-                radius = 2.dp.toPx(),
-                center = Offset(x, y)
+        // Header row: Section title + Last value with unit
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "${vitalsType.name}_TIMELINE",
+                color = labelColor,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp,
+                fontFamily = FontFamily.Monospace
             )
+            Text(
+                text = headerText,
+                color = cyanColor,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Black,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Chart area with Y-axis ticks
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp)
+        ) {
+            // Y-axis labels column
+            Column(
+                modifier = Modifier
+                    .width(42.dp)
+                    .fillMaxHeight(),
+                verticalArrangement = Arrangement.SpaceBetween,
+                horizontalAlignment = Alignment.End
+            ) {
+                Text(maxLabel, color = labelColor, fontSize = 8.sp, fontFamily = FontFamily.Monospace, maxLines = 1)
+                Text(midLabel, color = labelColor, fontSize = 8.sp, fontFamily = FontFamily.Monospace, maxLines = 1)
+                Text(minLabel, color = labelColor, fontSize = 8.sp, fontFamily = FontFamily.Monospace, maxLines = 1)
+            }
+
+            Spacer(modifier = Modifier.width(6.dp))
+
+            // Canvas for grid, session ticks, sparkline, and points
+            Canvas(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+            ) {
+                val w = size.width
+                val h = size.height
+
+                // 3 Horizontal Grid lines corresponding to Y-axis ticks
+                drawLine(gridColor, Offset(0f, 0f), Offset(w, 0f), strokeWidth = 1f)
+                drawLine(gridColor, Offset(0f, h / 2f), Offset(w, h / 2f), strokeWidth = 1f)
+                drawLine(gridColor, Offset(0f, h), Offset(w, h), strokeWidth = 1f)
+
+                // Session Ticks (vertical training-day lines)
+                sessionSummaries.forEach { session ->
+                    if ((session.date.isAfter(startDate) || session.date.isEqual(startDate)) &&
+                        (session.date.isBefore(endDate) || session.date.isEqual(endDate))) {
+                        val d = ChronoUnit.DAYS.between(startDate, session.date)
+                        val x = (d.toFloat() / daysRange) * w
+                        drawLine(
+                            color = primaryColor.copy(alpha = 0.35f),
+                            start = Offset(x, 0f),
+                            end = Offset(x, h),
+                            strokeWidth = 1.dp.toPx()
+                        )
+                    }
+                }
+
+                // Line Path
+                val path = Path()
+                data.forEachIndexed { index, point ->
+                    val d = ChronoUnit.DAYS.between(startDate, point.date)
+                    val x = (d.toFloat() / daysRange) * w
+                    val y = h - (((point.value - minY) / rangeY) * h).toFloat()
+
+                    if (index == 0) {
+                        path.moveTo(x, y)
+                    } else {
+                        path.lineTo(x, y)
+                    }
+                }
+
+                drawPath(
+                    path = path,
+                    color = cyanColor,
+                    style = Stroke(width = 2.dp.toPx())
+                )
+
+                // Data Points
+                data.forEach { point ->
+                    val d = ChronoUnit.DAYS.between(startDate, point.date)
+                    val x = (d.toFloat() / daysRange) * w
+                    val y = h - (((point.value - minY) / rangeY) * h).toFloat()
+                    drawCircle(
+                        color = cyanColor,
+                        radius = 2.5.dp.toPx(),
+                        center = Offset(x, y)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // X-axis dates row (M/D)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 48.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(startDateStr, color = labelColor, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+            if (data.size > 2) {
+                Text(midDateStr, color = labelColor, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+            }
+            Text(endDateStr, color = labelColor, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
         }
     }
 }

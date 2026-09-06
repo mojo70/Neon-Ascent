@@ -1,6 +1,7 @@
 package com.neon.ascent.core.ai
 
 import android.content.Context
+import android.util.Log
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.ConversationConfig
@@ -15,7 +16,10 @@ import java.io.File
 class GemmaClient(private val context: Context) {
     private var engine: Engine? = null
     private var isInitializing = false
-    private val modelPath: String = File(context.getExternalFilesDir(null), "gemma.litertlm").absolutePath
+    var lastInitError: String? = null
+        private set
+
+    val modelPath: String = File(context.getExternalFilesDir(null), "gemma.litertlm").absolutePath
 
     fun isReady(): Boolean = engine != null
 
@@ -29,9 +33,20 @@ class GemmaClient(private val context: Context) {
         if (engine != null || isInitializing) return@withContext
 
         val modelFile = File(modelPath)
-        if (!modelFile.exists()) return@withContext
+        if (!modelFile.exists()) {
+            lastInitError = "MODEL_FILE_NOT_FOUND ($modelPath)"
+            Log.w("GemmaClient", lastInitError!!)
+            return@withContext
+        }
+
+        if (modelFile.length() == 0L) {
+            lastInitError = "MODEL_FILE_EMPTY"
+            Log.w("GemmaClient", lastInitError!!)
+            return@withContext
+        }
 
         isInitializing = true
+        Log.i("GemmaClient", "Initializing LiteRT-LM engine with model size: ${modelFile.length()} bytes")
         try {
             val gpuBackend = Backend.GPU()
             val engineConfig = EngineConfig(
@@ -46,8 +61,10 @@ class GemmaClient(private val context: Context) {
             val newEngine = Engine(engineConfig)
             newEngine.initialize()
             engine = newEngine
+            lastInitError = null
+            Log.i("GemmaClient", "LiteRT-LM GPU Engine initialized successfully.")
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.w("GemmaClient", "LiteRT-LM GPU initialization failed. Falling back to CPU...", e)
             try {
                 val cpuBackend = Backend.CPU()
                 val engineConfig = EngineConfig(
@@ -61,9 +78,11 @@ class GemmaClient(private val context: Context) {
                 val newEngine = Engine(engineConfig)
                 newEngine.initialize()
                 engine = newEngine
+                lastInitError = null
+                Log.i("GemmaClient", "LiteRT-LM CPU Engine initialized successfully.")
             } catch (cpuEx: Exception) {
-                cpuEx.printStackTrace()
-                // Do not throw here, allow generate() to return AiResult.Failure
+                lastInitError = "INIT_FAILED: ${cpuEx.localizedMessage}"
+                Log.e("GemmaClient", "LiteRT-LM CPU Engine initialization failed.", cpuEx)
             }
         } finally {
             isInitializing = false
@@ -76,7 +95,9 @@ class GemmaClient(private val context: Context) {
                 initialize()
             }
 
-            val currentEngine = engine ?: return@withContext AiResult.Failure("GEMMA_NOT_INITIALIZED")
+            val currentEngine = engine ?: return@withContext AiResult.Failure(
+                lastInitError ?: "GEMMA_NOT_INITIALIZED"
+            )
 
             val samplerConfig = SamplerConfig(40, 0.9, 0.7, 42)
             val conversationConfig = ConversationConfig(
@@ -107,6 +128,7 @@ class GemmaClient(private val context: Context) {
                 AiResult.Success(result)
             }
         } catch (e: Exception) {
+            Log.e("GemmaClient", "Error during Gemma inference", e)
             AiResult.Failure("GEMMA_GENERATE", e)
         }
     }
@@ -118,9 +140,17 @@ class GemmaClient(private val context: Context) {
     }
 
     fun close() {
-        engine?.close()
-        engine = null
+        try {
+            engine?.close()
+        } catch (e: Exception) {
+            Log.w("GemmaClient", "Error closing LiteRT engine", e)
+        } finally {
+            engine = null
+        }
     }
 
-    fun isAvailable(): Boolean = File(modelPath).exists()
+    fun isAvailable(): Boolean {
+        val file = File(modelPath)
+        return file.exists() && file.length() > 0
+    }
 }

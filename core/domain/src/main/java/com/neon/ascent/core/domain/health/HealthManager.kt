@@ -6,6 +6,7 @@ import java.time.Instant
 
 interface HealthManager {
     suspend fun isAvailableAndHasPermissions(): Boolean
+    suspend fun hasNutritionPermission(): Boolean
     suspend fun getPermissionsToRequest(): Set<String>
     fun getPermissionRationale(): Map<String, String>
 

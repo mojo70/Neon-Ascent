@@ -600,6 +600,8 @@ fun DashboardScreen(
             AiTerminal(
                 messages = state.terminalMessages,
                 inputValue = state.terminalInput,
+                isProcessing = state.isTerminalProcessing,
+                badgeLabel = state.aiEngineTelemetry.badgeLabel,
                 onInputChange = viewModel::updateTerminalInput,
                 onSend = viewModel::sendTerminalMessage,
                 isExpanded = isTerminalExpanded,
@@ -691,9 +693,34 @@ fun AiTerminal(
     isExpanded: Boolean,
     onToggleExpand: () -> Unit,
     accentColor: Color,
-    onGuideClick: () -> Unit = {}
+    onGuideClick: () -> Unit = {},
+    isProcessing: Boolean = false,
+    badgeLabel: String = "[SOCRATIC_CORE]"
 ) {
     val theme = LocalNeonTheme.current
+    val infiniteTransition = rememberInfiniteTransition(label = "terminal_processing")
+    val dotAlpha by if (isProcessing) {
+        infiniteTransition.animateFloat(
+            initialValue = 0.2f,
+            targetValue = 1.0f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(600, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "dot_alpha"
+        )
+    } else {
+        remember { mutableFloatStateOf(1.0f) }
+    }
+    val dotColor = if (isProcessing) Color(0xFFFF006E) else (if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00F5FF))
+
+    val scrollState = rememberScrollState()
+    LaunchedEffect(messages.size, isProcessing) {
+        if (isExpanded) {
+            scrollState.animateScrollTo(scrollState.maxValue)
+        }
+    }
+
     CyberCutFrame(
         modifier = if (!isExpanded) Modifier.clickable { onToggleExpand() } else Modifier,
         borderColor = accentColor.copy(alpha = 0.2f)
@@ -703,7 +730,8 @@ fun AiTerminal(
             Box(
                 modifier = Modifier
                     .size(8.dp)
-                    .background(if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00F5FF), CircleShape)
+                    .alpha(dotAlpha)
+                    .background(dotColor, CircleShape)
                     .align(Alignment.TopEnd)
             )
 
@@ -726,9 +754,17 @@ fun AiTerminal(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                "CONNECTION_SECURE",
-                                color = accentColor.copy(alpha = 0.4f),
+                                if (isProcessing) "PROCESSING_QUERY..." else "LINK_ACTIVE",
+                                color = if (isProcessing) Color(0xFFFF006E) else accentColor.copy(alpha = 0.4f),
                                 fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                badgeLabel,
+                                color = accentColor.copy(alpha = 0.8f),
+                                fontSize = 10.sp,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold
                             )
@@ -759,7 +795,7 @@ fun AiTerminal(
                     Column(
                         modifier = Modifier
                             .heightIn(max = 280.dp)
-                            .verticalScroll(rememberScrollState())
+                            .verticalScroll(scrollState)
                             .padding(10.dp)
                     ) {
                         messages.forEach { msg ->
@@ -770,6 +806,26 @@ fun AiTerminal(
                                 fontFamily = FontFamily.Monospace,
                                 modifier = Modifier.padding(vertical = 6.dp)
                             )
+                        }
+                        if (isProcessing) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.padding(vertical = 6.dp)
+                            ) {
+                                CircularProgressIndicator(
+                                    color = accentColor,
+                                    modifier = Modifier.size(12.dp),
+                                    strokeWidth = 1.5.dp
+                                )
+                                Text(
+                                    text = "CYBR-TES SYNTHESIZING_RESPONSE...",
+                                    color = accentColor.copy(alpha = 0.8f),
+                                    fontSize = 12.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontStyle = FontStyle.Italic
+                                )
+                            }
                         }
                     }
                     
@@ -788,12 +844,13 @@ fun AiTerminal(
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 13.sp
                             ),
+                            enabled = !isProcessing,
                             modifier = Modifier.weight(1f).padding(10.dp),
                             cursorBrush = SolidColor(accentColor),
                             decorationBox = { innerTextField ->
                                 if (inputValue.isEmpty()) {
                                     Text(
-                                        "ENTER_COMMAND...",
+                                        text = if (isProcessing) "CYBR-TES IS THINKING..." else "ENTER_COMMAND...",
                                         color = theme.ink.copy(alpha = 0.3f),
                                         fontSize = 13.sp,
                                         fontFamily = FontFamily.Monospace
@@ -802,25 +859,58 @@ fun AiTerminal(
                                 innerTextField()
                             }
                         )
-                        IconButton(onClick = onSend) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.Send,
-                                contentDescription = "SEND",
-                                tint = accentColor,
-                                modifier = Modifier.size(22.dp)
-                            )
+                        IconButton(
+                            onClick = onSend,
+                            enabled = !isProcessing && inputValue.isNotBlank()
+                        ) {
+                            if (isProcessing) {
+                                CircularProgressIndicator(
+                                    color = accentColor,
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 1.5.dp
+                                )
+                            } else {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.Send,
+                                    contentDescription = "SEND",
+                                    tint = if (inputValue.isNotBlank()) accentColor else accentColor.copy(alpha = 0.3f),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
                         }
                     }
                 } else {
-                    Text(
-                        text = messages.lastOrNull()?.text ?: "WAITING_FOR_INPUT...",
-                        color = theme.ink,
-                        fontSize = 12.sp,
-                        fontFamily = FontFamily.Monospace,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(10.dp)
-                    )
+                    if (isProcessing) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(10.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                color = accentColor,
+                                modifier = Modifier.size(12.dp),
+                                strokeWidth = 1.5.dp
+                            )
+                            Text(
+                                text = "CYBR-TES SYNTHESIZING_RESPONSE...",
+                                color = accentColor,
+                                fontSize = 12.sp,
+                                fontFamily = FontFamily.Monospace,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = messages.lastOrNull()?.text ?: "WAITING_FOR_INPUT...",
+                            color = theme.ink,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(10.dp)
+                        )
+                    }
                 }
             }
         }
