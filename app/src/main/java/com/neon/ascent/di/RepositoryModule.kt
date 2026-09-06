@@ -1,8 +1,10 @@
 package com.neon.ascent.di
 
+import com.neon.ascent.core.domain.repository.FullDataBackupRepository
 import com.neon.ascent.data.local.GoalDao
 import com.neon.ascent.data.local.GoalTaskDao
 import com.neon.ascent.data.local.UserStoryDao
+import com.neon.ascent.data.repository.FullDataBackupRepositoryImpl
 import com.neon.ascent.data.repository.GoalRepository
 import com.neon.ascent.data.repository.TaskRepository
 import com.neon.ascent.data.repository.UserStoryRepository
@@ -39,4 +41,10 @@ object RepositoryModule {
     @Provides
     @Singleton
     fun provideSkillRepository(palace: com.neon.ascent.feature.dashboard.MemoryPalaceManager): com.neon.ascent.core.domain.repository.SkillRepository = palace
+
+    @Provides
+    @Singleton
+    fun provideFullDataBackupRepository(
+        impl: FullDataBackupRepositoryImpl
+    ): FullDataBackupRepository = impl
 }

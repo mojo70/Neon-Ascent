@@ -1,7 +1,9 @@
 package com.neon.ascent.feature.settings
 
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -30,6 +32,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -37,9 +40,13 @@ import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.ui.*
 import com.neon.ascent.core.common.*
+import com.neon.ascent.core.domain.backup.models.RestoreMode
 import com.neon.ascent.util.BiometricAuthManager
 import com.neon.ascent.util.findFragmentActivity
 import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.random.Random
 
 @Composable
@@ -121,11 +128,50 @@ fun SettingsScreen(
     val isShardVaultEnabled by viewModel.isShardVaultEnabled.collectAsState()
     val localAiOnly by viewModel.isLocalAiOnly.collectAsState()
 
+    // Backup & Cloud State
+    val backupFrequency by viewModel.backupFrequency.collectAsState()
+    val backupScopeWorkout by viewModel.backupScopeWorkout.collectAsState()
+    val backupScopeBiometrics by viewModel.backupScopeBiometrics.collectAsState()
+    val backupScopeCodex by viewModel.backupScopeCodex.collectAsState()
+    val backupScopeJournal by viewModel.backupScopeJournal.collectAsState()
+    val backupScopeCharacter by viewModel.backupScopeCharacter.collectAsState()
+    val backupWifiOnly by viewModel.backupWifiOnly.collectAsState()
+    val backupRequireCharging by viewModel.backupRequireCharging.collectAsState()
+    val lastBackupTimestamp by viewModel.lastBackupTimestamp.collectAsState()
+    val backupToastMessage by viewModel.backupToastMessage.collectAsState()
+    val pendingRestoreJson by viewModel.pendingRestoreJson.collectAsState()
+
     val biometricAuthManager = remember { BiometricAuthManager(context) }
     val healthPermissionsLauncher = rememberLauncherForActivityResult(
         androidx.health.connect.client.PermissionController.createRequestPermissionResultContract()
     ) { granted ->
         viewModel.checkHealthConnectStatus()
+    }
+
+    val createDocumentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        uri?.let { contentUri ->
+            viewModel.backupExportEvent.replayCache.lastOrNull()?.let { json ->
+                context.contentResolver.openOutputStream(contentUri)?.use { out ->
+                    out.write(json.toByteArray())
+                }
+                Toast.makeText(context, "Saved to Cloud Storage", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    val openDocumentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let { contentUri ->
+            val jsonContent = context.contentResolver.openInputStream(contentUri)?.use { input ->
+                input.bufferedReader().use { it.readText() }
+            }
+            jsonContent?.let { json ->
+                viewModel.onRestoreFileSelected(json)
+            }
+        }
     }
     
     var showResetDialog by remember { mutableStateOf(false) }
@@ -141,6 +187,19 @@ fun SettingsScreen(
             }
             val shareIntent = android.content.Intent.createChooser(sendIntent, "EXPORT NEURAL LOG")
             context.startActivity(shareIntent)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.backupExportEvent.collect { jsonContent ->
+            createDocumentLauncher.launch("neon_ascent_backup_${System.currentTimeMillis()}.json")
+        }
+    }
+
+    LaunchedEffect(backupToastMessage) {
+        backupToastMessage?.let { msg ->
+            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+            viewModel.clearBackupToast()
         }
     }
     
@@ -291,6 +350,102 @@ fun SettingsScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
                     ) {
                         Text("FORCE MANUAL UPLINK", color = theme.ink, fontSize = 11.sp)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Data & Cloud Backup
+            SettingsSection(label = "DATA_AND_CLOUD_BACKUP", icon = Icons.Default.CloudUpload) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // Status Card
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(theme.surface)
+                            .border(1.dp, theme.ink.copy(alpha = 0.2f))
+                            .padding(12.dp)
+                    ) {
+                        Column {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Text("SYSTEM AUTO-BACKUP", color = theme.ink, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text("ACTIVE", color = Color(0xFF00FF66), fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                            }
+                            Text("MANAGED BY ANDROID OS // GOOGLE DRIVE", color = theme.ink.copy(alpha = 0.7f), fontSize = 10.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.padding(top = 2.dp))
+                            
+                            val lastBackupDateStr = if (lastBackupTimestamp > 0L) {
+                                SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(
+                                    Date(lastBackupTimestamp)
+                                )
+                            } else "AUTOMATIC (OVERNIGHT ON WI-FI)"
+                            Text("LAST MANUAL EXPORT: $lastBackupDateStr", color = theme.ink.copy(alpha = 0.5f), fontSize = 9.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.padding(top = 2.dp))
+                        }
+                    }
+
+                    Text("AUTOMATIC BACKUP SCHEDULE", color = theme.ink.copy(alpha = 0.6f), fontSize = 10.sp)
+                    Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("DAILY", "WEEKLY", "POST_WORKOUT", "MANUAL").forEach { freq ->
+                            val isSelected = backupFrequency == freq || (freq == "POST_WORKOUT" && backupFrequency == "AFTER_WORKOUT") || (freq == "MANUAL" && backupFrequency == "MANUAL_ONLY")
+                            CyberTabButton(
+                                selected = isSelected,
+                                onClick = {
+                                    val mapped = when (freq) {
+                                        "POST_WORKOUT" -> "AFTER_WORKOUT"
+                                        "MANUAL" -> "MANUAL_ONLY"
+                                        else -> freq
+                                    }
+                                    viewModel.setBackupFrequency(mapped)
+                                },
+                                label = freq,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+
+                    Text("BACKUP SCOPE", color = theme.ink.copy(alpha = 0.6f), fontSize = 10.sp)
+                    ToggleSetting("Workout Logs & History", backupScopeWorkout) {
+                        viewModel.setBackupScopeWorkout(it)
+                    }
+                    ToggleSetting("Biometrics & Health Vitals", backupScopeBiometrics) {
+                        viewModel.setBackupScopeBiometrics(it)
+                    }
+                    ToggleSetting("Codex & Knowledge Vault", backupScopeCodex) {
+                        viewModel.setBackupScopeCodex(it)
+                    }
+                    ToggleSetting("Journal & Reflections", backupScopeJournal) {
+                        viewModel.setBackupScopeJournal(it)
+                    }
+                    ToggleSetting("Character & Progression", backupScopeCharacter) {
+                        viewModel.setBackupScopeCharacter(it)
+                    }
+
+                    Text("NETWORK CONSTRAINTS", color = theme.ink.copy(alpha = 0.6f), fontSize = 10.sp)
+                    ToggleSetting("Wi-Fi Only Sync", backupWifiOnly) {
+                        viewModel.setBackupWifiOnly(it)
+                    }
+                    ToggleSetting("Require Charging", backupRequireCharging) {
+                        viewModel.setBackupRequireCharging(it)
+                    }
+
+                    HorizontalDivider(color = theme.ink.copy(alpha = 0.1f))
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = { viewModel.triggerManualBackup() },
+                            modifier = Modifier.weight(1f).height(44.dp).border(1.dp, theme.ink, CyberButtonShape),
+                            colors = ButtonDefaults.buttonColors(containerColor = theme.surfaceRaised)
+                        ) {
+                            Text("BACKUP NOW", color = theme.ink, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        Button(
+                            onClick = { openDocumentLauncher.launch("application/json") },
+                            modifier = Modifier.weight(1f).height(44.dp).border(1.dp, theme.ink.copy(alpha = 0.5f), CyberButtonShape),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
+                        ) {
+                            Text("RESTORE (.JSON)", color = theme.ink, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
@@ -531,6 +686,55 @@ fun SettingsScreen(
                 },
                 onDismiss = { showPasswordDialog = false }
             )
+        }
+
+        pendingRestoreJson?.let { json ->
+            Dialog(onDismissRequest = { viewModel.dismissRestoreDialog() }) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(CyberButtonShape)
+                        .background(theme.surface)
+                        .border(2.dp, theme.ink, CyberButtonShape)
+                        .padding(24.dp)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("UPLINK_RESTORE_STRATEGY", color = theme.ink, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            "Select how to merge or replace local data with the imported backup JSON file:",
+                            color = theme.ink.copy(alpha = 0.8f),
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(Modifier.height(20.dp))
+
+                        Button(
+                            onClick = { viewModel.confirmRestore(RestoreMode.MERGE) },
+                            modifier = Modifier.fillMaxWidth().height(48.dp).border(1.dp, theme.ink, CyberButtonShape),
+                            colors = ButtonDefaults.buttonColors(containerColor = theme.surfaceRaised)
+                        ) {
+                            Text("MERGE (COMBINE WITH LOCAL)", color = theme.ink, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        Spacer(Modifier.height(12.dp))
+
+                        Button(
+                            onClick = { viewModel.confirmRestore(RestoreMode.REPLACE) },
+                            modifier = Modifier.fillMaxWidth().height(48.dp).border(1.dp, theme.secondary, CyberButtonShape),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
+                        ) {
+                            Text("REPLACE (WIPE & OVERWRITE)", color = theme.secondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        Spacer(Modifier.height(12.dp))
+
+                        TextButton(onClick = { viewModel.dismissRestoreDialog() }) {
+                            Text("CANCEL", color = theme.inkMuted)
+                        }
+                    }
+                }
+            }
         }
     }
 }

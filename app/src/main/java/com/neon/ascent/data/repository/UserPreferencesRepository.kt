@@ -40,6 +40,17 @@ class UserPreferencesRepository @Inject constructor(
         
         // Workout Zoom
         val WORKOUT_ZOOM_LEVEL = floatPreferencesKey("workout_zoom_level")
+
+        // Cloud & Google Drive Backup Settings
+        val BACKUP_FREQUENCY = stringPreferencesKey("backup_frequency")
+        val BACKUP_SCOPE_WORKOUT = booleanPreferencesKey("backup_scope_workout")
+        val BACKUP_SCOPE_BIOMETRICS = booleanPreferencesKey("backup_scope_biometrics")
+        val BACKUP_SCOPE_CODEX = booleanPreferencesKey("backup_scope_codex")
+        val BACKUP_SCOPE_JOURNAL = booleanPreferencesKey("backup_scope_journal")
+        val BACKUP_SCOPE_CHARACTER = booleanPreferencesKey("backup_scope_character")
+        val BACKUP_WIFI_ONLY = booleanPreferencesKey("backup_wifi_only")
+        val BACKUP_REQUIRE_CHARGING = booleanPreferencesKey("backup_require_charging")
+        val LAST_BACKUP_TIMESTAMP = longPreferencesKey("last_backup_timestamp")
     }
 
     val themeMode: Flow<String> = context.dataStore.data
@@ -100,6 +111,33 @@ class UserPreferencesRepository @Inject constructor(
             preferences[PreferencesKeys.YEARLY_REVIEW_ENABLED] ?: true
         }
 
+    val backupFrequency: Flow<String> = context.dataStore.data
+        .map { it[PreferencesKeys.BACKUP_FREQUENCY] ?: "DAILY" }
+
+    val backupScopeWorkout: Flow<Boolean> = context.dataStore.data
+        .map { it[PreferencesKeys.BACKUP_SCOPE_WORKOUT] ?: true }
+
+    val backupScopeBiometrics: Flow<Boolean> = context.dataStore.data
+        .map { it[PreferencesKeys.BACKUP_SCOPE_BIOMETRICS] ?: true }
+
+    val backupScopeCodex: Flow<Boolean> = context.dataStore.data
+        .map { it[PreferencesKeys.BACKUP_SCOPE_CODEX] ?: true }
+
+    val backupScopeJournal: Flow<Boolean> = context.dataStore.data
+        .map { it[PreferencesKeys.BACKUP_SCOPE_JOURNAL] ?: true }
+
+    val backupScopeCharacter: Flow<Boolean> = context.dataStore.data
+        .map { it[PreferencesKeys.BACKUP_SCOPE_CHARACTER] ?: true }
+
+    val backupWifiOnly: Flow<Boolean> = context.dataStore.data
+        .map { it[PreferencesKeys.BACKUP_WIFI_ONLY] ?: true }
+
+    val backupRequireCharging: Flow<Boolean> = context.dataStore.data
+        .map { it[PreferencesKeys.BACKUP_REQUIRE_CHARGING] ?: false }
+
+    val lastBackupTimestamp: Flow<Long> = context.dataStore.data
+        .map { it[PreferencesKeys.LAST_BACKUP_TIMESTAMP] ?: 0L }
+
     suspend fun setThemeMode(mode: String) {
         val coercedMode = when (mode.uppercase()) {
             "STEVE" -> "STEVE"
@@ -159,5 +197,41 @@ class UserPreferencesRepository @Inject constructor(
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.WORKOUT_ZOOM_LEVEL] = level
         }
+    }
+
+    suspend fun setBackupFrequency(freq: String) {
+        context.dataStore.edit { it[PreferencesKeys.BACKUP_FREQUENCY] = freq }
+    }
+
+    suspend fun setBackupScopeWorkout(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.BACKUP_SCOPE_WORKOUT] = enabled }
+    }
+
+    suspend fun setBackupScopeBiometrics(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.BACKUP_SCOPE_BIOMETRICS] = enabled }
+    }
+
+    suspend fun setBackupScopeCodex(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.BACKUP_SCOPE_CODEX] = enabled }
+    }
+
+    suspend fun setBackupScopeJournal(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.BACKUP_SCOPE_JOURNAL] = enabled }
+    }
+
+    suspend fun setBackupScopeCharacter(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.BACKUP_SCOPE_CHARACTER] = enabled }
+    }
+
+    suspend fun setBackupWifiOnly(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.BACKUP_WIFI_ONLY] = enabled }
+    }
+
+    suspend fun setBackupRequireCharging(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.BACKUP_REQUIRE_CHARGING] = enabled }
+    }
+
+    suspend fun setLastBackupTimestamp(timestamp: Long) {
+        context.dataStore.edit { it[PreferencesKeys.LAST_BACKUP_TIMESTAMP] = timestamp }
     }
 }

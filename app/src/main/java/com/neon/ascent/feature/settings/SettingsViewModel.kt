@@ -29,6 +29,13 @@ import kotlinx.coroutines.launch
 import com.neon.ascent.data.AppSessionManager
 import com.neon.ascent.feature.notifications.data.SmartPingScheduler
 import com.neon.ascent.core.common.VisualMode
+import com.neon.ascent.core.domain.backup.models.*
+import com.neon.ascent.core.domain.repository.FullDataBackupRepository
+import com.neon.ascent.data.backup.GoogleDriveBackupManager
+import com.neon.ascent.data.backup.FullBackupWorker
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableSharedFlow
 import java.util.UUID
 import javax.inject.Inject
 
@@ -46,7 +53,10 @@ class SettingsViewModel @Inject constructor(
     private val specialRepository: SpecialRepository,
     private val notificationScheduler: SmartPingScheduler,
     private val workoutRepository: WorkoutRepository,
-    private val appSessionManager: AppSessionManager
+    private val appSessionManager: AppSessionManager,
+    private val fullDataBackupRepository: FullDataBackupRepository,
+    private val googleDriveBackupManager: GoogleDriveBackupManager,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _prayerToast = MutableStateFlow<String?>(null)
@@ -57,6 +67,42 @@ class SettingsViewModel @Inject constructor(
 
     private val _isHealthConnectGranted = MutableStateFlow(false)
     val isHealthConnectGranted = _isHealthConnectGranted.asStateFlow()
+
+    val backupFrequency = userPreferencesRepository.backupFrequency
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "DAILY")
+
+    val backupScopeWorkout = userPreferencesRepository.backupScopeWorkout
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val backupScopeBiometrics = userPreferencesRepository.backupScopeBiometrics
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val backupScopeCodex = userPreferencesRepository.backupScopeCodex
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val backupScopeJournal = userPreferencesRepository.backupScopeJournal
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val backupScopeCharacter = userPreferencesRepository.backupScopeCharacter
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val backupWifiOnly = userPreferencesRepository.backupWifiOnly
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val backupRequireCharging = userPreferencesRepository.backupRequireCharging
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val lastBackupTimestamp = userPreferencesRepository.lastBackupTimestamp
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
+
+    private val _backupToastMessage = MutableStateFlow<String?>(null)
+    val backupToastMessage = _backupToastMessage.asStateFlow()
+
+    private val _pendingRestoreJson = MutableStateFlow<String?>(null)
+    val pendingRestoreJson = _pendingRestoreJson.asStateFlow()
+
+    private val _backupExportEvent = MutableSharedFlow<String>()
+    val backupExportEvent = _backupExportEvent.asSharedFlow()
 
     private val _exportEvent = kotlinx.coroutines.flow.MutableSharedFlow<String>()
     val exportEvent = _exportEvent.asSharedFlow()
@@ -400,5 +446,99 @@ class SettingsViewModel @Inject constructor(
             specialRepository.resetSpecialAttributes()
             onComplete()
         }
+    }
+
+    fun setBackupFrequency(freq: String) {
+        viewModelScope.launch {
+            userPreferencesRepository.setBackupFrequency(freq)
+            FullBackupWorker.schedulePeriodicBackup(
+                context,
+                freq,
+                backupWifiOnly.value,
+                backupRequireCharging.value
+            )
+        }
+    }
+
+    fun setBackupScopeWorkout(enabled: Boolean) {
+        viewModelScope.launch { userPreferencesRepository.setBackupScopeWorkout(enabled) }
+    }
+
+    fun setBackupScopeBiometrics(enabled: Boolean) {
+        viewModelScope.launch { userPreferencesRepository.setBackupScopeBiometrics(enabled) }
+    }
+
+    fun setBackupScopeCodex(enabled: Boolean) {
+        viewModelScope.launch { userPreferencesRepository.setBackupScopeCodex(enabled) }
+    }
+
+    fun setBackupScopeJournal(enabled: Boolean) {
+        viewModelScope.launch { userPreferencesRepository.setBackupScopeJournal(enabled) }
+    }
+
+    fun setBackupScopeCharacter(enabled: Boolean) {
+        viewModelScope.launch { userPreferencesRepository.setBackupScopeCharacter(enabled) }
+    }
+
+    fun setBackupWifiOnly(enabled: Boolean) {
+        viewModelScope.launch {
+            userPreferencesRepository.setBackupWifiOnly(enabled)
+            FullBackupWorker.schedulePeriodicBackup(
+                context,
+                backupFrequency.value,
+                enabled,
+                backupRequireCharging.value
+            )
+        }
+    }
+
+    fun setBackupRequireCharging(enabled: Boolean) {
+        viewModelScope.launch {
+            userPreferencesRepository.setBackupRequireCharging(enabled)
+            FullBackupWorker.schedulePeriodicBackup(
+                context,
+                backupFrequency.value,
+                backupWifiOnly.value,
+                enabled
+            )
+        }
+    }
+
+    fun triggerManualBackup() {
+        viewModelScope.launch {
+            val scope = BackupScope(
+                includeWorkout = backupScopeWorkout.value,
+                includeBiometrics = backupScopeBiometrics.value,
+                includeCodex = backupScopeCodex.value,
+                includeJournal = backupScopeJournal.value,
+                includeCharacter = backupScopeCharacter.value
+            )
+            val json = fullDataBackupRepository.exportBackupJson(scope)
+            googleDriveBackupManager.saveBackupToLocalVault(json)
+            userPreferencesRepository.setLastBackupTimestamp(System.currentTimeMillis())
+            _backupExportEvent.emit(json)
+            _backupToastMessage.value = "Uplink backup compiled successfully"
+        }
+    }
+
+    fun onRestoreFileSelected(jsonString: String) {
+        _pendingRestoreJson.value = jsonString
+    }
+
+    fun dismissRestoreDialog() {
+        _pendingRestoreJson.value = null
+    }
+
+    fun confirmRestore(mode: RestoreMode) {
+        val json = _pendingRestoreJson.value ?: return
+        viewModelScope.launch {
+            val result = fullDataBackupRepository.restoreBackupJson(json, mode)
+            _backupToastMessage.value = result.message
+            _pendingRestoreJson.value = null
+        }
+    }
+
+    fun clearBackupToast() {
+        _backupToastMessage.value = null
     }
 }
