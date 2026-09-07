@@ -3,10 +3,13 @@ package com.neon.ascent.core.domain.health
 import androidx.health.connect.client.records.*
 import kotlinx.coroutines.flow.Flow
 import java.time.Instant
+import java.time.ZoneId
 
 interface HealthManager {
     suspend fun isAvailableAndHasPermissions(): Boolean
     suspend fun hasNutritionPermission(): Boolean
+    suspend fun hasHistoryPermission(): Boolean
+    suspend fun isHistoryFeatureAvailable(): Boolean
     suspend fun getPermissionsToRequest(): Set<String>
     fun getPermissionRationale(): Map<String, String>
 
@@ -28,10 +31,13 @@ interface HealthManager {
     suspend fun latestHrvRmssd(start: Instant, end: Instant): Double?
     suspend fun latestHeartRate(start: Instant, end: Instant): Int?
     suspend fun heartRateSamples(start: Instant, end: Instant): List<Pair<Instant, Int>>
+    suspend fun hrvRmssdSamples(start: Instant, end: Instant): List<Pair<Instant, Double>>
     suspend fun exerciseSessions(start: Instant, end: Instant): List<Pair<Instant, Instant>>
     suspend fun sleepSessions(start: Instant, end: Instant): List<SleepSessionRecord>
     suspend fun aggregateNutritionKcal(start: Instant, end: Instant): Double?
+    fun stageMinutes(session: SleepSessionRecord): Map<String, Int>
     fun parseSleepStages(session: SleepSessionRecord): Map<String, Int>
+    fun pickCoreNight(sessions: List<SleepSessionRecord>, zone: ZoneId = ZoneId.systemDefault()): SleepSessionRecord?
 }
 
 data class HealthDataSnapshot(

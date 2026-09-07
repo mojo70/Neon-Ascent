@@ -6,6 +6,7 @@ import com.neon.ascent.core.data.local.dao.InsightDao
 import com.neon.ascent.core.data.local.entity.BiometricEventEntity
 import com.neon.ascent.core.data.processor.InsightProjectionProcessor
 import com.neon.ascent.core.domain.health.models.VitalsSnapshot
+import com.neon.ascent.feature.health.data.workers.HealthConnectBackfillWorker
 import com.neon.ascent.feature.health.data.workers.HealthSyncWorker
 import com.neon.ascent.feature.health.domain.uplink.*
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -60,8 +61,9 @@ class NeuralUplinkManager @Inject constructor(
         // Auto-start BLE sync for providers that support it
         garminUplink.startBLESync()
 
-        // Schedule periodic background sync
+        // Schedule periodic background sync & one-shot backfill
         HealthSyncWorker.schedulePeriodicSync(context)
+        HealthConnectBackfillWorker.scheduleOneShotBackfill(context)
     }
 
     fun registerUplink(uplink: NeuralUplink) {
@@ -108,6 +110,7 @@ class NeuralUplinkManager @Inject constructor(
                 liveHeartRate = liveHr,
                 bodyBattery = deep?.bodyBattery,
                 stressLevel = deep?.stressLevel,
+                sanctumResult = deep?.sanctumResult,
                 sourceFooter = "HC",
                 timestamp = now
             )
@@ -155,20 +158,30 @@ class NeuralUplinkManager @Inject constructor(
             trainingReadiness = garminDeep?.trainingReadiness,
             vo2Max = hcDeep.vo2Max ?: garminDeep?.vo2Max,
             restingHeartRate = hcDeep.restingHeartRate,
-            hrvRmssd = hcDeep.hrvRmssd ?: garminDeep?.hrvRmssd,
-            sleepDurationMinutes = hcDeep.sleepDurationMinutes ?: garminDeep?.sleepDurationMinutes,
-            sleepStages = if (hcDeep.sleepStages.isNotEmpty()) hcDeep.sleepStages else (garminDeep?.sleepStages ?: emptyMap()),
+            hrvRmssd = hcDeep.hrvRmssd ?: garminDeep?.hrvRmssd, // Do not blend two devices' HRV
+            sleepDurationMinutes = if ((hcDeep.sleepDurationMinutes ?: 0) > 0) hcDeep.sleepDurationMinutes else garminDeep?.sleepDurationMinutes, // Do not copy Garmin-null over HC core night
+            sleepStages = if (hcDeep.sleepStages.isNotEmpty()) hcDeep.sleepStages else (garminDeep?.sleepStages ?: emptyMap()), // Stop dropping parsed stages
+            sessionStartTime = hcDeep.sessionStartTime,
+            sessionEndTime = hcDeep.sessionEndTime,
+            asleepMinutes = hcDeep.asleepMinutes,
+            tibMinutes = hcDeep.tibMinutes,
+            sessionHrSamples = hcDeep.sessionHrSamples,
+            eveningHrSamples = hcDeep.eveningHrSamples,
+            sessionHrvSamples = hcDeep.sessionHrvSamples,
+            sleepSourceTag = hcDeep.sleepSourceTag,
             lastSyncTimestamp = System.currentTimeMillis()
         )
         
-        _combinedDeepMetrics.value = merged
-        ingestDeepMetrics(merged)
-        rollupWriter.writeTodayRollup(merged)
+        val sanctumResult = rollupWriter.writeTodayRollup(merged)
+        val finalMerged = merged.copy(sanctumResult = sanctumResult)
+
+        _combinedDeepMetrics.value = finalMerged
+        ingestDeepMetrics(finalMerged)
         
         // Force immediate snapshot update
         startUplinkSync() 
         
-        return merged
+        return finalMerged
     }
 
     private suspend fun <T> runWithRetry(

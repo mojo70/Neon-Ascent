@@ -20,6 +20,7 @@ data class SessionLoad(
 
 data class NeonChargeInput(
     val sleepMinutesLastNight: Long?,
+    val sanctumScore: Int? = null,
     val sleepEndedAt: Instant?,
     val rhrToday: Double?,
     val rhr7d: List<Double>,
@@ -29,6 +30,7 @@ data class NeonChargeInput(
     val todaysSessions: List<SessionLoad> = emptyList(),
     val hrSamplesToday: List<Pair<Instant, Int>> = emptyList(),
     val exerciseWindowsToday: List<Pair<Instant, Instant>> = emptyList(),
+    val sitWindowsToday: List<Pair<Instant, Instant>> = emptyList(),
     val napsMinutesToday: Int = 0,
     val now: Instant = Instant.now()
 )
@@ -49,7 +51,8 @@ object NeonChargeEngine {
     fun calculateCharge(input: NeonChargeInput): NeonCharge {
         val drivers = mutableListOf<Pair<String, String>>()
 
-        val isColdStart = (input.sleepMinutesLastNight == null || input.sleepMinutesLastNight <= 0) &&
+        val isColdStart = input.sanctumScore == null &&
+                (input.sleepMinutesLastNight == null || input.sleepMinutesLastNight <= 0) &&
                 input.hrvToday == null &&
                 input.rhrToday == null
 
@@ -61,47 +64,52 @@ object NeonChargeEngine {
             confidence = ChargeConfidence.LOW
             drivers.add("COLD_START" to "Default baseline (62%) due to missing sleep & vitals")
         } else {
-            val sleepMins = input.sleepMinutesLastNight ?: 0L
-            val sleepScore = if (sleepMins > 0) {
-                (sleepMins / 480.0 * 100.0).coerceIn(0.0, 100.0)
-            } else {
-                70.0
-            }
+            val sleepFactor: Double
+            val hasSleep: Boolean
 
-            if (sleepMins > 0) {
-                val hours = sleepMins / 60
-                val mins = sleepMins % 60
-                drivers.add("SLEEP" to "${hours}h ${mins}m logged (+${(sleepScore * 0.5).toInt()} pts)")
+            if (input.sanctumScore != null) {
+                sleepFactor = (input.sanctumScore / 80.0).coerceIn(0.55, 1.15)
+                hasSleep = true
+                drivers.add("SLEEP" to "SANCTUM ${input.sanctumScore}")
+            } else if (input.sleepMinutesLastNight != null && input.sleepMinutesLastNight > 0) {
+                sleepFactor = (input.sleepMinutesLastNight / 450.0).coerceIn(0.55, 1.15)
+                hasSleep = true
+                val hours = input.sleepMinutesLastNight / 60
+                drivers.add("SLEEP" to "SLEEP ${hours}h")
+            } else {
+                sleepFactor = 1.0
+                hasSleep = false
             }
 
             // z-scores computed only if 7d series size >= 5
             val hrvZ = if (input.hrvToday != null) calculateZScore(input.hrvToday, input.hrv7d) else null
             val rhrZ = if (input.rhrToday != null) calculateZScore(input.rhrToday, input.rhr7d) else null
 
-            val hrvContrib = if (hrvZ != null) {
-                val contrib = (hrvZ * 12.0).coerceIn(-25.0, 25.0)
-                drivers.add("HRV_STRESS" to "HRV z-score ${formatDouble(hrvZ)} (${if (contrib >= 0) "+" else ""}${contrib.toInt()} pts)")
-                contrib
-            } else 0.0
+            val hrvFactor = if (hrvZ != null) {
+                val f = 1.0 + 0.08 * hrvZ.coerceIn(-1.5, 1.5)
+                val contrib = ((f - 1.0) * 100.0).toInt()
+                drivers.add("HRV_STRESS" to "HRV z-score ${formatDouble(hrvZ)} (${if (contrib >= 0) "+" else ""}$contrib pts)")
+                f
+            } else 1.0
 
-            val rhrContrib = if (rhrZ != null) {
-                val contrib = (-rhrZ * 12.0).coerceIn(-25.0, 25.0)
-                drivers.add("RHR_STRESS" to "RHR z-score ${formatDouble(rhrZ)} (${if (contrib >= 0) "+" else ""}${contrib.toInt()} pts)")
-                contrib
-            } else 0.0
+            val rhrFactor = if (rhrZ != null) {
+                val f = 1.0 - 0.08 * rhrZ.coerceIn(-1.5, 1.5)
+                val contrib = ((f - 1.0) * 100.0).toInt()
+                drivers.add("RHR_STRESS" to "RHR z-score ${formatDouble(rhrZ)} (${if (contrib >= 0) "+" else ""}$contrib pts)")
+                f
+            } else 1.0
 
             val napContrib = (input.napsMinutesToday * 0.25).coerceIn(0.0, 15.0)
             if (input.napsMinutesToday > 0) {
                 drivers.add("NAP_BONUS" to "+${napContrib.toInt()} pts from ${input.napsMinutesToday}m nap")
             }
 
-            wakeSeed = (sleepScore * 0.5 + 25.0 + hrvContrib + rhrContrib + napContrib)
-                .toInt()
-                .coerceIn(10, 100)
+            val wakeChargeRaw = 72.0 * sleepFactor * hrvFactor * rhrFactor + napContrib
+            wakeSeed = wakeChargeRaw.toInt().coerceIn(35, 95)
 
             confidence = when {
-                hrvZ != null && rhrZ != null && sleepMins > 0 -> ChargeConfidence.HIGH
-                sleepMins > 0 || (hrvZ != null || rhrZ != null) -> ChargeConfidence.MED
+                hrvZ != null && rhrZ != null && hasSleep -> ChargeConfidence.HIGH
+                hasSleep || (hrvZ != null || rhrZ != null) -> ChargeConfidence.MED
                 else -> ChargeConfidence.LOW
             }
         }
@@ -127,16 +135,39 @@ object NeonChargeEngine {
             drivers.add("WORKOUT_DRAIN" to "Workout load (-${sessionDrain.toInt()} pts)")
         }
 
-        // Unmasked HR Drain
-        val unmaskedSamples = input.hrSamplesToday.filter { sample ->
-            input.exerciseWindowsToday.none { window ->
-                !sample.first.isBefore(window.first) && !sample.first.isAfter(window.second)
+        // HR_LOAD Drain (non-exercise, non-sit elevated HR)
+        val hrSpanMinutes = if (input.hrSamplesToday.size >= 2) {
+            Duration.between(input.hrSamplesToday.first().first, input.hrSamplesToday.last().first).toMinutes()
+        } else 0L
+
+        val hasHrCoverage = input.hrSamplesToday.size >= 20 && hrSpanMinutes >= 120
+        val rhrBaseline = input.rhrToday ?: if (input.rhr7d.size >= 5) input.rhr7d.average() else null
+
+        var hrLoadDrain = 0.0
+        if (hasHrCoverage && rhrBaseline != null && rhrBaseline > 0.0) {
+            val hrThreshold = maxOf(rhrBaseline + 25.0, 100.0)
+
+            val validSitWindows = input.sitWindowsToday.filter {
+                Duration.between(it.first, it.second).toMinutes() >= 10
             }
-        }
-        val elevatedCount = unmaskedSamples.count { it.second > 100 }
-        val elevatedDrain = (elevatedCount * 0.15).coerceIn(0.0, 20.0)
-        if (elevatedDrain > 1.0) {
-            drivers.add("ELEVATED_HR" to "Non-workout elevated HR (-${elevatedDrain.toInt()} pts)")
+            val allMaskWindows = input.exerciseWindowsToday + validSitWindows
+
+            val unmaskedSamples = input.hrSamplesToday.filter { sample ->
+                allMaskWindows.none { window ->
+                    !sample.first.isBefore(window.first) && !sample.first.isAfter(window.second)
+                }
+            }
+
+            val elevatedBins = unmaskedSamples
+                .filter { it.second.toDouble() >= hrThreshold }
+                .map { it.first.epochSecond / 60 }
+                .toSet()
+
+            val elevatedHrMinutes = elevatedBins.size
+            if (elevatedHrMinutes > 0) {
+                hrLoadDrain = (elevatedHrMinutes / 12.0).coerceIn(0.0, 15.0)
+                drivers.add("HR_LOAD" to "${elevatedHrMinutes}m")
+            }
         }
 
         // Steps Drain
@@ -145,7 +176,7 @@ object NeonChargeEngine {
             drivers.add("STEPS_DRAIN" to "${input.stepsToday} steps (-${stepsDrain.toInt()} pts)")
         }
 
-        val totalDrain = passiveDrain + sessionDrain + elevatedDrain + stepsDrain
+        val totalDrain = passiveDrain + sessionDrain + hrLoadDrain + stepsDrain
         val finalValue = (wakeSeed - totalDrain).toInt().coerceIn(0, 100)
 
         return NeonCharge(

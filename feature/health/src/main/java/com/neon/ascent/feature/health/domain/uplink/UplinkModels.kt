@@ -1,6 +1,8 @@
 package com.neon.ascent.feature.health.domain.uplink
 
+import com.neon.ascent.core.domain.health.SanctumResult
 import kotlinx.coroutines.flow.Flow
+import java.time.Instant
 
 data class LiveBiometrics(
     val heartRate: Int? = null,
@@ -26,6 +28,15 @@ data class DeepBiometrics(
     val hrvRmssd: Double? = null,
     val sleepDurationMinutes: Long? = null,
     val sleepStages: Map<String, Int> = emptyMap(), // Stage Name -> Minutes
+    val sessionStartTime: Instant? = null,
+    val sessionEndTime: Instant? = null,
+    val asleepMinutes: Long? = null,
+    val tibMinutes: Long? = null,
+    val sessionHrSamples: List<Pair<Instant, Int>> = emptyList(),
+    val eveningHrSamples: List<Pair<Instant, Int>> = emptyList(),
+    val sessionHrvSamples: List<Pair<Instant, Double>> = emptyList(),
+    val sleepSourceTag: String = "HC",
+    val sanctumResult: SanctumResult? = null,
     val lastSyncTimestamp: Long = System.currentTimeMillis()
 )
 

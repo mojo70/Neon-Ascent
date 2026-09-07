@@ -81,9 +81,12 @@ data class CodexUiState(
 )
 
 enum class VitalsType(val label: String, val rollupMetric: String) {
+    SANCTUM("SANCTUM", "SANCTUM"),
     STEPS("STEPS", "STEPS"),
     RHR("RHR", "RHR"),
     HRV("HRV", "HRV_RMSSD"),
+    HRV_NIGHT("HRV_NIGHT", "HRV_NIGHT"),
+    HR_LOAD("HR_LOAD", "HR_LOAD_MIN"),
     SLEEP_MIN("SLEEP", "SLEEP_MIN"),
     KCAL_TOTAL("KCAL_TOTAL", "KCAL_TOTAL"),
     KCAL_EATEN("KCAL_EATEN", "KCAL_EATEN")
@@ -361,7 +364,12 @@ class CodexViewModel @Inject constructor(
             _uiState.update { it.copy(hasNutritionPermission = hasNutr) }
             rollupDao.getRange(type.rollupMetric, startDate, endDate).collect { list ->
                 val points = list
-                    .filter { if (type == VitalsType.KCAL_EATEN) it.value > 0.0 else true }
+                    .filter { 
+                        when (type) {
+                            VitalsType.KCAL_EATEN, VitalsType.SANCTUM, VitalsType.HR_LOAD -> it.value > 0.0
+                            else -> true
+                        }
+                    }
                     .map { VitalsPoint(LocalDate.parse(it.localDate), it.value) }
                 _uiState.update { it.copy(vitalsData = points) }
             }

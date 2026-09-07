@@ -1187,6 +1187,7 @@ fun RecoveryMetric(label: String, value: String, color: Color, modifier: Modifie
 
 fun formatHeaderValue(value: Double, type: VitalsType): String {
     return when (type) {
+        VitalsType.SANCTUM -> "${value.toInt()}"
         VitalsType.STEPS -> {
             if (value >= 1000) {
                 String.format(Locale.US, "%.1fK STEPS", value / 1000.0)
@@ -1195,7 +1196,8 @@ fun formatHeaderValue(value: Double, type: VitalsType): String {
             }
         }
         VitalsType.RHR -> "${value.toInt()} BPM"
-        VitalsType.HRV -> "${value.toInt()} ms"
+        VitalsType.HRV, VitalsType.HRV_NIGHT -> "${value.toInt()} ms"
+        VitalsType.HR_LOAD -> "${value.toInt()} MIN"
         VitalsType.SLEEP_MIN -> {
             val hours = value / 60.0
             String.format(Locale.US, "%.1f H", hours)
@@ -1206,6 +1208,7 @@ fun formatHeaderValue(value: Double, type: VitalsType): String {
 
 fun formatAxisValue(value: Double, type: VitalsType): String {
     return when (type) {
+        VitalsType.SANCTUM -> "${value.toInt()}"
         VitalsType.STEPS -> {
             if (value >= 1000) {
                 String.format(Locale.US, "%.1fK", value / 1000.0)
@@ -1213,7 +1216,8 @@ fun formatAxisValue(value: Double, type: VitalsType): String {
                 "${value.toInt()}"
             }
         }
-        VitalsType.RHR, VitalsType.HRV -> "${value.toInt()}"
+        VitalsType.RHR, VitalsType.HRV, VitalsType.HRV_NIGHT -> "${value.toInt()}"
+        VitalsType.HR_LOAD -> "${value.toInt()}m"
         VitalsType.SLEEP_MIN -> {
             val hours = value / 60.0
             String.format(Locale.US, "%.1fH", hours)
@@ -1228,7 +1232,25 @@ fun VitalsChart(
     sessionSummaries: List<SessionSummary>,
     vitalsType: VitalsType
 ) {
-    if (data.isEmpty()) return
+    if (data.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp)
+                .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "NO_ROLLUPS_YET",
+                color = Color.Gray,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        return
+    }
 
     val primaryColor = MaterialTheme.colorScheme.primary
     val cyanColor = Color(0xFF00CCFF)

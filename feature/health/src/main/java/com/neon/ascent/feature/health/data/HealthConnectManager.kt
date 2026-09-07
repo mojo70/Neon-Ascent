@@ -3,6 +3,7 @@ package com.neon.ascent.feature.health.data
 import android.content.Context
 import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.HealthConnectFeatures
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.*
@@ -16,6 +17,7 @@ import com.neon.ascent.core.domain.special.HealthDataProcessor
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import javax.inject.Inject
@@ -96,6 +98,31 @@ class HealthConnectManager @Inject constructor(
         }
     }
 
+    override suspend fun hasHistoryPermission(): Boolean {
+        return try {
+            val availability = HealthConnectClient.getSdkStatus(context)
+            if (availability != HealthConnectClient.SDK_AVAILABLE) return false
+            val granted = healthConnectClient.permissionController.getGrantedPermissions()
+            PERMISSION_READ_HEALTH_DATA_HISTORY in granted
+        } catch (e: Throwable) {
+            false
+        }
+    }
+
+    @Suppress("OPT_IN_USAGE", "OPT_IN_USAGE_ERROR")
+    override suspend fun isHistoryFeatureAvailable(): Boolean {
+        return try {
+            val availability = HealthConnectClient.getSdkStatus(context)
+            if (availability != HealthConnectClient.SDK_AVAILABLE) return false
+            val featureStatus = healthConnectClient.features.getFeatureStatus(
+                HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_HISTORY
+            )
+            featureStatus == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+        } catch (e: Throwable) {
+            false
+        }
+    }
+
     /**
      * Get permissions to request.
      */
@@ -106,7 +133,12 @@ class HealthConnectManager @Inject constructor(
                 return requiredPermissions
             }
             val granted = healthConnectClient.permissionController.getGrantedPermissions()
-            requiredPermissions - granted
+            val missing = requiredPermissions - granted
+            if (missing.isEmpty() && isHistoryFeatureAvailable() && PERMISSION_READ_HEALTH_DATA_HISTORY !in granted) {
+                setOf(PERMISSION_READ_HEALTH_DATA_HISTORY)
+            } else {
+                missing
+            }
         } catch (e: Throwable) {
             Log.e("HealthConnectManager", "Error getting permissions to request", e)
             requiredPermissions
@@ -126,8 +158,13 @@ class HealthConnectManager @Inject constructor(
         HeartRateRecord::class.simpleName!! to "Real-time heart rate monitoring for your neural link stability.",
         RestingHeartRateRecord::class.simpleName!! to "Resting HR is a recovery signal, not live pulse.",
         NutritionRecord::class.simpleName!! to "Logged meals from Fit or other apps vs your TDEE target.",
-        ExerciseSessionRecord::class.simpleName!! to "Mask workouts so HR load is not double-counted."
+        ExerciseSessionRecord::class.simpleName!! to "Mask workouts so HR load is not double-counted.",
+        PERMISSION_READ_HEALTH_DATA_HISTORY to "Build sleep and heart baselines from nights already on this phone."
     )
+
+    companion object {
+        const val PERMISSION_READ_HEALTH_DATA_HISTORY = "android.permission.health.READ_HEALTH_DATA_HISTORY"
+    }
 
     /** 
      * Read raw data records for the last N days. 
@@ -235,9 +272,14 @@ class HealthConnectManager @Inject constructor(
     }
 
     override suspend fun latestHrvRmssd(start: Instant, end: Instant): Double? {
+        return hrvRmssdSamples(start, end)
+            .lastOrNull()?.second
+    }
+
+    override suspend fun hrvRmssdSamples(start: Instant, end: Instant): List<Pair<Instant, Double>> {
         return readRecords<HeartRateVariabilityRmssdRecord>(start, end)
             .filter { it.heartRateVariabilityMillis > 0 }
-            .lastOrNull()?.heartRateVariabilityMillis
+            .map { it.time to it.heartRateVariabilityMillis }
     }
 
     override suspend fun latestHeartRate(start: Instant, end: Instant): Int? {
@@ -260,6 +302,67 @@ class HealthConnectManager @Inject constructor(
 
     override suspend fun sleepSessions(start: Instant, end: Instant): List<SleepSessionRecord> {
         return readRecords<SleepSessionRecord>(start, end)
+    }
+
+    override fun pickCoreNight(sessions: List<SleepSessionRecord>, zone: ZoneId): SleepSessionRecord? {
+        val validSessions = sessions.filter { session ->
+            Duration.between(session.startTime, session.endTime).toMinutes() >= 25
+        }
+        if (validSessions.isEmpty()) return null
+
+        // Garmin winner check if stages cover >= 50%
+        val garminWinner = validSessions.firstOrNull { session ->
+            val pkg = session.metadata.dataOrigin.packageName.lowercase()
+            val isGarmin = pkg.contains("garmin")
+            if (!isGarmin) return@firstOrNull false
+            val durationMin = Duration.between(session.startTime, session.endTime).toMinutes()
+            val stageMinSum = session.stages.sumOf { 
+                Duration.between(it.startTime, it.endTime).toMinutes()
+            }
+            durationMin > 0 && (stageMinSum.toDouble() / durationMin) >= 0.50
+        }
+        if (garminWinner != null) return garminWinner
+
+        // Overlapping 00:00-08:00 local time check
+        val nightOverlappingSessions = validSessions.filter { session ->
+            val sessionStartDate = session.startTime.atZone(zone).toLocalDate()
+            val nightStart = sessionStartDate.atStartOfDay(zone).toInstant()
+            val nightEnd = sessionStartDate.atTime(8, 0).atZone(zone).toInstant()
+            session.startTime.isBefore(nightEnd) && session.endTime.isAfter(nightStart)
+        }
+
+        return if (nightOverlappingSessions.isNotEmpty()) {
+            nightOverlappingSessions.maxByOrNull {
+                Duration.between(it.startTime, it.endTime).toMillis()
+            }
+        } else {
+            validSessions.maxByOrNull {
+                Duration.between(it.startTime, it.endTime).toMillis()
+            }
+        }
+    }
+
+    override fun stageMinutes(session: SleepSessionRecord): Map<String, Int> {
+        if (session.stages.isEmpty()) return emptyMap()
+        val result = mutableMapOf<String, Int>()
+        for (stage in session.stages) {
+            val minutes = Duration.between(stage.startTime, stage.endTime).toMinutes().toInt()
+            if (minutes <= 0) continue
+            val key = when (stage.stage) {
+                SleepSessionRecord.STAGE_TYPE_DEEP -> "DEEP"
+                SleepSessionRecord.STAGE_TYPE_LIGHT -> "LIGHT"
+                SleepSessionRecord.STAGE_TYPE_REM -> "REM"
+                SleepSessionRecord.STAGE_TYPE_SLEEPING -> "SLEEPING"
+                SleepSessionRecord.STAGE_TYPE_AWAKE -> "AWAKE"
+                SleepSessionRecord.STAGE_TYPE_AWAKE_IN_BED -> "AWAKE_IN_BED"
+                SleepSessionRecord.STAGE_TYPE_OUT_OF_BED -> "OUT_OF_BED"
+                else -> null
+            }
+            if (key != null) {
+                result[key] = (result[key] ?: 0) + minutes
+            }
+        }
+        return result
     }
 
     override suspend fun aggregateNutritionKcal(start: Instant, end: Instant): Double? {
@@ -292,23 +395,18 @@ class HealthConnectManager @Inject constructor(
     }
 
     override fun parseSleepStages(session: SleepSessionRecord): Map<String, Int> {
-        if (session.stages.isEmpty()) return emptyMap()
-        val result = mutableMapOf<String, Int>()
-        for (stage in session.stages) {
-            val minutes = java.time.Duration.between(stage.startTime, stage.endTime).toMinutes().toInt()
-            if (minutes <= 0) continue
-            val key = when (stage.stage) {
-                SleepSessionRecord.STAGE_TYPE_DEEP -> "DEEP"
-                SleepSessionRecord.STAGE_TYPE_LIGHT, SleepSessionRecord.STAGE_TYPE_SLEEPING -> "LIGHT"
-                SleepSessionRecord.STAGE_TYPE_REM -> "REM"
-                SleepSessionRecord.STAGE_TYPE_AWAKE, SleepSessionRecord.STAGE_TYPE_OUT_OF_BED -> "AWAKE"
-                else -> null
+        val stageMap = stageMinutes(session)
+        if (stageMap.isEmpty()) return emptyMap()
+        val legacyMap = mutableMapOf<String, Int>()
+        stageMap.forEach { (key, mins) ->
+            val legacyKey = when (key) {
+                "SLEEPING" -> "LIGHT"
+                "AWAKE_IN_BED", "OUT_OF_BED" -> "AWAKE"
+                else -> key
             }
-            if (key != null) {
-                result[key] = (result[key] ?: 0) + minutes
-            }
+            legacyMap[legacyKey] = (legacyMap[legacyKey] ?: 0) + mins
         }
-        return result
+        return legacyMap
     }
 
     /** One-shot sync that feeds directly into S.P.E.C.I.A.L. */
