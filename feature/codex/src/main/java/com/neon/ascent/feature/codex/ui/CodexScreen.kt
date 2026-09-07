@@ -186,6 +186,7 @@ fun CodexScreen(
                             isLoading = uiState.isLoading,
                             onTypeSelected = { viewModel.selectVitalsType(it) },
                             onPeriodSelected = { viewModel.selectPeriod(it) },
+                            onBfMethodSelected = { viewModel.selectBfMethod(it) },
                             onRequestNutritionPermission = { onRequestNutritionPermission?.invoke() }
                         )
                         CodexWing.SERUM -> SerumWing(
@@ -432,6 +433,7 @@ fun VitalsWing(
     isLoading: Boolean = false,
     onTypeSelected: (VitalsType) -> Unit,
     onPeriodSelected: (CodexPeriod) -> Unit,
+    onBfMethodSelected: (String) -> Unit = {},
     onRequestNutritionPermission: () -> Unit
 ) {
     if (isLoading) {
@@ -520,6 +522,42 @@ fun VitalsWing(
             }
         }
 
+        // BF% Method Chips (shown only when BF_PCT is selected and multiple methods exist)
+        if (uiState.vitalsType == VitalsType.BF_PCT && uiState.availableBfMethods.size > 1) {
+            Spacer(modifier = Modifier.height(12.dp))
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(uiState.availableBfMethods) { method ->
+                    val isSelected = uiState.selectedBfMethod == method
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { onBfMethodSelected(method) },
+                        label = {
+                            Text(
+                                text = "METHOD: $method",
+                                fontSize = 9.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFFFF0088).copy(alpha = 0.2f),
+                            selectedLabelColor = Color(0xFFFF0088),
+                            labelColor = Color.Gray
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = isSelected,
+                            borderColor = Color.DarkGray,
+                            selectedBorderColor = Color(0xFFFF0088)
+                        )
+                    )
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
 
         // Chart
@@ -573,16 +611,19 @@ fun VitalsWing(
                         }
                     } else {
                         Text(
-                            "NO_ROLLUPS_YET",
+                            "NOT_LOGGED",
                             color = Color.Gray,
-                            fontSize = 12.sp,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace
                         )
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "SYNC_HEALTH_FROM_LABS",
+                            "NO_DATA_FOR_PERIOD // LOG IN LABS OR SYNC HEALTH CONNECT",
                             color = Color.DarkGray,
                             fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace
+                            fontFamily = FontFamily.Monospace,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
@@ -1203,6 +1244,10 @@ fun formatHeaderValue(value: Double, type: VitalsType): String {
             String.format(Locale.US, "%.1f H", hours)
         }
         VitalsType.KCAL_TOTAL, VitalsType.KCAL_EATEN -> "${value.toInt()} KCAL"
+        VitalsType.WEIGHT -> String.format(Locale.US, "%.1f KG", value)
+        VitalsType.BF_PCT -> String.format(Locale.US, "%.1f%%", value)
+        VitalsType.WAIST, VitalsType.CHEST, VitalsType.BICEP, VitalsType.THIGH -> String.format(Locale.US, "%.1f CM", value)
+        VitalsType.BP_SIT, VitalsType.BP_STAND -> "${value.toInt()} mmHg"
     }
 }
 
@@ -1223,6 +1268,10 @@ fun formatAxisValue(value: Double, type: VitalsType): String {
             String.format(Locale.US, "%.1fH", hours)
         }
         VitalsType.KCAL_TOTAL, VitalsType.KCAL_EATEN -> "${value.toInt()}"
+        VitalsType.WEIGHT -> String.format(Locale.US, "%.1f", value)
+        VitalsType.BF_PCT -> String.format(Locale.US, "%.1f", value)
+        VitalsType.WAIST, VitalsType.CHEST, VitalsType.BICEP, VitalsType.THIGH -> String.format(Locale.US, "%.1f", value)
+        VitalsType.BP_SIT, VitalsType.BP_STAND -> "${value.toInt()}"
     }
 }
 
@@ -1242,7 +1291,7 @@ fun VitalsChart(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                "NO_ROLLUPS_YET",
+                "NOT_LOGGED",
                 color = Color.Gray,
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace,

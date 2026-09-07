@@ -17,6 +17,7 @@ import kotlinx.coroutines.withContext
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.neon.ascent.feature.health.R
+import com.neon.ascent.core.data.repository.BodyLogRepository
 import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.TimeUnit
@@ -30,7 +31,8 @@ class HealthSyncWorker @AssistedInject constructor(
     private val updateSpecialFromHealthUseCase: UpdateSpecialFromHealthUseCase,
     private val syncBiometricMetricsUseCase: SyncBiometricMetricsUseCase,
     private val healthPrefs: HealthPreferencesDataStore,
-    private val smartPingScheduler: SmartPingScheduler
+    private val smartPingScheduler: SmartPingScheduler,
+    private val bodyLogRepository: BodyLogRepository
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun getForegroundInfo(): ForegroundInfo {
@@ -87,10 +89,20 @@ class HealthSyncWorker @AssistedInject constructor(
             Log.d("HealthSyncWorker", "Updating Ascension Directive Success Metrics")
             syncBiometricMetricsUseCase()
 
-            // 4. P1: Trigger Brief Update if sleep data updated before 11:00
+            // 4. Ingest recent Health Connect body data (last 48 hours)
+            try {
+                bodyLogRepository.ingestHealthConnectBodyData(
+                    startDate = Instant.now().minus(Duration.ofHours(48)),
+                    endDate = Instant.now()
+                )
+            } catch (e: Throwable) {
+                Log.e("HealthSyncWorker", "Failed ingesting HC body data during periodic sync", e)
+            }
+
+            // 5. P1: Trigger Brief Update if sleep data updated before 11:00
             smartPingScheduler.triggerBriefUpdateIfNecessary()
 
-            // 5. Update sync state
+            // 6. Update sync state
             healthPrefs.updateLastSyncTime()
             Log.i("HealthSyncWorker", "Health sync complete. Updated ${updatedAttributes.size} attributes.")
 

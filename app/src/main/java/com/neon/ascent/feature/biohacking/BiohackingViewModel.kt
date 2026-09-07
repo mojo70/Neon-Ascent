@@ -2,6 +2,7 @@ package com.neon.ascent.feature.biohacking
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.asFlow
@@ -37,6 +38,10 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import com.neon.ascent.core.data.local.entity.BodySampleEntity
+import com.neon.ascent.core.data.repository.BodyLogRepository
+import com.neon.ascent.feature.biohacking.ui.sheet.BodyLogInputState
+import com.neon.ascent.feature.health.data.workers.HealthConnectBackfillWorker
 import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
@@ -52,6 +57,7 @@ import com.neon.ascent.core.domain.health.models.VitalsSnapshot
 import com.neon.ascent.core.domain.workout.models.RecoveryScore
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
+import java.time.format.DateTimeFormatter
 import java.util.*
 
 @HiltViewModel
@@ -70,6 +76,7 @@ class BiohackingViewModel @Inject constructor(
     private val biomarkerRepository: BiomarkerRepository,
     private val neuralMemoryDao: NeuralMemoryDao,
     private val uplinkManager: NeuralUplinkManager,
+    private val bodyLogRepository: BodyLogRepository,
     val modelDownloadManager: ModelDownloadManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -171,6 +178,15 @@ class BiohackingViewModel @Inject constructor(
 
     val recoveryScore: StateFlow<RecoveryScore?> = workoutRepository.getRecoveryScore()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    // Body Log Summary State
+    val recentBodySamples: StateFlow<List<BodySampleEntity>> = bodyLogRepository
+        .getFilteredSamples(null, null, null, null, System.currentTimeMillis() - 90L * 86400000L, System.currentTimeMillis())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val neonBodyRowsCount: StateFlow<Int> = recentBodySamples.map { list ->
+        list.count { it.source == "NEON" }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     val neonCharge: StateFlow<NeonCharge?> = combine(
         vitalsSnapshot,
@@ -661,8 +677,118 @@ class BiohackingViewModel @Inject constructor(
         }
     }
 
+    fun checkAndTriggerBodyBackfill() {
+        viewModelScope.launch {
+            if (healthManager.hasWeightPermission()) {
+                val hasBackfilled = healthPrefs.hasBackfilledBodyData.first()
+                val lastHistoryState = healthPrefs.lastBodyBackfillHistoryState.first()
+                val currentHistoryState = healthManager.hasHistoryPermission()
+
+                // Trigger if never backfilled or if history permission flipped from false -> true
+                if (!hasBackfilled || (!lastHistoryState && currentHistoryState)) {
+                    Log.i("BiohackingVM", "Triggering one-shot HC backfill for body data (history=$currentHistoryState)")
+                    HealthConnectBackfillWorker.scheduleOneShotBackfill(context)
+                }
+            }
+        }
+    }
+
     fun dismissRationale() {
         _showPermissionRationale.value = false
+    }
+
+    fun saveBodyLog(input: BodyLogInputState) {
+        viewModelScope.launch {
+            val zone = ZoneId.systemDefault()
+            val localDate = input.date.format(DateTimeFormatter.ISO_LOCAL_DATE)
+            val loggedAt = input.date.atTime(input.time).atZone(zone).toInstant().toEpochMilli()
+
+            val samples = mutableListOf<BodySampleEntity>()
+
+            // 1. WEIGHT - Convert to KG if user entered in Imperial (LBS)
+            val isImperial = measurementUnit.value.equals("Imperial", ignoreCase = true)
+            input.weightKg.toDoubleOrNull()?.let { enteredVal ->
+                val kgVal = if (isImperial) enteredVal * 0.45359237 else enteredVal
+                samples.add(
+                    BodySampleEntity(
+                        localDate = localDate,
+                        loggedAt = loggedAt,
+                        metric = "WEIGHT",
+                        value = kgVal,
+                        unit = "KG",
+                        conditionTag = input.conditionTag,
+                        source = "NEON",
+                        note = input.note.ifBlank { null }
+                    )
+                )
+            }
+
+            // 2. BF%
+            input.bodyFatPct.toDoubleOrNull()?.let { bf ->
+                samples.add(
+                    BodySampleEntity(
+                        localDate = localDate,
+                        loggedAt = loggedAt,
+                        metric = "BF_PCT",
+                        value = bf,
+                        unit = "PCT",
+                        method = input.bfMethod,
+                        source = "NEON",
+                        note = input.note.ifBlank { null }
+                    )
+                )
+            }
+
+            // 3. TAPE SITES
+            val tapeMap = listOf(
+                "WAIST_NAVEL" to input.tapeWaistNavelCm,
+                "CHEST" to input.tapeChestCm,
+                "NECK" to input.tapeNeckCm,
+                "HIPS" to input.tapeHipsCm,
+                "BICEP" to input.tapeBicepCm,
+                "THIGH" to input.tapeThighCm,
+                "CALF" to input.tapeCalfCm,
+                "FOREARM" to input.tapeForearmCm
+            )
+            for ((site, cmStr) in tapeMap) {
+                cmStr.toDoubleOrNull()?.let { cm ->
+                    samples.add(
+                        BodySampleEntity(
+                            localDate = localDate,
+                            loggedAt = loggedAt,
+                            metric = "TAPE",
+                            site = site,
+                            value = cm,
+                            unit = "CM",
+                            side = input.tapeSide,
+                            source = "NEON",
+                            note = input.note.ifBlank { null }
+                        )
+                    )
+                }
+            }
+
+            // Save standard samples
+            if (samples.isNotEmpty()) {
+                bodyLogRepository.saveSamples(samples)
+            }
+
+            // 4. BLOOD PRESSURE (Save as sys/dia pair + HC insert)
+            val sys = input.bpSysMmHg.toDoubleOrNull()
+            val dia = input.bpDiaMmHg.toDoubleOrNull()
+            if (sys != null && dia != null) {
+                bodyLogRepository.saveBloodPressurePair(
+                    localDate = localDate,
+                    loggedAt = loggedAt,
+                    systolicMmHg = sys,
+                    diastolicMmHg = dia,
+                    position = input.bpPosition,
+                    side = input.bpArm,
+                    source = "NEON",
+                    note = input.note.ifBlank { null }
+                )
+            }
+        }
     }
 
     suspend fun getPermissionsToRequest(): Set<String> {

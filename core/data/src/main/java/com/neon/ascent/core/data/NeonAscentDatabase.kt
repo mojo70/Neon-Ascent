@@ -13,7 +13,9 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_11_12
 import com.neon.ascent.core.data.local.migration.MIGRATION_48_49
 import com.neon.ascent.core.data.local.migration.MIGRATION_50_51
 import com.neon.ascent.core.data.local.migration.MIGRATION_51_52
+import com.neon.ascent.core.data.local.migration.MIGRATION_52_53
 import com.neon.ascent.core.data.local.dao.DailyVitalRollupDao
+import com.neon.ascent.core.data.local.dao.BodySampleDao
 
 @Database(
     entities = [
@@ -52,9 +54,10 @@ import com.neon.ascent.core.data.local.dao.DailyVitalRollupDao
         ProtocolCycleEntity::class,
         ExerciseMaxEntity::class,
         AugmentActivationEntity::class,
-        DailyVitalRollupEntity::class
+        DailyVitalRollupEntity::class,
+        BodySampleEntity::class
     ],
-    version = 52,
+    version = 53,
     exportSchema = true
 )
 @TypeConverters(
@@ -83,4 +86,5 @@ abstract class NeonAscentDatabase : RoomDatabase() {
     abstract fun protocolDao(): com.neon.ascent.core.data.local.dao.ProtocolDao
     abstract fun biomarkerDao(): com.neon.ascent.core.data.local.dao.BiomarkerDao
     abstract fun dailyVitalRollupDao(): DailyVitalRollupDao
+    abstract fun bodySampleDao(): BodySampleDao
 }

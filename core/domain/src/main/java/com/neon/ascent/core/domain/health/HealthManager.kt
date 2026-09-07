@@ -8,6 +8,7 @@ import java.time.ZoneId
 interface HealthManager {
     suspend fun isAvailableAndHasPermissions(): Boolean
     suspend fun hasNutritionPermission(): Boolean
+    suspend fun hasWeightPermission(): Boolean
     suspend fun hasHistoryPermission(): Boolean
     suspend fun isHistoryFeatureAvailable(): Boolean
     suspend fun getPermissionsToRequest(): Set<String>
@@ -38,6 +39,24 @@ interface HealthManager {
     fun stageMinutes(session: SleepSessionRecord): Map<String, Int>
     fun parseSleepStages(session: SleepSessionRecord): Map<String, Int>
     fun pickCoreNight(sessions: List<SleepSessionRecord>, zone: ZoneId = ZoneId.systemDefault()): SleepSessionRecord?
+
+    // Body & Vital Measurements (Scale, Cuff, Height, Lean Mass)
+    suspend fun latestWeight(start: Instant, end: Instant): Double?
+    suspend fun weights(start: Instant, end: Instant): List<Pair<Instant, Double>>
+    suspend fun latestBodyFat(start: Instant, end: Instant): Double?
+    suspend fun latestLeanBodyMass(start: Instant, end: Instant): Double?
+    suspend fun bloodPressures(start: Instant, end: Instant): List<BloodPressureRecord>
+    suspend fun latestHeight(start: Instant, end: Instant): Double?
+
+    suspend fun insertWeight(weightKg: Double, time: Instant = Instant.now()): Boolean
+    suspend fun insertBodyFat(percentage: Double, time: Instant = Instant.now()): Boolean
+    suspend fun insertBloodPressure(
+        systolicMmHg: Double,
+        diastolicMmHg: Double,
+        bodyPosition: Int = BloodPressureRecord.BODY_POSITION_UNKNOWN,
+        time: Instant = Instant.now()
+    ): Boolean
+    suspend fun insertHeight(heightMeters: Double, time: Instant = Instant.now()): Boolean
 }
 
 data class HealthDataSnapshot(

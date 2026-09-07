@@ -37,9 +37,26 @@ class HealthPreferencesDataStore @Inject constructor(
         val CODEX_PERIOD = stringPreferencesKey("codex_period")
         val CODEX_WING = stringPreferencesKey("codex_wing")
         val CODEX_LAST_EXERCISE_ID = stringPreferencesKey("codex_last_exercise_id")
+        val HAS_BACKFILLED_BODY_DATA = booleanPreferencesKey("has_backfilled_body_data")
+        val LAST_BODY_BACKFILL_HISTORY_STATE = booleanPreferencesKey("last_body_backfill_history_state")
     }
 
     private val dataStore = context.healthDataStore
+
+    val hasBackfilledBodyData: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.HAS_BACKFILLED_BODY_DATA] ?: false
+    }
+
+    val lastBodyBackfillHistoryState: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.LAST_BODY_BACKFILL_HISTORY_STATE] ?: false
+    }
+
+    suspend fun setBodyBackfillCompleted(hasHistory: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.HAS_BACKFILLED_BODY_DATA] = true
+            prefs[Keys.LAST_BODY_BACKFILL_HISTORY_STATE] = hasHistory
+        }
+    }
 
     // === Last Sync Tracking ===
     val lastSyncTime: Flow<Instant?> = dataStore.data.map { prefs ->

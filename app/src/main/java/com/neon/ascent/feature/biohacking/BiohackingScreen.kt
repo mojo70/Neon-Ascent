@@ -39,9 +39,11 @@ import com.neon.ascent.feature.health.domain.uplink.*
 import com.neon.ascent.feature.health.data.workers.HealthSyncWorker
 import com.neon.ascent.feature.health.data.services.LiveBiometricService
 import com.neon.ascent.core.domain.character.models.UserCharacter
+import com.neon.ascent.core.data.local.entity.BodySampleEntity
 import com.neon.ascent.model.BioProtocolLog
 import com.neon.ascent.model.BiohackingData
 import com.neon.ascent.ui.*
+import com.neon.ascent.feature.biohacking.ui.sheet.BodyLogSheet
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.Period
@@ -111,6 +113,7 @@ fun BiohackingScreen(
     var scanProgress by remember { mutableFloatStateOf(0f) }
     var showReport by remember { mutableStateOf(false) }
     var showEffectivenessLogger by remember { mutableStateOf(false) }
+    var showBodyLogSheet by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -123,6 +126,11 @@ fun BiohackingScreen(
         PermissionController.createRequestPermissionResultContract()
     ) { granted ->
         viewModel.syncWearable()
+        viewModel.checkAndTriggerBodyBackfill()
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.checkAndTriggerBodyBackfill()
     }
 
     val scope = rememberCoroutineScope()
@@ -131,6 +139,29 @@ fun BiohackingScreen(
     val neonCyan = if (visualMode == VisualMode.STEVE) theme.ink else Color(0xFF00F5FF)
     val neonMagenta = if (visualMode == VisualMode.STEVE) theme.secondary else Color(0xFFFF0088)
     val voidBg = theme.canvas
+
+    val bodySamples by viewModel.recentBodySamples.collectAsState()
+    val neonRowsCount by viewModel.neonBodyRowsCount.collectAsState()
+
+    if (showBodyLogSheet) {
+        BodyLogSheet(
+            onDismiss = { showBodyLogSheet = false },
+            onSave = { state ->
+                viewModel.saveBodyLog(state)
+                showBodyLogSheet = false
+            },
+            measurementUnit = measurementUnit,
+            showShareToHcFooter = neonRowsCount > 0,
+            onRequestHcBodyPerms = {
+                scope.launch {
+                    val permissions = viewModel.getPermissionsToRequest()
+                    if (permissions.isNotEmpty()) {
+                        permissionsLauncher.launch(permissions)
+                    }
+                }
+            }
+        )
+    }
 
     if (showPermissionRationale) {
         com.neon.ascent.feature.health.ui.PermissionRationaleDialog(
@@ -382,6 +413,15 @@ fun BiohackingScreen(
                     neonMagenta = neonMagenta,
                     onNavigateToGuide = onNavigateToGuide,
                     onNavigateToDopamineMenu = onNavigateToDopamineMenu
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // BODY_LOG Card (P0)
+                BodyLogCard(
+                    samples = bodySamples,
+                    measurementUnit = measurementUnit,
+                    neonCyan = neonCyan,
+                    onLogBodyClick = { showBodyLogSheet = true }
                 )
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -1582,6 +1622,114 @@ fun NutritionMacrosCard(macros: com.neon.ascent.core.domain.workout.rules.Macros
                 Box(Modifier.weight(macros.fat * 9 / total).fillMaxHeight().background(neonMagenta))
             }
         }
+    }
+}
+
+@Composable
+fun BodyLogCard(
+    samples: List<BodySampleEntity>,
+    measurementUnit: String = "Metric",
+    neonCyan: Color,
+    onLogBodyClick: () -> Unit
+) {
+    val theme = LocalNeonTheme.current
+    val isImperial = measurementUnit.equals("Imperial", ignoreCase = true)
+
+    // Compute compact last readings
+    val lastWeight = samples.filter { it.metric == "WEIGHT" }.maxByOrNull { it.loggedAt }
+    val lastBf = samples.filter { it.metric == "BF_PCT" }.maxByOrNull { it.loggedAt }
+    val lastWaist = samples.filter { it.metric == "TAPE" && it.site?.contains("WAIST") == true }.maxByOrNull { it.loggedAt }
+    val lastBpSys = samples.filter { it.metric == "BP_SYS" && it.position == "SITTING" }.maxByOrNull { it.loggedAt }
+    val lastBpDia = samples.filter { it.metric == "BP_DIA" && it.position == "SITTING" }.maxByOrNull { it.loggedAt }
+
+    val weightStr = lastWeight?.let {
+        if (isImperial) {
+            val lbs = it.value * 2.20462262
+            String.format(Locale.US, "%.1f LBS", lbs)
+        } else {
+            String.format(Locale.US, "%.1f KG", it.value)
+        }
+    } ?: "NOT_LOGGED"
+    val bfStr = lastBf?.let {
+        val methodSuffix = it.method?.let { m -> " ($m)" } ?: ""
+        String.format(Locale.US, "%.1f%%%s", it.value, methodSuffix)
+    } ?: "NOT_LOGGED"
+    val waistStr = lastWaist?.let { String.format(Locale.US, "%.1f CM", it.value) } ?: "NOT_LOGGED"
+    val bpStr = if (lastBpSys != null && lastBpDia != null) {
+        "${lastBpSys.value.toInt()}/${lastBpDia.value.toInt()} SITTING"
+    } else {
+        "NOT_LOGGED"
+    }
+
+    CyberFrame(label = "BODY_LOG // COMPOSITION_&_METRICS", borderColor = neonCyan) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                BodyCompactField("WEIGHT", weightStr, Modifier.weight(1f), neonCyan)
+                BodyCompactField("BODY_FAT", bfStr, Modifier.weight(1f), neonCyan)
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                BodyCompactField("WAIST", waistStr, Modifier.weight(1f), neonCyan)
+                BodyCompactField("BP (SIT)", bpStr, Modifier.weight(1f), neonCyan)
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Button(
+                onClick = onLogBodyClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(36.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = neonCyan),
+                shape = RoundedCornerShape(2.dp)
+            ) {
+                Text(
+                    text = "LOG_BODY",
+                    color = Color.Black,
+                    fontWeight = FontWeight.Black,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 11.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BodyCompactField(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    color: Color
+) {
+    val theme = LocalNeonTheme.current
+    Column(
+        modifier = modifier
+            .border(1.dp, color.copy(alpha = 0.2f), RoundedCornerShape(2.dp))
+            .background(color.copy(alpha = 0.04f))
+            .padding(horizontal = 8.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = label,
+            color = color.copy(alpha = 0.7f),
+            fontSize = 8.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Monospace
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = value,
+            color = theme.ink,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Black,
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1
+        )
     }
 }
 

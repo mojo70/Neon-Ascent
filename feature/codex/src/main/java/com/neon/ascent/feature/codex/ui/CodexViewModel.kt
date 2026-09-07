@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.neon.ascent.core.data.datastore.HealthPreferencesDataStore
 import com.neon.ascent.core.data.local.dao.DailyVitalRollupDao
+import com.neon.ascent.core.data.local.dao.BodySampleDao
 import com.neon.ascent.core.domain.health.HealthManager
 import com.neon.ascent.core.domain.repository.WorkoutRepository
 import com.neon.ascent.core.data.local.dao.InsightDao
@@ -62,6 +63,8 @@ data class CodexUiState(
     val vitalsType: VitalsType = VitalsType.HRV,
     val vitalsData: List<VitalsPoint> = emptyList(),
     val hasNutritionPermission: Boolean = true,
+    val availableBfMethods: List<String> = emptyList(),
+    val selectedBfMethod: String? = null,
     val fuelHistory: List<com.neon.ascent.core.domain.workout.models.FuelSnapshot> = emptyList(),
     val latestInsight: String? = null,
     val recoveryScore: RecoveryScore? = null,
@@ -89,7 +92,15 @@ enum class VitalsType(val label: String, val rollupMetric: String) {
     HR_LOAD("HR_LOAD", "HR_LOAD_MIN"),
     SLEEP_MIN("SLEEP", "SLEEP_MIN"),
     KCAL_TOTAL("KCAL_TOTAL", "KCAL_TOTAL"),
-    KCAL_EATEN("KCAL_EATEN", "KCAL_EATEN")
+    KCAL_EATEN("KCAL_EATEN", "KCAL_EATEN"),
+    WEIGHT("WEIGHT", "WEIGHT"),
+    BF_PCT("BF_PCT", "BF_PCT"),
+    WAIST("WAIST", "TAPE_WAIST_NAVEL"),
+    CHEST("CHEST", "TAPE_CHEST"),
+    BICEP("BICEP", "TAPE_BICEP"),
+    THIGH("THIGH", "TAPE_THIGH"),
+    BP_SIT("BP_SIT", "BP_SYS_SIT"),
+    BP_STAND("BP_STAND", "BP_SYS_STAND")
 }
 
 data class VitalsPoint(
@@ -149,6 +160,7 @@ class CodexViewModel @Inject constructor(
     private val workoutRepository: WorkoutRepository,
     private val biomarkerRepository: BiomarkerRepository,
     private val rollupDao: DailyVitalRollupDao,
+    private val bodySampleDao: BodySampleDao,
     private val dataStore: HealthPreferencesDataStore,
     private val insightDao: InsightDao,
     private val healthManager: HealthManager,
@@ -353,6 +365,11 @@ class CodexViewModel @Inject constructor(
         return healthManager.getPermissionRationale()
     }
 
+    fun selectBfMethod(method: String) {
+        _uiState.update { it.copy(selectedBfMethod = method) }
+        loadVitalsData(_uiState.value.selectedPeriod, _uiState.value.vitalsType)
+    }
+
     private fun loadVitalsData(period: CodexPeriod, type: VitalsType) {
         val (start, end) = getRangeForPeriod(period)
         val zone = ZoneId.systemDefault()
@@ -362,16 +379,49 @@ class CodexViewModel @Inject constructor(
         viewModelScope.launch {
             val hasNutr = healthManager.hasNutritionPermission()
             _uiState.update { it.copy(hasNutritionPermission = hasNutr) }
-            rollupDao.getRange(type.rollupMetric, startDate, endDate).collect { list ->
-                val points = list
-                    .filter { 
-                        when (type) {
-                            VitalsType.KCAL_EATEN, VitalsType.SANCTUM, VitalsType.HR_LOAD -> it.value > 0.0
-                            else -> true
-                        }
+
+            if (type == VitalsType.BF_PCT) {
+                // Query all BF samples to find available methods and the last-used method
+                val bfSamples = bodySampleDao.getSamplesForMetricRange(
+                    metric = "BF_PCT",
+                    fromDate = startDate,
+                    toDate = endDate
+                )
+                val methods = bfSamples.mapNotNull { it.method }.filter { it.isNotBlank() }.distinct()
+                val activeMethod = _uiState.value.selectedBfMethod?.takeIf { it in methods }
+                    ?: bfSamples.maxByOrNull { it.loggedAt }?.method
+                    ?: methods.firstOrNull()
+
+                _uiState.update { 
+                    it.copy(
+                        availableBfMethods = methods,
+                        selectedBfMethod = activeMethod
+                    ) 
+                }
+
+                val metricQuery = if (activeMethod != null) "BF_PCT_${activeMethod}" else "BF_PCT"
+                rollupDao.getRange(metricQuery, startDate, endDate).collect { list ->
+                    // Fall back to general BF_PCT if specific method rollup is empty
+                    val targetList = if (list.isEmpty() && activeMethod != null) {
+                        rollupDao.getRangeList("BF_PCT", startDate, endDate)
+                    } else {
+                        list
                     }
-                    .map { VitalsPoint(LocalDate.parse(it.localDate), it.value) }
-                _uiState.update { it.copy(vitalsData = points) }
+                    val points = targetList.map { VitalsPoint(LocalDate.parse(it.localDate), it.value) }
+                    _uiState.update { it.copy(vitalsData = points) }
+                }
+            } else {
+                rollupDao.getRange(type.rollupMetric, startDate, endDate).collect { list ->
+                    val points = list
+                        .filter { 
+                            when (type) {
+                                VitalsType.KCAL_EATEN, VitalsType.SANCTUM, VitalsType.HR_LOAD -> it.value > 0.0
+                                else -> true
+                            }
+                        }
+                        .map { VitalsPoint(LocalDate.parse(it.localDate), it.value) }
+                    _uiState.update { it.copy(vitalsData = points) }
+                }
             }
         }
     }

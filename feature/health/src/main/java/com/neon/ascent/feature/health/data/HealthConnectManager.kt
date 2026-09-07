@@ -7,6 +7,10 @@ import androidx.health.connect.client.HealthConnectFeatures
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.*
+import androidx.health.connect.client.units.Length
+import androidx.health.connect.client.units.Mass
+import androidx.health.connect.client.units.Percentage
+import androidx.health.connect.client.units.Pressure
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
@@ -44,7 +48,16 @@ class HealthConnectManager @Inject constructor(
         HealthPermission.getReadPermission(HeartRateRecord::class),
         HealthPermission.getReadPermission(RestingHeartRateRecord::class),
         HealthPermission.getReadPermission(NutritionRecord::class),
-        HealthPermission.getReadPermission(ExerciseSessionRecord::class)
+        HealthPermission.getReadPermission(ExerciseSessionRecord::class),
+        HealthPermission.getReadPermission(WeightRecord::class),
+        HealthPermission.getWritePermission(WeightRecord::class),
+        HealthPermission.getReadPermission(BodyFatRecord::class),
+        HealthPermission.getWritePermission(BodyFatRecord::class),
+        HealthPermission.getReadPermission(BloodPressureRecord::class),
+        HealthPermission.getWritePermission(BloodPressureRecord::class),
+        HealthPermission.getReadPermission(HeightRecord::class),
+        HealthPermission.getWritePermission(HeightRecord::class),
+        HealthPermission.getReadPermission(LeanBodyMassRecord::class)
     )
 
     /** Check if Health Connect is available and permissions are granted */
@@ -94,6 +107,21 @@ class HealthConnectManager @Inject constructor(
             nutritionPerm in granted
         } catch (e: Throwable) {
             Log.e("HealthConnectManager", "Error checking nutrition permission", e)
+            false
+        }
+    }
+
+    override suspend fun hasWeightPermission(): Boolean {
+        return try {
+            val availability = HealthConnectClient.getSdkStatus(context)
+            if (availability != HealthConnectClient.SDK_AVAILABLE) {
+                return false
+            }
+            val granted = healthConnectClient.permissionController.getGrantedPermissions()
+            val weightPerm = HealthPermission.getReadPermission(WeightRecord::class)
+            weightPerm in granted
+        } catch (e: Throwable) {
+            Log.e("HealthConnectManager", "Error checking weight permission", e)
             false
         }
     }
@@ -159,6 +187,11 @@ class HealthConnectManager @Inject constructor(
         RestingHeartRateRecord::class.simpleName!! to "Resting HR is a recovery signal, not live pulse.",
         NutritionRecord::class.simpleName!! to "Logged meals from Fit or other apps vs your TDEE target.",
         ExerciseSessionRecord::class.simpleName!! to "Mask workouts so HR load is not double-counted.",
+        WeightRecord::class.simpleName!! to "Scale and cuff readings, and logs you save in Neon.",
+        BodyFatRecord::class.simpleName!! to "Scale and cuff readings, and logs you save in Neon.",
+        BloodPressureRecord::class.simpleName!! to "Scale and cuff readings, and logs you save in Neon.",
+        HeightRecord::class.simpleName!! to "Scale and cuff readings, and logs you save in Neon.",
+        LeanBodyMassRecord::class.simpleName!! to "Scale and cuff readings, and logs you save in Neon.",
         PERMISSION_READ_HEALTH_DATA_HISTORY to "Build sleep and heart baselines from nights already on this phone."
     )
 
@@ -457,6 +490,111 @@ class HealthConnectManager @Inject constructor(
                 emit(LiveMetrics())
             }
             kotlinx.coroutines.delay(30000) // 30s update
+        }
+    }
+
+    // Body & Vital Measurements (Scale, Cuff, Height, Lean Mass)
+    override suspend fun latestWeight(start: Instant, end: Instant): Double? {
+        return readRecords<WeightRecord>(start, end)
+            .lastOrNull()?.weight?.inKilograms
+    }
+
+    override suspend fun weights(start: Instant, end: Instant): List<Pair<Instant, Double>> {
+        return readRecords<WeightRecord>(start, end)
+            .map { it.time to it.weight.inKilograms }
+    }
+
+    override suspend fun latestBodyFat(start: Instant, end: Instant): Double? {
+        return readRecords<BodyFatRecord>(start, end)
+            .lastOrNull()?.percentage?.value
+    }
+
+    override suspend fun latestLeanBodyMass(start: Instant, end: Instant): Double? {
+        return readRecords<LeanBodyMassRecord>(start, end)
+            .lastOrNull()?.mass?.inKilograms
+    }
+
+    override suspend fun bloodPressures(start: Instant, end: Instant): List<BloodPressureRecord> {
+        return readRecords<BloodPressureRecord>(start, end)
+    }
+
+    override suspend fun latestHeight(start: Instant, end: Instant): Double? {
+        return readRecords<HeightRecord>(start, end)
+            .lastOrNull()?.height?.inMeters
+    }
+
+    override suspend fun insertWeight(weightKg: Double, time: Instant): Boolean {
+        return try {
+            val record = WeightRecord(
+                time = time,
+                zoneOffset = time.atZone(ZoneId.systemDefault()).offset,
+                weight = Mass.kilograms(weightKg)
+            )
+            withContext(Dispatchers.IO) {
+                healthConnectClient.insertRecords(listOf(record))
+            }
+            true
+        } catch (e: Throwable) {
+            Log.e("HealthConnectManager", "Error inserting weight record", e)
+            false
+        }
+    }
+
+    override suspend fun insertBodyFat(percentage: Double, time: Instant): Boolean {
+        return try {
+            val record = BodyFatRecord(
+                time = time,
+                zoneOffset = time.atZone(ZoneId.systemDefault()).offset,
+                percentage = Percentage(percentage)
+            )
+            withContext(Dispatchers.IO) {
+                healthConnectClient.insertRecords(listOf(record))
+            }
+            true
+        } catch (e: Throwable) {
+            Log.e("HealthConnectManager", "Error inserting body fat record", e)
+            false
+        }
+    }
+
+    override suspend fun insertBloodPressure(
+        systolicMmHg: Double,
+        diastolicMmHg: Double,
+        bodyPosition: Int,
+        time: Instant
+    ): Boolean {
+        return try {
+            val record = BloodPressureRecord(
+                time = time,
+                zoneOffset = time.atZone(ZoneId.systemDefault()).offset,
+                systolic = Pressure.millimetersOfMercury(systolicMmHg),
+                diastolic = Pressure.millimetersOfMercury(diastolicMmHg),
+                bodyPosition = bodyPosition
+            )
+            withContext(Dispatchers.IO) {
+                healthConnectClient.insertRecords(listOf(record))
+            }
+            true
+        } catch (e: Throwable) {
+            Log.e("HealthConnectManager", "Error inserting blood pressure record", e)
+            false
+        }
+    }
+
+    override suspend fun insertHeight(heightMeters: Double, time: Instant): Boolean {
+        return try {
+            val record = HeightRecord(
+                time = time,
+                zoneOffset = time.atZone(ZoneId.systemDefault()).offset,
+                height = Length.meters(heightMeters)
+            )
+            withContext(Dispatchers.IO) {
+                healthConnectClient.insertRecords(listOf(record))
+            }
+            true
+        } catch (e: Throwable) {
+            Log.e("HealthConnectManager", "Error inserting height record", e)
+            false
         }
     }
 }
