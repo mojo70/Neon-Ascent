@@ -18,6 +18,9 @@ interface DailyVitalRollupDao {
     @Query("SELECT * FROM daily_vital_rollups WHERE metric = :metric AND localDate BETWEEN :fromDate AND :toDate ORDER BY localDate ASC")
     suspend fun getRangeList(metric: String, fromDate: String, toDate: String): List<DailyVitalRollupEntity>
 
+    @Query("SELECT * FROM daily_vital_rollups WHERE metric LIKE 'TAPE_%' AND localDate BETWEEN :fromDate AND :toDate ORDER BY localDate ASC")
+    fun getTapeRollups(fromDate: String, toDate: String): Flow<List<DailyVitalRollupEntity>>
+
     @Query("SELECT * FROM daily_vital_rollups WHERE localDate = :localDate")
     fun getDay(localDate: String): Flow<List<DailyVitalRollupEntity>>
 }

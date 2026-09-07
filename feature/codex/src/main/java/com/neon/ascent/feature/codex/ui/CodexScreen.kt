@@ -20,12 +20,15 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -40,7 +43,9 @@ import com.neon.ascent.core.domain.backup.models.BackupScope
 import com.neon.ascent.core.domain.codex.models.BiomarkerKeys
 import com.neon.ascent.core.domain.codex.models.BiomarkerSample
 import com.neon.ascent.core.domain.codex.models.BiomarkerStatus
+import com.neon.ascent.core.domain.workout.models.UnitSystem
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -187,7 +192,40 @@ fun CodexScreen(
                             onTypeSelected = { viewModel.selectVitalsType(it) },
                             onPeriodSelected = { viewModel.selectPeriod(it) },
                             onBfMethodSelected = { viewModel.selectBfMethod(it) },
-                            onRequestNutritionPermission = { onRequestNutritionPermission?.invoke() }
+                            onBpPositionSelected = { viewModel.selectBpPosition(it) },
+                            onDeleteSample = { viewModel.deleteBodySample(it) },
+                            onRequestNutritionPermission = { onRequestNutritionPermission?.invoke() },
+                            onAddWeightSample = { valKg, date, time, note ->
+                                viewModel.addBodySample(
+                                    metric = "WEIGHT",
+                                    value = valKg,
+                                    unit = "KG",
+                                    date = date,
+                                    time = time,
+                                    note = note
+                                )
+                            },
+                            onAddBfSample = { valPct, method, date, time, note ->
+                                viewModel.addBodySample(
+                                    metric = "BF_PCT",
+                                    value = valPct,
+                                    unit = "PCT",
+                                    method = method,
+                                    date = date,
+                                    time = time,
+                                    note = note
+                                )
+                            },
+                            onAddBpSample = { sys, dia, pos, date, time, note ->
+                                viewModel.addBloodPressureSample(
+                                    systolicMmHg = sys,
+                                    diastolicMmHg = dia,
+                                    position = pos,
+                                    date = date,
+                                    time = time,
+                                    note = note
+                                )
+                            }
                         )
                         CodexWing.SERUM -> SerumWing(
                             uiState = uiState,
@@ -434,12 +472,20 @@ fun VitalsWing(
     onTypeSelected: (VitalsType) -> Unit,
     onPeriodSelected: (CodexPeriod) -> Unit,
     onBfMethodSelected: (String) -> Unit = {},
+    onBpPositionSelected: (String) -> Unit = {},
+    onDeleteSample: (String) -> Unit = {},
+    onAddWeightSample: (Double, LocalDate, LocalTime, String?) -> Unit = { _, _, _, _ -> },
+    onAddBfSample: (Double, String, LocalDate, LocalTime, String?) -> Unit = { _, _, _, _, _ -> },
+    onAddBpSample: (Double, Double, String, LocalDate, LocalTime, String?) -> Unit = { _, _, _, _, _, _ -> },
     onRequestNutritionPermission: () -> Unit
 ) {
     if (isLoading) {
         LoadingWing("SYNCING_BIOMETRICS")
         return
     }
+    var showRecordDialog by remember { mutableStateOf(false) }
+    val isImperial = uiState.userProfile?.unitSystem == UnitSystem.IMPERIAL
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -522,6 +568,39 @@ fun VitalsWing(
             }
         }
 
+        // Posture Chips for BLOOD_PRESSURE
+        if (uiState.vitalsType == VitalsType.BLOOD_PRESSURE) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("SITTING", "STANDING").forEach { pos ->
+                    val isSelected = uiState.selectedBpPosition == pos
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { onBpPositionSelected(pos) },
+                        label = {
+                            Text(
+                                text = "POSTURE: $pos",
+                                fontSize = 9.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFF00CCFF).copy(alpha = 0.2f),
+                            selectedLabelColor = Color(0xFF00CCFF),
+                            labelColor = Color.Gray
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = isSelected,
+                            borderColor = Color.DarkGray,
+                            selectedBorderColor = Color(0xFF00CCFF)
+                        )
+                    )
+                }
+            }
+        }
+
         // BF% Method Chips (shown only when BF_PCT is selected and multiple methods exist)
         if (uiState.vitalsType == VitalsType.BF_PCT && uiState.availableBfMethods.size > 1) {
             Spacer(modifier = Modifier.height(12.dp))
@@ -560,8 +639,217 @@ fun VitalsWing(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Chart
-        if (uiState.vitalsData.isEmpty()) {
+        // Chart or Body Measurement Sections
+        if (uiState.vitalsType == VitalsType.BODY_MEASUREMENTS) {
+            if (uiState.bodyPartMeasurements.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            "NOT_LOGGED",
+                            color = Color.Gray,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "NO_TAPE_MEASUREMENTS_FOR_PERIOD // LOG IN LABS",
+                            color = Color.DarkGray,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                    uiState.bodyPartMeasurements.forEach { section ->
+                        VitalsChart(
+                            data = section.data,
+                            sessionSummaries = uiState.sessionSummaries,
+                            vitalsType = VitalsType.BODY_MEASUREMENTS,
+                            customTitle = "${section.displayName}_TIMELINE"
+                        )
+                    }
+                }
+            }
+        } else if (uiState.vitalsType == VitalsType.BLOOD_PRESSURE) {
+            if (uiState.bpDualPoints.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            "NOT_LOGGED",
+                            color = Color.Gray,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "NO_BLOOD_PRESSURE_FOR_PERIOD // TAP RECORD BUTTON BELOW",
+                            color = Color.DarkGray,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            } else {
+                BloodPressureDualChart(
+                    data = uiState.bpDualPoints,
+                    customTitle = "BP_${uiState.selectedBpPosition}_TIMELINE"
+                )
+            }
+
+            // Summary Card + Record Blood Pressure Button
+            Spacer(modifier = Modifier.height(20.dp))
+            val latestBp = uiState.bodyEntries.firstOrNull()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    if (latestBp != null) {
+                        val headerDateFormatter = remember { DateTimeFormatter.ofPattern("EEE, MMM d, yyyy") }
+                        Text(
+                            latestBp.date.format(headerDateFormatter),
+                            color = Color.Gray,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            latestBp.displayValue,
+                            color = Color.White,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Black,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+
+                Button(
+                    onClick = { showRecordDialog = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE58A3C)),
+                    shape = RoundedCornerShape(20.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        "Record Blood Pressure",
+                        color = Color.Black,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+
+            // Entries List
+            if (uiState.bodyEntries.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(24.dp))
+                SectionHeader("Entries")
+                uiState.bodyEntries.forEach { entry ->
+                    BodyEntryRow(entry, onDelete = onDeleteSample)
+                }
+            }
+        } else if (uiState.vitalsType == VitalsType.WEIGHT || uiState.vitalsType == VitalsType.BF_PCT) {
+            if (uiState.vitalsData.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            "NOT_LOGGED",
+                            color = Color.Gray,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "NO_DATA_FOR_PERIOD // TAP RECORD BUTTON BELOW",
+                            color = Color.DarkGray,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            } else {
+                VitalsChart(uiState.vitalsData, uiState.sessionSummaries, uiState.vitalsType)
+            }
+
+            // Summary Card + Record Button
+            Spacer(modifier = Modifier.height(20.dp))
+            val latestEntry = uiState.bodyEntries.firstOrNull()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    if (latestEntry != null) {
+                        val headerDateFormatter = remember { DateTimeFormatter.ofPattern("EEE, MMM d, yyyy") }
+                        Text(
+                            latestEntry.date.format(headerDateFormatter),
+                            color = Color.Gray,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            latestEntry.displayValue,
+                            color = Color.White,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Black,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+
+                val btnText = if (uiState.vitalsType == VitalsType.WEIGHT) "Record Weight" else "Record Body Fat"
+                Button(
+                    onClick = { showRecordDialog = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE58A3C)),
+                    shape = RoundedCornerShape(20.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        btnText,
+                        color = Color.Black,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+
+            // Entries List
+            if (uiState.bodyEntries.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(24.dp))
+                SectionHeader("Entries")
+                uiState.bodyEntries.forEach { entry ->
+                    BodyEntryRow(entry, onDelete = onDeleteSample)
+                }
+            }
+        } else if (uiState.vitalsData.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -638,7 +926,11 @@ fun VitalsWing(
         RecoverySparklineRow(uiState)
 
         // NEURAL_ANALYSIS
-        val hasData = uiState.vitalsData.isNotEmpty()
+        val hasData = if (uiState.vitalsType == VitalsType.BODY_MEASUREMENTS) {
+            uiState.bodyPartMeasurements.isNotEmpty()
+        } else {
+            uiState.vitalsData.isNotEmpty()
+        }
         val rawInsight = uiState.latestInsight ?: ""
         val cleanInsight = if (rawInsight.contains("remarkable cardiovascular stability", ignoreCase = true) && !rawInsight.any { it.isDigit() }) {
             ""
@@ -651,19 +943,33 @@ fun VitalsWing(
             SectionHeader("NEURAL_ANALYSIS")
             
             val textToDisplay = if (hasData) {
-                val lastPt = uiState.vitalsData.last().value
-                val minPt = uiState.vitalsData.minOf { it.value }
-                val maxPt = uiState.vitalsData.maxOf { it.value }
-                
-                val lastStr = formatHeaderValue(lastPt, uiState.vitalsType)
-                val minStr = formatHeaderValue(minPt, uiState.vitalsType)
-                val maxStr = formatHeaderValue(maxPt, uiState.vitalsType)
-                
-                val statsSummary = "${uiState.vitalsType.name}: LATEST $lastStr // 30D RANGE: $minStr - $maxStr"
-                if (cleanInsight.isNotBlank()) {
-                    "$statsSummary\n\n$cleanInsight"
+                if (uiState.vitalsType == VitalsType.BODY_MEASUREMENTS) {
+                    val summaries = uiState.bodyPartMeasurements.map { section ->
+                        val lastVal = section.data.last().value
+                        val lastStr = String.format(Locale.US, "%.1f CM", lastVal)
+                        "${section.displayName}: $lastStr"
+                    }.joinToString(" // ")
+                    val statsSummary = "BODY_MEASUREMENTS: $summaries"
+                    if (cleanInsight.isNotBlank()) {
+                        "$statsSummary\n\n$cleanInsight"
+                    } else {
+                        statsSummary
+                    }
                 } else {
-                    statsSummary
+                    val lastPt = uiState.vitalsData.last().value
+                    val minPt = uiState.vitalsData.minOf { it.value }
+                    val maxPt = uiState.vitalsData.maxOf { it.value }
+                    
+                    val lastStr = formatHeaderValue(lastPt, uiState.vitalsType)
+                    val minStr = formatHeaderValue(minPt, uiState.vitalsType)
+                    val maxStr = formatHeaderValue(maxPt, uiState.vitalsType)
+                    
+                    val statsSummary = "${uiState.vitalsType.name}: LATEST $lastStr // 30D RANGE: $minStr - $maxStr"
+                    if (cleanInsight.isNotBlank()) {
+                        "$statsSummary\n\n$cleanInsight"
+                    } else {
+                        statsSummary
+                    }
                 }
             } else {
                 cleanInsight
@@ -685,6 +991,17 @@ fun VitalsWing(
         }
         
         Spacer(modifier = Modifier.height(100.dp))
+    }
+
+    if (showRecordDialog) {
+        RecordBodyMetricDialog(
+            metricType = uiState.vitalsType,
+            isImperial = isImperial,
+            onDismiss = { showRecordDialog = false },
+            onSaveWeight = onAddWeightSample,
+            onSaveBf = onAddBfSample,
+            onSaveBp = onAddBpSample
+        )
     }
 }
 
@@ -1246,8 +1563,8 @@ fun formatHeaderValue(value: Double, type: VitalsType): String {
         VitalsType.KCAL_TOTAL, VitalsType.KCAL_EATEN -> "${value.toInt()} KCAL"
         VitalsType.WEIGHT -> String.format(Locale.US, "%.1f KG", value)
         VitalsType.BF_PCT -> String.format(Locale.US, "%.1f%%", value)
-        VitalsType.WAIST, VitalsType.CHEST, VitalsType.BICEP, VitalsType.THIGH -> String.format(Locale.US, "%.1f CM", value)
-        VitalsType.BP_SIT, VitalsType.BP_STAND -> "${value.toInt()} mmHg"
+        VitalsType.BODY_MEASUREMENTS -> String.format(Locale.US, "%.1f CM", value)
+        VitalsType.BLOOD_PRESSURE -> "${value.toInt()} mmHg"
     }
 }
 
@@ -1270,8 +1587,481 @@ fun formatAxisValue(value: Double, type: VitalsType): String {
         VitalsType.KCAL_TOTAL, VitalsType.KCAL_EATEN -> "${value.toInt()}"
         VitalsType.WEIGHT -> String.format(Locale.US, "%.1f", value)
         VitalsType.BF_PCT -> String.format(Locale.US, "%.1f", value)
-        VitalsType.WAIST, VitalsType.CHEST, VitalsType.BICEP, VitalsType.THIGH -> String.format(Locale.US, "%.1f", value)
-        VitalsType.BP_SIT, VitalsType.BP_STAND -> "${value.toInt()}"
+        VitalsType.BODY_MEASUREMENTS -> String.format(Locale.US, "%.1f", value)
+        VitalsType.BLOOD_PRESSURE -> "${value.toInt()}"
+    }
+}
+
+@Composable
+fun BloodPressureDualChart(
+    data: List<DualVitalsPoint>,
+    customTitle: String? = null
+) {
+    if (data.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp)
+                .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "NOT_LOGGED",
+                color = Color.Gray,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        return
+    }
+
+    val cyanColor = Color(0xFF00CCFF)
+    val pinkColor = Color(0xFFFF006E)
+    val gridColor = Color.White.copy(alpha = 0.08f)
+    val labelColor = Color.Gray
+
+    val allValues = data.flatMap { listOf(it.primaryValue, it.secondaryValue) }
+    val rawMin = allValues.minOrNull() ?: 60.0
+    val rawMax = allValues.maxOrNull() ?: 140.0
+    val padding = 10.0
+
+    val minY = (rawMin - padding).coerceAtLeast(40.0)
+    val maxY = (rawMax + padding).coerceAtLeast(140.0)
+    val midY = (minY + maxY) / 2.0
+    val rangeY = (maxY - minY).coerceAtLeast(1.0)
+
+    val lastPt = data.last()
+    val headerText = "${lastPt.primaryValue.toInt()}/${lastPt.secondaryValue.toInt()} mmHg"
+
+    val startDate = data.first().date
+    val endDate = data.last().date
+
+    val midIndex = data.size / 2
+    val midDate = data[midIndex].date
+
+    val dateFormatter = DateTimeFormatter.ofPattern("M/d")
+    val startDateStr = startDate.format(dateFormatter)
+    val midDateStr = midDate.format(dateFormatter)
+    val endDateStr = endDate.format(dateFormatter)
+
+    val maxLabel = "${maxY.toInt()}"
+    val midLabel = "${midY.toInt()}"
+    val minLabel = "${minY.toInt()}"
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+            .padding(12.dp)
+    ) {
+        // Header row: Section title + Last value + Legend
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = customTitle ?: "BLOOD_PRESSURE_TIMELINE",
+                color = labelColor,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp,
+                fontFamily = FontFamily.Monospace
+            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("SYS", color = cyanColor, fontSize = 9.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                Text("•", color = Color.DarkGray, fontSize = 9.sp)
+                Text("DIA", color = pinkColor, fontSize = 9.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = headerText,
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Black,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Chart area with Y-axis ticks
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .width(42.dp)
+                    .fillMaxHeight(),
+                verticalArrangement = Arrangement.SpaceBetween,
+                horizontalAlignment = Alignment.End
+            ) {
+                Text(maxLabel, color = labelColor, fontSize = 8.sp, fontFamily = FontFamily.Monospace, maxLines = 1)
+                Text(midLabel, color = labelColor, fontSize = 8.sp, fontFamily = FontFamily.Monospace, maxLines = 1)
+                Text(minLabel, color = labelColor, fontSize = 8.sp, fontFamily = FontFamily.Monospace, maxLines = 1)
+            }
+
+            Spacer(modifier = Modifier.width(6.dp))
+
+            Canvas(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+            ) {
+                val w = size.width
+                val h = size.height
+
+                // Grid lines
+                drawLine(gridColor, Offset(0f, 0f), Offset(w, 0f), strokeWidth = 1f)
+                drawLine(gridColor, Offset(0f, h / 2f), Offset(w, h / 2f), strokeWidth = 1f)
+                drawLine(gridColor, Offset(0f, h), Offset(w, h), strokeWidth = 1f)
+
+                // Reference dashed lines: 120 (Normal Systolic limit) & 80 (Normal Diastolic limit)
+                val y120 = h - ((120.0 - minY) / rangeY * h).toFloat()
+                if (y120 in 0f..h) {
+                    drawLine(
+                        Color.White.copy(alpha = 0.25f),
+                        Offset(0f, y120),
+                        Offset(w, y120),
+                        strokeWidth = 1f,
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f))
+                    )
+                }
+
+                val y80 = h - ((80.0 - minY) / rangeY * h).toFloat()
+                if (y80 in 0f..h) {
+                    drawLine(
+                        Color.White.copy(alpha = 0.25f),
+                        Offset(0f, y80),
+                        Offset(w, y80),
+                        strokeWidth = 1f,
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f))
+                    )
+                }
+
+                if (data.size > 1) {
+                    val sysPath = Path()
+                    val diaPath = Path()
+
+                    data.forEachIndexed { i, pt ->
+                        val x = i * (w / (data.size - 1))
+                        val ySys = h - ((pt.primaryValue - minY) / rangeY * h).toFloat()
+                        val yDia = h - ((pt.secondaryValue - minY) / rangeY * h).toFloat()
+
+                        if (i == 0) {
+                            sysPath.moveTo(x, ySys)
+                            diaPath.moveTo(x, yDia)
+                        } else {
+                            sysPath.lineTo(x, ySys)
+                            diaPath.lineTo(x, yDia)
+                        }
+                    }
+
+                    drawPath(sysPath, cyanColor, style = Stroke(width = 2.dp.toPx()))
+                    drawPath(diaPath, pinkColor, style = Stroke(width = 2.dp.toPx()))
+
+                    data.forEachIndexed { i, pt ->
+                        val x = i * (w / (data.size - 1))
+                        val ySys = h - ((pt.primaryValue - minY) / rangeY * h).toFloat()
+                        val yDia = h - ((pt.secondaryValue - minY) / rangeY * h).toFloat()
+                        drawCircle(cyanColor, 3.dp.toPx(), Offset(x, ySys))
+                        drawCircle(pinkColor, 3.dp.toPx(), Offset(x, yDia))
+                    }
+                } else {
+                    val x = w / 2f
+                    val ySys = h - ((lastPt.primaryValue - minY) / rangeY * h).toFloat()
+                    val yDia = h - ((lastPt.secondaryValue - minY) / rangeY * h).toFloat()
+                    drawCircle(cyanColor, 4.dp.toPx(), Offset(x, ySys))
+                    drawCircle(pinkColor, 4.dp.toPx(), Offset(x, yDia))
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // X-axis Dates row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 48.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(startDateStr, color = labelColor, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+            if (data.size > 2) {
+                Text(midDateStr, color = labelColor, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+            }
+            Text(endDateStr, color = labelColor, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun BodyEntryRow(
+    entry: BodyEntryItem,
+    onDelete: (String) -> Unit
+) {
+    var showMenu by remember { mutableStateOf(false) }
+    val formatter = remember { DateTimeFormatter.ofPattern("EEE, MMM d, yyyy") }
+    val dateStr = entry.date.format(formatter)
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .combinedClickable(
+                onClick = {},
+                onLongClick = { showMenu = true }
+            ),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)),
+        shape = RoundedCornerShape(4.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = dateStr,
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = entry.timeStr,
+                        color = Color.Gray,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    if (!entry.subtitle.isNullOrBlank()) {
+                        Text("•", color = Color.DarkGray, fontSize = 9.sp)
+                        Text(
+                            text = entry.subtitle,
+                            color = Color.DarkGray,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+            }
+
+            Text(
+                text = entry.displayValue,
+                color = MaterialTheme.colorScheme.primary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Black,
+                fontFamily = FontFamily.Monospace
+            )
+
+            Box {
+                IconButton(onClick = { showMenu = true }, modifier = Modifier.size(24.dp)) {
+                    Icon(
+                        Icons.Default.MoreVert,
+                        contentDescription = "ENTRY_OPTIONS",
+                        tint = Color.Gray,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    DropdownMenuItem(
+                        text = { Text("DELETE_ENTRY", color = Color.Red, fontSize = 11.sp, fontFamily = FontFamily.Monospace) },
+                        onClick = {
+                            onDelete(entry.id)
+                            showMenu = false
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun RecordBodyMetricDialog(
+    metricType: VitalsType,
+    isImperial: Boolean,
+    onDismiss: () -> Unit,
+    onSaveWeight: (Double, LocalDate, LocalTime, String?) -> Unit,
+    onSaveBf: (Double, String, LocalDate, LocalTime, String?) -> Unit,
+    onSaveBp: (Double, Double, String, LocalDate, LocalTime, String?) -> Unit
+) {
+    var date by remember { mutableStateOf(LocalDate.now()) }
+    var time by remember { mutableStateOf(LocalTime.now()) }
+    var note by remember { mutableStateOf("") }
+
+    // Metric specific inputs
+    var val1 by remember { mutableStateOf("") } // Weight (lbs or kg), BF%, or Sys
+    var val2 by remember { mutableStateOf("") } // Dia
+    var selectedMethod by remember { mutableStateOf("CALIPER") }
+    var selectedPosture by remember { mutableStateOf("SITTING") }
+
+    val title = when (metricType) {
+        VitalsType.BLOOD_PRESSURE -> "RECORD_BLOOD_PRESSURE"
+        VitalsType.WEIGHT -> "RECORD_WEIGHT"
+        VitalsType.BF_PCT -> "RECORD_BODY_FAT"
+        else -> "RECORD_ENTRY"
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(8.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(18.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = title,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 14.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                when (metricType) {
+                    VitalsType.BLOOD_PRESSURE -> {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(
+                                value = val1,
+                                onValueChange = { val1 = it },
+                                label = { Text("SYSTOLIC (mmHg)", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f),
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+                            )
+                            OutlinedTextField(
+                                value = val2,
+                                onValueChange = { val2 = it },
+                                label = { Text("DIASTOLIC (mmHg)", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f),
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text("POSTURE", color = Color.Gray, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                        Row(modifier = Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf("SITTING", "STANDING").forEach { posture ->
+                                val isSel = selectedPosture == posture
+                                FilterChip(
+                                    selected = isSel,
+                                    onClick = { selectedPosture = posture },
+                                    label = { Text(posture, fontSize = 9.sp, fontFamily = FontFamily.Monospace) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                        selectedLabelColor = MaterialTheme.colorScheme.primary
+                                    )
+                                )
+                            }
+                        }
+                    }
+                    VitalsType.WEIGHT -> {
+                        val unitLabel = if (isImperial) "LBS" else "KG"
+                        OutlinedTextField(
+                            value = val1,
+                            onValueChange = { val1 = it },
+                            label = { Text("WEIGHT ($unitLabel)", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.fillMaxWidth(),
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+                        )
+                    }
+                    VitalsType.BF_PCT -> {
+                        OutlinedTextField(
+                            value = val1,
+                            onValueChange = { val1 = it },
+                            label = { Text("BODY FAT (%)", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.fillMaxWidth(),
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text("MEASUREMENT METHOD", color = Color.Gray, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                        LazyRow(modifier = Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            items(listOf("CALIPER", "DEXA", "BIA_SCALE", "NAVY_TAPE", "PHOTO_EST")) { m ->
+                                val isSel = selectedMethod == m
+                                FilterChip(
+                                    selected = isSel,
+                                    onClick = { selectedMethod = m },
+                                    label = { Text(m, fontSize = 9.sp, fontFamily = FontFamily.Monospace) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = Color(0xFFFF0088).copy(alpha = 0.2f),
+                                        selectedLabelColor = Color(0xFFFF0088)
+                                    )
+                                )
+                            }
+                        }
+                    }
+                    else -> {}
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { note = it },
+                    label = { Text("NOTE (OPTIONAL)", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
+                    modifier = Modifier.fillMaxWidth(),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) {
+                        Text("CANCEL", color = Color.Gray, fontFamily = FontFamily.Monospace)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            when (metricType) {
+                                VitalsType.BLOOD_PRESSURE -> {
+                                    val sys = val1.toDoubleOrNull()
+                                    val dia = val2.toDoubleOrNull()
+                                    if (sys != null && dia != null) {
+                                        onSaveBp(sys, dia, selectedPosture, date, time, note.ifBlank { null })
+                                        onDismiss()
+                                    }
+                                }
+                                VitalsType.WEIGHT -> {
+                                    val w = val1.toDoubleOrNull()
+                                    if (w != null) {
+                                        val kg = if (isImperial) w * 0.45359237 else w
+                                        onSaveWeight(kg, date, time, note.ifBlank { null })
+                                        onDismiss()
+                                    }
+                                }
+                                VitalsType.BF_PCT -> {
+                                    val bf = val1.toDoubleOrNull()
+                                    if (bf != null) {
+                                        onSaveBf(bf, selectedMethod, date, time, note.ifBlank { null })
+                                        onDismiss()
+                                    }
+                                }
+                                else -> onDismiss()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("SAVE_ENTRY", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1279,7 +2069,8 @@ fun formatAxisValue(value: Double, type: VitalsType): String {
 fun VitalsChart(
     data: List<VitalsPoint>,
     sessionSummaries: List<SessionSummary>,
-    vitalsType: VitalsType
+    vitalsType: VitalsType,
+    customTitle: String? = null
 ) {
     if (data.isEmpty()) {
         Box(
@@ -1357,7 +2148,7 @@ fun VitalsChart(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "${vitalsType.name}_TIMELINE",
+                text = customTitle ?: "${vitalsType.name}_TIMELINE",
                 color = labelColor,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,

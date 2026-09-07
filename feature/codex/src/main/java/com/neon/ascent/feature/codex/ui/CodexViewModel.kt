@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.neon.ascent.core.data.datastore.HealthPreferencesDataStore
 import com.neon.ascent.core.data.local.dao.DailyVitalRollupDao
 import com.neon.ascent.core.data.local.dao.BodySampleDao
+import com.neon.ascent.core.data.local.entity.BodySampleEntity
+import com.neon.ascent.core.data.local.entity.DailyVitalRollupEntity
 import com.neon.ascent.core.domain.health.HealthManager
 import com.neon.ascent.core.domain.repository.WorkoutRepository
 import com.neon.ascent.core.data.local.dao.InsightDao
@@ -22,13 +24,17 @@ import com.neon.ascent.core.domain.workout.models.SetLog
 import com.neon.ascent.core.domain.workout.rules.CyberCrappRules
 import com.neon.ascent.core.domain.backup.models.BackupScope
 import com.neon.ascent.core.domain.repository.FullDataBackupRepository
+import com.neon.ascent.core.domain.workout.models.UnitSystem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
+import java.util.Locale
+import java.time.LocalTime
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 import javax.inject.Inject
 
@@ -62,6 +68,10 @@ data class CodexUiState(
     // Vitals State
     val vitalsType: VitalsType = VitalsType.HRV,
     val vitalsData: List<VitalsPoint> = emptyList(),
+    val bpDualPoints: List<DualVitalsPoint> = emptyList(),
+    val bodyEntries: List<BodyEntryItem> = emptyList(),
+    val selectedBpPosition: String = "SITTING", // "SITTING" or "STANDING"
+    val bodyPartMeasurements: List<BodyPartMeasurementSection> = emptyList(),
     val hasNutritionPermission: Boolean = true,
     val availableBfMethods: List<String> = emptyList(),
     val selectedBfMethod: String? = null,
@@ -95,13 +105,31 @@ enum class VitalsType(val label: String, val rollupMetric: String) {
     KCAL_EATEN("KCAL_EATEN", "KCAL_EATEN"),
     WEIGHT("WEIGHT", "WEIGHT"),
     BF_PCT("BF_PCT", "BF_PCT"),
-    WAIST("WAIST", "TAPE_WAIST_NAVEL"),
-    CHEST("CHEST", "TAPE_CHEST"),
-    BICEP("BICEP", "TAPE_BICEP"),
-    THIGH("THIGH", "TAPE_THIGH"),
-    BP_SIT("BP_SIT", "BP_SYS_SIT"),
-    BP_STAND("BP_STAND", "BP_SYS_STAND")
+    BODY_MEASUREMENTS("BODY_MEASUREMENTS", "TAPE_WAIST_NAVEL"),
+    BLOOD_PRESSURE("BLOOD_PRESSURE", "BP_SYS_SIT")
 }
+
+data class BodyPartMeasurementSection(
+    val siteKey: String,
+    val displayName: String,
+    val data: List<VitalsPoint>
+)
+
+data class DualVitalsPoint(
+    val date: LocalDate,
+    val primaryValue: Double,
+    val secondaryValue: Double
+)
+
+data class BodyEntryItem(
+    val id: String,
+    val date: LocalDate,
+    val timeStr: String,
+    val primaryValue: Double,
+    val secondaryValue: Double? = null,
+    val displayValue: String,
+    val subtitle: String? = null
+)
 
 data class VitalsPoint(
     val date: LocalDate,
@@ -304,6 +332,178 @@ class CodexViewModel @Inject constructor(
         loadVitalsData(_uiState.value.selectedPeriod, type)
     }
 
+    fun selectBpPosition(position: String) {
+        _uiState.update { it.copy(selectedBpPosition = position) }
+        loadVitalsData(_uiState.value.selectedPeriod, _uiState.value.vitalsType)
+    }
+
+    fun addBodySample(
+        metric: String,
+        value: Double,
+        unit: String,
+        date: LocalDate,
+        time: LocalTime = LocalTime.now(),
+        method: String? = null,
+        position: String? = null,
+        note: String? = null
+    ) {
+        viewModelScope.launch {
+            val zone = ZoneId.systemDefault()
+            val loggedAt = date.atTime(time).atZone(zone).toInstant().toEpochMilli()
+            val sample = BodySampleEntity(
+                localDate = date.toString(),
+                loggedAt = loggedAt,
+                metric = metric,
+                value = value,
+                unit = unit,
+                method = method,
+                position = position,
+                source = "NEON",
+                note = note
+            )
+            bodySampleDao.upsertSample(sample)
+            recalculateRollupForDate(date.toString())
+            loadVitalsData(_uiState.value.selectedPeriod, _uiState.value.vitalsType)
+        }
+    }
+
+    fun addBloodPressureSample(
+        systolicMmHg: Double,
+        diastolicMmHg: Double,
+        position: String,
+        date: LocalDate,
+        time: LocalTime = LocalTime.now(),
+        note: String? = null
+    ) {
+        viewModelScope.launch {
+            val zone = ZoneId.systemDefault()
+            val loggedAt = date.atTime(time).atZone(zone).toInstant().toEpochMilli()
+            val sysSample = BodySampleEntity(
+                localDate = date.toString(),
+                loggedAt = loggedAt,
+                metric = "BP_SYS",
+                value = systolicMmHg,
+                unit = "MMHG",
+                position = position,
+                source = "NEON",
+                note = note
+            )
+            val diaSample = BodySampleEntity(
+                localDate = date.toString(),
+                loggedAt = loggedAt,
+                metric = "BP_DIA",
+                value = diastolicMmHg,
+                unit = "MMHG",
+                position = position,
+                source = "NEON",
+                note = note
+            )
+            bodySampleDao.upsertSamples(listOf(sysSample, diaSample))
+            recalculateRollupForDate(date.toString())
+            loadVitalsData(_uiState.value.selectedPeriod, _uiState.value.vitalsType)
+        }
+    }
+
+    fun deleteBodySample(sampleId: String) {
+        viewModelScope.launch {
+            val sample = bodySampleDao.getSamplesBetween(0, Long.MAX_VALUE).find { it.id == sampleId }
+            bodySampleDao.deleteSample(sampleId)
+            if (sample != null) {
+                recalculateRollupForDate(sample.localDate)
+            }
+            loadVitalsData(_uiState.value.selectedPeriod, _uiState.value.vitalsType)
+        }
+    }
+
+    private suspend fun recalculateRollupForDate(localDate: String) {
+        val samples = bodySampleDao.getSamplesForDayList(localDate)
+        val nowMillis = System.currentTimeMillis()
+
+        val weightSample = samples.filter { it.metric == "WEIGHT" }.maxByOrNull { it.loggedAt }
+        if (weightSample != null) {
+            rollupDao.upsert(
+                DailyVitalRollupEntity(
+                    localDate = localDate,
+                    metric = "WEIGHT",
+                    value = weightSample.value,
+                    source = weightSample.source,
+                    quality = "OK",
+                    updatedAt = nowMillis
+                )
+            )
+        }
+
+        val bfSamples = samples.filter { it.metric == "BF_PCT" }
+        if (bfSamples.isNotEmpty()) {
+            val latestOverall = bfSamples.maxByOrNull { it.loggedAt }
+            if (latestOverall != null) {
+                rollupDao.upsert(
+                    DailyVitalRollupEntity(
+                        localDate = localDate,
+                        metric = "BF_PCT",
+                        value = latestOverall.value,
+                        source = latestOverall.source,
+                        quality = "OK",
+                        updatedAt = nowMillis
+                    )
+                )
+            }
+            bfSamples.groupBy { it.method }.forEach { (method, methodGroup) ->
+                if (!method.isNullOrBlank() && methodGroup.isNotEmpty()) {
+                    val latestMethod = methodGroup.maxByOrNull { it.loggedAt }
+                    if (latestMethod != null) {
+                        rollupDao.upsert(
+                            DailyVitalRollupEntity(
+                                localDate = localDate,
+                                metric = "BF_PCT_${method}",
+                                value = latestMethod.value,
+                                source = latestMethod.source,
+                                quality = "OK",
+                                updatedAt = nowMillis
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        val bpSysSamples = samples.filter { it.metric == "BP_SYS" }
+        val bpDiaSamples = samples.filter { it.metric == "BP_DIA" }
+        listOf("SITTING", "STANDING", "LYING").forEach { posture ->
+            val postfix = when (posture) {
+                "SITTING" -> "_SIT"
+                "STANDING" -> "_STAND"
+                else -> "_LYING"
+            }
+            val sys = bpSysSamples.filter { it.position == posture }.maxByOrNull { it.loggedAt }
+            val dia = bpDiaSamples.filter { it.position == posture }.maxByOrNull { it.loggedAt }
+            if (sys != null) {
+                rollupDao.upsert(
+                    DailyVitalRollupEntity(
+                        localDate = localDate,
+                        metric = "BP_SYS${postfix}",
+                        value = sys.value,
+                        source = sys.source,
+                        quality = "OK",
+                        updatedAt = nowMillis
+                    )
+                )
+            }
+            if (dia != null) {
+                rollupDao.upsert(
+                    DailyVitalRollupEntity(
+                        localDate = localDate,
+                        metric = "BP_DIA${postfix}",
+                        value = dia.value,
+                        source = dia.source,
+                        quality = "OK",
+                        updatedAt = nowMillis
+                    )
+                )
+            }
+        }
+    }
+
     private fun loadFuelHistory(period: CodexPeriod) {
         val (start, end) = getRangeForPeriod(period)
         viewModelScope.launch {
@@ -399,16 +599,179 @@ class CodexViewModel @Inject constructor(
                     ) 
                 }
 
+                val samplesFlow = bodySampleDao.getSamplesForMetricRangeFlow("BF_PCT", startDate, endDate)
                 val metricQuery = if (activeMethod != null) "BF_PCT_${activeMethod}" else "BF_PCT"
-                rollupDao.getRange(metricQuery, startDate, endDate).collect { list ->
-                    // Fall back to general BF_PCT if specific method rollup is empty
-                    val targetList = if (list.isEmpty() && activeMethod != null) {
+                val rollupFlow = rollupDao.getRange(metricQuery, startDate, endDate)
+
+                combine(rollupFlow, samplesFlow) { rollups, samples ->
+                    val targetRollups = if (rollups.isEmpty() && activeMethod != null) {
                         rollupDao.getRangeList("BF_PCT", startDate, endDate)
                     } else {
-                        list
+                        rollups
                     }
-                    val points = targetList.map { VitalsPoint(LocalDate.parse(it.localDate), it.value) }
-                    _uiState.update { it.copy(vitalsData = points) }
+                    val points = targetRollups.map { VitalsPoint(LocalDate.parse(it.localDate), it.value) }
+                    val filteredSamples = if (activeMethod != null) {
+                        samples.filter { it.method == activeMethod }
+                    } else {
+                        samples
+                    }
+                    val entries = filteredSamples.map { s ->
+                        val date = LocalDate.parse(s.localDate)
+                        val timeInstant = Instant.ofEpochMilli(s.loggedAt)
+                        val timeStr = timeInstant.atZone(zone).toLocalTime().format(
+                            DateTimeFormatter.ofPattern("h:mm a"))
+                        BodyEntryItem(
+                            id = s.id,
+                            date = date,
+                            timeStr = timeStr,
+                            primaryValue = s.value,
+                            displayValue = String.format(Locale.US, "%.1f%%", s.value),
+                            subtitle = listOfNotNull(s.method?.let { "Method: $it" }, s.conditionTag, s.source.takeIf { it != "NEON" }).joinToString(" • ").ifBlank { null }
+                        )
+                    }.sortedByDescending { it.date }
+                    Pair(points, entries)
+                }.collect { (points, entries) ->
+                    _uiState.update {
+                        it.copy(
+                            vitalsData = points,
+                            bodyEntries = entries,
+                            bpDualPoints = emptyList(),
+                            bodyPartMeasurements = emptyList()
+                        )
+                    }
+                }
+            } else if (type == VitalsType.BODY_MEASUREMENTS) {
+                val knownSiteOrder = listOf(
+                    "WAIST_NAVEL" to "WAIST (NAVEL)",
+                    "WAIST_NARROW" to "WAIST (NARROW)",
+                    "CHEST" to "CHEST",
+                    "NECK" to "NECK",
+                    "HIPS" to "HIPS",
+                    "BICEP" to "BICEP",
+                    "THIGH" to "THIGH",
+                    "CALF" to "CALF",
+                    "FOREARM" to "FOREARM",
+                    "SHOULDERS" to "SHOULDERS"
+                )
+
+                rollupDao.getTapeRollups(startDate, endDate).collect { rollups ->
+                    val grouped = rollups.groupBy { it.metric.removePrefix("TAPE_") }
+                    val sections = mutableListOf<BodyPartMeasurementSection>()
+
+                    // First add known sites in order if they exist
+                    for ((siteKey, displayName) in knownSiteOrder) {
+                        val siteRollups = grouped[siteKey]
+                        if (!siteRollups.isNullOrEmpty()) {
+                            val pts = siteRollups.map { VitalsPoint(LocalDate.parse(it.localDate), it.value) }
+                            sections.add(BodyPartMeasurementSection(siteKey, displayName, pts))
+                        }
+                    }
+
+                    // Any remaining tape metrics
+                    for ((siteKey, siteRollups) in grouped) {
+                        if (knownSiteOrder.none { it.first == siteKey } && siteRollups.isNotEmpty()) {
+                            val pts = siteRollups.map { VitalsPoint(LocalDate.parse(it.localDate), it.value) }
+                            sections.add(BodyPartMeasurementSection(siteKey, siteKey.replace('_', ' '), pts))
+                        }
+                    }
+
+                    val firstPoints = sections.firstOrNull()?.data ?: emptyList()
+                    _uiState.update {
+                        it.copy(
+                            bodyPartMeasurements = sections,
+                            vitalsData = firstPoints,
+                            bpDualPoints = emptyList(),
+                            bodyEntries = emptyList()
+                        )
+                    }
+                }
+            } else if (type == VitalsType.BLOOD_PRESSURE) {
+                val position = _uiState.value.selectedBpPosition
+                val postfix = if (position == "STANDING") "_STAND" else "_SIT"
+                val sysFlow = rollupDao.getRange("BP_SYS$postfix", startDate, endDate)
+                val diaFlow = rollupDao.getRange("BP_DIA$postfix", startDate, endDate)
+                val sysSamplesFlow = bodySampleDao.getSamplesForMetricRangeFlow("BP_SYS", startDate, endDate)
+                val diaSamplesFlow = bodySampleDao.getSamplesForMetricRangeFlow("BP_DIA", startDate, endDate)
+
+                combine(sysFlow, diaFlow, sysSamplesFlow, diaSamplesFlow) { sysList, diaList, sysSamples, diaSamples ->
+                    val sysMap = sysList.associate { it.localDate to it.value }
+                    val diaMap = diaList.associate { it.localDate to it.value }
+                    val allDates = (sysMap.keys + diaMap.keys).sorted()
+                    val dualPoints = allDates.mapNotNull { d ->
+                        val s = sysMap[d]
+                        val dia = diaMap[d]
+                        if (s != null && dia != null) {
+                            DualVitalsPoint(LocalDate.parse(d), s, dia)
+                        } else null
+                    }
+
+                    // Build entry history items
+                    val filteredSys = sysSamples.filter { it.position == position || (position == "SITTING" && it.position == null) }
+                    val entries = filteredSys.map { sys ->
+                        val matchingDia = diaSamples.find { it.localDate == sys.localDate && Math.abs(it.loggedAt - sys.loggedAt) < 60000 }
+                        val diaVal = matchingDia?.value ?: 0.0
+                        val date = LocalDate.parse(sys.localDate)
+                        val timeInstant = Instant.ofEpochMilli(sys.loggedAt)
+                        val timeStr = timeInstant.atZone(zone).toLocalTime().format(
+                            DateTimeFormatter.ofPattern("h:mm a"))
+                        BodyEntryItem(
+                            id = sys.id,
+                            date = date,
+                            timeStr = timeStr,
+                            primaryValue = sys.value,
+                            secondaryValue = diaVal,
+                            displayValue = "${sys.value.toInt()}/${diaVal.toInt()} mmHg",
+                            subtitle = sys.conditionTag ?: sys.source
+                        )
+                    }.sortedByDescending { it.date }
+
+                    Pair(dualPoints, entries)
+                }.collect { (dualPoints, entries) ->
+                    _uiState.update {
+                        it.copy(
+                            bpDualPoints = dualPoints,
+                            bodyEntries = entries,
+                            vitalsData = emptyList(),
+                            bodyPartMeasurements = emptyList()
+                        )
+                    }
+                }
+            } else if (type == VitalsType.WEIGHT) {
+                val samplesFlow = bodySampleDao.getSamplesForMetricRangeFlow("WEIGHT", startDate, endDate)
+                val rollupFlow = rollupDao.getRange("WEIGHT", startDate, endDate)
+
+                combine(rollupFlow, samplesFlow) { rollups, samples ->
+                    val points = rollups.map { VitalsPoint(LocalDate.parse(it.localDate), it.value) }
+                    val entries = samples.map { s ->
+                        val date = LocalDate.parse(s.localDate)
+                        val timeInstant = Instant.ofEpochMilli(s.loggedAt)
+                        val timeStr = timeInstant.atZone(zone).toLocalTime().format(
+                            DateTimeFormatter.ofPattern("h:mm a"))
+                        val isImp = _uiState.value.userProfile?.unitSystem == UnitSystem.IMPERIAL
+                        val disp = if (isImp) {
+                            String.format(Locale.US, "%.1f lbs", s.value * 2.20462262)
+                        } else {
+                            String.format(Locale.US, "%.1f kg", s.value)
+                        }
+                        BodyEntryItem(
+                            id = s.id,
+                            date = date,
+                            timeStr = timeStr,
+                            primaryValue = s.value,
+                            displayValue = disp,
+                            subtitle = listOfNotNull(s.conditionTag, s.source.takeIf { it != "NEON" }).joinToString(" • ").ifBlank { null }
+                        )
+                    }.sortedByDescending { it.date }
+                    Pair(points, entries)
+                }.collect { (points, entries) ->
+                    _uiState.update {
+                        it.copy(
+                            vitalsData = points,
+                            bodyEntries = entries,
+                            bpDualPoints = emptyList(),
+                            bodyPartMeasurements = emptyList()
+                        )
+                    }
                 }
             } else {
                 rollupDao.getRange(type.rollupMetric, startDate, endDate).collect { list ->
@@ -420,7 +783,14 @@ class CodexViewModel @Inject constructor(
                             }
                         }
                         .map { VitalsPoint(LocalDate.parse(it.localDate), it.value) }
-                    _uiState.update { it.copy(vitalsData = points) }
+                    _uiState.update { 
+                        it.copy(
+                            vitalsData = points, 
+                            bodyPartMeasurements = emptyList(),
+                            bpDualPoints = emptyList(),
+                            bodyEntries = emptyList()
+                        ) 
+                    }
                 }
             }
         }
