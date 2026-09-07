@@ -15,11 +15,32 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 class GemmaClient(private val context: Context) {
+    companion object {
+        private var isNativeLibraryLoaded = false
+
+        fun loadNativeLibrary(): Boolean {
+            if (isNativeLibraryLoaded) return true
+            return try {
+                System.loadLibrary("litertlm_jni")
+                isNativeLibraryLoaded = true
+                Log.i("GemmaClient", "Successfully loaded litertlm_jni native library.")
+                true
+            } catch (t: Throwable) {
+                Log.w("GemmaClient", "Failed to load litertlm_jni native library: ${t.message}")
+                false
+            }
+        }
+    }
+
     private var engine: Engine? = null
     private var activeConversation: Conversation? = null
     private var isInitializing = false
     var lastInitError: String? = null
         private set
+
+    init {
+        loadNativeLibrary()
+    }
 
     val modelPath: String
         get() = findModelFile()?.absolutePath ?: File(context.getExternalFilesDir(null), "gemma.litertlm").absolutePath
@@ -40,7 +61,7 @@ class GemmaClient(private val context: Context) {
         return null
     }
 
-    fun isReady(): Boolean = engine != null
+    fun isReady(): Boolean = engine != null && lastInitError == null
 
     suspend fun warmup() {
         if (!isReady()) {
@@ -50,6 +71,12 @@ class GemmaClient(private val context: Context) {
 
     suspend fun initialize() = withContext(Dispatchers.IO) {
         if (engine != null || isInitializing) return@withContext
+
+        if (!loadNativeLibrary()) {
+            lastInitError = "NATIVE_LIB_LOAD_FAILED"
+            Log.w("GemmaClient", lastInitError!!)
+            return@withContext
+        }
 
         val modelFile = findModelFile()
         if (modelFile == null || !modelFile.exists()) {
@@ -80,10 +107,23 @@ class GemmaClient(private val context: Context) {
 
             val newEngine = Engine(engineConfig)
             newEngine.initialize()
+            
+            val samplerConfig = SamplerConfig(40, 0.9, 0.7, 42)
+            val conversationConfig = ConversationConfig(
+                null,
+                emptyList(),
+                emptyList(),
+                samplerConfig,
+                false,
+                emptyList()
+            )
+            val newConversation = newEngine.createConversation(conversationConfig)
+
             engine = newEngine
+            activeConversation = newConversation
             lastInitError = null
             Log.i("GemmaClient", "LiteRT-LM GPU Engine initialized successfully.")
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.w("GemmaClient", "LiteRT-LM GPU initialization failed. Falling back to CPU...", e)
             try {
                 val cpuBackend = Backend.CPU()
@@ -97,12 +137,27 @@ class GemmaClient(private val context: Context) {
                 )
                 val newEngine = Engine(engineConfig)
                 newEngine.initialize()
+
+                val samplerConfig = SamplerConfig(40, 0.9, 0.7, 42)
+                val conversationConfig = ConversationConfig(
+                    null,
+                    emptyList(),
+                    emptyList(),
+                    samplerConfig,
+                    false,
+                    emptyList()
+                )
+                val newConversation = newEngine.createConversation(conversationConfig)
+
                 engine = newEngine
+                activeConversation = newConversation
                 lastInitError = null
                 Log.i("GemmaClient", "LiteRT-LM CPU Engine initialized successfully.")
-            } catch (cpuEx: Exception) {
+            } catch (cpuEx: Throwable) {
                 lastInitError = "INIT_FAILED: ${cpuEx.localizedMessage}"
                 Log.e("GemmaClient", "LiteRT-LM CPU Engine initialization failed.", cpuEx)
+                engine = null
+                activeConversation = null
             }
         } finally {
             isInitializing = false
@@ -156,7 +211,12 @@ class GemmaClient(private val context: Context) {
             try {
                 activeConversation?.close()
             } catch (_: Throwable) {}
+            try {
+                engine?.close()
+            } catch (_: Throwable) {}
             activeConversation = null
+            engine = null
+            lastInitError = "INFERENCE_FAILED: ${e.localizedMessage}"
             AiResult.Failure("GEMMA_GENERATE: ${e.localizedMessage}", e)
         }
     }
