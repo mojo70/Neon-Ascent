@@ -174,6 +174,9 @@ class DashboardViewModel @Inject constructor(
     val briefBody: StateFlow<String?> = briefPrefs.lastBriefBody
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    val briefCardBody: StateFlow<String?> = briefPrefs.lastBriefCardBody
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
     private val _dopamineEvent = MutableStateFlow<com.neon.ascent.core.common.DopamineEvent?>(null)
 
     init {

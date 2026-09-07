@@ -24,6 +24,8 @@ class CloudGeminiClient @Inject constructor() {
         }
     } else null
 
+    fun isReady(): Boolean = isApiKeyValid && model != null
+
     suspend fun generate(prompt: String): AiResult = withContext(Dispatchers.IO) {
         if (!isApiKeyValid || model == null) {
             return@withContext AiResult.Failure("NO_API_KEY")

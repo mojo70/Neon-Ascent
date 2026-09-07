@@ -58,9 +58,10 @@ class NeuralBriefManager @Inject constructor(
     override fun showNeuralBrief(
         title: String,
         content: String,
-        actions: List<BriefService.BriefAction>
+        actions: List<BriefService.BriefAction>,
+        notificationId: Int
     ) {
-        val notificationId = BRIEF_NOTIFICATION_ID
+        val targetId = if (notificationId != 0) notificationId else BriefService.BRIEF_NOTIFICATION_ID_AM
 
         // Deep link to the Dashboard
         val dashboardIntent = deepLinkHelper.createDashboardIntent().apply {
@@ -92,24 +93,21 @@ class NeuralBriefManager @Inject constructor(
             val pendingIntent = when (action.actionName) {
                 BriefService.ACTION_OPEN_DECK -> {
                     val intent = deepLinkHelper.createDashboardIntent()
-                    PendingIntent.getActivity(context, notificationId + index, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                    PendingIntent.getActivity(context, targetId + index, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
                 }
                 BriefService.ACTION_LOG_COMPLETE -> {
-                    // Use a generic log deep link or specific task if available in 'type'
                     val intent = deepLinkHelper.createTaskCompletionIntent(action.type.ifBlank { "generic" })
-                    // Set component to ensure it opens the app's main activity if it's a deep link
                     intent.setPackage(context.packageName)
-                    PendingIntent.getActivity(context, notificationId + index, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                    PendingIntent.getActivity(context, targetId + index, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
                 }
                 BriefService.ACTION_FORGE_DIRECTIVE -> {
                     val intent = deepLinkHelper.createForgeIntent(
                         title = action.type.takeIf { it.isNotBlank() },
                         description = "Suggested from Neural Brief."
                     )
-                    PendingIntent.getActivity(context, notificationId + index, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                    PendingIntent.getActivity(context, targetId + index, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
                 }
                 BriefService.ACTION_SKIP_REFLECT -> {
-                    // Deep link to a reflection/journaling UI
                     val intent = Intent(
                         Intent.ACTION_VIEW,
                         android.net.Uri.parse("neon-ascent://reflection?source=brief&type=${action.type}"),
@@ -118,17 +116,16 @@ class NeuralBriefManager @Inject constructor(
                             Class.forName(it.className) 
                         } ?: return@forEachIndexed
                     )
-                    PendingIntent.getActivity(context, notificationId + index, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                    PendingIntent.getActivity(context, targetId + index, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
                 }
                 else -> {
-                    // Snooze and Skip+Reflect go through the BroadcastReceiver
                     val intent = Intent(context, NeuralPingReceiver::class.java).apply {
                         this.action = action.actionName
-                        putExtra(NeuralPingReceiver.EXTRA_NOTIFICATION_ID, notificationId)
+                        putExtra(NeuralPingReceiver.EXTRA_NOTIFICATION_ID, targetId)
                         putExtra(EXTRA_ACTION_TYPE, action.type)
                     }
                     PendingIntent.getBroadcast(
-                        context, notificationId + index + 1, intent,
+                        context, targetId + index + 1, intent,
                         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                     )
                 }
@@ -137,7 +134,7 @@ class NeuralBriefManager @Inject constructor(
         }
 
         with(NotificationManagerCompat.from(context)) {
-            notify(notificationId, builder.build())
+            notify(targetId, builder.build())
         }
     }
 

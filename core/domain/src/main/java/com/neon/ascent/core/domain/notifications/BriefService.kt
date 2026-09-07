@@ -4,7 +4,8 @@ interface BriefService {
     fun showNeuralBrief(
         title: String,
         content: String,
-        actions: List<BriefAction> = emptyList()
+        actions: List<BriefAction> = emptyList(),
+        notificationId: Int = BRIEF_NOTIFICATION_ID_AM
     )
 
     data class BriefAction(
@@ -19,5 +20,8 @@ interface BriefService {
         const val ACTION_OPEN_DECK = "com.neon.ascent.ACTION_OPEN_DECK"
         const val ACTION_SNOOZE = "com.neon.ascent.ACTION_SNOOZE"
         const val ACTION_SKIP_REFLECT = "com.neon.ascent.ACTION_SKIP_REFLECT"
+
+        const val BRIEF_NOTIFICATION_ID_AM = 8888
+        const val BRIEF_NOTIFICATION_ID_PM = 8889
     }
 }

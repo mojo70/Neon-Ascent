@@ -79,15 +79,6 @@ class CoreDashboardViewModel @Inject constructor(
     init {
         checkFirstEntry()
         generateDummyLogs()
-        initializeNotificationProtocols()
-    }
-
-    private fun initializeNotificationProtocols() {
-        viewModelScope.launch {
-            if (hasNotificationPermission()) {
-                notificationScheduler.enqueueDailyNeuralBrief()
-            }
-        }
     }
 
     private fun hasNotificationPermission(): Boolean {

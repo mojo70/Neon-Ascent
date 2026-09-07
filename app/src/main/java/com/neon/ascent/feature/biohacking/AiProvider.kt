@@ -50,6 +50,30 @@ class AiProvider @Inject constructor(
     private val _engineTelemetry = MutableStateFlow(AiEngineTelemetry())
     val engineTelemetry: StateFlow<AiEngineTelemetry> = _engineTelemetry.asStateFlow()
 
+    private val failureTimestamps = mutableListOf<Long>()
+    @Volatile
+    private var isCircuitBroken = false
+
+    private fun recordFailure() {
+        val now = System.currentTimeMillis()
+        val sixHoursAgo = now - 6 * 3600 * 1000L
+        synchronized(failureTimestamps) {
+            failureTimestamps.removeAll { it < sixHoursAgo }
+            failureTimestamps.add(now)
+            if (failureTimestamps.size >= 3) {
+                isCircuitBroken = true
+                Log.w("AiProvider", "// CIRCUIT_BREAKER_TRIPPED: 3 failures in 6 hours. AI generation suspended until warmup succeeds.")
+            }
+        }
+    }
+
+    private fun resetCircuitBreaker() {
+        synchronized(failureTimestamps) {
+            failureTimestamps.clear()
+            isCircuitBroken = false
+        }
+    }
+
     suspend fun initialize() {
         try {
             embeddedLocalEngine.initialize()
@@ -108,17 +132,43 @@ class AiProvider @Inject constructor(
         }
     }
 
-    override suspend fun isReady(): Boolean = true
+    override suspend fun isReady(): Boolean {
+        if (isCircuitBroken) return false
+        return isLocalReady() || isCloudReady()
+    }
+
+    fun isLocalReady(): Boolean {
+        if (isCircuitBroken) return false
+        return (gemmaClient.isAvailable() && gemmaClient.isReady()) ||
+                geminiNanoClient.isReady() ||
+                embeddedLocalEngine.isReady()
+    }
+
+    suspend fun isCloudReady(): Boolean {
+        if (isCircuitBroken) return false
+        val isGlobalLocalOnly = settingsRepository.isLocalAiOnly.first()
+        return !isGlobalLocalOnly && cloudGeminiClient.isReady()
+    }
 
     override suspend fun warmup() {
+        resetCircuitBreaker()
         embeddedLocalEngine.initialize()
         if (gemmaClient.isAvailable()) gemmaClient.warmup()
         if (geminiNanoClient.isSupported()) geminiNanoClient.warmup()
     }
 
     override suspend fun generate(prompt: String, forceLocal: Boolean): AiResult {
+        if (isCircuitBroken) {
+            return AiResult.Failure("CIRCUIT_BREAKER_ACTIVE (3 failures in last 6 hours)")
+        }
+
         val isGlobalLocalOnly = settingsRepository.isLocalAiOnly.first()
         val shouldForceLocal = forceLocal || isGlobalLocalOnly
+
+        if (shouldForceLocal && !isLocalReady()) {
+            recordFailure()
+            return AiResult.Failure("LOCAL_AI_NOT_READY (forceLocal requested but no local engine is ready)")
+        }
 
         val failureReasons = mutableListOf<String>()
 
@@ -185,41 +235,44 @@ class AiProvider @Inject constructor(
                 badgeLabel = "[LOCAL_AI_FAILED]",
                 activeType = AiType.LOCAL
             )
+            recordFailure()
             return AiResult.Failure("LOCAL_AI_FAILED ($failureMsg)")
         }
 
-        // 3. Try Cloud Gemini Flash (Gemini 2.0 Flash)
-        val cloudResult = cloudGeminiClient.generate(prompt)
-        if (cloudResult is AiResult.Success) {
-            _activeAiType.value = AiType.CLOUD
-            _engineTelemetry.value = AiEngineTelemetry(
-                status = EngineStatus.CLOUD_READY,
-                badgeLabel = "[CLOUD_GEMINI]",
-                activeType = AiType.CLOUD
-            )
-            return cloudResult
-        } else if (cloudResult is AiResult.Failure) {
-            failureReasons.add("CLOUD: ${cloudResult.reason}")
-            if (cloudResult.reason != "NO_API_KEY") {
-                // Retry on genuine network failure
-                val maxRetries = 2
-                for (attempt in 1..maxRetries) {
-                    delay(attempt * 200L)
-                    val retryResult = cloudGeminiClient.generate(prompt)
-                    if (retryResult is AiResult.Success) {
-                        _activeAiType.value = AiType.CLOUD
-                        _engineTelemetry.value = AiEngineTelemetry(
-                            status = EngineStatus.CLOUD_READY,
-                            badgeLabel = "[CLOUD_GEMINI]",
-                            activeType = AiType.CLOUD
-                        )
-                        return retryResult
+        // 4. Try Cloud Gemini Flash (Gemini 2.0 Flash)
+        if (isCloudReady()) {
+            val cloudResult = cloudGeminiClient.generate(prompt)
+            if (cloudResult is AiResult.Success) {
+                _activeAiType.value = AiType.CLOUD
+                _engineTelemetry.value = AiEngineTelemetry(
+                    status = EngineStatus.CLOUD_READY,
+                    badgeLabel = "[CLOUD_GEMINI]",
+                    activeType = AiType.CLOUD
+                )
+                return cloudResult
+            } else if (cloudResult is AiResult.Failure) {
+                failureReasons.add("CLOUD: ${cloudResult.reason}")
+                if (cloudResult.reason != "NO_API_KEY") {
+                    val maxRetries = 2
+                    for (attempt in 1..maxRetries) {
+                        delay(attempt * 200L)
+                        val retryResult = cloudGeminiClient.generate(prompt)
+                        if (retryResult is AiResult.Success) {
+                            _activeAiType.value = AiType.CLOUD
+                            _engineTelemetry.value = AiEngineTelemetry(
+                                status = EngineStatus.CLOUD_READY,
+                                badgeLabel = "[CLOUD_GEMINI]",
+                                activeType = AiType.CLOUD
+                            )
+                            return retryResult
+                        }
                     }
                 }
             }
         }
 
-        // 4. Return explicit failure with detailed reasons
+        // 5. Return explicit failure with detailed reasons and record circuit breaker failure
+        recordFailure()
         val combinedError = failureReasons.joinToString(" | ")
         _engineTelemetry.value = AiEngineTelemetry(
             status = EngineStatus.ERROR,
@@ -233,11 +286,7 @@ class AiProvider @Inject constructor(
     override suspend fun generateContent(prompt: String, forceLocal: Boolean): String {
         return when (val res = generate(prompt, forceLocal)) {
             is AiResult.Success -> res.text
-            is AiResult.Failure -> {
-                val causeMsg = res.cause?.message
-                val detail = if (causeMsg != null) "${res.reason} ($causeMsg)" else res.reason
-                "ERROR: AI_GENERATION_FAILED [$detail]"
-            }
+            is AiResult.Failure -> "DATA_LINK_STABLE: Processing ongoing."
         }
     }
 

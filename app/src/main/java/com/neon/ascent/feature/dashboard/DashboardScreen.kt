@@ -241,7 +241,7 @@ fun NeuralBriefCard(
                         modifier = Modifier.padding(bottom = 14.dp)
                     )
                     Text(
-                        text = "Insight: $insight",
+                        text = insight.ifBlank { "Pulse sends after wake + 20m." },
                         color = theme.ink.copy(alpha = 0.8f),
                         fontSize = 14.sp,
                         fontFamily = FontFamily.Monospace,
@@ -508,6 +508,7 @@ fun DashboardScreen(
     val state by viewModel.uiState.collectAsState()
     val briefTitle by viewModel.briefTitle.collectAsState()
     val briefBody by viewModel.briefBody.collectAsState()
+    val briefCardBody by viewModel.briefCardBody.collectAsState()
     val liveMetrics by healthViewModel.liveMetrics.collectAsState()
     val vitalsSnapshot by healthViewModel.vitalsSnapshot.collectAsState()
     val neonCharge by viewModel.neonCharge.collectAsState()
@@ -564,13 +565,13 @@ fun DashboardScreen(
             Spacer(Modifier.height(24.dp))
 
             NeuralBriefCard(
-                insight = if (briefTitle != null) "$briefTitle // $briefBody" else "Pulse sends after wake or 07:00.",
+                insight = briefCardBody ?: if (briefTitle != null) "$briefTitle\n$briefBody" else "Pulse sends after wake + 20m.",
                 neuralLoad = neuralLoad,
                 primaryActionTask = state.todayPulses.firstOrNull(),
                 onActionClick = { id -> viewModel.completePulse(id) },
                 onWorkoutClick = { id -> onNavigateToWorkout(id) },
                 systemColor = systemColor,
-                briefActive = briefTitle != null
+                briefActive = briefTitle != null || briefCardBody != null
             )
 
             Spacer(Modifier.height(24.dp))

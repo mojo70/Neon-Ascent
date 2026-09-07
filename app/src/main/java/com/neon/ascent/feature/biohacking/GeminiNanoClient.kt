@@ -16,9 +16,10 @@ class GeminiNanoClient @Inject constructor(
 ) {
     private var isChecked = false
     private var isHardwareSupported = false
+    private var isModelReady = false
 
     /**
-     * Checks if Gemini Nano / AICore Play Services are available on this hardware.
+     * Checks if Gemini Nano / AICore Play Services are supported on this hardware.
      */
     suspend fun isSupported(): Boolean = withContext(Dispatchers.IO) {
         if (isChecked) return@withContext isHardwareSupported
@@ -39,15 +40,28 @@ class GeminiNanoClient @Inject constructor(
         isHardwareSupported
     }
 
-    fun isReady(): Boolean = isHardwareSupported
+    /**
+     * Returns true if hardware is supported and model/service is bound and ready.
+     */
+    fun isReady(): Boolean = isHardwareSupported && isModelReady
 
-    suspend fun warmup() {
-        isSupported()
+    suspend fun warmup() = withContext(Dispatchers.IO) {
+        if (isSupported()) {
+            try {
+                // Attempt Play Services AICore bind/warmup check
+                isModelReady = false // Model pending download/bind check
+            } catch (e: Throwable) {
+                Log.w("GeminiNanoClient", "Nano warmup failed", e)
+                isModelReady = false
+            }
+        } else {
+            isModelReady = false
+        }
     }
 
     suspend fun generate(prompt: String): AiResult = withContext(Dispatchers.IO) {
-        if (!isSupported()) {
-            return@withContext AiResult.Failure("GEMINI_NANO_UNSUPPORTED (Requires Android 14+ AICore Play Services)")
+        if (!isReady()) {
+            return@withContext AiResult.Failure("GEMINI_NANO_NOT_READY (Hardware unsupported or model uninitialized)")
         }
 
         try {

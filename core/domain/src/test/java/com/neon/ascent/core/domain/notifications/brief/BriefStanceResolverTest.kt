@@ -1,69 +1,113 @@
 package com.neon.ascent.core.domain.notifications.brief
 
-import com.neon.ascent.core.domain.notifications.models.BriefFacts
-import com.neon.ascent.core.domain.notifications.models.BriefStance
-import com.neon.ascent.core.domain.workout.models.RecoveryScore
+import com.neon.ascent.core.domain.notifications.models.*
 import com.neon.ascent.core.domain.workout.models.RecoveryStatus
-import com.neon.ascent.core.domain.workout.models.WorkoutSession
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import java.time.Instant
+import java.time.LocalTime
 
 class BriefStanceResolverTest {
 
-    private fun createFacts(
-        status: RecoveryStatus,
-        hrv: Double? = null,
-        hrvMean: Double? = null,
-        hasSession: Boolean = true
-    ): BriefFacts {
-        return BriefFacts(
-            lastSession = if (hasSession) WorkoutSession(id = "test", date = Instant.now()) else null,
-            topSets = emptyList(),
-            recoveryScore = RecoveryScore(
-                totalScore = 80,
-                status = status,
-                rirTrend = 1.0f,
-                avgJointHealth = 1.0f,
-                stagnationCount = 0,
-                avgRpe = 5.0f,
-                plainLanguageSummary = ""
-            ),
-            nextDayType = null,
-            hrvCurrent = hrv,
-            hrvMean7d = hrvMean,
-            sleepHoursCurrent = 8.0,
-            sleepHoursMean7d = 8.0,
-            rhrCurrent = 60.0,
-            rhrMean7d = 60.0
-        )
-    }
-
     @Test
-    fun `HRV drop triggers HOLD even if status is OPTIMAL`() {
-        val facts = createFacts(RecoveryStatus.OPTIMAL, hrv = 26.0, hrvMean = 41.0)
+    fun `6h12 vs need 7h20 + SEED 68 HOLD + C-day resolves to HOLD`() {
+        val facts = BriefFacts(
+            slot = BriefSlot.AM,
+            lastSession = BriefSessionDetails(
+                id = "s1",
+                date = Instant.now(),
+                dayType = "C",
+                protocolName = "CYBERCRAPP",
+                topSets = listOf(TopSet("Squat", 320f, 5))
+            ),
+            vitals = BriefVitals(
+                sleepMinutes = 372, // 6h 12m
+                needMin = 440,     // 7h 20m
+                sanctumScore = 61,
+                seed = 68,
+                seedBand = "HOLD"
+            ),
+            nextSession = BriefNextSession(
+                scheduled = true,
+                dayType = "C",
+                isHeavyOrC = true
+            )
+        )
+
         val stance = BriefStanceResolver.resolve(facts)
         assertEquals(BriefStance.HOLD, stance)
+
+        val copy = AmTemplateWriter.write(facts, stance)
+        assertEquals(BriefStance.HOLD, copy.stance)
+        assertEquals("SLEEP 6h12 / 7h20 · SEED 68 HOLD", copy.shadeHeadline)
+        assertEquals("320 squat still on the log. Today is C — keep it easy.", copy.shadeBody)
     }
 
     @Test
-    fun `Good HRV and status OPTIMAL triggers PUSH`() {
-        val facts = createFacts(RecoveryStatus.OPTIMAL, hrv = 45.0, hrvMean = 41.0)
+    fun `SEED 84 CLEAR + missed Pull + before 1600 + week short resolves to PICKUP and names Pull`() {
+        val facts = BriefFacts(
+            slot = BriefSlot.AM,
+            vitals = BriefVitals(
+                sleepMinutes = 440,
+                needMin = 440,
+                sanctumScore = 82,
+                seed = 84,
+                seedBand = "CLEAR"
+            ),
+            nextSession = BriefNextSession(
+                scheduled = true,
+                dayType = "Pull"
+            ),
+            isWeekShort = true
+        )
+
+        val stance = BriefStanceResolver.resolve(facts, nowLocalTime = LocalTime.of(10, 0))
+        assertEquals(BriefStance.PICKUP, stance)
+
+        val copy = AmTemplateWriter.write(facts, stance)
+        assertEquals("Pull day is outstanding. Window is open to grab it today.", copy.shadeBody)
+    }
+
+    @Test
+    fun `PM on track CHARGE 70 SEED 79 has shadeAllowed false`() {
+        val facts = BriefFacts(
+            slot = BriefSlot.PM,
+            vitals = BriefVitals(
+                sleepMinutes = 440,
+                needMin = 440,
+                seed = 79,
+                chargeNow = 70
+            ),
+            schedule = BriefSchedule(
+                lightsOut = LocalTime.of(22, 30)
+            )
+        )
+
         val stance = BriefStanceResolver.resolve(facts)
-        assertEquals(BriefStance.PUSH, stance)
+        val copy = PmTemplateWriter.write(facts, stance)
+
+        assertEquals(false, copy.shadeAllowed)
+        assertEquals("LIGHTS 22:30 for 7h20 · CHARGE 70", copy.shadeHeadline)
     }
 
     @Test
-    fun `RecoveryStatus DELOAD triggers RECOVER`() {
-        val facts = createFacts(RecoveryStatus.DELOAD)
-        val stance = BriefStanceResolver.resolve(facts)
-        assertEquals(BriefStance.RECOVER, stance)
-    }
+    fun `empty night + empty session resolves to MISSING_DATA with no invented SANCTUM`() {
+        val facts = BriefFacts(
+            slot = BriefSlot.AM,
+            lastSession = null,
+            vitals = BriefVitals(
+                sleepMinutes = null,
+                sanctumScore = null
+            )
+        )
 
-    @Test
-    fun `No session and no biometrics triggers MISSING_DATA`() {
-        val facts = createFacts(RecoveryStatus.OPTIMAL, hasSession = false)
         val stance = BriefStanceResolver.resolve(facts)
         assertEquals(BriefStance.MISSING_DATA, stance)
+        assertNull(facts.vitals.sanctumScore)
+
+        val copy = AmTemplateWriter.write(facts, stance)
+        assertEquals("NEURAL BRIEF · MISSING_DATA", copy.shadeHeadline)
+        assertEquals("No overnight telemetry recorded. Open DECK to sync baseline.", copy.shadeBody)
     }
 }

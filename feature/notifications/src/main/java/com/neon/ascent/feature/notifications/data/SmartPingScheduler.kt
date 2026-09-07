@@ -50,33 +50,69 @@ class SmartPingScheduler @Inject constructor(
 
     suspend fun scheduleNextAdaptiveBrief() {
         val now = LocalDateTime.now()
-        val adaptiveEnabled = briefPrefs.adaptiveWakeEnabled.first()
+        val zoneId = ZoneId.systemDefault()
+
         val quietEndStr = briefPrefs.quietHoursEnd.first()
-        val quietEnd = LocalTime.parse(quietEndStr)
+        val quietEnd = try { LocalTime.parse(quietEndStr) } catch (_: Exception) { LocalTime.of(7, 0) }
 
-        var targetTime = quietEnd
+        val targetWdStr = briefPrefs.targetWakeWd.first()
+        val targetWeStr = briefPrefs.targetWakeWe.first()
 
-        if (adaptiveEnabled) {
-            val healthData = healthManager.readRecentData(1)
-            val lastSleep = healthData.sleep.maxByOrNull { it.endTime }
-            if (lastSleep != null) {
-                val wakeTime = lastSleep.endTime.atZone(ZoneId.systemDefault()).toLocalTime()
-                val adaptiveTime = wakeTime.plusMinutes(20)
-                if (adaptiveTime.isAfter(quietEnd)) {
-                    targetTime = adaptiveTime
-                }
+        val targetWd = targetWdStr?.let { try { LocalTime.parse(it) } catch (_: Exception) { null } }
+        val targetWe = targetWeStr?.let { try { LocalTime.parse(it) } catch (_: Exception) { null } }
+
+        val pmMode = briefPrefs.pulsePmMode.first()
+
+        // Calculate Next AM Trigger Time
+        val todayIsWeekend = now.dayOfWeek == DayOfWeek.SATURDAY || now.dayOfWeek == DayOfWeek.SUNDAY
+        val defaultWake = if (todayIsWeekend) (targetWe ?: LocalTime.of(8, 0)) else (targetWd ?: LocalTime.of(7, 0))
+
+        var amTargetTime = defaultWake.plusMinutes(20)
+        if (amTargetTime.isBefore(quietEnd)) {
+            amTargetTime = quietEnd
+        }
+
+        val healthData = try { healthManager.readRecentData(1) } catch (_: Exception) { null }
+        val lastSleep = healthData?.sleep?.maxByOrNull { it.endTime }
+        if (lastSleep != null) {
+            val sleepEndTime = lastSleep.endTime.atZone(zoneId).toLocalTime()
+            val adaptiveAm = sleepEndTime.plusMinutes(20)
+            if (adaptiveAm.isAfter(amTargetTime)) {
+                amTargetTime = adaptiveAm
             }
         }
 
-        var targetDateTime = now.with(targetTime)
-        if (targetDateTime.isBefore(now)) {
-            targetDateTime = targetDateTime.plusDays(1)
+        var nextAmDateTime = now.with(amTargetTime)
+        if (nextAmDateTime.isBefore(now)) {
+            nextAmDateTime = nextAmDateTime.plusDays(1)
         }
 
-        val delay = Duration.between(now, targetDateTime).toMillis()
+        // Calculate Next PM Trigger Time
+        val lightsOut = LocalTime.of(22, 30)
+        val pmTargetTime = when (pmMode) {
+            "WEEKDAY_CLOCK" -> {
+                val clockTime = lightsOut.minusMinutes(90)
+                clockTime.coerceIn(LocalTime.of(19, 30), LocalTime.of(21, 30))
+            }
+            "CUSTOM" -> {
+                val customTimeStr = briefPrefs.pulsePmCustomTime.first()
+                try { LocalTime.parse(customTimeStr) } catch (_: Exception) { LocalTime.of(20, 30) }
+            }
+            else -> { // NEED_ONLY
+                lightsOut.minusMinutes(90)
+            }
+        }
+
+        var nextPmDateTime = now.with(pmTargetTime)
+        if (nextPmDateTime.isBefore(now)) {
+            nextPmDateTime = nextPmDateTime.plusDays(1)
+        }
+
+        val nextTriggerDateTime = if (nextAmDateTime.isBefore(nextPmDateTime)) nextAmDateTime else nextPmDateTime
+        val delayMs = Duration.between(now, nextTriggerDateTime).toMillis().coerceAtLeast(1000L)
 
         val request = OneTimeWorkRequestBuilder<NeuralBriefWorker>()
-            .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+            .setInitialDelay(delayMs, TimeUnit.MILLISECONDS)
             .addTag("adaptive_brief")
             .build()
 

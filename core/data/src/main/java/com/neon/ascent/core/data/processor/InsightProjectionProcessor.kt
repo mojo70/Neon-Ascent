@@ -99,7 +99,7 @@ class InsightProjectionProcessor @Inject constructor(
         actions: List<ActionEventEntity>,
         ruleFindings: List<String>
     ): String {
-        val fallback = "DATA_LINK_STABLE: System processing ongoing. " + (ruleFindings.firstOrNull() ?: "Maintain protocol.")
+        val fallback = "DATA_LINK_STABLE: " + (ruleFindings.firstOrNull() ?: "Maintain protocol.")
         
         if (!aiCore.isReady()) {
             Log.d("InsightProcessor", "AI Core not ready, using heuristic fallback.")
@@ -124,7 +124,15 @@ class InsightProjectionProcessor @Inject constructor(
         prompt.append("\nInsight Protocol:")
 
         return when (val result = aiCore.generate(prompt.toString(), forceLocal = true)) {
-            is AiResult.Success -> result.text
+            is AiResult.Success -> {
+                val text = result.text.trim()
+                if (text.isNotBlank() && !text.startsWith("ERROR") && !text.contains("MALFUNCTION")) {
+                    text
+                } else {
+                    Log.w("InsightProcessor", "AI response contained error string, returning fallback.")
+                    fallback
+                }
+            }
             is AiResult.Failure -> {
                 Log.w("InsightProcessor", "AI Synthesis failed: ${result.reason}")
                 fallback

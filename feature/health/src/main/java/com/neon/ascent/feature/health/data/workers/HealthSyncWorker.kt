@@ -16,7 +16,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import com.neon.ascent.feature.health.R
 import com.neon.ascent.core.data.repository.BodyLogRepository
 import java.time.Duration
 import java.time.Instant
@@ -42,7 +41,7 @@ class HealthSyncWorker @AssistedInject constructor(
             if (notificationManager.getNotificationChannel(channelId) == null) {
                 val channel = android.app.NotificationChannel(
                     channelId,
-                    "Health Data Sync",
+                    "Syncing health data",
                     android.app.NotificationManager.IMPORTANCE_MIN
                 ).apply {
                     description = "Silent background telemetry synchronization."
@@ -56,8 +55,8 @@ class HealthSyncWorker @AssistedInject constructor(
 
         val notification = NotificationCompat.Builder(applicationContext, channelId)
             .setSmallIcon(android.R.drawable.stat_notify_sync)
-            .setContentTitle("Neural Uplink Active")
-            .setContentText("Syncing biometric data...")
+            .setContentTitle("Syncing health data")
+            .setContentText("Background telemetry synchronization")
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setSilent(true)

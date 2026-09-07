@@ -13,8 +13,11 @@ import com.neon.ascent.core.data.datastore.BriefPreferencesDataStore
 import com.neon.ascent.feature.notifications.data.SmartPingScheduler
 import com.neon.ascent.core.data.notifications.BriefFactsBuilder
 import com.neon.ascent.core.domain.notifications.BriefService
+import com.neon.ascent.core.domain.notifications.brief.AmTemplateWriter
 import com.neon.ascent.core.domain.notifications.brief.BriefStanceResolver
+import com.neon.ascent.core.domain.notifications.brief.PmTemplateWriter
 import com.neon.ascent.core.domain.notifications.brief.TemplateCopyWriter
+import com.neon.ascent.core.domain.notifications.models.BriefSlot
 import com.neon.ascent.core.domain.notifications.models.BriefStance
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -22,6 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.LocalTime
 import java.util.concurrent.TimeUnit
 
 /**
@@ -42,8 +46,10 @@ class NeuralBriefWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         Log.d(TAG, "// NEURAL_BRIEF_WORKER_START")
         return try {
-            // 1. Build Facts
-            val facts = factsBuilder.build()
+            // 1. Determine Slot & Build Facts
+            val currentHour = LocalTime.now().hour
+            val slot = if (currentHour < 15) BriefSlot.AM else BriefSlot.PM
+            val facts = factsBuilder.build(slot)
             val today = LocalDate.now().toString()
             val factsHash = facts.factsHash
 
@@ -53,26 +59,29 @@ class NeuralBriefWorker @AssistedInject constructor(
 
             if (lastDate == today && lastHash == factsHash) {
                 Log.i(TAG, "// SKIP: Pulse already delivered for today with same facts.")
-                // Still schedule next if this was a timer fire
                 scheduleNextIfPossible()
                 return Result.success()
             }
 
-            // 3. Resolve Stance and Write Copy
+            // 3. Resolve Stance and Write Slot Copy
             val stance = BriefStanceResolver.resolve(facts)
-            var copy = TemplateCopyWriter.write(facts, stance)
+            var copy = if (slot == BriefSlot.AM) {
+                AmTemplateWriter.write(facts, stance)
+            } else {
+                PmTemplateWriter.write(facts, stance)
+            }
 
             // 4. AI Polish (P1)
             if (aiCore.isReady()) {
-                val polished = runAiPolish(facts, copy.body)
+                val polished = runAiPolish(facts, copy.shadeBody)
                 if (polished != null) {
-                    copy = copy.copy(body = polished)
+                    copy = copy.copy(shadeBody = polished)
                 }
             }
 
-            Log.d(TAG, "// STANCE: ${stance.name} | Headline: ${copy.headline}")
+            Log.d(TAG, "// SLOT: ${slot.name} | STANCE: ${stance.name} | Headline: ${copy.shadeHeadline}")
 
-            // 5. Foreground Check
+            // 5. Foreground & Delivery Check
             val isForeground = try {
                 withContext(Dispatchers.Main) {
                     ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
@@ -81,21 +90,36 @@ class NeuralBriefWorker @AssistedInject constructor(
                 false
             }
 
-            if (isForeground) {
+            val notificationId = if (slot == BriefSlot.AM) BriefService.BRIEF_NOTIFICATION_ID_AM else BriefService.BRIEF_NOTIFICATION_ID_PM
+
+            if (!copy.shadeAllowed) {
+                Log.i(TAG, "// SHADE_NOT_ALLOWED: Update card only, suppressing notification.")
+            } else if (isForeground) {
                 Log.i(TAG, "// APP_IN_FOREGROUND: Skipping notification, updating card holder.")
             } else {
                 if (hasNotificationPermission()) {
-                    val actions = resolveActions(stance)
+                    val briefActions = copy.actions.map { action ->
+                        BriefService.BriefAction(action.label, action.actionName, action.type)
+                    }
                     briefService.showNeuralBrief(
-                        title = copy.headline,
-                        content = copy.body,
-                        actions = actions
+                        title = copy.shadeHeadline,
+                        content = copy.shadeBody,
+                        actions = briefActions,
+                        notificationId = notificationId
                     )
                 }
             }
 
             // 6. Update Prefs
-            briefPrefs.updateLastBrief(today, factsHash, copy.headline, copy.body)
+            briefPrefs.updateLastBrief(
+                date = today,
+                slot = slot.name,
+                factsHash = factsHash,
+                title = copy.shadeHeadline,
+                body = copy.shadeBody,
+                cardBody = copy.cardBody,
+                leadSessionId = facts.lastSession?.id
+            )
 
             // 7. Schedule Next Day (P1)
             scheduleNextIfPossible()
@@ -106,25 +130,6 @@ class NeuralBriefWorker @AssistedInject constructor(
             Log.e(TAG, "// CRITICAL_FAILURE: Neural Brief cycle failed", e)
             if (runAttemptCount < 3) Result.retry() else Result.failure()
         }
-    }
-
-    private fun resolveActions(stance: BriefStance): List<BriefService.BriefAction> {
-        val actions = mutableListOf<BriefService.BriefAction>()
-        when (stance) {
-            BriefStance.PUSH -> {
-                actions.add(BriefService.BriefAction("OPEN OPS", BriefService.ACTION_OPEN_DECK, "DASHBOARD"))
-            }
-            BriefStance.RECOVER -> {
-                actions.add(BriefService.BriefAction("REVIEW DELOAD", BriefService.ACTION_OPEN_DECK, "DELOAD"))
-            }
-            BriefStance.HOLD -> {
-                actions.add(BriefService.BriefAction("OPEN DECK", BriefService.ACTION_OPEN_DECK, "DASHBOARD"))
-            }
-            BriefStance.MISSING_DATA -> {
-                actions.add(BriefService.BriefAction("SYNC DECK", BriefService.ACTION_OPEN_DECK, "DASHBOARD"))
-            }
-        }
-        return actions
     }
 
     private suspend fun runAiPolish(facts: com.neon.ascent.core.domain.notifications.models.BriefFacts, templateDraft: String): String? {
@@ -150,7 +155,7 @@ class NeuralBriefWorker @AssistedInject constructor(
         return when (val result = aiCore.generate(prompt, forceLocal = true)) {
             is AiResult.Success -> {
                 val polished = result.text
-                if (validatePolish(polished, facts, templateDraft)) {
+                if (validatePolish(polished, templateDraft)) {
                     polished
                 } else {
                     Log.w(TAG, "// AI_POLISH_VALIDATION_FAILED: Numbers mismatched.")
@@ -161,13 +166,13 @@ class NeuralBriefWorker @AssistedInject constructor(
         }
     }
 
-    private fun validatePolish(polished: String, facts: com.neon.ascent.core.domain.notifications.models.BriefFacts, draft: String): Boolean {
-        // Extract all numbers from facts and draft
-        val expectedNumbers = extractNumbers(Gson().toJson(facts) + draft)
+    private fun validatePolish(polished: String, draft: String): Boolean {
+        if (polished.isBlank() || polished.contains("ERROR") || polished.contains("MALFUNCTION")) return false
+
+        val draftNumbers = extractNumbers(draft)
         val polishedNumbers = extractNumbers(polished)
         
-        // Every number in polished must appear in expected
-        return polishedNumbers.all { it in expectedNumbers } && !polished.contains("ERROR")
+        return draftNumbers.all { it in polishedNumbers }
     }
 
     private fun extractNumbers(text: String): Set<String> {

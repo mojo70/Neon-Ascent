@@ -2,14 +2,16 @@ package com.neon.ascent.feature.notifications.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.neon.ascent.core.data.datastore.BriefPreferencesDataStore
+import com.neon.ascent.core.data.notifications.BriefFactsBuilder
 import com.neon.ascent.core.domain.notifications.BriefService
+import com.neon.ascent.core.domain.notifications.brief.AmTemplateWriter
+import com.neon.ascent.core.domain.notifications.brief.BriefStanceResolver
+import com.neon.ascent.core.domain.notifications.brief.PmTemplateWriter
+import com.neon.ascent.core.domain.notifications.models.BriefSlot
 import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.feature.notifications.data.NeuralPingManager
 import com.neon.ascent.feature.notifications.data.SmartPingScheduler
-import com.neon.ascent.core.data.datastore.BriefPreferencesDataStore
-import com.neon.ascent.core.data.notifications.BriefFactsBuilder
-import com.neon.ascent.core.domain.notifications.brief.BriefStanceResolver
-import com.neon.ascent.core.domain.notifications.brief.TemplateCopyWriter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -36,17 +38,44 @@ class NotificationPreferencesViewModel @Inject constructor(
 
     init {
         checkBurnoutStatus()
+        observePreferences()
+    }
+
+    private fun observePreferences() {
+        viewModelScope.launch {
+            briefPrefs.targetWakeWd.collect { wd ->
+                _uiState.update { it.copy(targetWakeWd = wd ?: "07:00 (USUAL)") }
+            }
+        }
+        viewModelScope.launch {
+            briefPrefs.targetWakeWe.collect { we ->
+                _uiState.update { it.copy(targetWakeWe = we ?: "08:00 (USUAL)") }
+            }
+        }
+        viewModelScope.launch {
+            briefPrefs.pulsePmMode.collect { mode ->
+                _uiState.update { it.copy(pulsePmMode = mode) }
+            }
+        }
+        viewModelScope.launch {
+            briefPrefs.pulsePmCustomDays.collect { days ->
+                _uiState.update { it.copy(pulsePmCustomDays = days) }
+            }
+        }
+        viewModelScope.launch {
+            briefPrefs.pulsePmCustomTime.collect { time ->
+                _uiState.update { it.copy(pulsePmCustomTime = time) }
+            }
+        }
     }
 
     private fun checkBurnoutStatus() {
         viewModelScope.launch {
             try {
-                // Calculate 7-day completion rate from repository
                 val sevenDaysAgo = Instant.now().minus(7, ChronoUnit.DAYS)
                 val completions = repository.getCompletionsInRange(sevenDaysAgo).first()
                 val tasks = repository.getAllRecurringTasks().first()
                 
-                // If tasks exist, calculate rate
                 if (tasks.isNotEmpty()) {
                     val completedTasksCount = completions.map { it.taskId }.distinct().size
                     val completionRate = completedTasksCount.toFloat() / tasks.size
@@ -59,9 +88,7 @@ class NotificationPreferencesViewModel @Inject constructor(
                         ) 
                     }
                 }
-            } catch (e: Exception) {
-                // Fallback
-            }
+            } catch (_: Exception) {}
         }
     }
 
@@ -80,6 +107,27 @@ class NotificationPreferencesViewModel @Inject constructor(
     
     fun setPingBudget(budget: String) { 
         _uiState.update { it.copy(pingBudget = budget) } 
+    }
+
+    fun setTargetWakeWd(time: String?) {
+        viewModelScope.launch {
+            briefPrefs.setTargetWakeWd(time?.takeIf { it.isNotBlank() && !it.contains("USUAL") })
+            smartPingScheduler.scheduleNextAdaptiveBrief()
+        }
+    }
+
+    fun setTargetWakeWe(time: String?) {
+        viewModelScope.launch {
+            briefPrefs.setTargetWakeWe(time?.takeIf { it.isNotBlank() && !it.contains("USUAL") })
+            smartPingScheduler.scheduleNextAdaptiveBrief()
+        }
+    }
+
+    fun setPulsePmMode(mode: String) {
+        viewModelScope.launch {
+            briefPrefs.setPulsePmMode(mode)
+            smartPingScheduler.scheduleNextAdaptiveBrief()
+        }
     }
     
     fun toggleAdaptiveWake(enabled: Boolean) { 
@@ -102,22 +150,36 @@ class NotificationPreferencesViewModel @Inject constructor(
         )
     }
 
-    fun sendTestBrief() {
+    fun sendTestAmBrief() {
         viewModelScope.launch {
-            val facts = factsBuilder.build()
-            val stance = com.neon.ascent.core.domain.notifications.brief.BriefStanceResolver.resolve(facts)
-            val copy = com.neon.ascent.core.domain.notifications.brief.TemplateCopyWriter.write(facts, stance)
+            val facts = factsBuilder.build(BriefSlot.AM)
+            val stance = BriefStanceResolver.resolve(facts)
+            val copy = AmTemplateWriter.write(facts, stance)
             
             briefService.showNeuralBrief(
-                title = copy.headline + " // TEST",
-                content = copy.body,
-                actions = listOf(
-                    BriefService.BriefAction(
-                        label = "OPEN DECK",
-                        actionName = BriefService.ACTION_OPEN_DECK,
-                        type = "DASHBOARD"
-                    )
-                )
+                title = copy.shadeHeadline,
+                content = copy.shadeBody,
+                actions = copy.actions.map {
+                    BriefService.BriefAction(it.label, it.actionName, it.type)
+                },
+                notificationId = BriefService.BRIEF_NOTIFICATION_ID_AM
+            )
+        }
+    }
+
+    fun sendTestPmBrief() {
+        viewModelScope.launch {
+            val facts = factsBuilder.build(BriefSlot.PM)
+            val stance = BriefStanceResolver.resolve(facts)
+            val copy = PmTemplateWriter.write(facts, stance)
+            
+            briefService.showNeuralBrief(
+                title = copy.shadeHeadline,
+                content = copy.shadeBody,
+                actions = copy.actions.map {
+                    BriefService.BriefAction(it.label, it.actionName, it.type)
+                },
+                notificationId = BriefService.BRIEF_NOTIFICATION_ID_PM
             )
         }
     }
@@ -138,5 +200,10 @@ data class NotificationPreferencesUiState(
     val completionRate7Day: Int = 100,
     val missionPingsEnabled: Boolean = true,
     val streakPingsEnabled: Boolean = true,
-    val systemPingsEnabled: Boolean = true
+    val systemPingsEnabled: Boolean = true,
+    val targetWakeWd: String = "07:00 (USUAL)",
+    val targetWakeWe: String = "08:00 (USUAL)",
+    val pulsePmMode: String = "NEED_ONLY",
+    val pulsePmCustomDays: String = "MON,TUE,WED,THU,FRI",
+    val pulsePmCustomTime: String = "20:30"
 )

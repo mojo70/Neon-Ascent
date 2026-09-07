@@ -1,77 +1,57 @@
 package com.neon.ascent.core.domain.notifications.brief
 
-import com.neon.ascent.core.domain.notifications.models.BriefFacts
-import com.neon.ascent.core.domain.notifications.models.BriefStance
-import com.neon.ascent.core.domain.notifications.models.TopSet
-import com.neon.ascent.core.domain.workout.models.*
+import com.neon.ascent.core.domain.notifications.models.*
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
 
 class TemplateCopyWriterTest {
 
-    private fun createFacts(
-        topSets: List<TopSet> = emptyList(),
-        hrv: Double? = null,
-        hrvMean: Double? = null
-    ): BriefFacts {
-        return BriefFacts(
-            lastSession = WorkoutSession(
-                id = "test", 
+    @Test
+    fun `AmTemplateWriter PUSH copy generates clear actionable copy`() {
+        val facts = BriefFacts(
+            slot = BriefSlot.AM,
+            lastSession = BriefSessionDetails(
+                id = "s1",
                 date = Instant.now(),
-                protocol = WorkoutProtocol.CYBER_CRAPP,
-                protocolDayType = ProtocolDayType.CC_A
+                dayType = "Push",
+                protocolName = "CYBERCRAPP",
+                topSets = listOf(TopSet("Bench Press", 225f, 20))
             ),
-            topSets = topSets,
-            recoveryScore = RecoveryScore(
-                totalScore = 80,
-                status = RecoveryStatus.OPTIMAL,
-                rirTrend = 1.0f,
-                avgJointHealth = 1.0f,
-                stagnationCount = 0,
-                avgRpe = 5.0f,
-                plainLanguageSummary = ""
+            vitals = BriefVitals(
+                sleepMinutes = 450,
+                needMin = 440,
+                seed = 85,
+                seedBand = "CLEAR"
             ),
-            nextDayType = "CC_B",
-            hrvCurrent = hrv,
-            hrvMean7d = hrvMean,
-            sleepHoursCurrent = 8.0,
-            sleepHoursMean7d = 8.0,
-            rhrCurrent = 60.0,
-            rhrMean7d = 60.0
+            nextSession = BriefNextSession(
+                scheduled = true,
+                dayType = "Push",
+                weightJumpsDue = listOf("230 lbs")
+            )
         )
+
+        val copy = AmTemplateWriter.write(facts, BriefStance.PUSH)
+        assertTrue(copy.shadeHeadline.contains("SEED 85 CLEAR"))
+        assertTrue(copy.shadeBody.contains("weight jump to 230 lbs"))
+        assertTrue(copy.shadeAllowed)
     }
 
     @Test
-    fun `PUSH copy mentions high recovery and next session`() {
-        val facts = createFacts(
-            topSets = listOf(TopSet("Squat", 320f, 5)),
-            hrv = 45.0,
-            hrvMean = 41.0
+    fun `PmTemplateWriter NEED_ONLY suppresses shade notification when on track`() {
+        val facts = BriefFacts(
+            slot = BriefSlot.PM,
+            vitals = BriefVitals(
+                sleepMinutes = 440,
+                needMin = 440,
+                seed = 80,
+                chargeNow = 75
+            )
         )
-        val copy = TemplateCopyWriter.write(facts, BriefStance.PUSH)
-        
-        assertTrue(copy.headline.contains("PUSH"))
-        assertTrue(copy.body.contains("Squat at 320 lbs"))
-        assertTrue(copy.body.contains("Recovery is high"))
-    }
 
-    @Test
-    fun `RECOVER copy mentions fatigue and deload`() {
-        val facts = createFacts(hrv = 26.0, hrvMean = 41.0)
-        val copy = TemplateCopyWriter.write(facts, BriefStance.RECOVER)
-        
-        assertTrue(copy.headline.contains("RECOVER"))
-        assertTrue(copy.body.contains("Fatigue detected"))
-        assertTrue(copy.body.contains("Soft Deload"))
-    }
-
-    @Test
-    fun `Empty facts still produces citeable session copy`() {
-        val facts = createFacts()
-        val copy = TemplateCopyWriter.write(facts, BriefStance.HOLD)
-        
-        assertTrue(copy.body.contains("CYBERCRAPP"))
-        assertTrue(copy.body.contains("Systems stable"))
+        val copy = PmTemplateWriter.write(facts, BriefStance.HOLD)
+        assertFalse(copy.shadeAllowed)
+        assertTrue(copy.cardBody.contains("CHARGE 75"))
     }
 }

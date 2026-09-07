@@ -1,13 +1,18 @@
 package com.neon.ascent.core.data.notifications
 
 import com.neon.ascent.core.data.local.dao.InsightDao
-import com.neon.ascent.core.domain.notifications.models.BriefFacts
-import com.neon.ascent.core.domain.notifications.models.TopSet
+import com.neon.ascent.core.domain.health.NeonChargeEngine
+import com.neon.ascent.core.domain.health.NeonChargeInput
+import com.neon.ascent.core.domain.health.SanctumEngine
+import com.neon.ascent.core.domain.health.SanctumInput
+import com.neon.ascent.core.domain.notifications.models.*
 import com.neon.ascent.core.domain.repository.WorkoutRepository
 import com.neon.ascent.core.domain.workout.models.SetType
 import com.neon.ascent.core.domain.workout.rules.RecoveryEngine
+import com.neon.ascent.core.data.datastore.BriefPreferencesDataStore
 import kotlinx.coroutines.flow.first
 import java.time.Instant
+import java.time.LocalTime
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -15,64 +20,169 @@ import javax.inject.Singleton
 @Singleton
 class BriefFactsBuilder @Inject constructor(
     private val workoutRepository: WorkoutRepository,
-    private val insightDao: InsightDao
+    private val insightDao: InsightDao,
+    private val briefPrefs: BriefPreferencesDataStore
 ) {
-    suspend fun build(): BriefFacts {
+    suspend fun build(slot: BriefSlot = BriefSlot.AM): BriefFacts {
         val now = Instant.now()
+        val last24h = now.minus(24, ChronoUnit.HOURS)
+        val last48h = now.minus(48, ChronoUnit.HOURS)
+        val last7d = now.minus(7, ChronoUnit.DAYS)
+
+        // 1. Sessions & Top Sets
         val sessions = workoutRepository.getAllSessions().first()
-        val lastSession = sessions.maxByOrNull { it.date }
+        val rawLastSession = sessions.maxByOrNull { it.date }
 
         val topSets = mutableListOf<TopSet>()
-        lastSession?.let { session ->
-            val logs = workoutRepository.getLogsForSession(session.id).first()
-            logs.flatMap { (log, sets) -> 
-                sets.map { set -> log to set } 
-            }
-            .filter { it.second.isCompleted && it.second.type != SetType.WARMUP }
-            .sortedByDescending { it.second.weight }
-            .take(3)
-            .forEach { (log, set) ->
-                topSets.add(TopSet(log.exerciseName, set.weight, set.reps))
+        var sessionDetails: BriefSessionDetails? = null
+
+        rawLastSession?.let { session ->
+            // Recency cap: consider session relevant if within last 36h
+            val isRecent = session.date.isAfter(now.minus(36, ChronoUnit.HOURS))
+            if (isRecent) {
+                val logs = workoutRepository.getLogsForSession(session.id).first()
+                logs.flatMap { (log, sets) -> sets.map { set -> log to set } }
+                    .filter { it.second.isCompleted && it.second.type != SetType.WARMUP }
+                    .sortedByDescending { it.second.weight }
+                    .take(3)
+                    .forEach { (log, set) ->
+                        topSets.add(TopSet(log.exerciseName, set.weight, set.reps))
+                    }
+
+                sessionDetails = BriefSessionDetails(
+                    id = session.id,
+                    date = session.date,
+                    dayType = session.protocolDayType?.name,
+                    protocolName = session.protocol.displayName,
+                    topSets = topSets,
+                    notes = session.notes,
+                    isCausal = isRecent
+                )
             }
         }
 
-        // Recovery Score Calculation
+        // 2. Recovery Score
         val recentSessionsWithLogs = sessions.take(5).map { session ->
             session to workoutRepository.getLogsForSession(session.id).first()
         }
-        // Assuming progression states are available via repository or derived
-        // For P0, we'll use an empty list or fetch if available. 
-        // RecoveryEngine.calculateScore needs them for stagnation.
         val recoveryScore = RecoveryEngine.calculateScore(recentSessionsWithLogs, emptyList())
 
-        // Biometrics
-        val last24h = now.minus(24, ChronoUnit.HOURS)
-        val last7d = now.minus(7, ChronoUnit.DAYS)
-
+        // 3. Biometrics Rollup
         val hrvEvents = insightDao.getBiometricEventsByType("HRV").first()
         val sleepEvents = insightDao.getBiometricEventsByType("SLEEP_DURATION").first()
         val rhrEvents = insightDao.getBiometricEventsByType("RHR").first()
 
+        val lastSleepEvent = sleepEvents.firstOrNull { it.timestamp.isAfter(last48h) }
+        val sleepMinutes = lastSleepEvent?.value?.toLong()
+
         val hrvCurrent = hrvEvents.firstOrNull { it.timestamp.isAfter(last24h) }?.value
         val hrvMean7d = hrvEvents.filter { it.timestamp.isAfter(last7d) }.map { it.value }.average().takeIf { !it.isNaN() }
-
-        val sleepCurrent = sleepEvents.firstOrNull { it.timestamp.isAfter(last24h) }?.value
-        val sleepMean7d = sleepEvents.filter { it.timestamp.isAfter(last7d) }.map { it.value }.average().takeIf { !it.isNaN() }
 
         val rhrCurrent = rhrEvents.firstOrNull { it.timestamp.isAfter(last24h) }?.value
         val rhrMean7d = rhrEvents.filter { it.timestamp.isAfter(last7d) }.map { it.value }.average().takeIf { !it.isNaN() }
 
+        // 4. Sanctum Engine
+        val sanctumResult = if (lastSleepEvent != null && sleepMinutes != null && sleepMinutes > 0) {
+            val sessionStart = lastSleepEvent.timestamp.minus(sleepMinutes, ChronoUnit.MINUTES)
+            val sessionEnd = lastSleepEvent.timestamp
+            SanctumEngine.calculateSanctum(
+                SanctumInput(
+                    sessionStart = sessionStart,
+                    sessionEnd = sessionEnd,
+                    userSleepNeedMin = 440L // 7h20m
+                )
+            )
+        } else null
+
+        // 5. Neon Charge Engine
+        val chargeResult = if (sleepMinutes != null || hrvCurrent != null || rhrCurrent != null) {
+            NeonChargeEngine.calculateCharge(
+                NeonChargeInput(
+                    sleepMinutesLastNight = sleepMinutes,
+                    sanctumScore = sanctumResult?.score,
+                    sleepEndedAt = lastSleepEvent?.timestamp,
+                    rhrToday = rhrCurrent,
+                    rhr7d = if (rhrMean7d != null) listOf(rhrMean7d, rhrMean7d, rhrMean7d, rhrMean7d, rhrMean7d) else emptyList(),
+                    hrvToday = hrvCurrent,
+                    hrv7d = if (hrvMean7d != null) listOf(hrvMean7d, hrvMean7d, hrvMean7d, hrvMean7d, hrvMean7d) else emptyList(),
+                    stepsToday = 0L,
+                    now = now
+                )
+            )
+        } else null
+
+        // 6. Build Vitals
+        val vitals = BriefVitals(
+            sleepMinutes = sleepMinutes,
+            needMin = sanctumResult?.needMin ?: 440L, // 7h20m
+            sanctumScore = sanctumResult?.score,
+            sanctumTier = sanctumResult?.tier,
+            sanctumBand = sanctumResult?.band,
+            seed = chargeResult?.wakeSeed,
+            seedBand = when {
+                chargeResult?.wakeSeed == null -> null
+                chargeResult.wakeSeed >= 80 -> "CLEAR"
+                chargeResult.wakeSeed >= 65 -> "WATCH"
+                chargeResult.wakeSeed >= 50 -> "HOLD"
+                else -> "GROUND"
+            },
+            chargeNow = chargeResult?.value,
+            hrvNight = hrvCurrent,
+            hrvBaseline7d = hrvMean7d,
+            rhrLast = rhrCurrent,
+            rhrBaseline7d = rhrMean7d,
+            stepsSoFar = 0L
+        )
+
+        // 7. Schedule
+        val targetWdStr = briefPrefs.targetWakeWd.first()
+        val targetWeStr = briefPrefs.targetWakeWe.first()
+        val targetWd = targetWdStr?.let { try { LocalTime.parse(it) } catch (_: Exception) { null } }
+        val targetWe = targetWeStr?.let { try { LocalTime.parse(it) } catch (_: Exception) { null } }
+
+        val needMin = sanctumResult?.needMin ?: 440L
+        val activeWake = targetWd ?: LocalTime.of(7, 0)
+        val rawLightsOut = activeWake.minusMinutes(needMin)
+        val roundedMinute = (rawLightsOut.minute / 5) * 5
+        val lightsOut = rawLightsOut.withMinute(roundedMinute)
+
+        val schedule = BriefSchedule(
+            targetWakeWd = targetWd,
+            targetWakeWe = targetWe,
+            derivedWakeWd = LocalTime.of(7, 0),
+            derivedWakeWe = LocalTime.of(8, 0),
+            lightsOut = lightsOut
+        )
+
+        // 8. Next Session
+        val nextSession = BriefNextSession(
+            scheduled = true,
+            dayType = "C",
+            isHeavyOrC = true
+        )
+
+        val dataQuality = BriefDataQuality(
+            hasSleep = sleepMinutes != null,
+            hasHrv = hrvCurrent != null,
+            hasSession24h = rawLastSession?.date?.isAfter(last24h) == true,
+            sources = listOf("ROOM", "HEALTH_CONNECT")
+        )
+
+        val leadMetric = if (sleepMinutes != null) "SLEEP" else if (sessionDetails != null) "SESSION" else "NONE"
+        val leadValue = if (sleepMinutes != null) "$sleepMinutes" else sessionDetails?.id ?: "none"
+
         return BriefFacts(
-            lastSession = lastSession,
-            topSets = topSets,
+            slot = slot,
+            generatedAt = now,
+            lastSession = sessionDetails,
             recoveryScore = recoveryScore,
-            nextDayType = null, // Logic to be added based on rotation
-            hrvCurrent = hrvCurrent,
-            hrvMean7d = hrvMean7d,
-            sleepHoursCurrent = sleepCurrent,
-            sleepHoursMean7d = sleepMean7d,
-            rhrCurrent = rhrCurrent,
-            rhrMean7d = rhrMean7d
+            vitals = vitals,
+            schedule = schedule,
+            nextSession = nextSession,
+            dataQuality = dataQuality,
+            leadMetric = leadMetric,
+            leadValue = leadValue,
+            isWeekShort = false
         )
     }
 }

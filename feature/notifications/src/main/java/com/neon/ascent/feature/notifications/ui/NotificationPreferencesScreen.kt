@@ -120,104 +120,111 @@ fun NotificationPreferencesScreen(
         }
 
         if (state.masterEnabled) {
-            // Ping Budget Selector
+            // TARGET_WAKE Section
             PreferenceCard {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(text = "PING_BUDGET", fontWeight = FontWeight.Bold, color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 13.sp)
+                    Text(text = "TARGET_WAKE_ANCHORS", fontWeight = FontWeight.Bold, color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 13.sp)
                     Text(
-                        text = "Limit daily alert density to preserve focus bandwidth.",
+                        text = "Set target wake times. Unset fields default to 14-day USUAL times.",
                         color = Color.Gray,
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace
                     )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = "MON–FRI", color = NeonCyan, fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                            OutlinedTextField(
+                                value = state.targetWakeWd,
+                                onValueChange = { viewModel.setTargetWakeWd(it) },
+                                singleLine = true,
+                                textStyle = LocalTextStyle.current.copy(color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 13.sp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
+                                    focusedBorderColor = NeonCyan
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = "SAT–SUN", color = NeonPink, fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                            OutlinedTextField(
+                                value = state.targetWakeWe,
+                                onValueChange = { viewModel.setTargetWakeWe(it) },
+                                singleLine = true,
+                                textStyle = LocalTextStyle.current.copy(color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 13.sp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
+                                    focusedBorderColor = NeonPink
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Morning shade waits 20 minutes after wake. Opening the app does not ping.",
+                        fontSize = 11.sp,
+                        color = Color.Gray,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
+
+            // PULSE_PM_MODE Section
+            PreferenceCard {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(text = "PULSE_PM_MODE", fontWeight = FontWeight.Bold, color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 13.sp)
                     
+                    val pmOptions = listOf("NEED_ONLY", "WEEKDAY_CLOCK", "CUSTOM")
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        listOf("LOW", "MEDIUM", "HIGH").forEach { budget ->
-                            val isSelected = state.pingBudget == budget
+                        pmOptions.forEach { mode ->
+                            val isSelected = state.pulsePmMode == mode
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .background(if (isSelected) NeonCyan.copy(alpha = 0.12f) else Color.Transparent)
+                                    .background(if (isSelected) NeonPink.copy(alpha = 0.12f) else Color.Transparent)
                                     .border(
-                                        1.dp, 
-                                        if (isSelected) NeonCyan else Color.White.copy(alpha = 0.1f), 
+                                        1.dp,
+                                        if (isSelected) NeonPink else Color.White.copy(alpha = 0.1f),
                                         shape = RoundedCornerShape(4.dp)
                                     )
-                                    .clickable { viewModel.setPingBudget(budget) }
+                                    .clickable { viewModel.setPulsePmMode(mode) }
                                     .padding(vertical = 10.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = budget,
-                                    color = if (isSelected) NeonCyan else Color.Gray,
-                                    fontSize = 11.sp,
+                                    text = mode,
+                                    color = if (isSelected) NeonPink else Color.Gray,
+                                    fontSize = 10.sp,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
                         }
                     }
-                }
-            }
 
-            // Adaptive Wake default setting
-            PreferenceCard {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(text = "Adaptive Wake Reminders", fontWeight = FontWeight.Bold, color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 13.sp)
-                        Text(
-                            text = "Shifts morning pings dynamically based on actual sleep/wake biometrics from Health Connect.",
-                            color = Color.Gray,
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 11.sp
-                        )
+                    val pmDescription = when (state.pulsePmMode) {
+                        "WEEKDAY_CLOCK" -> "Mon–Fri evening pulse at lights-out minus 90m (19:30–21:30)."
+                        "CUSTOM" -> "Custom schedule at ${state.pulsePmCustomTime} on ${state.pulsePmCustomDays}."
+                        else -> "Evening ping only when you are short on sleep, the tank dumped, or a session is still open"
                     }
-                    Switch(
-                        checked = state.adaptiveWakeDefault,
-                        onCheckedChange = { viewModel.toggleAdaptiveWake(it) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = NeonCyan,
-                            checkedTrackColor = NeonCyan.copy(alpha = 0.5f)
-                        )
-                    )
-                }
-            }
 
-            // Frequency
-            PreferenceCard {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(text = "COGNITIVE_PING_FREQUENCY", fontWeight = FontWeight.Bold, color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 13.sp)
-                    Text(text = "${state.frequencyHours} HOURS", style = MaterialTheme.typography.titleLarge, color = NeonCyan, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
-                    Slider(
-                        value = state.frequencyHours.toFloat(),
-                        onValueChange = { viewModel.setFrequency(it.toInt()) },
-                        valueRange = 2f..12f,
-                        steps = 9,
-                        colors = SliderDefaults.colors(
-                            thumbColor = NeonCyan,
-                            activeTrackColor = NeonCyan,
-                            inactiveTrackColor = Color.White.copy(alpha = 0.1f)
-                        )
+                    Text(
+                        text = pmDescription,
+                        color = Color.LightGray,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        lineHeight = 15.sp
                     )
-                }
-            }
-
-            // Quiet Hours
-            PreferenceCard {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(text = "QUIET_HOUR_BLOCK", fontWeight = FontWeight.Bold, color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 13.sp)
-                    Text(text = "Suppress pings during standard rest cycle:", color = Color.Gray, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "${state.quietStartHour}:00", color = NeonPink, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        Text(text = "—", color = Color.Gray, fontFamily = FontFamily.Monospace)
-                        Text(text = "0${state.quietEndHour}:00", color = NeonPink, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    }
                 }
             }
 
@@ -241,52 +248,42 @@ fun NotificationPreferencesScreen(
                         enabled = state.systemPingsEnabled,
                         onToggle = viewModel::toggleSystemPings
                     )
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    Text(text = "NEURAL_BRIEF_CONFIGURATION", fontWeight = FontWeight.Bold, color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 13.sp)
-                    
-                    NotificationCategoryRow(
-                        title = "Neural Brief Protocol",
-                        enabled = true,
-                        onToggle = { }
-                    )
-                    Text(
-                        text = "Morning pulse is once per day. Opening the app does not ping.",
-                        fontSize = 11.sp,
-                        color = Color.Gray,
-                        modifier = Modifier.padding(start = 8.dp, bottom = 4.dp)
-                    )
-
-                    NotificationCategoryRow(
-                        title = "Adaptive Wake Anchor",
-                        enabled = state.adaptiveWakeDefault,
-                        onToggle = viewModel::toggleAdaptiveWake
-                    )
                 }
             }
 
-            // Test Actions Box
+            // Diagnostic Test Actions Box
             PreferenceCard {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(text = "DIAGNOSTIC_TRANSMISSION_TEST", fontWeight = FontWeight.Bold, color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 13.sp)
                     
-                    Button(
-                        onClick = { viewModel.sendTestPing() },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = Color.Black),
-                        shape = RoundedCornerShape(4.dp)
-                    ) {
-                        Text(text = "TEST_SINGLE_PING", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        Button(
+                            onClick = { viewModel.sendTestAmBrief() },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = Color.Black),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(text = "TEST AM BRIEF", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        }
+
+                        Button(
+                            onClick = { viewModel.sendTestPmBrief() },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = NeonPink, contentColor = Color.Black),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(text = "TEST PM BRIEF", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        }
                     }
 
-                    Button(
-                        onClick = { viewModel.sendTestBrief() },
+                    OutlinedButton(
+                        onClick = { viewModel.sendTestPing() },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = NeonPink, contentColor = Color.Black),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
                         shape = RoundedCornerShape(4.dp)
                     ) {
-                        Text(text = "TEST_DAILY_NEURAL_BRIEF", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                        Text(text = "TEST SINGLE PING", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                     }
                 }
             }
