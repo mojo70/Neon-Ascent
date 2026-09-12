@@ -27,6 +27,7 @@ import com.neon.ascent.core.domain.character.models.UserCharacter
 import com.neon.ascent.model.BiohackingData
 import com.neon.ascent.model.Saying
 import com.neon.ascent.core.domain.goals.models.*
+import com.neon.ascent.core.domain.repository.WorkoutRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -41,6 +42,7 @@ import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
 import java.util.Locale
 import javax.inject.Inject
+import kotlin.math.abs
 import kotlin.random.Random
 
 data class WeatherState(
@@ -80,7 +82,8 @@ class DashboardViewModel @Inject constructor(
     private val insightProcessor: InsightProjectionProcessor,
     private val briefPrefs: BriefPreferencesDataStore,
     private val healthManager: com.neon.ascent.core.domain.health.HealthManager,
-    private val workoutRepository: com.neon.ascent.core.domain.repository.WorkoutRepository
+    private val workoutRepository: WorkoutRepository,
+    private val healthRepository: HealthRepository
 ) : ViewModel() {
     val userCharacter: StateFlow<UserCharacter?> = characterRepository.getUserCharacter()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -94,15 +97,8 @@ class DashboardViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
-    init {
-        viewModelScope.launch {
-            aiProvider.engineTelemetry.collect { telemetry ->
-                _uiState.update { current ->
-                    current.copy(aiEngineTelemetry = telemetry)
-                }
-            }
-        }
-    }
+    private val _rhrSeries = MutableStateFlow<List<Pair<LocalDate, Double>>>(emptyList())
+    private val _hrvSeries = MutableStateFlow<List<Pair<LocalDate, Double>>>(emptyList())
 
     private val _weatherState = MutableStateFlow(WeatherState())
     val weatherState: StateFlow<WeatherState> = _weatherState.asStateFlow()
@@ -115,8 +111,10 @@ class DashboardViewModel @Inject constructor(
 
     val neonCharge: StateFlow<com.neon.ascent.core.domain.health.NeonCharge?> = combine(
         uplinkManager.combinedVitalsSnapshot,
+        _rhrSeries,
+        _hrvSeries,
         workoutRepository.getFullHistory()
-    ) { snapshot, history ->
+    ) { snapshot, rhrList, hrvList, history ->
         val now = java.time.Instant.now()
         val startOfDay = now.atZone(ZoneId.systemDefault()).toLocalDate().atStartOfDay(ZoneId.systemDefault()).toInstant()
 
@@ -139,9 +137,9 @@ class DashboardViewModel @Inject constructor(
             sanctumScore = snapshot?.sanctumResult?.score,
             sleepEndedAt = snapshot?.sessionEndTime,
             rhrToday = snapshot?.restingHeartRate?.toDouble(),
-            rhr7d = emptyList(),
+            rhr7d = rhrList.map { it.second },
             hrvToday = snapshot?.hrvRmssd,
-            hrv7d = emptyList(),
+            hrv7d = hrvList.map { it.second },
             stepsToday = snapshot?.steps ?: 0L,
             todaysSessions = todaysSessions,
             hrSamplesToday = hrSamples,
@@ -152,6 +150,36 @@ class DashboardViewModel @Inject constructor(
 
         com.neon.ascent.core.domain.health.NeonChargeEngine.calculateCharge(input)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    init {
+        viewModelScope.launch {
+            aiProvider.engineTelemetry.collect { telemetry ->
+                _uiState.update { current ->
+                    current.copy(aiEngineTelemetry = telemetry)
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            healthRepository.series("RHR", 7).collectLatest { _rhrSeries.value = it }
+        }
+
+        viewModelScope.launch {
+            healthRepository.series("HRV_RMSSD", 7).collectLatest { _hrvSeries.value = it }
+        }
+
+        viewModelScope.launch {
+            neonCharge.collectLatest { charge ->
+                if (charge != null) {
+                    val floatLoad = charge.value / 100f
+                    val currentChar = characterRepository.getUserCharacter().first()
+                    if (currentChar != null && abs(currentChar.neuralLoad - floatLoad) > 0.01f) {
+                        characterRepository.saveCharacter(currentChar.copy(neuralLoad = floatLoad))
+                    }
+                }
+            }
+        }
+    }
 
     private val _systemAdvice = MutableStateFlow("NEURAL_LINK_ESTABLISHED. SCANNING_SYSTEM...")
     val systemAdvice: StateFlow<String> = _systemAdvice.asStateFlow()

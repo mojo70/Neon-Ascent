@@ -104,8 +104,9 @@ fun HolographicAvatarHub(
         }
     }
 
-    val neuralLoad = userCharacter?.neuralLoad ?: 0.2f
-    val displayLoad = (neuralLoad + glitchBurstIntensity).coerceIn(0f, 1f)
+    val neonCharge by viewModel.neonCharge.collectAsState()
+    val chargeVal = (neonCharge?.value ?: 62) / 100f
+    val displayLoad = (chargeVal + glitchBurstIntensity).coerceIn(0f, 1f)
 
     LaunchedEffect(userCharacter?.netrunnerName) {
         editedName = userCharacter?.netrunnerName ?: "RUNNER_UNKNOWN"
@@ -446,7 +447,7 @@ fun HolographicAvatarHub(
                                                 SpecialType.INTELLIGENCE, 
                                                 "Insight: ${advice.take(20)}...", 
                                                 advice,
-                                                "Neural Load: ${((userCharacter?.neuralLoad ?: 0f) * 100).toInt()}%"
+                                                "Neural Load: ${(chargeVal * 100).toInt()}%"
                                             )
                                         }
                                 )
