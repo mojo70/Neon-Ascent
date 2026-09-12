@@ -367,21 +367,23 @@ fun HolographicAvatarHub(
                         color = Color(0xFF00FF9C),
                         onClick = { onNavigateToBiohacking("hrv") }
                     )
+                    val sanctumScore = deepMetrics?.sanctumResult?.score
+                    val sleepDuration = deepMetrics?.sleepDurationMinutes
                     StatusCard(
-                        label = if (deepMetrics?.bodyBattery != null) "NEURAL_RESERVE" else "SLEEP_QUALITY",
+                        label = "SANCTUM_RECOVERY",
                         value = when {
-                            deepMetrics?.bodyBattery != null -> "${deepMetrics?.bodyBattery}%"
-                            deepMetrics?.sleepScore != null -> "${deepMetrics?.sleepScore}%"
+                            sanctumScore != null -> "${sanctumScore}%"
+                            sleepDuration != null -> "${sleepDuration / 60}h ${sleepDuration % 60}m"
                             else -> "UPLINKING..."
                         },
                         trend = when {
-                            deepMetrics?.bodyBattery != null -> if (deepMetrics?.bodyBattery!! > 50) "CHARGED" else "LOW"
-                            deepMetrics?.sleepScore != null -> if (deepMetrics?.sleepScore!! > 70) "RESTED" else "TIRED"
+                            sanctumScore != null -> if (sanctumScore > 70) "RESTED" else "RECOVERY"
+                            sleepDuration != null -> if (sleepDuration >= 420) "RESTED" else "REST_NEEDED"
                             else -> "NEURAL_SYNC"
                         },
                         trendDirection = when {
-                            deepMetrics?.bodyBattery != null -> if (deepMetrics?.bodyBattery!! > 70) 1 else if (deepMetrics?.bodyBattery!! < 30) -1 else 0
-                            deepMetrics?.sleepScore != null -> if (deepMetrics?.sleepScore!! > 80) 1 else 0
+                            sanctumScore != null -> if (sanctumScore > 75) 1 else 0
+                            sleepDuration != null -> if (sleepDuration >= 420) 1 else 0
                             else -> 0
                         },
                         color = state.identity.resonance.getColor().copy(alpha = 0.8f),
@@ -595,7 +597,7 @@ fun HolographicAvatarHub(
             Row(modifier = Modifier.weight(0.5f), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 CyberFrame(label = "SYSTEM_LOAD", modifier = Modifier.weight(0.8f)) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        EnergyBar(label = "BATTERY", value = (deepMetrics?.bodyBattery ?: 0) / 100f)
+                        EnergyBar(label = "CHARGE", value = (deepMetrics?.sanctumResult?.score ?: 100) / 100f)
                         MemorySlotsDisplay(userCharacter)
                     }
                 }

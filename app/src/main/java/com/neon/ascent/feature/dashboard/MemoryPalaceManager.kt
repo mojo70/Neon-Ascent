@@ -100,9 +100,8 @@ class MemoryPalaceManager @Inject constructor(
      */
     suspend fun mineBiometrics(metrics: DeepBiometrics) {
         val rawContent = """
-            BODY_BATTERY: ${metrics.bodyBattery ?: "N/A"}
-            SLEEP_SCORE: ${metrics.sleepScore ?: "N/A"}
-            STRESS_LEVEL: ${metrics.stressLevel ?: "N/A"}
+            SANCTUM_SCORE: ${metrics.sanctumResult?.score ?: "N/A"}
+            SLEEP_DURATION: ${metrics.sleepDurationMinutes ?: "N/A"}m
             VO2_MAX: ${metrics.vo2Max ?: "N/A"}
         """.trimIndent()
 

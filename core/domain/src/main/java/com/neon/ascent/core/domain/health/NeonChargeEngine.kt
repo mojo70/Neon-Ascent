@@ -20,6 +20,7 @@ data class SessionLoad(
 data class NeonChargeInput(
     val sleepMinutesLastNight: Long?,
     val sanctumScore: Int? = null,
+    val clearanceToday: Int? = null,
     val sleepEndedAt: Instant?,
     val rhrToday: Double?,
     val rhr7d: List<Double>,
@@ -48,6 +49,7 @@ object NeonChargeEngine {
      * Computes the Neon Charge (0-100) and drivers per NeonCharge.md specification.
      *
      * Sleep factor calculation:
+     * - clearanceToday != null -> wakeSeed = clearanceToday (FROZEN)
      * - 450 min (7.5h) + z0 -> wakeSeed 72
      * - 360 min (6h) + z0 -> wakeSeed not 72 (e.g. 57)
      * - missing sleep & missing sanctum -> cold start wakeSeed 62 (LOW confidence), do not write SEED.
@@ -58,12 +60,16 @@ object NeonChargeEngine {
         val hasSleepData = input.sanctumScore != null ||
                 (input.sleepMinutesLastNight != null && input.sleepMinutesLastNight > 0)
 
-        val isColdStart = !hasSleepData
+        val isColdStart = !hasSleepData && input.clearanceToday == null
 
         val wakeSeed: Int
         val confidence: ChargeConfidence
 
-        if (isColdStart) {
+        if (input.clearanceToday != null) {
+            wakeSeed = input.clearanceToday.coerceIn(0, 100)
+            confidence = ChargeConfidence.HIGH
+            drivers.add("SEED" to "SEED ${input.clearanceToday} FROZEN")
+        } else if (isColdStart) {
             wakeSeed = 62
             confidence = ChargeConfidence.LOW
             drivers.add("COLD_START" to "Default baseline (62%) due to missing sleep & vitals")
@@ -100,12 +106,7 @@ object NeonChargeEngine {
                 f
             } else 1.0
 
-            val napContrib = (input.napsMinutesToday * 0.25).coerceIn(0.0, 15.0)
-            if (input.napsMinutesToday > 0) {
-                drivers.add("NAP_BONUS" to "+${napContrib.toInt()} pts from ${input.napsMinutesToday}m nap")
-            }
-
-            val wakeChargeRaw = 72.0 * sleepFactor * hrvFactor * rhrFactor + napContrib
+            val wakeChargeRaw = 72.0 * sleepFactor * hrvFactor * rhrFactor
             wakeSeed = wakeChargeRaw.toInt().coerceIn(35, 95)
 
             confidence = when {

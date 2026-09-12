@@ -10,6 +10,9 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.neon.ascent.feature.health.data.uplink.GarminUplink
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -22,17 +25,27 @@ class LiveBiometricService : Service() {
         super.onCreate()
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, createNotification("Initializing live stream..."))
-        
-        // Start high-frequency BLE scan via Garmin Uplink
-        garminUplink.startBLESync()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) {
-            stopSelf()
-            return START_NOT_STICKY
+        when (intent?.action) {
+            ACTION_START_LIVE_HR -> {
+                garminUplink.startBLESync()
+            }
+            ACTION_STOP -> {
+                stopSelf()
+            }
         }
-        return START_STICKY
+        return START_NOT_STICKY
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        CoroutineScope(Dispatchers.IO).launch {
+            runCatching {
+                garminUplink.disconnect()
+            }
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -60,10 +73,13 @@ class LiveBiometricService : Service() {
     companion object {
         private const val CHANNEL_ID = "live_biometrics_channel"
         private const val NOTIFICATION_ID = 889
+        private const val ACTION_START_LIVE_HR = "START_LIVE_HR"
         private const val ACTION_STOP = "STOP_LIVE_BIOMETRICS"
 
         fun start(context: Context) {
-            val intent = Intent(context, LiveBiometricService::class.java)
+            val intent = Intent(context, LiveBiometricService::class.java).apply {
+                action = ACTION_START_LIVE_HR
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
             } else {

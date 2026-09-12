@@ -497,13 +497,13 @@ class DashboardViewModel @Inject constructor(
             val deep = deepMetrics.value
             val steps = live?.heartRate ?: 0 // Temporary mapping
             val hr = live?.heartRate ?: 0
-            val bodyBattery = deep?.bodyBattery ?: 0
+            val charge = deep?.sanctumResult?.score ?: 100
             val weather = if (weatherState.value.isRaining) "Acid Rain" else "Clear"
             val archetype = userCharacter.value?.archetype ?: "Unknown"
 
             val contextData = """
                 - HEART_RATE: $hr
-                - BODY_BATTERY: $bodyBattery
+                - SANCTUM_CHARGE: $charge
                 - ATMOSPHERE: $weather
                 - ARCHETYPE: $archetype
             """.trimIndent()

@@ -213,4 +213,52 @@ class NeonChargeEngineTest {
         // 20 min awake = 0.33 hours -> passive drain ~0.93 points -> charge value should be ~71%
         assertTrue("Charge at 07:36 after 07:16 wake must be close to wakeSeed 72, got ${charge.value}", charge.value >= 70)
     }
+
+    @Test
+    fun `clearanceToday 73 with sanctum 80 returns wakeSeed 73 not 72`() {
+        val now = Instant.now()
+        val input = NeonChargeInput(
+            sleepMinutesLastNight = 480L,
+            sanctumScore = 80,
+            clearanceToday = 73,
+            sleepEndedAt = now.minusSeconds(3600),
+            rhrToday = null,
+            rhr7d = emptyList(),
+            hrvToday = null,
+            hrv7d = emptyList(),
+            stepsToday = 0,
+            now = now
+        )
+
+        val charge = NeonChargeEngine.calculateCharge(input)
+
+        assertEquals(73, charge.wakeSeed)
+        assertTrue(charge.drivers.any { it.first == "SEED" && it.second.contains("73 FROZEN") })
+    }
+
+    @Test
+    fun `sit window present does not add sit driver or nap bonus`() {
+        val now = Instant.now()
+        val sitStart = now.minusSeconds(3600)
+        val sitEnd = now.minusSeconds(1800)
+
+        val input = NeonChargeInput(
+            sleepMinutesLastNight = 450L,
+            sanctumScore = 80,
+            sleepEndedAt = now.minusSeconds(7200),
+            rhrToday = 55.0,
+            rhr7d = emptyList(),
+            hrvToday = null,
+            hrv7d = emptyList(),
+            stepsToday = 0,
+            sitWindowsToday = listOf(sitStart to sitEnd),
+            napsMinutesToday = 30,
+            now = now
+        )
+
+        val charge = NeonChargeEngine.calculateCharge(input)
+
+        assertTrue(charge.drivers.none { it.first == "SIT" })
+        assertTrue(charge.drivers.none { it.first == "NAP_BONUS" })
+    }
 }

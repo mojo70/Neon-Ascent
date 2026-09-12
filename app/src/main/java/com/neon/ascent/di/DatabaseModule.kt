@@ -3,6 +3,7 @@ package com.neon.ascent.di
 import android.content.Context
 import android.util.Log
 import androidx.room.Room
+import com.neon.ascent.core.data.local.UplinkSecurityManager
 import com.neon.ascent.data.local.AppDatabase
 import com.neon.ascent.data.local.BenchmarkDao
 import com.neon.ascent.data.local.BiohackingDao
@@ -32,34 +33,60 @@ import net.sqlcipher.database.SQLiteDatabase
 import net.sqlcipher.database.SupportFactory
 import javax.inject.Singleton
 
+/**
+ * Open-fail does not delete user data.
+ */
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
     @Provides
     @Singleton
-    fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
+    fun provideAppDatabase(
+        @ApplicationContext context: Context,
+        securityManager: UplinkSecurityManager
+    ): AppDatabase {
         val dbName = "neon_ascent_v5_secure.db"
-        val passphraseString = "neon_protocol_secure_alpha"
-        val passphrase = SQLiteDatabase.getBytes(passphraseString.toCharArray())
         
-        // Pre-verification
+        try {
+            SQLiteDatabase.loadLibs(context)
+        } catch (e: Throwable) {
+            Log.e("DatabaseModule", "Failed to load SQLCipher libs for AppDatabase", e)
+        }
+
+        val passphraseBytes = securityManager.getDatabasePassphrase("db_passphrase_app")
         val dbFile = context.getDatabasePath(dbName)
+        
+        // Pre-verification without wiping database on open failure
         if (dbFile.exists()) {
             var db: SQLiteDatabase? = null
+            var openSuccessful = false
             try {
-                SQLiteDatabase.loadLibs(context)
-                db = SQLiteDatabase.openDatabase(dbFile.absolutePath, passphraseString, null, SQLiteDatabase.OPEN_READWRITE)
-                db.rawQuery("SELECT count(*) FROM sqlite_master", null)?.use { it.moveToFirst() }
+                db = SQLiteDatabase.openDatabase(dbFile.absolutePath, String(passphraseBytes), null, SQLiteDatabase.OPEN_READWRITE)
+                db?.rawQuery("SELECT count(*) FROM sqlite_master", null)?.use { it.moveToFirst() }
+                openSuccessful = true
             } catch (e: Throwable) {
-                Log.e("DatabaseModule", "AppDatabase verification failed. Wiping.", e)
-                try { db?.close() } catch (_: Throwable) {}
-                context.deleteDatabase(dbName)
+                Log.e("DatabaseModule", "AppDatabase verification failed. Preserving file in quarantine.", e)
             } finally {
                 try { db?.close() } catch (_: Throwable) {}
             }
+
+            if (!openSuccessful) {
+                try {
+                    val quarantineFile = context.getDatabasePath("$dbName.quarantine")
+                    if (quarantineFile.exists()) quarantineFile.delete()
+                    dbFile.renameTo(quarantineFile)
+                    val shmFile = context.getDatabasePath("$dbName-shm")
+                    if (shmFile.exists()) shmFile.renameTo(context.getDatabasePath("$dbName-shm.quarantine"))
+                    val walFile = context.getDatabasePath("$dbName-wal")
+                    if (walFile.exists()) walFile.renameTo(context.getDatabasePath("$dbName-wal.quarantine"))
+                    Log.w("DatabaseModule", "Successfully quarantined unopenable $dbName to ${quarantineFile.name}")
+                } catch (e: Throwable) {
+                    Log.e("DatabaseModule", "Failed to quarantine $dbName", e)
+                }
+            }
         }
 
-        val factory = SupportFactory(passphrase)
+        val factory = SupportFactory(passphraseBytes)
         
         return Room.databaseBuilder(
             context,
@@ -68,7 +95,6 @@ object DatabaseModule {
         )
         .openHelperFactory(factory)
         .addTypeConverter(Converters())
-        .fallbackToDestructiveMigration()
         .build()
     }
 

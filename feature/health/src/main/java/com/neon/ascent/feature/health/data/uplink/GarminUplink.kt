@@ -56,97 +56,9 @@ class GarminUplink @Inject constructor(
     }
 
     override suspend fun fetchDeepMetrics(): DeepBiometrics {
-        Log.d("GarminUplink", "Starting deep metrics sync for Garmin")
+        Log.d("GarminUplink", "Garmin scraper endpoints disabled in release graph. Health Connect is the vitals pipe.")
         _syncStatus.update { it.copy(lastSyncAttempt = System.currentTimeMillis()) }
-        
-        if (!authManager.hasValidSession()) {
-            Log.w("GarminUplink", "Sync failed: No valid session")
-            updateStatus(UplinkStatus.NeedsReAuth)
-            _syncStatus.update { it.copy(lastError = "Session Expired") }
-            return DeepBiometrics()
-        }
-
-        return try {
-            fetchDeepMetricsWithRetry()
-        } catch (e: Exception) {
-            handleSyncError(e)
-            DeepBiometrics()
-        }
-    }
-
-    private suspend fun fetchDeepMetricsWithRetry(maxAttempts: Int = 3, initialDelay: Long = 1000): DeepBiometrics {
-        var currentDelay = initialDelay
-        var lastException: Exception? = null
-
-        repeat(maxAttempts) { attempt ->
-            try {
-                updateStatus(UplinkStatus.Syncing(0.1f))
-                val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-                
-                // 1. Get User Profile for displayName
-                val settings = garminCloudApi.getUserSettings()
-                val displayName = settings.userData.displayName
-
-                updateStatus(UplinkStatus.Syncing(0.4f))
-                // 2. Fetch Body Battery
-                val bbResponse = garminCloudApi.getBodyBattery(today)
-                val currentBB = bbResponse.firstOrNull()?.stats?.lastOrNull()?.bodyBatteryValue
-
-                updateStatus(UplinkStatus.Syncing(0.7f))
-                // 3. Fetch Sleep Data
-                val sleepResponse = garminCloudApi.getSleepData(displayName, today)
-                val sleepScore = sleepResponse.sleepScores?.overallScore
-                val sleepDto = sleepResponse.dailySleepDto
-                
-                val sleepStages = mutableMapOf<String, Int>()
-                if (sleepDto.sleepTimeSeconds > 0) {
-                    sleepStages["DEEP"] = (sleepDto.deepSleepSeconds / 60).toInt()
-                    sleepStages["LIGHT"] = (sleepDto.lightSleepSeconds / 60).toInt()
-                    sleepStages["REM"] = (sleepDto.remSleepSeconds / 60).toInt()
-                    sleepStages["AWAKE"] = (sleepDto.awakeSleepSeconds / 60).toInt()
-                }
-
-                updateStatus(UplinkStatus.Syncing(0.9f))
-                // 4. Fetch Stress
-                val stressResponse = garminCloudApi.getStress(today)
-                val avgStress = stressResponse.avgStressLevel
-
-                updateStatus(UplinkStatus.Connected)
-                val now = System.currentTimeMillis()
-                _syncStatus.update { 
-                    it.copy(
-                        lastSuccessfulSync = now,
-                        lastError = null
-                    )
-                }
-                Log.i("GarminUplink", "Successfully synced deep metrics. BB: $currentBB, Sleep: $sleepScore")
-                
-                return DeepBiometrics(
-                    bodyBattery = currentBB,
-                    sleepScore = sleepScore,
-                    stressLevel = avgStress,
-                    sleepDurationMinutes = if (sleepDto.sleepTimeSeconds > 0) sleepDto.sleepTimeSeconds / 60 else null,
-                    sleepStages = sleepStages,
-                    lastSyncTimestamp = now
-                )
-            } catch (e: HttpException) {
-                if ((e.code() == 401) || (e.code() == 403)) {
-                    Log.e("GarminUplink", "Session expired during sync", e)
-                    updateStatus(UplinkStatus.NeedsReAuth)
-                    throw e
-                }
-                lastException = e
-            } catch (e: Exception) {
-                lastException = e
-            }
-
-            if (attempt < maxAttempts - 1) {
-                Log.w("GarminUplink", "Sync attempt ${attempt + 1} failed, retrying in $currentDelay ms...")
-                delay(currentDelay)
-                currentDelay *= 2
-            }
-        }
-        throw lastException ?: Exception("Unknown sync failure")
+        return DeepBiometrics()
     }
 
     private fun handleSyncError(e: Exception) {

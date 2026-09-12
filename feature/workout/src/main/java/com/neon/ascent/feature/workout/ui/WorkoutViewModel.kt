@@ -144,30 +144,12 @@ class WorkoutViewModel @Inject constructor(
     private val healthPrefs: HealthPreferencesDataStore,
     private val factsBuilder: BriefFactsBuilder,
     private val briefPrefs: BriefPreferencesDataStore,
+    private val activeSessionController: ActiveSessionController,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WorkoutUiState())
     val uiState = _uiState.asStateFlow()
-
-    private val timerReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            when (intent?.action) {
-                WorkoutTimerService.ACTION_TIMER_TICK -> {
-                    val remaining = intent.getIntExtra(WorkoutTimerService.EXTRA_REMAINING, 0)
-                    _uiState.update { it.copy(restTimeRemaining = remaining, isResting = true) }
-                }
-                WorkoutTimerService.ACTION_TIMER_FINISHED -> {
-                    val isClusterTimer = _uiState.value.workoutPhase == RestPausePhase.MINI_SET_2 || 
-                                         _uiState.value.workoutPhase == RestPausePhase.MINI_SET_3
-                    if (isClusterTimer) {
-                        hapticService.clusterTimerBuzz()
-                    }
-                    _uiState.update { it.copy(restTimeRemaining = 0, isResting = false) }
-                }
-            }
-        }
-    }
 
     private val updateJobs = mutableMapOf<String, kotlinx.coroutines.Job>()
     private val pendingUpdates = mutableMapOf<String, SetLog>()
@@ -270,6 +252,28 @@ class WorkoutViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            activeSessionController.state.collect { sessionState ->
+                _uiState.update { current ->
+                    current.copy(
+                        isResting = sessionState.isResting,
+                        restTimeRemaining = sessionState.restTimeRemaining,
+                        restTimerTotalSeconds = sessionState.restTimerTotalSeconds,
+                        lastCompletedSetId = sessionState.lastCompletedSetId,
+                        currentClusterIndex = sessionState.currentClusterIndex,
+                        showCyberFinisher = sessionState.showCyberFinisher,
+                        showLoadedStretch = sessionState.showLoadedStretch,
+                        stretchTimeRemaining = sessionState.stretchTimeRemaining,
+                        workoutDurationSeconds = sessionState.workoutDurationSeconds,
+                        isPaused = sessionState.isPaused,
+                        workoutPhase = sessionState.workoutPhase,
+                        showUncompletedSetsDialog = sessionState.showUncompletedSetsDialog,
+                        activeSessionError = sessionState.activeSessionError
+                    )
+                }
+            }
+        }
+
+        viewModelScope.launch {
             repository.seedStarterExercises()
             loadExercises()
             loadRoutines()
@@ -351,21 +355,11 @@ class WorkoutViewModel @Inject constructor(
                 }
             }
         }
-        
-        val filter = IntentFilter().apply {
-            addAction(WorkoutTimerService.ACTION_TIMER_TICK)
-            addAction(WorkoutTimerService.ACTION_TIMER_FINISHED)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(timerReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            context.registerReceiver(timerReceiver, filter)
-        }
     }
 
     override fun onCleared() {
         super.onCleared()
-        context.unregisterReceiver(timerReceiver)
+        activeSessionController.unregisterTimerReceiver()
     }
 
     fun updateDefaultRestTime(seconds: Int) {
@@ -385,42 +379,29 @@ class WorkoutViewModel @Inject constructor(
     }
 
     fun startManualRestTimer() {
-        WorkoutTimerService.start(context, _uiState.value.defaultRestTime)
+        activeSessionController.startManualRestTimer(_uiState.value.defaultRestTime)
     }
 
     fun stopRestTimer() {
-        WorkoutTimerService.stop(context)
-        _uiState.update { it.copy(isResting = false, restTimeRemaining = 0, lastCompletedSetId = null) }
+        activeSessionController.stopRestTimer()
     }
 
     private fun triggerRestTimer(setLog: SetLog, customDuration: Int? = null) {
-        val duration = customDuration ?: when (setLog.type) {
-            SetType.WARMUP -> _uiState.value.warmupSetRestTime
-            SetType.DROP -> _uiState.value.dropSetRestTime
-            else -> _uiState.value.workSetRestTime
-        }
-        
-        if (duration > 0) {
-            _uiState.update { it.copy(
-                isResting = true,
-                restTimerTotalSeconds = duration,
-                restTimeRemaining = duration,
-                lastCompletedSetId = setLog.id
-            ) }
-            WorkoutTimerService.start(context, duration)
-        }
+        activeSessionController.triggerRestTimer(
+            setLog,
+            customDuration,
+            _uiState.value.warmupSetRestTime,
+            _uiState.value.dropSetRestTime,
+            _uiState.value.workSetRestTime
+        )
     }
 
     fun skipRestTimer() {
-        stopRestTimer()
+        activeSessionController.skipRestTimer()
     }
 
     fun adjustRestTimer(seconds: Int) {
-        val intent = Intent(context, WorkoutTimerService::class.java).apply {
-            action = WorkoutTimerService.ACTION_ADD_TIME
-            putExtra(WorkoutTimerService.EXTRA_SECONDS, seconds)
-        }
-        context.startService(intent)
+        activeSessionController.adjustRestTimer(seconds)
     }
 
     fun updateWorkSetRestTime(seconds: Int) {
@@ -2680,15 +2661,15 @@ class WorkoutViewModel @Inject constructor(
     }
 
     fun clearActiveSessionError() {
-        _uiState.update { it.copy(activeSessionError = null) }
+        activeSessionController.setActiveSessionError(null)
     }
 
     fun pauseWorkout() {
-        _uiState.update { it.copy(isPaused = true) }
+        activeSessionController.pauseWorkout()
     }
 
     fun resumeWorkout() {
-        _uiState.update { it.copy(isPaused = false) }
+        activeSessionController.resumeWorkout()
     }
 
     fun discardWorkout() {
@@ -3143,14 +3124,14 @@ class WorkoutViewModel @Inject constructor(
         val hasUncompletedSets = currentLogs.any { (_, sets) -> sets.any { !it.isCompleted } }
 
         if (hasUncompletedSets) {
-            _uiState.update { it.copy(showUncompletedSetsDialog = true) }
+            activeSessionController.setShowUncompletedSetsDialog(true)
         } else {
             checkRoutineModificationsAndPostCheckIn()
         }
     }
 
     fun dismissUncompletedSetsDialog(discard: Boolean) {
-        _uiState.update { it.copy(showUncompletedSetsDialog = false) }
+        activeSessionController.setShowUncompletedSetsDialog(false)
         if (discard) {
             checkRoutineModificationsAndPostCheckIn(isDiscardingUncompleted = true)
         }

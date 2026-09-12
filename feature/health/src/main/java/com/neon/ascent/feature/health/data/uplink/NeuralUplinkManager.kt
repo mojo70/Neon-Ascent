@@ -57,9 +57,6 @@ class NeuralUplinkManager @Inject constructor(
         registerUplink(healthConnectUplink)
         
         startUplinkSync()
-        
-        // Auto-start BLE sync for providers that support it
-        garminUplink.startBLESync()
 
         // Schedule periodic background sync & one-shot backfill
         HealthSyncWorker.schedulePeriodicSync(context)

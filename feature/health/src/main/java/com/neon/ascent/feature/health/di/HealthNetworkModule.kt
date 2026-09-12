@@ -1,5 +1,6 @@
 package com.neon.ascent.feature.health.di
 
+import com.neon.ascent.feature.health.BuildConfig
 import com.neon.ascent.feature.health.data.remote.GarminAuthManager
 import com.neon.ascent.feature.health.data.remote.GarminCloudApi
 import dagger.Module
@@ -19,12 +20,19 @@ object HealthNetworkModule {
     @Provides
     @Singleton
     fun provideGarminOkHttpClient(authManager: GarminAuthManager): OkHttpClient {
-        return OkHttpClient.Builder()
-            .addInterceptor(HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.BODY
-            })
+        val builder = OkHttpClient.Builder()
             .cookieJar(authManager)
-            .build()
+
+        if (BuildConfig.DEBUG) {
+            val loggingInterceptor = HttpLoggingInterceptor().apply {
+                level = HttpLoggingInterceptor.Level.BODY
+                redactHeader("Cookie")
+                redactHeader("Set-Cookie")
+            }
+            builder.addInterceptor(loggingInterceptor)
+        }
+
+        return builder.build()
     }
 
     @Provides

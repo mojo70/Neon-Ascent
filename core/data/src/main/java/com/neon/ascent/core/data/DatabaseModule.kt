@@ -8,6 +8,7 @@ import com.neon.ascent.core.data.local.UplinkSecurityManager
 import com.neon.ascent.core.data.local.dao.SpecialDao
 import com.neon.ascent.core.data.local.dao.GoalDao
 import com.neon.ascent.core.data.local.dao.AscensionDao
+import com.neon.ascent.core.data.local.dao.BiomarkerDao
 import com.neon.ascent.core.data.local.dao.DopamineMenuDao
 import com.neon.ascent.core.data.local.dao.InsightDao
 import com.neon.ascent.core.data.local.dao.ProtocolDao
@@ -24,6 +25,8 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_51_52
 import com.neon.ascent.core.data.local.migration.MIGRATION_52_53
 import com.neon.ascent.core.data.local.dao.DailyVitalRollupDao
 import com.neon.ascent.core.data.local.dao.BodySampleDao
+import com.neon.ascent.core.data.local.dao.NeuralMemoryDao
+import com.neon.ascent.core.data.local.dao.WorkoutDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -33,6 +36,9 @@ import net.sqlcipher.database.SQLiteDatabase
 import net.sqlcipher.database.SupportFactory
 import javax.inject.Singleton
 
+/**
+ * Open-fail does not delete user data.
+ */
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
@@ -46,44 +52,55 @@ object DatabaseModule {
         val dbName = "neon_ascent_database"
         val dbFile = context.getDatabasePath(dbName)
         
-        // Load SQLCipher libraries early
         try {
             SQLiteDatabase.loadLibs(context)
         } catch (e: Throwable) {
             Log.e("DatabaseModule", "Failed to load SQLCipher libs", e)
         }
         
-        val passphraseBytes = try {
-            securityManager.getDatabasePassphrase()
-        } catch (e: Throwable) {
-            android.util.Log.e("DatabaseModule", "Failed to get passphrase", e)
-            "fallback_key".toByteArray()
-        }
-        val passphraseString = String(passphraseBytes)
+        val passphraseBytes = securityManager.getDatabasePassphrase()
 
-        // Pre-verification: try to open the database if it exists
+        // Pre-verification without wiping database on open failure
         if (dbFile.exists()) {
             var db: SQLiteDatabase? = null
+            var openSuccessful = false
             try {
                 db = SQLiteDatabase.openDatabase(
                     dbFile.absolutePath, 
-                    passphraseString, 
+                    String(passphraseBytes), 
                     null, 
                     SQLiteDatabase.OPEN_READWRITE
                 )
-                // Minimal query to verify encryption
-                db.rawQuery("SELECT count(*) FROM sqlite_master", null)?.use { it.moveToFirst() }
+                db?.rawQuery("SELECT count(*) FROM sqlite_master", null)?.use { it.moveToFirst() }
+                openSuccessful = true
             } catch (e: Throwable) {
-                Log.e("DatabaseModule", "Database verification failed. Wiping.", e)
-                try { db?.close() } catch (_: Throwable) {}
-                context.deleteDatabase(dbName)
+                Log.e("DatabaseModule", "NeonAscentDatabase verification failed. Preserving file in quarantine.", e)
             } finally {
                 try { db?.close() } catch (_: Throwable) {}
+            }
+
+            if (!openSuccessful) {
+                try {
+                    val quarantineFile = context.getDatabasePath("$dbName.quarantine")
+                    if (quarantineFile.exists()) quarantineFile.delete()
+                    dbFile.renameTo(quarantineFile)
+                    val shmFile = context.getDatabasePath("$dbName-shm")
+                    if (shmFile.exists()) shmFile.renameTo(context.getDatabasePath("$dbName-shm.quarantine"))
+                    val walFile = context.getDatabasePath("$dbName-wal")
+                    if (walFile.exists()) walFile.renameTo(context.getDatabasePath("$dbName-wal.quarantine"))
+                    Log.w("DatabaseModule", "Successfully quarantined unopenable $dbName to ${quarantineFile.name}")
+                } catch (e: Throwable) {
+                    Log.e("DatabaseModule", "Failed to quarantine $dbName", e)
+                }
             }
         }
 
         val factory = SupportFactory(passphraseBytes)
         
+        // Schema Migration gap policy:
+        // Version 53 contains historical schema gaps (e.g. v4-11, v12-43, v44-45, v49-50).
+        // Destructive migrations are strictly forbidden to prevent logbook/user data wipes.
+        // If an unhandled migration path is encountered, Room fails open safely without deleting the database file.
         return Room.databaseBuilder(
             context,
             NeonAscentDatabase::class.java,
@@ -96,7 +113,6 @@ object DatabaseModule {
             MIGRATION_47_48, MIGRATION_48_49, MIGRATION_50_51,
             MIGRATION_51_52, MIGRATION_52_53
         )
-        .fallbackToDestructiveMigration()
         .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
         .build()
     }
@@ -117,7 +133,7 @@ object DatabaseModule {
     }
 
     @Provides
-    fun provideNeuralMemoryDao(database: NeonAscentDatabase): com.neon.ascent.core.data.local.dao.NeuralMemoryDao {
+    fun provideNeuralMemoryDao(database: NeonAscentDatabase): NeuralMemoryDao {
         return database.neuralMemoryDao()
     }
 
@@ -137,12 +153,12 @@ object DatabaseModule {
     }
 
     @Provides
-    fun provideWorkoutDao(database: NeonAscentDatabase): com.neon.ascent.core.data.local.dao.WorkoutDao {
+    fun provideWorkoutDao(database: NeonAscentDatabase): WorkoutDao {
         return database.workoutDao()
     }
 
     @Provides
-    fun provideBiomarkerDao(database: NeonAscentDatabase): com.neon.ascent.core.data.local.dao.BiomarkerDao {
+    fun provideBiomarkerDao(database: NeonAscentDatabase): BiomarkerDao {
         return database.biomarkerDao()
     }
 

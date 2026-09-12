@@ -40,7 +40,13 @@ class NeonAscentApplication : Application(), Configuration.Provider {
     }
 
     override val workManagerConfiguration: Configuration
-        get() = Configuration.Builder()
-            .setWorkerFactory(workerFactory)
-            .build()
+        get() {
+            val builder = Configuration.Builder()
+            if (::workerFactory.isInitialized) {
+                builder.setWorkerFactory(workerFactory)
+            } else {
+                Log.w("NeonAscentApplication", "workerFactory not yet injected when WorkManager config requested")
+            }
+            return builder.build()
+        }
 }

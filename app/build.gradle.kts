@@ -30,9 +30,11 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
-        val weatherKey = localProperties.getProperty("openweather.api.key") ?: "YOUR_OPENWEATHER_API_KEY"
-        val geminiKey = localProperties.getProperty("gemini.api.key") ?: "YOUR_GEMINI_API_KEY"
-        val finnhubKey = localProperties.getProperty("finnhub.api.key") ?: "YOUR_FINNHUB_API_KEY"
+        fun sanitizeKey(key: String): String = if (key.isBlank() || key.startsWith("YOUR_")) "" else key
+
+        val weatherKey = sanitizeKey(localProperties.getProperty("openweather.api.key") ?: "")
+        val geminiKey = sanitizeKey(localProperties.getProperty("gemini.api.key") ?: "")
+        val finnhubKey = sanitizeKey(localProperties.getProperty("finnhub.api.key") ?: "")
 
         buildConfigField("String", "OPENWEATHER_API_KEY", "\"$weatherKey\"")
         buildConfigField("String", "GEMINI_API_KEY", "\"$geminiKey\"")
@@ -46,7 +48,8 @@ android {
             isCrunchPngs = false
         }
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -194,6 +197,8 @@ dependencies {
     implementation("com.positiondev.epublib:epublib-core:3.1") {
         exclude(group = "org.slf4j")
         exclude(group = "xmlpull")
+        exclude(group = "net.sf.kxml")
+        exclude(module = "kxml2")
     }
     implementation("org.jsoup:jsoup:1.18.1")
     
