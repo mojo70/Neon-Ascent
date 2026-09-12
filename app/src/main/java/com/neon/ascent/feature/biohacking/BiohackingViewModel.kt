@@ -214,7 +214,7 @@ class BiohackingViewModel @Inject constructor(
         val input = NeonChargeInput(
             sleepMinutesLastNight = snapshot?.sleepDurationMinutes,
             sanctumScore = snapshot?.sanctumResult?.score,
-            sleepEndedAt = null,
+            sleepEndedAt = snapshot?.sessionEndTime,
             rhrToday = snapshot?.restingHeartRate?.toDouble(),
             rhr7d = rhrList.map { it.second },
             hrvToday = snapshot?.hrvRmssd,

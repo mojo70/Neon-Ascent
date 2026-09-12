@@ -40,8 +40,8 @@ class BriefStanceResolverTest {
 
         val copy = AmTemplateWriter.write(facts, stance)
         assertEquals(BriefStance.HOLD, copy.stance)
-        assertEquals("SLEEP 6h12 / 7h20 · SEED 68 HOLD", copy.shadeHeadline)
-        assertEquals("320 squat still on the log. Legs today — keep it easy.", copy.shadeBody)
+        assertEquals("Short night — 6h12 of 7h20", copy.shadeHeadline)
+        assertEquals("320 squat is in the book. Legs today — keep it easy.", copy.shadeBody)
     }
 
     @Test
@@ -66,7 +66,7 @@ class BriefStanceResolverTest {
         assertEquals(BriefStance.PICKUP, stance)
 
         val copy = AmTemplateWriter.write(facts, stance)
-        assertEquals("Pull day is outstanding. Window is open to grab it today.", copy.shadeBody)
+        assertEquals("You still have Pull open.", copy.shadeBody)
     }
 
     @Test
@@ -107,7 +107,7 @@ class BriefStanceResolverTest {
         assertNull(facts.vitals.sanctumScore)
 
         val copy = AmTemplateWriter.write(facts, stance)
-        assertEquals("NEURAL BRIEF · MISSING_DATA", copy.shadeHeadline)
-        assertEquals("No overnight telemetry recorded. Open DECK to sync baseline.", copy.shadeBody)
+        assertEquals("NEURAL BRIEF", copy.shadeHeadline)
+        assertEquals("No overnight telemetry.", copy.shadeBody)
     }
 }

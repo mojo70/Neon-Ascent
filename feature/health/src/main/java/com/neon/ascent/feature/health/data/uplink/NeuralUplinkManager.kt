@@ -111,6 +111,7 @@ class NeuralUplinkManager @Inject constructor(
                 bodyBattery = deep?.bodyBattery,
                 stressLevel = deep?.stressLevel,
                 sanctumResult = deep?.sanctumResult,
+                sessionEndTime = deep?.sessionEndTime,
                 sourceFooter = "HC",
                 timestamp = now
             )

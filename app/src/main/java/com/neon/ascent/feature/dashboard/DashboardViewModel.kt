@@ -137,7 +137,7 @@ class DashboardViewModel @Inject constructor(
         val input = com.neon.ascent.core.domain.health.NeonChargeInput(
             sleepMinutesLastNight = snapshot?.sleepDurationMinutes,
             sanctumScore = snapshot?.sanctumResult?.score,
-            sleepEndedAt = null,
+            sleepEndedAt = snapshot?.sessionEndTime,
             rhrToday = snapshot?.restingHeartRate?.toDouble(),
             rhr7d = emptyList(),
             hrvToday = snapshot?.hrvRmssd,

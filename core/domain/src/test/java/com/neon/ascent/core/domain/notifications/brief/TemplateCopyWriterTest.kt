@@ -1,12 +1,53 @@
 package com.neon.ascent.core.domain.notifications.brief
 
 import com.neon.ascent.core.domain.notifications.models.*
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
 
 class TemplateCopyWriterTest {
+
+    @Test
+    fun `AmTemplateWriter matching 2026-09-12 screenshot facts outputs exact human copy`() {
+        val facts = BriefFacts(
+            slot = BriefSlot.AM,
+            lastSession = BriefSessionDetails(
+                id = "squat_325",
+                date = Instant.now(),
+                dayType = "C",
+                protocolName = "CYBERCRAPP",
+                topSets = listOf(TopSet("Back Squat (Barbell)", 325f, 5))
+            ),
+            vitals = BriefVitals(
+                sleepMinutes = 327, // 5h 27m
+                needMin = 440,      // 7h 20m
+                seed = 73,
+                seedBand = "WATCH"
+            ),
+            nextSession = BriefNextSession(
+                scheduled = true,
+                dayType = "C",
+                hasSessionToday = false,
+                isWeeklyTargetMet = true,
+                completedThisWeek = 3,
+                scheduledThisWeek = 3
+            )
+        )
+
+        val copy = AmTemplateWriter.write(facts, BriefStance.HOLD)
+
+        assertEquals("Short night — 5h27 of 7h20", copy.shadeHeadline)
+        assertEquals("Short night — 5h27 of 7h20\nWeek is done. Easy day.", copy.shadeBody)
+        assertEquals(
+            "Short night — 5h 27m of 7h 20m.\nWeek is already 3/3. Easy day.\n325 squat is in the book.",
+            copy.cardBody
+        )
+        assertTrue("No action buttons when week target is met", copy.actions.isEmpty())
+        assertFalse("Card body does not contain SEED or SANCTUM", copy.cardBody.contains("SANCTUM") || copy.cardBody.contains("SEED"))
+        assertFalse("Headline does not contain SEED or SANCTUM", copy.shadeHeadline.contains("SANCTUM") || copy.shadeHeadline.contains("SEED"))
+    }
 
     @Test
     fun `facts with session id present must not appear in copy`() {
@@ -45,12 +86,12 @@ class TemplateCopyWriterTest {
     }
 
     @Test
-    fun `AmTemplateWriter starts headline with SLEEP when night exists`() {
+    fun `AmTemplateWriter produces human sleep headline without SANCTUM or SEED`() {
         val facts = BriefFacts(
             slot = BriefSlot.AM,
             vitals = BriefVitals(
-                sleepMinutes = 424, // 7h04m
-                needMin = 440,      // 7h20m
+                sleepMinutes = 424, // 7h 04m
+                needMin = 440,      // 7h 20m
                 seed = 70,
                 seedBand = "WATCH"
             ),
@@ -58,8 +99,9 @@ class TemplateCopyWriterTest {
         )
 
         val copy = AmTemplateWriter.write(facts, BriefStance.HOLD)
-        assertTrue("Headline starts with SLEEP", copy.shadeHeadline.startsWith("SLEEP 7h04 / 7h20"))
-        assertTrue("Headline contains SEED 70 WATCH", copy.shadeHeadline.contains("SEED 70 WATCH"))
+        assertEquals("Slept 7h04 (need 7h20)", copy.shadeHeadline)
+        assertFalse("Headline must not contain SEED 70", copy.shadeHeadline.contains("SEED"))
+        assertFalse("Headline must not contain SANCTUM", copy.shadeHeadline.contains("SANCTUM"))
     }
 
     @Test
@@ -140,33 +182,9 @@ class TemplateCopyWriterTest {
         )
 
         val copy = AmTemplateWriter.write(facts, BriefStance.PUSH)
-        assertTrue(copy.shadeHeadline.contains("SEED 85 CLEAR"))
-        assertTrue(copy.shadeBody.contains("weight jump to 230 lbs"))
+        assertTrue(copy.cardBody.contains("Push is up"))
+        assertTrue(copy.shadeBody.contains("Push is up"))
         assertTrue(copy.shadeAllowed)
-    }
-
-    @Test
-    fun `AmTemplateWriter generates recovery copy when session logged today`() {
-        val facts = BriefFacts(
-            slot = BriefSlot.AM,
-            lastSession = BriefSessionDetails(
-                id = "s_today",
-                date = Instant.now(),
-                dayType = "C",
-                protocolName = "CYBERCRAPP",
-                topSets = listOf(TopSet("Back Squat", 325f, 5))
-            ),
-            vitals = BriefVitals(sleepMinutes = 327, needMin = 440, seed = 73, seedBand = "WATCH"),
-            nextSession = BriefNextSession(
-                scheduled = true,
-                dayType = "A",
-                hasSessionToday = true
-            )
-        )
-
-        val copy = AmTemplateWriter.write(facts, BriefStance.HOLD)
-        assertTrue("Shade body states training complete", copy.shadeBody.contains("325 back squat logged today. Training complete"))
-        assertTrue("Card body states Legs (C) logged — RECOVERY", copy.cardBody.contains("Today: Legs (C) logged — RECOVERY"))
     }
 
     @Test
@@ -185,8 +203,8 @@ class TemplateCopyWriterTest {
         )
 
         val copy = AmTemplateWriter.write(facts, BriefStance.HOLD)
-        assertTrue("Shade body states weekly target met 3/3", copy.shadeBody.contains("Weekly training target met (3/3)"))
-        assertTrue("Card body states weekly target met 3/3", copy.cardBody.contains("Weekly target met (3/3) — RECOVERY"))
+        assertTrue("Shade body states week is done", copy.shadeBody.contains("Week is done. Easy day."))
+        assertTrue("Card body states week is already 3/3", copy.cardBody.contains("Week is already 3/3. Easy day."))
     }
 
     @Test

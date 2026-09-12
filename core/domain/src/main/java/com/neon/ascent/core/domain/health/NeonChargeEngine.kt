@@ -3,7 +3,6 @@ package com.neon.ascent.core.domain.health
 import com.neon.ascent.core.domain.workout.models.WorkoutProtocol
 import java.time.Duration
 import java.time.Instant
-import java.time.ZoneId
 import java.util.Locale
 import kotlin.math.sqrt
 
@@ -116,11 +115,8 @@ object NeonChargeEngine {
             }
         }
 
-        // Drain calculations
-        val wakeTime = input.sleepEndedAt ?: input.now.atZone(ZoneId.systemDefault())
-            .toLocalDate()
-            .atStartOfDay(ZoneId.systemDefault())
-            .toInstant()
+        // Drain calculations: hoursAwake starts at sleepEnd, not local midnight (00:00).
+        val wakeTime = input.sleepEndedAt ?: input.now
 
         val hoursAwake = Duration.between(wakeTime, input.now).toMinutes() / 60.0
         val passiveDrain = (hoursAwake.coerceAtLeast(0.0) * 2.8).coerceIn(0.0, 50.0)

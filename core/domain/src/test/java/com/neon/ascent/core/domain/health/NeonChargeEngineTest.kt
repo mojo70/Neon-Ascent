@@ -189,4 +189,28 @@ class NeonChargeEngineTest {
 
         assertTrue(charge.drivers.none { it.first == "HR_LOAD" })
     }
+
+    @Test
+    fun `charge ring starts at wakeSeed and hoursAwake starts at sleepEnd`() {
+        val wakeEnd = Instant.parse("2026-09-12T07:16:00Z")
+        val now0736 = Instant.parse("2026-09-12T07:36:00Z")
+
+        val input = NeonChargeInput(
+            sleepMinutesLastNight = 480L,
+            sanctumScore = 80,
+            sleepEndedAt = wakeEnd,
+            rhrToday = null,
+            rhr7d = emptyList(),
+            hrvToday = null,
+            hrv7d = emptyList(),
+            stepsToday = 0,
+            now = now0736
+        )
+
+        val charge = NeonChargeEngine.calculateCharge(input)
+
+        assertEquals(72, charge.wakeSeed)
+        // 20 min awake = 0.33 hours -> passive drain ~0.93 points -> charge value should be ~71%
+        assertTrue("Charge at 07:36 after 07:16 wake must be close to wakeSeed 72, got ${charge.value}", charge.value >= 70)
+    }
 }
