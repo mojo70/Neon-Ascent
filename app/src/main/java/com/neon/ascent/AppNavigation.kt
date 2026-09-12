@@ -101,6 +101,7 @@ import com.neon.ascent.feature.health.domain.uplink.UplinkProvider
 import com.neon.ascent.util.derivePersonalityArchetype
 import com.neon.ascent.ui.components.NeonBottomBar
 import com.neon.ascent.ui.components.NavItem
+import kotlinx.coroutines.withTimeoutOrNull
 
 @Composable
 fun AppNavigation(
@@ -184,7 +185,14 @@ fun AppNavigation(
                         // Wait for database to emit character state at least once
                         dashboardViewModel.isCharacterLoaded.first { it }
                         
-                        val char = dashboardViewModel.userCharacter.value
+                        val char = try {
+                            withTimeoutOrNull(800L) {
+                                dashboardViewModel.userCharacter.first { it != null }
+                            } ?: dashboardViewModel.userCharacter.value
+                        } catch (_: Exception) {
+                            dashboardViewModel.userCharacter.value
+                        }
+
                         val hasCompleteProfile = char != null &&
                                 char.name.isNotBlank() &&
                                 char.weight.isNotBlank() &&

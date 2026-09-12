@@ -328,7 +328,7 @@ fun NeuralBriefCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "OPEN OPS // BREACH_LINK",
+                        text = "TRAINING_COMPLETE // RECOVERY ACTIVE",
                         color = systemColor,
                         fontSize = 13.sp,
                         fontFamily = FontFamily.Monospace,

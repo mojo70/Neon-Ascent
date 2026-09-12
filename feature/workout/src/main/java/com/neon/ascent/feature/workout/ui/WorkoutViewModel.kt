@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.neon.ascent.core.common.HapticService
@@ -16,13 +17,22 @@ import com.neon.ascent.core.domain.goals.models.AscensionTask
 import com.neon.ascent.core.domain.goals.models.AscensionTaskType
 import com.neon.ascent.core.domain.workout.rules.CyberCrappRules
 import com.neon.ascent.feature.workout.services.WorkoutTimerService
+import com.neon.ascent.core.data.datastore.BriefPreferencesDataStore
+import com.neon.ascent.core.data.notifications.BriefFactsBuilder
+import com.neon.ascent.core.domain.notifications.brief.AmTemplateWriter
+import com.neon.ascent.core.domain.notifications.brief.BriefStanceResolver
+import com.neon.ascent.core.domain.notifications.brief.PmTemplateWriter
+import com.neon.ascent.core.domain.notifications.models.BriefSlot
 import com.neon.ascent.core.domain.workout.protocol.*
+import com.neon.ascent.core.domain.workout.rules.WorkoutRotationResolver
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalTime
 import java.util.*
 import javax.inject.Inject
 
@@ -132,6 +142,8 @@ class WorkoutViewModel @Inject constructor(
     private val hapticService: HapticService,
     private val ascensionRepository: AscensionRepository,
     private val healthPrefs: HealthPreferencesDataStore,
+    private val factsBuilder: BriefFactsBuilder,
+    private val briefPrefs: BriefPreferencesDataStore,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -287,6 +299,17 @@ class WorkoutViewModel @Inject constructor(
                 repository.getAugmentActivations("default_user").collect { activations ->
                     _uiState.update { it.copy(augmentActivations = activations) }
                 }
+            }
+
+            launch {
+                try {
+                    val sessions = repository.getAllSessions().first()
+                    val routines = repository.getAllRoutines().first()
+                    val nextRoutine = WorkoutRotationResolver.resolveNextRoutine(sessions, routines)
+                    if (nextRoutine != null) {
+                        syncTrainingTasks(nextRoutine)
+                    }
+                } catch (_: Exception) {}
             }
             
             launch {
@@ -2438,11 +2461,22 @@ class WorkoutViewModel @Inject constructor(
             // Determine Day Type for Protocols
             val activeCycle = userProfile?.let { repository.getActiveCycle(it.userId).first() }
             val engine = getEngine(fullRoutine.protocol)
-            val dayType = if (engine != null && activeCycle != null && activeCycle.protocol == fullRoutine.protocol) {
-                (engine as? StartingStrengthEngine)?.let { ss ->
-                    ss.getNextDayType(null) // Simple for now: just start with A if we don't track well
+            val dayType = when {
+                fullRoutine.protocol == WorkoutProtocol.CYBER_CRAPP -> {
+                    when {
+                        fullRoutine.id.lowercase().endsWith("_a") || fullRoutine.name.contains("Push", ignoreCase = true) -> ProtocolDayType.CC_A
+                        fullRoutine.id.lowercase().endsWith("_b") || fullRoutine.name.contains("Pull", ignoreCase = true) -> ProtocolDayType.CC_B
+                        fullRoutine.id.lowercase().endsWith("_c") || fullRoutine.name.contains("Legs", ignoreCase = true) -> ProtocolDayType.CC_C
+                        else -> ProtocolDayType.CC_A
+                    }
                 }
-            } else null
+                engine != null && activeCycle != null && activeCycle.protocol == fullRoutine.protocol -> {
+                    (engine as? StartingStrengthEngine)?.let { ss ->
+                        ss.getNextDayType(null)
+                    }
+                }
+                else -> null
+            }
 
             val session = WorkoutSession(
                 id = sessionId, 
@@ -3369,6 +3403,57 @@ class WorkoutViewModel @Inject constructor(
 
             repository.saveSession(session.copy(durationSeconds = finalDuration))
 
+            // 1. Complete active AscensionTask for workout session
+            try {
+                val activeTasks = ascensionRepository.getAllRecurringTasks().first()
+                val workoutTask = activeTasks.find { it.tags.contains("workout_session") }
+                if (workoutTask != null) {
+                    ascensionRepository.completeTask(
+                        task = workoutTask,
+                        notes = "Completed via workout session log",
+                        mood = 3,
+                        linkedHealthSnapshot = null
+                    )
+                }
+            } catch (e: Throwable) {
+                Log.e("WorkoutVM", "Failed completing workout task", e)
+            }
+
+            // 2. Sync training tasks with next rotation step
+            try {
+                val sessions = repository.getAllSessions().first()
+                val routines = repository.getAllRoutines().first()
+                val nextRoutine = WorkoutRotationResolver.resolveNextRoutine(sessions, routines)
+                if (nextRoutine != null) {
+                    syncTrainingTasks(nextRoutine)
+                }
+            } catch (e: Throwable) {
+                Log.e("WorkoutVM", "Failed syncing rotation tasks", e)
+            }
+
+            // 3. Immediately refresh Neural Brief in DataStore preferences
+            try {
+                val slot = if (LocalTime.now().hour < 15) BriefSlot.AM else BriefSlot.PM
+                val freshFacts = factsBuilder.build(slot)
+                val stance = BriefStanceResolver.resolve(freshFacts)
+                val copy = if (slot == BriefSlot.AM) {
+                    AmTemplateWriter.write(freshFacts, stance)
+                } else {
+                    PmTemplateWriter.write(freshFacts, stance)
+                }
+                briefPrefs.updateLastBrief(
+                    date = LocalDate.now().toString(),
+                    slot = slot.name,
+                    factsHash = freshFacts.factsHash,
+                    title = copy.shadeHeadline,
+                    body = copy.shadeBody,
+                    cardBody = copy.cardBody,
+                    leadSessionId = freshFacts.lastSession?.id
+                )
+            } catch (e: Throwable) {
+                Log.e("WorkoutVM", "Failed refreshing brief DataStore cache", e)
+            }
+
             // Blast tracking logic
             val profile = _uiState.value.userProfile
             if (profile != null) {
@@ -4099,6 +4184,26 @@ class WorkoutViewModel @Inject constructor(
         )
         if (updatedAcc != currentAcc) {
             repository.saveAccomplishments(updatedAcc)
+        }
+    }
+
+    private suspend fun syncTrainingTasks(nextRoutine: WorkoutRoutine) {
+        try {
+            val existingTasks = ascensionRepository.getAllRecurringTasks().first()
+            val workoutTasks = existingTasks.filter { it.tags.contains("workout_session") }
+
+            workoutTasks.forEach { task ->
+                val newTitle = "TRAINING SESSION: ${nextRoutine.name.uppercase()}"
+                val newTags = task.tags.filterNot { it.startsWith("routine_") } + "routine_${nextRoutine.id}"
+                val updatedTask = task.copy(
+                    title = newTitle,
+                    description = "Sync with ${nextRoutine.name}.",
+                    tags = newTags
+                )
+                ascensionRepository.insertTask(updatedTask)
+            }
+        } catch (e: Throwable) {
+            Log.e("WorkoutVM", "Failed syncing training tasks", e)
         }
     }
 }

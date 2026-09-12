@@ -146,6 +146,50 @@ class TemplateCopyWriterTest {
     }
 
     @Test
+    fun `AmTemplateWriter generates recovery copy when session logged today`() {
+        val facts = BriefFacts(
+            slot = BriefSlot.AM,
+            lastSession = BriefSessionDetails(
+                id = "s_today",
+                date = Instant.now(),
+                dayType = "C",
+                protocolName = "CYBERCRAPP",
+                topSets = listOf(TopSet("Back Squat", 325f, 5))
+            ),
+            vitals = BriefVitals(sleepMinutes = 327, needMin = 440, seed = 73, seedBand = "WATCH"),
+            nextSession = BriefNextSession(
+                scheduled = true,
+                dayType = "A",
+                hasSessionToday = true
+            )
+        )
+
+        val copy = AmTemplateWriter.write(facts, BriefStance.HOLD)
+        assertTrue("Shade body states training complete", copy.shadeBody.contains("325 back squat logged today. Training complete"))
+        assertTrue("Card body states Legs (C) logged — RECOVERY", copy.cardBody.contains("Today: Legs (C) logged — RECOVERY"))
+    }
+
+    @Test
+    fun `AmTemplateWriter generates recovery copy when weekly target is met`() {
+        val facts = BriefFacts(
+            slot = BriefSlot.AM,
+            vitals = BriefVitals(sleepMinutes = 440, needMin = 440, seed = 80, seedBand = "CLEAR"),
+            nextSession = BriefNextSession(
+                scheduled = true,
+                dayType = "A",
+                hasSessionToday = false,
+                isWeeklyTargetMet = true,
+                completedThisWeek = 3,
+                scheduledThisWeek = 3
+            )
+        )
+
+        val copy = AmTemplateWriter.write(facts, BriefStance.HOLD)
+        assertTrue("Shade body states weekly target met 3/3", copy.shadeBody.contains("Weekly training target met (3/3)"))
+        assertTrue("Card body states weekly target met 3/3", copy.cardBody.contains("Weekly target met (3/3) — RECOVERY"))
+    }
+
+    @Test
     fun `PmTemplateWriter NEED_ONLY suppresses shade notification when on track`() {
         val facts = BriefFacts(
             slot = BriefSlot.PM,

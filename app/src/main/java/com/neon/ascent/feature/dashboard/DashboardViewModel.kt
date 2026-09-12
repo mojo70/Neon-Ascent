@@ -32,9 +32,13 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
+import java.time.DayOfWeek
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
+import java.time.temporal.TemporalAdjusters
 import java.util.Locale
 import javax.inject.Inject
 import kotlin.random.Random
@@ -234,7 +238,8 @@ class DashboardViewModel @Inject constructor(
                 _dopamineEvent,
                 specialRepository.getAllSpecialAttributes(),
                 identityCoordinator.identity,
-                ascensionRepository.getCompletionsInRange(java.time.Instant.now().minus(90, java.time.temporal.ChronoUnit.DAYS))
+                ascensionRepository.getCompletionsInRange(Instant.now().minus(90, ChronoUnit.DAYS)),
+                workoutRepository.getAllSessions()
             ) { array ->
                 val story = array[0] as com.neon.ascent.domain.model.UserStory
                 val directives = array[1] as List<AscensionDirective>
@@ -246,6 +251,7 @@ class DashboardViewModel @Inject constructor(
                 val specialAttrs = array[7] as List<com.neon.ascent.core.domain.model.SpecialAttribute>
                 val identity = array[8] as com.neon.ascent.core.common.OperatorIdentity
                 val quarterlyCompletions = array[9] as List<AscensionTaskCompletion>
+                val sessions = array[10] as List<com.neon.ascent.core.domain.workout.models.WorkoutSession>
 
                 // Calculate total XP this quarter
                 val totalXpThisQuarter = quarterlyCompletions.sumOf { completion ->
@@ -270,7 +276,31 @@ class DashboardViewModel @Inject constructor(
                 }
 
                 val today = LocalDate.now()
+                val zone = ZoneId.systemDefault()
+                val startOfWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).atStartOfDay(zone).toInstant()
+                val sessionsThisWeekCount = sessions.count { !it.date.isBefore(startOfWeek) }
+
+                val char = userCharacter.value
+                val userProfile = try { workoutRepository.getUserProfile(char?.id?.toString() ?: "default_user").first() } catch (_: Exception) { null }
+                val scheduledCount = userProfile?.scheduledDays?.size ?: 3
+                val isWeeklyTargetMet = sessionsThisWeekCount >= scheduledCount
+
                 val pulsesToday = dailyTasks.filter { task ->
+                    if (task.tags.contains("workout_session")) {
+                        val completedInstant = task.lastCompleted
+                        val isCompletedToday = completedInstant != null &&
+                                completedInstant.atZone(zone).toLocalDate() == today
+                        if (isCompletedToday) return@filter false
+
+                        if (isWeeklyTargetMet) return@filter false
+
+                        val scheduledDays = userProfile?.scheduledDays?.map { DayOfWeek.of(it.dayOfWeek) }?.toSet()
+                        if (scheduledDays != null && scheduledDays.isNotEmpty() && !scheduledDays.contains(today.dayOfWeek)) {
+                            return@filter false
+                        }
+
+                        return@filter true
+                    }
                     val recurrence = task.recurrence ?: return@filter true
                     when (recurrence.type) {
                         RecurrenceTypeV3.DAILY -> true

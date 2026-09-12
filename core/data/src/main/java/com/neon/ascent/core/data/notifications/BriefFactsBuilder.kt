@@ -13,7 +13,9 @@ import com.neon.ascent.core.domain.repository.WorkoutRepository
 import com.neon.ascent.core.domain.workout.models.SetType
 import com.neon.ascent.core.domain.workout.rules.RecoveryEngine
 import com.neon.ascent.core.data.datastore.BriefPreferencesDataStore
+import com.neon.ascent.core.domain.workout.rules.WorkoutRotationResolver
 import kotlinx.coroutines.flow.first
+import java.time.DayOfWeek
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
@@ -21,6 +23,7 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import java.time.temporal.TemporalAdjusters
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -208,10 +211,26 @@ class BriefFactsBuilder @Inject constructor(
         )
 
         // 8. Next Session
+        val startOfToday = LocalDate.now(zone).atStartOfDay(zone).toInstant()
+        val hasSessionToday = rawLastSession != null && !rawLastSession.date.isBefore(startOfToday)
+
+        val startOfWeek = LocalDate.now(zone).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).atStartOfDay(zone).toInstant()
+        val sessionsThisWeekCount = sessions.count { !it.date.isBefore(startOfWeek) }
+        val userProfile = try { workoutRepository.getUserProfile("default_user").first() } catch (_: Exception) { null }
+        val scheduledCount = userProfile?.scheduledDays?.size ?: 3
+        val isWeeklyTargetMet = sessionsThisWeekCount >= scheduledCount
+
+        val routines = try { workoutRepository.getAllRoutines().first() } catch (_: Exception) { emptyList() }
+        val nextDayTypeLetter = WorkoutRotationResolver.resolveNextDayTypeLetter(sessions, routines)
+
         val nextSession = BriefNextSession(
             scheduled = true,
-            dayType = "C",
-            isHeavyOrC = true
+            dayType = nextDayTypeLetter,
+            isHeavyOrC = nextDayTypeLetter == "C",
+            hasSessionToday = hasSessionToday,
+            isWeeklyTargetMet = isWeeklyTargetMet,
+            completedThisWeek = sessionsThisWeekCount,
+            scheduledThisWeek = scheduledCount
         )
 
         val dataQuality = BriefDataQuality(

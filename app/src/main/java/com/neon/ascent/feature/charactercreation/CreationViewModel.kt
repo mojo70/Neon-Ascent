@@ -79,6 +79,7 @@ class CreationViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             val existing = characterRepository.getUserCharacter().first()
+            val isComplete = name.isNotBlank() && weight.isNotBlank() && weight != "0" && units.isNotBlank()
             draftCharacter = (existing ?: draftCharacter).copy(
                 name = name,
                 sex = sex,
@@ -88,11 +89,12 @@ class CreationViewModel @Inject constructor(
                 somatotype = somatotype,
                 heightFeet = heightFeet,
                 heightInches = heightInches,
-                heightCm = heightCm
+                heightCm = heightCm,
+                isCreationComplete = isComplete || (existing?.isCreationComplete == true)
             )
             characterRepository.saveCharacter(draftCharacter)
             userPreferencesRepository.updateMeasurementUnit(units)
-            if (name.isNotBlank() && weight.isNotBlank() && weight != "0" && units.isNotBlank()) {
+            if (isComplete) {
                 userPreferencesRepository.setOnboardingComplete(true)
             }
         }

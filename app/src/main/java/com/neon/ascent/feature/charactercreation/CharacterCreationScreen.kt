@@ -103,16 +103,28 @@ fun CharacterCreationScreen(
 
     LaunchedEffect(userCharacter) {
         userCharacter?.let { char ->
+            val hasCompleteProfile = char.name.isNotBlank() && char.weight.isNotBlank() && char.weight != "0" && char.units.isNotBlank()
+            if (char.isCreationComplete || hasCompleteProfile) {
+                onCreationFinished(
+                    char.name,
+                    char.sex,
+                    char.dob,
+                    char.units,
+                    char.weight,
+                    char.somatotype,
+                    char.heightFeet,
+                    char.heightInches,
+                    char.heightCm
+                )
+                return@LaunchedEffect
+            }
             if (name.isEmpty()) name = char.name
             if (sex.isEmpty()) sex = char.sex
             if (dobValue.text.isEmpty()) dobValue = TextFieldValue(char.dob)
-            // Units and others if they were already set might be better to keep, 
-            // but for initial load from DB:
             if (weight.isEmpty()) weight = char.weight
             if (heightFeet.isEmpty()) heightFeet = char.heightFeet ?: ""
             if (heightInches.isEmpty()) heightInches = char.heightInches ?: ""
             if (heightCm.isEmpty()) heightCm = char.heightCm ?: ""
-            // somatotype is usually not "empty" so maybe check if it's default 5f
             if (somatotype == 5f && char.somatotype != 0f) somatotype = char.somatotype
         }
     }

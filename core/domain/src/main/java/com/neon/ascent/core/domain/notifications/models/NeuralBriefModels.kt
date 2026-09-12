@@ -68,7 +68,11 @@ data class BriefNextSession(
     val dayType: String? = null,
     val liftsDue: List<String> = emptyList(),
     val weightJumpsDue: List<String> = emptyList(),
-    val isHeavyOrC: Boolean = false
+    val isHeavyOrC: Boolean = false,
+    val hasSessionToday: Boolean = false,
+    val isWeeklyTargetMet: Boolean = false,
+    val completedThisWeek: Int = 0,
+    val scheduledThisWeek: Int = 3
 )
 
 data class BriefDataQuality(
