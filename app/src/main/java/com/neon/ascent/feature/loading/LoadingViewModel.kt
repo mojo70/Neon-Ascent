@@ -2,8 +2,8 @@ package com.neon.ascent.feature.loading
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.neon.ascent.data.local.SayingsDao
 import com.neon.ascent.data.repository.JournalRepository
+import com.neon.ascent.data.repository.SayingsRepository
 import com.neon.ascent.feature.biohacking.AiProvider
 import com.neon.ascent.model.JournalEntry
 import com.neon.ascent.model.Saying
@@ -20,7 +20,7 @@ import kotlin.random.Random
 @HiltViewModel
 class LoadingViewModel @Inject constructor(
     private val aiProvider: AiProvider,
-    private val sayingsDao: SayingsDao,
+    private val sayingsRepository: SayingsRepository,
     private val journalRepository: JournalRepository,
     private val appSessionManager: AppSessionManager
 ) : ViewModel() {
@@ -46,7 +46,7 @@ class LoadingViewModel @Inject constructor(
 
     private fun loadRandomSaying() {
         viewModelScope.launch {
-            val sayings = sayingsDao.getAllSayings().first()
+            val sayings = sayingsRepository.getAllSayings().first()
             if (sayings.isNotEmpty()) {
                 val selected = sayings[Random.nextInt(sayings.size)]
                 _randomSaying.value = selected

@@ -3,6 +3,11 @@ package com.neon.ascent.feature.library
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.neon.ascent.core.domain.library.models.LibraryBook
+import com.neon.ascent.core.domain.library.models.LibraryChapter
+import com.neon.ascent.core.domain.library.models.LibraryHighlight
+import com.neon.ascent.core.domain.library.models.LibraryQuote
+import com.neon.ascent.core.domain.library.repository.LibraryRepository
 import com.neon.ascent.data.local.BookDao
 import com.neon.ascent.data.repository.SettingsRepository
 import com.neon.ascent.feature.biohacking.AiProvider
@@ -25,6 +30,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
+import org.jsoup.nodes.Document
 import javax.inject.Inject
 
 @HiltViewModel
@@ -33,6 +39,7 @@ class EReaderViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val aiProvider: AiProvider,
     private val bookDao: BookDao,
+    private val libraryRepository: LibraryRepository,
     val modelDownloadManager: ModelDownloadManager
 ) : AndroidViewModel(application) {
 
@@ -42,9 +49,9 @@ class EReaderViewModel @Inject constructor(
     val activeAiType: StateFlow<AiType> = aiProvider.activeAiType
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val highlights: StateFlow<List<HighlightEntity>> = _currentBook
+    val highlights: StateFlow<List<LibraryHighlight>> = _currentBook
         .flatMapLatest { book ->
-            if (book != null) bookDao.getHighlightsForBook(book.id)
+            if (book != null) libraryRepository.getHighlightsForBook(book.id)
             else flowOf(emptyList())
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -52,33 +59,37 @@ class EReaderViewModel @Inject constructor(
     fun saveHighlight(chapterIndex: Int, start: Int, end: Int, color: Long) {
         val bookId = _currentBook.value?.id ?: return
         viewModelScope.launch(Dispatchers.IO) {
-            bookDao.insertHighlight(
-                HighlightEntity(
+            val now = System.currentTimeMillis()
+            libraryRepository.upsertHighlight(
+                LibraryHighlight(
                     bookId = bookId,
                     chapterIndex = chapterIndex,
                     startOffset = start,
                     endOffset = end,
-                    color = color
+                    color = color,
+                    timestamp = now
                 )
             )
         }
     }
 
-    fun deleteHighlight(highlight: HighlightEntity) {
+    fun deleteHighlight(highlight: LibraryHighlight) {
         viewModelScope.launch(Dispatchers.IO) {
-            bookDao.deleteHighlight(highlight)
+            libraryRepository.deleteHighlight(highlight)
         }
     }
 
     fun saveQuote(content: String, chapterTitle: String) {
         val book = _currentBook.value ?: return
         viewModelScope.launch(Dispatchers.IO) {
-            bookDao.insertQuote(
-                QuoteEntity(
+            val now = System.currentTimeMillis()
+            libraryRepository.upsertQuote(
+                LibraryQuote(
                     bookId = book.id,
                     bookTitle = book.title,
                     content = content,
-                    chapterTitle = chapterTitle
+                    chapterTitle = chapterTitle,
+                    timestamp = now
                 )
             )
         }
@@ -126,15 +137,42 @@ class EReaderViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                // 1. Check if book exists in DB
-                val cachedBook = withContext(Dispatchers.IO) {
-                    bookDao.getBookById(id)
+                // 1. Check if book exists in core LibraryRepository
+                var cachedBook = withContext(Dispatchers.IO) {
+                    libraryRepository.getBookById(id)
+                }
+
+                // 2. Idempotent Copy check from legacy BookDao if missing in core
+                if (cachedBook == null) {
+                    val legacyBook = withContext(Dispatchers.IO) { bookDao.getBookById(id) }
+                    if (legacyBook != null) {
+                        val legacyChapters = withContext(Dispatchers.IO) { bookDao.getChaptersForBook(id) }
+                        val newBook = LibraryBook(
+                            id = legacyBook.id,
+                            title = legacyBook.title,
+                            author = legacyBook.author,
+                            language = legacyBook.language,
+                            epubAssetPath = assetPath
+                        )
+                        val newChapters = legacyChapters.map {
+                            LibraryChapter(
+                                bookId = id,
+                                chapterIndex = it.chapterIndex,
+                                title = it.title,
+                                content = it.content
+                            )
+                        }
+                        withContext(Dispatchers.IO) {
+                            libraryRepository.upsertBook(newBook, newChapters)
+                        }
+                        cachedBook = newBook
+                    }
                 }
 
                 if (cachedBook != null) {
-                    // 2. Load from DB
+                    // 3. Load from core LibraryRepository
                     val cachedChapters = withContext(Dispatchers.IO) {
-                        bookDao.getChaptersForBook(id)
+                        libraryRepository.getChaptersForBook(id)
                     }
                     _currentBook.value = EBook(
                         id = cachedBook.id,
@@ -144,17 +182,28 @@ class EReaderViewModel @Inject constructor(
                         chapters = cachedChapters.map { Chapter(it.title, it.content) }
                     )
                 } else {
-                    // 3. Parse and Save to DB
+                    // 4. Parse and save to core LibraryRepository only
                     val inputStream = getApplication<Application>().assets.open(assetPath)
                     val parsedBook = withContext(Dispatchers.IO) {
                         bookParser.parseEpub(inputStream, id)
                     }
                     
                     withContext(Dispatchers.IO) {
-                        bookDao.insertFullBook(
-                            BookEntity(parsedBook.id, parsedBook.title, parsedBook.author, parsedBook.language),
+                        libraryRepository.upsertBook(
+                            LibraryBook(
+                                id = parsedBook.id,
+                                title = parsedBook.title,
+                                author = parsedBook.author,
+                                language = parsedBook.language,
+                                epubAssetPath = assetPath
+                            ),
                             parsedBook.chapters.mapIndexed { index, chapter ->
-                                ChapterEntity(bookId = parsedBook.id, chapterIndex = index, title = chapter.title, content = chapter.content)
+                                LibraryChapter(
+                                    bookId = parsedBook.id,
+                                    chapterIndex = index,
+                                    title = chapter.title,
+                                    content = chapter.content
+                                )
                             }
                         )
                     }
@@ -297,7 +346,7 @@ class EReaderViewModel @Inject constructor(
 
     private fun stripHtmlWithBreaks(html: String): String {
         val document = Jsoup.parse(html)
-        document.outputSettings(org.jsoup.nodes.Document.OutputSettings().prettyPrint(false))
+        document.outputSettings(Document.OutputSettings().prettyPrint(false))
         document.select("br").append(" BR_MARKER ")
         document.select("p, div, tr, td, th, li").prepend(" PARA_MARKER ")
         val s = document.text()

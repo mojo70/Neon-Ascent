@@ -2,8 +2,8 @@ package com.neon.ascent.domain.usecase
 
 import android.content.Context
 import com.google.gson.Gson
+import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.data.repository.BioAgePredictor
-import com.neon.ascent.data.repository.GoalRepository
 import com.neon.ascent.data.repository.TaskRepository
 import com.neon.ascent.domain.model.Frequency
 import com.neon.ascent.domain.model.Task
@@ -16,14 +16,14 @@ import javax.inject.Singleton
 
 @Singleton
 class GenerateDailyTasksUseCase @Inject constructor(
-    private val goalRepository: GoalRepository,
+    private val ascensionRepository: AscensionRepository,
     private val taskRepository: TaskRepository,
     private val bioAgePredictor: BioAgePredictor,
     @ApplicationContext private val context: Context
 ) {
 
     suspend fun generateTodaysTasks(): List<Task> {
-        val activeGoals = goalRepository.getActiveGoals().first()
+        val activeMissions = ascensionRepository.getActiveMissions().first()
         val taskBank = loadTaskBank()
         val tasks = mutableListOf<Task>()
 
@@ -43,12 +43,12 @@ class GenerateDailyTasksUseCase @Inject constructor(
             ))
         }
 
-        // Add 1–2 more tasks based on goals (keep it light)
-        activeGoals.forEach { goal ->
+        // Add 1–2 more tasks based on active missions (keep it light)
+        activeMissions.forEach { mission ->
             val match = when {
-                goal.title.contains("Meditation", ignoreCase = true) -> taskBank.tasks.find { it.category == "meditation" }
-                goal.title.contains("Focus", ignoreCase = true) -> taskBank.tasks.find { it.category == "focus" }
-                goal.title.contains("Movement", ignoreCase = true) || goal.title.contains("Walk", ignoreCase = true) -> taskBank.tasks.find { it.category == "movement" }
+                mission.title.contains("Meditation", ignoreCase = true) -> taskBank.tasks.find { it.category == "meditation" }
+                mission.title.contains("Focus", ignoreCase = true) -> taskBank.tasks.find { it.category == "focus" }
+                mission.title.contains("Movement", ignoreCase = true) || mission.title.contains("Walk", ignoreCase = true) -> taskBank.tasks.find { it.category == "movement" }
                 else -> null
             }
             
@@ -56,7 +56,7 @@ class GenerateDailyTasksUseCase @Inject constructor(
                 if (tasks.none { it.title.contains(template.title) }) {
                     tasks.add(Task(
                         id = UUID.randomUUID().toString(),
-                        goalId = goal.id,
+                        goalId = mission.id,
                         title = template.title,
                         description = template.description,
                         frequency = Frequency.valueOf(template.frequency),

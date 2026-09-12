@@ -3,6 +3,8 @@ package com.neon.ascent.feature.cyberdeck
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.neon.ascent.BuildConfig
+import com.neon.ascent.core.domain.vault.models.VaultWatchlistItem
+import com.neon.ascent.core.domain.vault.repository.VaultRepository
 import com.neon.ascent.data.local.StockDao
 import com.neon.ascent.data.remote.StockApi
 import com.neon.ascent.model.*
@@ -18,6 +20,7 @@ import javax.inject.Inject
 @HiltViewModel
 class StockViewModel @Inject constructor(
     private val stockApi: StockApi,
+    private val vaultRepository: VaultRepository,
     private val stockDao: StockDao
 ) : ViewModel() {
 
@@ -39,7 +42,9 @@ class StockViewModel @Inject constructor(
     private val _quoteData = MutableStateFlow<Map<String, StockQuote>>(emptyMap())
     val quoteData: StateFlow<Map<String, StockQuote>> = _quoteData.asStateFlow()
 
-    val watchlist = stockDao.getWatchlist()
+    // Read path reads directly from VaultRepository
+    val watchlist: StateFlow<List<WatchlistItem>> = vaultRepository.getWatchlist()
+        .map { list -> list.map { WatchlistItem(it.symbol, it.name, it.isCrypto) } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun selectSymbol(symbol: String?, isCrypto: Boolean = false) {
@@ -69,9 +74,9 @@ class StockViewModel @Inject constructor(
                 _financials.value = stockApi.getFinancials(symbol, token = BuildConfig.FINNHUB_API_KEY)
                 val earningsResp = stockApi.getEarnings(symbol, token = BuildConfig.FINNHUB_API_KEY)
                 _earnings.value = earningsResp.earningsCalendar.firstOrNull()
-            } catch (e: Exception) {
-                e.printStackTrace()
-                _errorMessage.value = "Financial Data Error: ${e.message}"
+            } catch (_: Exception) {
+                // Do not log API keys or request bodies
+                _errorMessage.value = "Financial Data Error"
             }
         }
     }
@@ -88,9 +93,9 @@ class StockViewModel @Inject constructor(
                 val from = Instant.now().minus(daysBack, ChronoUnit.DAYS).epochSecond
                 val response = stockApi.getCandles(symbol, resolution, from, to, BuildConfig.FINNHUB_API_KEY)
                 _candleData.value = response
-            } catch (e: Exception) {
-                e.printStackTrace()
-                _errorMessage.value = "Market Data Error: ${e.message}"
+            } catch (_: Exception) {
+                // Do not log API keys or request bodies
+                _errorMessage.value = "Market Data Error"
             }
         }
     }
@@ -118,8 +123,8 @@ class StockViewModel @Inject constructor(
                 try {
                     val quote = stockApi.getQuote(item.symbol, BuildConfig.FINNHUB_API_KEY)
                     _quoteData.update { it + (item.symbol to quote) }
-                } catch (e: Exception) {
-                    e.printStackTrace()
+                } catch (_: Exception) {
+                    // Do not log API keys or request bodies
                 }
             }
         }
@@ -127,11 +132,12 @@ class StockViewModel @Inject constructor(
 
     fun toggleFollow(symbol: String, name: String, isCrypto: Boolean = false) {
         viewModelScope.launch {
-            val isFollowing = stockDao.isFollowing(symbol)
+            val isFollowing = vaultRepository.isFollowing(symbol)
+            val vaultItem = VaultWatchlistItem(symbol, name, isCrypto)
             if (isFollowing) {
-                stockDao.removeFromWatchlist(WatchlistItem(symbol, name, isCrypto))
+                vaultRepository.removeFromWatchlist(vaultItem)
             } else {
-                stockDao.addToWatchlist(WatchlistItem(symbol, name, isCrypto))
+                vaultRepository.addToWatchlist(vaultItem)
                 fetchWatchlistQuotes()
             }
         }
@@ -155,22 +161,38 @@ class StockViewModel @Inject constructor(
     }
 
     init {
-        // Pre-populate defaults
+        // Idempotent copy-if-absent from StockDao to VaultRepository, seeding defaults if both empty
         viewModelScope.launch {
-            val current = watchlist.first()
-            if (current.isEmpty()) {
+            val currentVault = vaultRepository.getWatchlist().first()
+            val currentLegacy = stockDao.getWatchlist().first()
+
+            val existingVaultSymbols = currentVault.map { it.symbol }.toSet()
+            if (currentLegacy.isNotEmpty()) {
+                currentLegacy.forEach { legacy ->
+                    if (!existingVaultSymbols.contains(legacy.symbol)) {
+                        vaultRepository.addToWatchlist(
+                            VaultWatchlistItem(legacy.symbol, legacy.name, legacy.isCrypto)
+                        )
+                    }
+                }
+            }
+
+            val updatedVault = vaultRepository.getWatchlist().first()
+            if (updatedVault.isEmpty()) {
                 val defaults = listOf(
-                    WatchlistItem("AAPL", "Apple Inc."),
-                    WatchlistItem("NVDA", "Nvidia Corp."),
-                    WatchlistItem("GOOGL", "Alphabet Inc."),
-                    WatchlistItem("HOOD", "Robinhood Markets"),
-                    WatchlistItem("TSLA", "Tesla Inc."),
-                    WatchlistItem("BINANCE:BTCUSDT", "Bitcoin", true),
-                    WatchlistItem("BINANCE:ETHUSDT", "Ethereum", true),
-                    WatchlistItem("BINANCE:SOLUSDT", "Solana", true),
-                    WatchlistItem("EDS", "Eurodollars", true)
+                    VaultWatchlistItem("AAPL", "Apple Inc."),
+                    VaultWatchlistItem("NVDA", "Nvidia Corp."),
+                    VaultWatchlistItem("GOOGL", "Alphabet Inc."),
+                    VaultWatchlistItem("HOOD", "Robinhood Markets"),
+                    VaultWatchlistItem("TSLA", "Tesla Inc."),
+                    VaultWatchlistItem("BINANCE:BTCUSDT", "Bitcoin", true),
+                    VaultWatchlistItem("BINANCE:ETHUSDT", "Ethereum", true),
+                    VaultWatchlistItem("BINANCE:SOLUSDT", "Solana", true),
+                    VaultWatchlistItem("EDS", "Eurodollars", true)
                 )
-                defaults.forEach { stockDao.addToWatchlist(it) }
+                defaults.forEach {
+                    vaultRepository.addToWatchlist(it)
+                }
             }
             fetchWatchlistQuotes()
         }

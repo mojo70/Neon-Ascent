@@ -617,9 +617,11 @@ fun AppNavigation(
         }
 
         composable<Screen.AspirationCreation> {
-            AspirationCreationScreen(
-                onCreated = { navController.popBackStack() },
-                onCancel = { navController.popBackStack() }
+            AscensionForgeScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToGuide = { navController.navigate(Screen.NeonGuide) },
+                onNavigateToDashboard = { navController.popBackStack() },
+                onBrowseProtocols = { navController.navigate(Screen.ProtocolLibrary) }
             )
         }
 

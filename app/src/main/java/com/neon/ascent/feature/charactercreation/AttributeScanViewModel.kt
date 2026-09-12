@@ -9,7 +9,7 @@ import com.neon.ascent.core.domain.model.SpecialAttribute
 import com.neon.ascent.core.domain.model.TestType
 import java.util.UUID
 import java.time.Instant
-import com.neon.ascent.data.repository.CharacterRepository
+import com.neon.ascent.core.domain.character.repository.CharacterRepository
 import com.neon.ascent.data.repository.TemplateRepository
 import com.neon.ascent.core.domain.character.models.UserCharacter
 import com.neon.ascent.util.AttributeCalculator

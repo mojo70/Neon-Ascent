@@ -1,19 +1,24 @@
 package com.neon.ascent.core.data
 
 import com.neon.ascent.core.data.local.dao.GoalDao
+import com.neon.ascent.core.data.mapper.GoalImportMappers
 import com.neon.ascent.core.data.mapper.GoalMapper
 import com.neon.ascent.core.domain.GoalRepository
 import com.neon.ascent.core.domain.goals.models.*
+import com.neon.ascent.core.domain.repository.AscensionRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.time.LocalDate
+import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class GoalRepositoryImpl @Inject constructor(
     private val goalDao: GoalDao,
-    private val mapper: GoalMapper
+    private val mapper: GoalMapper,
+    private val ascensionRepository: AscensionRepository
 ) : GoalRepository {
 
     override fun getAllGoals(): Flow<List<Goal>> =
@@ -28,7 +33,7 @@ class GoalRepositoryImpl @Inject constructor(
 
     override fun getDueHabits(): Flow<List<Habit>> =
         getHabits().map { habits ->
-            val startOfDay = java.time.LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()
+            val startOfDay = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()
             habits.filter { habit ->
                 val lastCompleted = habit.lastCompleted
                 lastCompleted == null || lastCompleted.isBefore(startOfDay)
@@ -67,37 +72,60 @@ class GoalRepositoryImpl @Inject constructor(
             entities.map { mapper.toHabit(it) }
         }
 
+    // ====================== V3 ONLY WRITES ======================
+
     override suspend fun saveGoal(goal: Goal) {
-        goalDao.insertGoal(mapper.toEntity(goal))
+        when (goal) {
+            is Aspiration -> createAspiration(goal)
+            is Mission -> saveMission(goal)
+            is Habit -> saveHabit(goal)
+            is Task -> {
+                val task = GoalImportMappers.mapV2TaskToAscensionTask(goal)
+                ascensionRepository.insertTask(task)
+            }
+        }
     }
 
     override suspend fun saveHabit(habit: Habit) {
-        goalDao.insertGoal(mapper.toEntity(habit))
+        val task = GoalImportMappers.mapV2HabitToAscensionTask(habit)
+        ascensionRepository.insertTask(task)
     }
 
     override suspend fun saveMission(mission: Mission) {
-        goalDao.insertGoal(mapper.toEntity(mission))
-    }
-
-    override suspend fun completeHabit(habitId: String, data: CompletionData) {
-        val current = goalDao.getGoalById(habitId).first() ?: return
-        val updatedEntity = mapper.updateHabitWithCompletion(current, data)
-        goalDao.completeHabitTransaction(habitId, updatedEntity)
+        val ascensionMission = GoalImportMappers.mapV2MissionToAscensionMission(mission)
+        ascensionRepository.insertMission(ascensionMission)
     }
 
     override suspend fun createAspiration(aspiration: Aspiration) {
-        goalDao.insertGoal(mapper.toEntity(aspiration))
+        val directive = GoalImportMappers.mapV2AspirationToDirective(aspiration)
+        ascensionRepository.insertDirective(directive)
+    }
+
+    override suspend fun completeHabit(habitId: String, data: CompletionData) {
+        val task = ascensionRepository.getTaskById(habitId).first()
+        if (task != null) {
+            ascensionRepository.completeTask(task, null, null, null)
+        }
     }
 
     override suspend fun updateGoalProgress(goalId: String, progress: GoalProgress) {
-        goalDao.updateProgress(goalId, progress.current.toDouble())
+        val activeMissions = ascensionRepository.getActiveMissions().first()
+        val mission = activeMissions.find { it.id == goalId }
+        if (mission != null) {
+            val newProgress = GoalImportMappers.calculateProgress(progress.current, progress.target)
+            ascensionRepository.updateMission(mission.copy(progress = newProgress))
+        }
     }
 
     override suspend fun linkHabitToMission(habitId: String, missionId: String) {
-        // TODO: Implementation for linking logic
+        val task = ascensionRepository.getTaskById(habitId).first()
+        if (task != null) {
+            ascensionRepository.updateTask(task.copy(parentId = missionId))
+        }
     }
 
     override suspend fun deleteGoal(id: String) {
-        goalDao.deleteGoal(id)
+        ascensionRepository.deleteTask(id)
+        ascensionRepository.deleteDirective(id)
     }
 }

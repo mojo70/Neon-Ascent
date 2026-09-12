@@ -1,6 +1,6 @@
 package com.neon.ascent.data.repository
 
-import com.neon.ascent.data.local.UserCharacterDao
+import com.neon.ascent.core.domain.character.repository.CharacterRepository
 import com.neon.ascent.domain.model.SpecialStat
 import com.neon.ascent.domain.model.SpecialType
 import kotlinx.coroutines.flow.Flow
@@ -10,9 +10,9 @@ import javax.inject.Singleton
 
 @Singleton
 class SpecialRepository @Inject constructor(
-    private val userCharacterDao: UserCharacterDao
+    private val characterRepository: CharacterRepository
 ) {
-    fun getAllSpecialStats(): Flow<List<SpecialStat>> = userCharacterDao.getUserCharacter().map { char ->
+    fun getAllSpecialStats(): Flow<List<SpecialStat>> = characterRepository.getUserCharacter().map { char ->
         if (char == null) emptyList()
         else listOf(
             SpecialStat(SpecialType.STRENGTH, char.strength ?: 0),

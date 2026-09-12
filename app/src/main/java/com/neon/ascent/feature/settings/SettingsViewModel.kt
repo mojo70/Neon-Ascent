@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.neon.ascent.core.domain.character.models.UserCharacter
 import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.data.local.DailyPrayerDao
-import com.neon.ascent.data.repository.CharacterRepository
+import com.neon.ascent.core.domain.character.repository.CharacterRepository
 import com.neon.ascent.data.repository.HealthRepository
 import com.neon.ascent.data.repository.JournalRepository
 import com.neon.ascent.data.repository.SettingsRepository
@@ -201,7 +201,7 @@ class SettingsViewModel @Inject constructor(
                 prayerStreak = newStreak,
                 lastPrayerDate = now
             )
-            characterRepository.updateCharacter(updatedChar)
+            characterRepository.saveCharacter(updatedChar)
             
             _prayerToast.value = "Prayer Pulse Received. Holy Ghost Signal Strengthened."
             settingsRepository.setLastAltarVisit(now)
@@ -392,27 +392,27 @@ class SettingsViewModel @Inject constructor(
             settingsRepository.setCompletedSinnersPrayer(true)
             val char = characterRepository.getUserCharacter().first()
             if (char != null && (char.holyGhost ?: 0) < 1) {
-                characterRepository.updateHolyGhost(1)
+                characterRepository.saveCharacter(char.copy(holyGhost = 1))
             }
         }
     }
 
     fun completeWaterBaptism() {
         viewModelScope.launch {
-            characterRepository.updateWaterBaptism(true)
             val char = characterRepository.getUserCharacter().first()
             if (char != null) {
                 val currentLevel = char.holyGhost ?: 1
-                characterRepository.updateHolyGhost(currentLevel + 1)
+                characterRepository.saveCharacter(char.copy(waterBaptized = true, holyGhost = currentLevel + 1))
             }
         }
     }
 
     fun completeHolySpiritBaptism() {
         viewModelScope.launch {
-            characterRepository.updateHolySpiritBaptism(true)
-            // Holy Spirit baptism usually brings you to a higher spiritual level in this game's logic
-            characterRepository.updateHolyGhost(3)
+            val char = characterRepository.getUserCharacter().first()
+            if (char != null) {
+                characterRepository.saveCharacter(char.copy(holySpiritBaptized = true, holyGhost = 3))
+            }
         }
     }
 

@@ -1,8 +1,8 @@
 package com.neon.ascent.core.domain.goals.usecases
 
-import com.neon.ascent.core.domain.GoalRepository
 import com.neon.ascent.core.domain.goals.models.*
 import com.neon.ascent.core.domain.model.SpecialType
+import com.neon.ascent.core.domain.repository.AscensionRepository
 import kotlinx.coroutines.flow.first
 import java.util.UUID
 import javax.inject.Inject
@@ -12,18 +12,31 @@ import javax.inject.Inject
  * Runs once after character creation / onboarding.
  */
 class SeedStarterHabitsUseCase @Inject constructor(
-    private val goalRepository: GoalRepository
+    private val ascensionRepository: AscensionRepository
 ) {
 
     suspend operator fun invoke(userArchetype: String) {
-        // Prevent duplicate seeding
-        val existingHabits = goalRepository.getHabits().first()
-        if (existingHabits.isNotEmpty()) return
+        val existingTasks = ascensionRepository.getAllRecurringTasks().first()
+        val existingTitles = existingTasks.map { it.title.trim().lowercase() }.toSet()
 
         val starterHabits = generateStarterHabits(userArchetype)
 
         starterHabits.forEach { habit ->
-            goalRepository.saveHabit(habit)
+            if (existingTitles.contains(habit.title.trim().lowercase())) {
+                // Skip if same title already exists on V3
+                return@forEach
+            }
+            val task = AscensionTask(
+                id = habit.id,
+                parentId = null,
+                title = habit.title,
+                description = habit.description,
+                type = AscensionTaskType.RECURRING,
+                recurrence = RecurrenceV3(type = RecurrenceTypeV3.DAILY),
+                linkedAttributes = habit.linkedAttributes,
+                xpValue = 10
+            )
+            ascensionRepository.insertTask(task)
         }
     }
 

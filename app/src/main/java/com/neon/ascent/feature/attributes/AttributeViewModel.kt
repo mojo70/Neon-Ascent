@@ -2,7 +2,7 @@ package com.neon.ascent.feature.attributes
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.neon.ascent.data.repository.CharacterRepository
+import com.neon.ascent.core.domain.character.repository.CharacterRepository
 import com.neon.ascent.data.repository.TemplateRepository
 import com.neon.ascent.feature.biohacking.AiProvider
 import com.neon.ascent.model.TrainingTemplate

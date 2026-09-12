@@ -1,50 +1,55 @@
 package com.neon.ascent.core.domain.goals.usecases
 
 import com.neon.ascent.core.domain.goals.models.*
-import com.neon.ascent.core.domain.GoalRepository
 import com.neon.ascent.core.domain.model.SpecialType
+import com.neon.ascent.core.domain.repository.AscensionRepository
 import kotlinx.coroutines.flow.first
-import java.time.Instant
-import java.time.temporal.ChronoUnit
+import java.time.LocalDate
 import java.util.UUID
 import javax.inject.Inject
 
 /**
- * Procedurally generates meaningful Missions from user Aspirations.
+ * Procedurally generates meaningful Missions from Ascension Directives.
  * This is the "quest engine" that makes long-term goals feel alive.
  */
 class GenerateMissionsFromAspirationsUseCase @Inject constructor(
-    private val goalRepository: GoalRepository
+    private val ascensionRepository: AscensionRepository
 ) {
 
     suspend operator fun invoke() {
-        val aspirations = goalRepository.getAllAspirations().first()
-            .filter { it.status == GoalStatus.ACTIVE }
+        val directives = ascensionRepository.getAllDirectives().first()
+            .filter { it.status == DirectiveStatus.ACTIVE }
 
-        aspirations.forEach { aspiration ->
-            val existingMissions = goalRepository.getMissionsForAspiration(aspiration.id).first()
+        directives.forEach { directive ->
+            val existingMissions = ascensionRepository.getMissionsForDirective(directive.id).first()
 
             // Only generate if missing active missions
-            if (existingMissions.none { it.progress.current < it.progress.target }) {
-                val newMissions = generateMissionsForAspiration(aspiration)
-                newMissions.forEach { goalRepository.saveMission(it) }
+            if (existingMissions.none { it.progress < 1.0f }) {
+                val newMissions = generateMissionsForDirective(directive)
+                val existingTitles = existingMissions.map { it.title.trim().lowercase() }.toSet()
+
+                newMissions.forEach { mission ->
+                    if (!existingTitles.contains(mission.title.trim().lowercase())) {
+                        ascensionRepository.insertMission(mission)
+                    }
+                }
             }
         }
     }
 
-    private fun generateMissionsForAspiration(aspiration: Aspiration): List<Mission> {
-        val missions = mutableListOf<Mission>()
+    private fun generateMissionsForDirective(directive: AscensionDirective): List<AscensionMission> {
+        val missions = mutableListOf<AscensionMission>()
 
-        // Generate 2-4 missions per aspiration
+        // Generate 2-4 missions per directive
         val missionCount = (2..4).random()
 
-        if (aspiration.linkedAttributes.isEmpty()) return emptyList()
+        if (directive.linkedAttributes.isEmpty()) return emptyList()
 
-        aspiration.linkedAttributes.forEach { attribute ->
-            repeat(Math.max(1, missionCount / aspiration.linkedAttributes.size)) {
+        directive.linkedAttributes.forEach { attribute ->
+            repeat(Math.max(1, missionCount / directive.linkedAttributes.size)) {
                 missions.add(
                     createMissionForAttribute(
-                        aspiration = aspiration,
+                        directive = directive,
                         focusAttribute = attribute
                     )
                 )
@@ -55,20 +60,21 @@ class GenerateMissionsFromAspirationsUseCase @Inject constructor(
     }
 
     private fun createMissionForAttribute(
-        aspiration: Aspiration,
+        directive: AscensionDirective,
         focusAttribute: SpecialType
-    ): Mission {
+    ): AscensionMission {
         val title = generateMissionTitle(focusAttribute)
-        val description = generateMissionDescription(focusAttribute, aspiration)
+        val description = generateMissionDescription(focusAttribute, directive)
 
-        return Mission(
+        return AscensionMission(
             id = UUID.randomUUID().toString(),
+            directiveId = directive.id,
             title = title,
             description = description,
-            expiresAt = Instant.now().plus(7, ChronoUnit.DAYS), // 1 week missions
+            targetEndDate = LocalDate.now().plusWeeks(1), // 1 week missions
             linkedAttributes = listOf(focusAttribute),
-            progress = GoalProgress(current = 0f, target = 1f),
-            parentAspirationId = aspiration.id
+            progress = 0f,
+            status = AscensionMissionStatus.ACTIVE
         )
     }
 
@@ -98,11 +104,11 @@ class GenerateMissionsFromAspirationsUseCase @Inject constructor(
 
     private fun generateMissionDescription(
         attribute: SpecialType,
-        aspiration: Aspiration
+        directive: AscensionDirective
     ): String = when (attribute) {
         SpecialType.INTELLIGENCE -> "Complete 5 focused deep work sessions (≥45 min each) this week."
         SpecialType.STRENGTH -> "Hit 3 full strength sessions with progressive overload."
         SpecialType.AGILITY -> "Maintain 10k+ daily average steps + 2 mobility sessions."
-        else -> "Advance ${aspiration.title} through consistent ${attribute.name.lowercase()} execution."
+        else -> "Advance ${directive.title} through consistent ${attribute.name.lowercase()} execution."
     }
 }

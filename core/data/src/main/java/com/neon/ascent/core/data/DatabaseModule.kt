@@ -11,7 +11,10 @@ import com.neon.ascent.core.data.local.dao.AscensionDao
 import com.neon.ascent.core.data.local.dao.BiomarkerDao
 import com.neon.ascent.core.data.local.dao.DopamineMenuDao
 import com.neon.ascent.core.data.local.dao.InsightDao
+import com.neon.ascent.core.data.local.dao.OperativeProfileDao
 import com.neon.ascent.core.data.local.dao.ProtocolDao
+import com.neon.ascent.core.data.local.dao.LibraryDao
+import com.neon.ascent.core.data.local.dao.VaultDao
 import com.neon.ascent.core.data.local.migration.MIGRATION_2_3
 import com.neon.ascent.core.data.local.migration.MIGRATION_3_4
 import com.neon.ascent.core.data.local.migration.MIGRATION_11_12
@@ -23,6 +26,9 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_48_49
 import com.neon.ascent.core.data.local.migration.MIGRATION_50_51
 import com.neon.ascent.core.data.local.migration.MIGRATION_51_52
 import com.neon.ascent.core.data.local.migration.MIGRATION_52_53
+import com.neon.ascent.core.data.local.migration.MIGRATION_53_54
+import com.neon.ascent.core.data.local.migration.MIGRATION_54_55
+import com.neon.ascent.core.data.local.migration.MIGRATION_55_56
 import com.neon.ascent.core.data.local.dao.DailyVitalRollupDao
 import com.neon.ascent.core.data.local.dao.BodySampleDao
 import com.neon.ascent.core.data.local.dao.NeuralMemoryDao
@@ -98,7 +104,7 @@ object DatabaseModule {
         val factory = SupportFactory(passphraseBytes)
         
         // Schema Migration gap policy:
-        // Version 53 contains historical schema gaps (e.g. v4-11, v12-43, v44-45, v49-50).
+        // Version 54 contains historical schema gaps (e.g. v4-11, v12-43, v44-45, v49-50).
         // Destructive migrations are strictly forbidden to prevent logbook/user data wipes.
         // If an unhandled migration path is encountered, Room fails open safely without deleting the database file.
         return Room.databaseBuilder(
@@ -111,7 +117,8 @@ object DatabaseModule {
             MIGRATION_2_3, MIGRATION_3_4, MIGRATION_11_12, 
             MIGRATION_43_44, MIGRATION_45_46, MIGRATION_46_47, 
             MIGRATION_47_48, MIGRATION_48_49, MIGRATION_50_51,
-            MIGRATION_51_52, MIGRATION_52_53
+            MIGRATION_51_52, MIGRATION_52_53, MIGRATION_53_54,
+            MIGRATION_54_55, MIGRATION_55_56
         )
         .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
         .build()
@@ -170,5 +177,20 @@ object DatabaseModule {
     @Provides
     fun provideBodySampleDao(database: NeonAscentDatabase): BodySampleDao {
         return database.bodySampleDao()
+    }
+
+    @Provides
+    fun provideOperativeProfileDao(database: NeonAscentDatabase): OperativeProfileDao {
+        return database.operativeProfileDao()
+    }
+
+    @Provides
+    fun provideLibraryDao(database: NeonAscentDatabase): LibraryDao {
+        return database.libraryDao()
+    }
+
+    @Provides
+    fun provideVaultDao(database: NeonAscentDatabase): VaultDao {
+        return database.vaultDao()
     }
 }

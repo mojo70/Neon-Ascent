@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,6 +31,8 @@ import com.neon.ascent.feature.notifications.ui.NotificationPermissionViewModel
 import com.neon.ascent.ui.theme.NeonAscentTheme
 import com.neon.ascent.ui.theme.ThemeViewModel
 import com.neon.ascent.core.common.VisualMode
+import com.neon.ascent.domain.usecase.ImportLegacyGoalsUseCase
+import com.neon.ascent.domain.usecase.ImportLegacyQuestsUseCase
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -41,6 +44,12 @@ class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var smartPingScheduler: SmartPingScheduler
+
+    @Inject
+    lateinit var importLegacyGoalsUseCase: ImportLegacyGoalsUseCase
+
+    @Inject
+    lateinit var importLegacyQuestsUseCase: ImportLegacyQuestsUseCase
 
     private val notificationViewModel: NotificationPermissionViewModel by viewModels()
 
@@ -68,6 +77,16 @@ class MainActivity : FragmentActivity() {
                 smartPingScheduler.scheduleSmartPings()
             } catch (e: Exception) {
                 android.util.Log.e("MainActivity", "Failed to schedule smart pings", e)
+            }
+            try {
+                importLegacyGoalsUseCase()
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Failed to run legacy goal import", e)
+            }
+            try {
+                importLegacyQuestsUseCase()
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Failed to run legacy quest import", e)
             }
         }
 

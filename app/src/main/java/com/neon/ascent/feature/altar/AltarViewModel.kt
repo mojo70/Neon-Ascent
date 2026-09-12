@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.neon.ascent.core.domain.character.models.UserCharacter
 import com.neon.ascent.data.local.DailyPrayerDao
-import com.neon.ascent.data.repository.CharacterRepository
+import com.neon.ascent.core.domain.character.repository.CharacterRepository
 import com.neon.ascent.data.repository.JournalRepository
 import com.neon.ascent.data.repository.SettingsRepository
 import com.neon.ascent.feature.settings.DailyPrayerSeeds
@@ -165,7 +165,7 @@ class AltarViewModel @Inject constructor(
                 val updated = char.copy(
                     experience = char.experience + 40
                 )
-                characterRepository.updateCharacter(updated)
+                characterRepository.saveCharacter(updated)
             }
 
             _uiState.value = _uiState.value.copy(
@@ -215,7 +215,7 @@ class AltarViewModel @Inject constructor(
                 prayerStreak = newStreak,
                 lastPrayerDate = now
             )
-            characterRepository.updateCharacter(updatedChar)
+            characterRepository.saveCharacter(updatedChar)
             settingsRepository.setLastAltarVisit(now)
 
             _uiState.value = _uiState.value.copy(
@@ -232,22 +232,20 @@ class AltarViewModel @Inject constructor(
 
     fun completeWaterBaptism() {
         viewModelScope.launch {
-            characterRepository.updateWaterBaptism(true)
             val char = characterRepository.getUserCharacter().first()
             if (char != null) {
                 val currentLevel = char.holyGhost ?: 1
-                characterRepository.updateHolyGhost(currentLevel + 1)
+                characterRepository.saveCharacter(char.copy(waterBaptized = true, holyGhost = currentLevel + 1))
             }
         }
     }
 
     fun completeHolySpiritBaptism() {
         viewModelScope.launch {
-            characterRepository.updateHolySpiritBaptism(true)
             val char = characterRepository.getUserCharacter().first()
             if (char != null) {
                 val currentLevel = char.holyGhost ?: 1
-                characterRepository.updateHolyGhost(currentLevel + 1)
+                characterRepository.saveCharacter(char.copy(holySpiritBaptized = true, holyGhost = currentLevel + 1))
             }
         }
     }

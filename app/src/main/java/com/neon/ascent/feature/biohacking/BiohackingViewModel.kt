@@ -16,7 +16,7 @@ import com.neon.ascent.core.domain.codex.models.BiomarkerSample
 import com.neon.ascent.core.domain.repository.BiomarkerRepository
 import java.time.Instant
 import com.neon.ascent.data.local.BiohackingDao
-import com.neon.ascent.data.local.UserCharacterDao
+import com.neon.ascent.core.domain.character.repository.CharacterRepository
 import com.neon.ascent.data.repository.*
 import com.neon.ascent.model.BioProtocolLog
 import com.neon.ascent.model.BiohackingData
@@ -54,6 +54,7 @@ import com.neon.ascent.core.domain.health.NeonChargeEngine
 import com.neon.ascent.core.domain.health.NeonChargeInput
 import com.neon.ascent.core.domain.health.SessionLoad
 import com.neon.ascent.core.domain.health.models.VitalsSnapshot
+import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.core.domain.workout.models.RecoveryScore
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
@@ -63,7 +64,7 @@ import java.util.*
 @HiltViewModel
 class BiohackingViewModel @Inject constructor(
     private val biohackingDao: BiohackingDao,
-    private val userCharacterDao: UserCharacterDao,
+    private val characterRepository: CharacterRepository,
     private val healthRepository: HealthRepository,
     private val healthManager: HealthManager,
     private val userPreferencesRepository: UserPreferencesRepository,
@@ -71,6 +72,7 @@ class BiohackingViewModel @Inject constructor(
     private val workoutRepository: WorkoutRepository,
     private val taskRepository: TaskRepository,
     private val goalRepository: GoalRepository,
+    private val ascensionRepository: AscensionRepository,
     private val aiProvider: AiProvider,
     private val bioAgeRepository: BioAgeRepository,
     private val biomarkerRepository: BiomarkerRepository,
@@ -136,9 +138,9 @@ class BiohackingViewModel @Inject constructor(
 
     val terminalFeed: StateFlow<List<TerminalEvent>> = combine(
         taskRepository.getDailyTasks(),
-        goalRepository.getActiveGoals(),
+        ascensionRepository.getActiveMissions(),
         biohackingDao.getProtocolLogs(0)
-    ) { tasks, goals, logs ->
+    ) { tasks, missions, logs ->
         val today = LocalDate.now()
         val startOfToday = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val events = mutableListOf<TerminalEvent>()
@@ -152,9 +154,10 @@ class BiohackingViewModel @Inject constructor(
             }
         }
 
-        goals.forEach { goal ->
-            val status = if (goal.createdAt >= startOfToday) "ADDED" else "ACTIVE"
-            events.add(TerminalEvent(goal.id, goal.title, "MISSION", status, goal.updatedAt))
+        missions.forEach { mission ->
+            val createdAtMillis = mission.createdAt.toEpochMilli()
+            val status = if (createdAtMillis >= startOfToday) "ADDED" else "ACTIVE"
+            events.add(TerminalEvent(mission.id, mission.title, "MISSION", status, createdAtMillis))
         }
 
         logs.filter { it.timestamp >= startOfToday }.forEach { log ->
@@ -284,39 +287,8 @@ class BiohackingViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            userCharacterDao.getUserCharacter().collectLatest { char ->
-                _character.value = char?.let {
-                    UserCharacter(
-                        id = it.id,
-                        name = it.name,
-                        netrunnerName = it.netrunnerName,
-                        sex = it.sex,
-                        dob = it.dob,
-                        units = it.units,
-                        heightFeet = it.heightFeet,
-                        heightInches = it.heightInches,
-                        heightCm = it.heightCm,
-                        weight = it.weight,
-                        somatotype = it.somatotype,
-                        mbti = it.mbti,
-                        alignment = it.alignment,
-                        archetype = it.archetype,
-                        strength = it.strength,
-                        endurance = it.endurance,
-                        agility = it.agility,
-                        perception = it.perception,
-                        intelligence = it.intelligence,
-                        charisma = it.charisma,
-                        luck = it.luck,
-                        level = it.level,
-                        neuralLoad = it.neuralLoad,
-                        experience = it.experience,
-                        isCreationComplete = it.isCreationComplete,
-                        avatarPath = it.avatarPath,
-                        eddies = it.eddies,
-                        isSystemDatabaseUnlocked = it.isSystemDatabaseUnlocked
-                    )
-                }
+            characterRepository.getUserCharacter().collectLatest { char ->
+                _character.value = char
             }
         }
         viewModelScope.launch {

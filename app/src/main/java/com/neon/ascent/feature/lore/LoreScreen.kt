@@ -19,8 +19,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.neon.ascent.ui.*
 import com.neon.ascent.core.common.*
+import com.neon.ascent.core.domain.chronicle.ChronicleEntry
+import com.neon.ascent.ui.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,46 +59,94 @@ fun LoreScreen(
 
 @Composable
 fun LoreScreenContent(viewModel: LoreViewModel) {
+    val chronicleEntries by viewModel.chronicleEntries.collectAsState()
     val userStory by viewModel.userStory.collectAsState()
     var editingIndex by remember { mutableIntStateOf(-2) } // -2: none, -1: main story, 0+: chapter
     var editBuffer by remember { mutableStateOf("") }
 
+    val hasLegacyStory = userStory.cyberLore.isNotBlank() || userStory.weeklyChapters.isNotEmpty()
+    val isEmpty = chronicleEntries.isEmpty() && !hasLegacyStory
+
     Box(modifier = Modifier.fillMaxSize()) {
         PerspectiveGrid()
         Scanlines(intensity = 0.1f)
-        
+
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
             verticalArrangement = Arrangement.spacedBy(32.dp)
         ) {
             item { Spacer(Modifier.height(16.dp)) }
 
-            // Main Story / Biography
-            item {
-                LoreSection(
-                    title = "ORIGIN_LOG // BASE_BIO",
-                    content = userStory.cyberLore,
-                    isHacked = false, 
-                    onEditClick = {
-                        editingIndex = -1
-                        editBuffer = userStory.cyberLore
+            if (isEmpty) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 48.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "NO_ORIGIN_YET",
+                            color = Color(0xFF00FF9C).copy(alpha = 0.7f),
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 2.sp
+                            )
+                        )
                     }
-                )
+                }
+            } else {
+                // Render ChronicleEntries (wing = CHRONICLE, newest first)
+                itemsIndexed(chronicleEntries) { _, entry ->
+                    val sectionTitle = when (entry.room) {
+                        "ORIGIN" -> "ORIGIN_LOG // BASE_BIO"
+                        "SHARD" -> "DATA_SHARD // CHRONICLE"
+                        "FRAGMENT" -> "MEMORY_FRAGMENT // CHRONICLE"
+                        else -> "${entry.room} // CHRONICLE"
+                    }
+                    LoreSection(
+                        title = sectionTitle,
+                        content = entry.content,
+                        isHacked = entry.hearted,
+                        onEditClick = {
+                            editingIndex = -1
+                            editBuffer = entry.content
+                        }
+                    )
+                }
+
+                // Main Story / Biography (if present and not duplicated)
+                if (userStory.cyberLore.isNotBlank() && chronicleEntries.none { it.room == "ORIGIN" && it.content == userStory.cyberLore }) {
+                    item {
+                        LoreSection(
+                            title = "ORIGIN_LOG // BASE_BIO",
+                            content = userStory.cyberLore,
+                            isHacked = false,
+                            onEditClick = {
+                                editingIndex = -1
+                                editBuffer = userStory.cyberLore
+                            }
+                        )
+                    }
+                }
+
+                // Weekly Chapters (if present and not duplicated)
+                itemsIndexed(userStory.weeklyChapters) { index, chapter ->
+                    if (chronicleEntries.none { it.content == chapter.content }) {
+                        LoreSection(
+                            title = chapter.title,
+                            content = chapter.content,
+                            isHacked = chapter.isHacked,
+                            onEditClick = {
+                                editingIndex = index
+                                editBuffer = chapter.content
+                            }
+                        )
+                    }
+                }
             }
 
-            // Weekly Chapters
-            itemsIndexed(userStory.weeklyChapters) { index, chapter ->
-                LoreSection(
-                    title = chapter.title,
-                    content = chapter.content,
-                    isHacked = chapter.isHacked,
-                    onEditClick = {
-                        editingIndex = index
-                        editBuffer = chapter.content
-                    }
-                )
-            }
-            
             item {
                 Spacer(Modifier.height(64.dp))
             }
@@ -172,16 +221,16 @@ fun LoreSection(
             )
             IconButton(onClick = onEditClick, modifier = Modifier.size(24.dp)) {
                 Icon(
-                    Icons.Default.Edit, 
-                    contentDescription = "HACK", 
+                    Icons.Default.Edit,
+                    contentDescription = "HACK",
                     tint = if (isHacked) Color(0xFFFF006E) else Color.White.copy(alpha = 0.4f),
                     modifier = Modifier.size(16.dp)
                 )
             }
         }
-        
+
         Spacer(Modifier.height(12.dp))
-        
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()

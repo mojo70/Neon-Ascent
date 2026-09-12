@@ -7,7 +7,7 @@ import com.neon.ascent.data.local.LoreDao
 import com.neon.ascent.feature.biohacking.AiProvider
 import com.neon.ascent.core.lore.data.LoreRepository
 import com.neon.ascent.core.lore.data.Megacorp
-import com.neon.ascent.data.repository.CharacterRepository
+import com.neon.ascent.core.domain.character.repository.CharacterRepository
 import com.neon.ascent.core.domain.character.models.UserCharacter
 import com.neon.ascent.model.*
 import dagger.hilt.android.lifecycle.HiltViewModel

@@ -22,6 +22,9 @@ interface QuestDao {
 
 @Dao
 interface TaskDao {
+    @Query("SELECT * FROM tasks")
+    fun getAllTasks(): Flow<List<Task>>
+
     @Query("SELECT * FROM tasks WHERE questId = :questId")
     fun getTasksForQuest(questId: String): Flow<List<Task>>
 

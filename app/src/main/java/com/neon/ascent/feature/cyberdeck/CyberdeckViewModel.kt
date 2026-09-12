@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.neon.ascent.core.ai.AiPersona
 import com.neon.ascent.data.local.InventoryDao
-import com.neon.ascent.data.local.UserCharacterDao
+import com.neon.ascent.core.domain.character.repository.CharacterRepository
 import com.neon.ascent.core.lore.data.LoreRepository
 import com.neon.ascent.core.lore.data.Megacorp
 import com.neon.ascent.feature.biohacking.AiProvider
@@ -24,7 +24,7 @@ import com.neon.ascent.data.local.LoreDao
 class CyberdeckViewModel @Inject constructor(
     private val aiProvider: AiProvider,
     private val inventoryDao: InventoryDao,
-    private val userCharacterDao: UserCharacterDao,
+    private val characterRepository: CharacterRepository,
     private val loreRepository: LoreRepository,
     private val loreDao: LoreDao
 ) : ViewModel() {
@@ -269,7 +269,7 @@ class CyberdeckViewModel @Inject constructor(
         list.any { it.quantity >= 10 }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    val userCharacter = userCharacterDao.getUserCharacter()
+    val userCharacter = characterRepository.getUserCharacter()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val quickHacks = inventoryDao.getQuickHacks()
@@ -316,9 +316,9 @@ class CyberdeckViewModel @Inject constructor(
             val reward = calculateRewards(challenge)
             
             // Update User Stats
-            val char = userCharacterDao.getUserCharacter().first()
+            val char = characterRepository.getUserCharacter().first()
             char?.let { 
-                userCharacterDao.updateUserCharacter(it.copy(
+                characterRepository.saveCharacter(it.copy(
                     experience = it.experience + reward.xp,
                     eddies = it.eddies + reward.eddies
                 ))
@@ -475,11 +475,11 @@ class CyberdeckViewModel @Inject constructor(
     fun penalizeNetWatchFailure() {
         viewModelScope.launch {
             // Deduct XP
-            val char = userCharacterDao.getUserCharacter().first()
+            val char = characterRepository.getUserCharacter().first()
             char?.let {
                 val penaltyXp = 500L
                 val newXp = (it.experience - penaltyXp).coerceAtLeast(0L)
-                userCharacterDao.updateUserCharacter(it.copy(experience = newXp))
+                characterRepository.saveCharacter(it.copy(experience = newXp))
             }
 
             // Put all quickhacks on 4-hour cooldown lock

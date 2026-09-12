@@ -10,6 +10,7 @@ import com.neon.ascent.core.domain.NeuralPingScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
@@ -64,6 +65,24 @@ class AscensionForgeViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            // Ensure imported_quests directive exists if not already present
+            val directives = repository.getAllDirectives().first()
+            if (directives.none { it.id == "imported_quests" }) {
+                // If there are missions under imported_quests or needed as fallback
+                val missions = repository.getMissionsForDirective("imported_quests").first()
+                if (missions.isNotEmpty()) {
+                    repository.insertDirective(
+                        AscensionDirective(
+                            id = "imported_quests",
+                            title = "IMPORTED_QUESTS",
+                            description = "Imported quests directive from legacy AppDatabase",
+                            status = DirectiveStatus.ACTIVE
+                        )
+                    )
+                }
+            }
+        }
         viewModelScope.launch {
             dopamineCoordinator.events.collect { event ->
                 _uiState.update { it.copy(dopamineEvent = event) }

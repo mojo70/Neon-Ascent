@@ -12,15 +12,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.core.common.*
-import com.neon.ascent.core.domain.goals.models.Habit
-import com.neon.ascent.core.domain.goals.models.Mission
+import com.neon.ascent.core.domain.goals.models.AscensionMission
+import com.neon.ascent.core.domain.goals.models.AscensionTask
 
 @Composable
 fun HabitListScreen(
     viewModel: HabitsViewModel = hiltViewModel()
 ) {
-    val habits by viewModel.habits.collectAsState()
-    val todayMissions by viewModel.todayMissions.collectAsState()
+    val tasks by viewModel.recurringTasks.collectAsState()
+    val todayMissions by viewModel.activeMissions.collectAsState()
     val todayProgress by viewModel.todayProgress.collectAsState()
 
     var showCreationSheet by remember { mutableStateOf(false) }
@@ -74,10 +74,10 @@ fun HabitListScreen(
             )
         }
 
-        items(habits) { habit ->
-            HabitCard(
-                habit = habit,
-                onComplete = { viewModel.completeHabit(habit.id) }
+        items(tasks) { task ->
+            TaskCard(
+                task = task,
+                onComplete = { viewModel.completeTask(task) }
             )
         }
 
@@ -94,7 +94,7 @@ fun HabitListScreen(
 }
 
 @Composable
-fun HabitCard(habit: Habit, onComplete: () -> Unit) {
+fun TaskCard(task: AscensionTask, onComplete: () -> Unit) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0xFF1A0033)),
         modifier = Modifier.fillMaxWidth()
@@ -104,27 +104,27 @@ fun HabitCard(habit: Habit, onComplete: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f)) {
-                Text(habit.title, fontWeight = FontWeight.Bold)
+                Text(task.title, fontWeight = FontWeight.Bold)
                 Text(
-                    text = "${habit.streak} day streak 🔥",
-                    color = if (habit.streak > 3) NeonOrange else Color.White.copy(alpha = 0.7f)
+                    text = "${task.currentStreak} day streak 🔥",
+                    color = if (task.currentStreak > 3) NeonOrange else Color.White.copy(alpha = 0.7f)
                 )
             }
 
             Button(
                 onClick = onComplete,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (habit.progress.current >= 1f) NeonGreen else NeonCyan
+                    containerColor = if (task.lastCompleted != null) NeonGreen else NeonCyan
                 )
             ) {
-                Text(if (habit.progress.current >= 1f) "COMPLETE" else "LOG")
+                Text(if (task.lastCompleted != null) "COMPLETE" else "LOG")
             }
         }
     }
 }
 
 @Composable
-fun MissionCard(mission: Mission) {
+fun MissionCard(mission: AscensionMission) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0xFF0F001A))
     ) {
@@ -132,7 +132,7 @@ fun MissionCard(mission: Mission) {
             Text(mission.title, fontWeight = FontWeight.Bold, color = NeonPink)
             Text(mission.description, color = Color.White.copy(alpha = 0.8f))
             LinearProgressIndicator(
-                progress = { mission.progress.current },
+                progress = { mission.progress },
                 modifier = Modifier.fillMaxWidth(),
                 color = NeonCyan
             )

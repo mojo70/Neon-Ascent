@@ -1,20 +1,24 @@
 package com.neon.ascent.feature.neonguide
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.neon.ascent.core.domain.character.models.UserCharacter
+import com.neon.ascent.core.domain.character.repository.CharacterRepository
 import com.neon.ascent.core.domain.goals.models.AscensionDirective
+import com.neon.ascent.core.domain.goals.models.AscensionMission
+import com.neon.ascent.core.domain.goals.models.AscensionMissionStatus
 import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.data.local.ChatDao
-import com.neon.ascent.data.local.UserCharacterDao
 import com.neon.ascent.model.ChatMessage
 import com.neon.ascent.model.ChatSession
-import com.neon.ascent.model.UserCharacter
 import com.neon.ascent.core.domain.model.DopamineCategory
 import com.neon.ascent.core.domain.model.DopamineMenuItem
 import com.neon.ascent.core.domain.model.EnergyLevel
 import com.neon.ascent.core.domain.repository.DopamineMenuRepository
 import com.neon.ascent.data.local.BiohackingDao
 import com.neon.ascent.model.BioProtocolLog
+import com.neon.ascent.model.ChatAction
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -34,12 +38,12 @@ data class NeonGuideUiState(
 @HiltViewModel
 class NeonGuideViewModel @Inject constructor(
     private val chatDao: ChatDao,
-    private val userCharacterDao: UserCharacterDao,
+    private val characterRepository: CharacterRepository,
     private val biohackingDao: BiohackingDao,
     private val ascensionRepository: AscensionRepository,
     private val dopamineMenuRepository: DopamineMenuRepository,
     private val guideUseCase: NeonGuideUseCase,
-    private val savedStateHandle: androidx.lifecycle.SavedStateHandle
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(NeonGuideUiState())
@@ -55,7 +59,7 @@ class NeonGuideViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            userCharacterDao.getUserCharacter().collect { char ->
+            characterRepository.getUserCharacter().collect { char ->
                 _uiState.update { it.copy(character = char) }
             }
         }
@@ -166,19 +170,19 @@ class NeonGuideViewModel @Inject constructor(
         }
     }
 
-    fun handleAction(action: com.neon.ascent.model.ChatAction) {
+    fun handleAction(action: ChatAction) {
         val sessionId = _uiState.value.currentSessionId ?: return
         viewModelScope.launch {
             when (action.type) {
                 "MISSION" -> {
                     val firstDir = _uiState.value.directives.firstOrNull()
                     if (firstDir != null) {
-                        val mission = com.neon.ascent.core.domain.goals.models.AscensionMission(
+                        val mission = AscensionMission(
                             id = UUID.randomUUID().toString(),
                             directiveId = firstDir.id,
                             title = action.data ?: action.label,
                             description = "Guided Mission: ${action.label}",
-                            status = com.neon.ascent.core.domain.goals.models.AscensionMissionStatus.ACTIVE
+                            status = AscensionMissionStatus.ACTIVE
                         )
                         ascensionRepository.insertMission(mission)
                     }

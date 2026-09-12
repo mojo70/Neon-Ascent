@@ -2,6 +2,10 @@ package com.neon.ascent.feature.journal
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.neon.ascent.core.data.mapper.QUEST_IMPORTED_DIRECTIVE_ID
+import com.neon.ascent.core.domain.goals.models.AscensionMission
+import com.neon.ascent.core.domain.goals.models.AscensionTask
+import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.data.local.*
 import com.neon.ascent.data.repository.JournalRepository
 import com.neon.ascent.feature.biohacking.AiProvider
@@ -19,7 +23,8 @@ class JournalViewModel @Inject constructor(
     private val questDao: QuestDao,
     private val taskDao: TaskDao,
     private val loreDao: LoreDao,
-    private val aiProvider: AiProvider
+    private val aiProvider: AiProvider,
+    private val ascensionRepository: AscensionRepository
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -49,10 +54,19 @@ class JournalViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // Binds getMissionsForDirective(imported_quests), falling back to questDao if empty
     val quests: StateFlow<List<Quest>> = questDao.getAllQuests()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val importedQuestMissions: StateFlow<List<AscensionMission>> = ascensionRepository
+        .getMissionsForDirective(QUEST_IMPORTED_DIRECTIVE_ID)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val dailyTasks: StateFlow<List<Task>> = taskDao.getDailyTasks()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val recurringAscensionTasks: StateFlow<List<AscensionTask>> = ascensionRepository
+        .getAllRecurringTasks()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val shards: StateFlow<List<DataShard>> = loreDao.getAllDataShards()
@@ -78,7 +92,22 @@ class JournalViewModel @Inject constructor(
 
     fun updateTaskCompletion(task: Task, isCompleted: Boolean) {
         viewModelScope.launch {
+            // First complete or update in Ascension V3 if mapped, with fallback to legacy taskDao
+            try {
+                val v3Task = ascensionRepository.getTaskById(task.id).firstOrNull()
+                    ?: ascensionRepository.getTaskById("qtask:${task.id}").firstOrNull()
+
+                if (v3Task != null && isCompleted) {
+                    ascensionRepository.completeTask(v3Task, null, null, null)
+                }
+            } catch (_: Exception) {}
             taskDao.updateTaskCompletion(task.id, isCompleted)
+        }
+    }
+
+    fun completeAscensionTask(task: AscensionTask) {
+        viewModelScope.launch {
+            ascensionRepository.completeTask(task, null, null, null)
         }
     }
 
@@ -87,6 +116,9 @@ class JournalViewModel @Inject constructor(
     }
 
     fun getTasksForQuest(questId: String): Flow<List<Task>> = taskDao.getTasksForQuest(questId)
+
+    fun getTasksForAscensionMission(missionId: String): Flow<List<AscensionTask>> =
+        ascensionRepository.getTasksForParent(missionId)
 
     fun decryptShard(shard: DataShard) {
         viewModelScope.launch {

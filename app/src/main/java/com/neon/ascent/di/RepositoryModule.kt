@@ -1,13 +1,19 @@
 package com.neon.ascent.di
 
+import com.neon.ascent.core.data.local.dao.OperativeProfileDao
+import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.core.domain.repository.FullDataBackupRepository
+import com.neon.ascent.core.domain.repository.SkillRepository
 import com.neon.ascent.data.local.GoalDao
 import com.neon.ascent.data.local.GoalTaskDao
+import com.neon.ascent.data.local.UserCharacterDao
 import com.neon.ascent.data.local.UserStoryDao
+import com.neon.ascent.data.repository.CharacterRepository
 import com.neon.ascent.data.repository.FullDataBackupRepositoryImpl
 import com.neon.ascent.data.repository.GoalRepository
 import com.neon.ascent.data.repository.TaskRepository
 import com.neon.ascent.data.repository.UserStoryRepository
+import com.neon.ascent.feature.dashboard.MemoryPalaceManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -25,7 +31,10 @@ object RepositoryModule {
 
     @Provides
     @Singleton
-    fun provideGoalRepository(dao: GoalDao) = GoalRepository(dao)
+    fun provideGoalRepository(
+        dao: GoalDao,
+        ascensionRepository: AscensionRepository
+    ) = GoalRepository(dao, ascensionRepository)
 
     @Provides
     @Singleton
@@ -34,13 +43,14 @@ object RepositoryModule {
     @Provides
     @Singleton
     fun provideCharacterRepository(
-        userCharacterDao: com.neon.ascent.data.local.UserCharacterDao
+        userCharacterDao: UserCharacterDao,
+        operativeProfileDao: OperativeProfileDao
     ): com.neon.ascent.core.domain.character.repository.CharacterRepository =
-        com.neon.ascent.data.repository.CharacterRepository(userCharacterDao)
+        CharacterRepository(userCharacterDao, operativeProfileDao)
 
     @Provides
     @Singleton
-    fun provideSkillRepository(palace: com.neon.ascent.feature.dashboard.MemoryPalaceManager): com.neon.ascent.core.domain.repository.SkillRepository = palace
+    fun provideSkillRepository(palace: MemoryPalaceManager): SkillRepository = palace
 
     @Provides
     @Singleton

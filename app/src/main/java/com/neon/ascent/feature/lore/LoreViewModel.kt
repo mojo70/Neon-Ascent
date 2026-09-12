@@ -2,8 +2,11 @@ package com.neon.ascent.feature.lore
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.neon.ascent.core.domain.chronicle.ChronicleEntry
+import com.neon.ascent.core.domain.chronicle.ChronicleRepository
+import com.neon.ascent.core.domain.repository.AscensionRepository
+import com.neon.ascent.data.chronicle.ChronicleImportUseCase
 import com.neon.ascent.data.local.entity.LoreChapter
-import com.neon.ascent.data.repository.GoalRepository
 import com.neon.ascent.data.repository.TaskRepository
 import com.neon.ascent.data.repository.UserStoryRepository
 import com.neon.ascent.domain.model.UserStory
@@ -20,15 +23,27 @@ import javax.inject.Inject
 class LoreViewModel @Inject constructor(
     private val userStoryRepository: UserStoryRepository,
     private val taskRepository: TaskRepository,
-    private val goalRepository: GoalRepository,
-    private val generateCyberLoreUseCase: GenerateCyberLoreUseCase
+    private val ascensionRepository: AscensionRepository,
+    private val generateCyberLoreUseCase: GenerateCyberLoreUseCase,
+    private val chronicleRepository: ChronicleRepository,
+    private val chronicleImportUseCase: ChronicleImportUseCase
 ) : ViewModel() {
+
+    val chronicleEntries: StateFlow<List<ChronicleEntry>> = chronicleRepository.observeChronicle()
+        .map { list ->
+            list.filter { it.wing == "CHRONICLE" }
+                .sortedByDescending { it.timestamp }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val userStory: StateFlow<UserStory> = userStoryRepository.getMainStory()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UserStory())
 
     init {
         checkAndTriggerWeeklyUpdate()
+        viewModelScope.launch {
+            chronicleImportUseCase.runImport()
+        }
     }
 
     fun checkAndTriggerWeeklyUpdate() {
@@ -36,8 +51,6 @@ class LoreViewModel @Inject constructor(
             val story = userStoryRepository.getMainStory().first()
             val today = LocalDate.now()
             
-            // For testing purposes or manual trigger, we can relax the Saturday constraint 
-            // but the requirement says Saturday.
             if (today.dayOfWeek == DayOfWeek.SATURDAY) {
                 val lastUpdateEpoch = story.lastWeeklyUpdate
                 val lastUpdateDate = if (lastUpdateEpoch == 0L) LocalDate.MIN else 
@@ -62,9 +75,9 @@ class LoreViewModel @Inject constructor(
         }
         accomplishments.addAll(completedThisWeek.map { "Completed task: ${it.title}" })
         
-        val goals = goalRepository.getActiveGoals().first()
-        val progressedGoals = goals.filter { it.updatedAt > System.currentTimeMillis() - 7 * 24 * 60 * 60 * 1000 }
-        accomplishments.addAll(progressedGoals.map { "Progressed mission: ${it.title} (${(it.currentValue/it.targetValue*100).toInt()}% complete)" })
+        val missions = ascensionRepository.getActiveMissions().first()
+        val progressedMissions = missions.filter { it.createdAt.toEpochMilli() > System.currentTimeMillis() - 7 * 24 * 60 * 60 * 1000 }
+        accomplishments.addAll(progressedMissions.map { "Progressed mission: ${it.title} (${(it.progress * 100).toInt()}% complete)" })
         
         if (accomplishments.isEmpty()) {
             accomplishments.add("Survived another week in the neon silence.")

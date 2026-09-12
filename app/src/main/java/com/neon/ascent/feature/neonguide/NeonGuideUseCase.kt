@@ -2,11 +2,11 @@ package com.neon.ascent.feature.neonguide
 
 import android.content.Context
 import com.neon.ascent.core.data.local.dao.NeuralMemoryDao
+import com.neon.ascent.core.domain.character.repository.CharacterRepository
 import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.core.domain.repository.DopamineMenuRepository
 import com.neon.ascent.core.domain.repository.ProtocolRepository
 import com.neon.ascent.data.local.BiohackingDao
-import com.neon.ascent.data.local.UserCharacterDao
 import com.neon.ascent.feature.biohacking.AiProvider
 import com.neon.ascent.core.domain.ai.AiResult
 import com.neon.ascent.model.ChatAction
@@ -17,7 +17,7 @@ import javax.inject.Inject
 
 class NeonGuideUseCase @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val userCharacterDao: UserCharacterDao,
+    private val characterRepository: CharacterRepository,
     private val biohackingDao: BiohackingDao,
     private val ascensionRepository: AscensionRepository,
     private val dopamineMenuRepository: DopamineMenuRepository,
@@ -26,7 +26,7 @@ class NeonGuideUseCase @Inject constructor(
     private val aiProvider: AiProvider,
 ) {
     suspend fun generateResponse(userMessage: String, contactName: String): ChatMessage {
-        val char = userCharacterDao.getUserCharacter().firstOrNull()
+        val char = characterRepository.getUserCharacter().firstOrNull()
         val directives = ascensionRepository.getAllDirectives().firstOrNull() ?: emptyList()
         val biometrics = biohackingDao.getBiohackingData(0).firstOrNull()
         val recentMemories = neuralMemoryDao.getMemoriesByWing("INSIGHTS").firstOrNull() ?: emptyList()

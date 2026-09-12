@@ -2,11 +2,10 @@ package com.neon.ascent.feature.goals.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.neon.ascent.core.domain.GoalRepository
-import com.neon.ascent.core.domain.goals.models.Aspiration
-import com.neon.ascent.core.domain.goals.models.GoalProgress
-import com.neon.ascent.core.domain.goals.usecases.GenerateMissionsFromAspirationsUseCase
+import com.neon.ascent.core.domain.goals.models.AscensionDirective
+import com.neon.ascent.core.domain.goals.models.DirectiveStatus
 import com.neon.ascent.core.domain.model.SpecialType
+import com.neon.ascent.core.domain.repository.AscensionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -16,8 +15,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AspirationCreationViewModel @Inject constructor(
-    private val generateMissionsUseCase: GenerateMissionsFromAspirationsUseCase,
-    private val goalRepository: GoalRepository
+    private val ascensionRepository: AscensionRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AspirationCreationUiState())
@@ -32,18 +30,17 @@ class AspirationCreationViewModel @Inject constructor(
         val state = _uiState.value
         if (!state.isValid) return
 
-        val aspiration = Aspiration(
+        val directive = AscensionDirective(
             id = UUID.randomUUID().toString(),
             title = state.title,
             description = state.description,
-            targetDate = if (state.hasTargetDate) LocalDate.now().plusMonths(6) else null,
+            targetEndDate = if (state.hasTargetDate) LocalDate.now().plusMonths(6) else null,
             linkedAttributes = state.linkedAttributes,
-            progress = GoalProgress(current = 0f, target = 1f)
+            status = DirectiveStatus.ACTIVE
         )
 
         viewModelScope.launch {
-            goalRepository.createAspiration(aspiration)
-            generateMissionsUseCase() // Auto-generate supporting missions
+            ascensionRepository.insertDirective(directive)
         }
     }
 }

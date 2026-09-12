@@ -7,16 +7,16 @@ import android.os.Build
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.neon.ascent.core.domain.character.models.UserCharacter
+import com.neon.ascent.core.domain.character.repository.CharacterRepository
 import com.neon.ascent.data.local.JournalDao
-import com.neon.ascent.data.local.SayingsDao
-import com.neon.ascent.data.local.UserCharacterDao
+import com.neon.ascent.data.repository.SayingsRepository
 import com.neon.ascent.data.repository.SettingsRepository
 import com.neon.ascent.feature.biohacking.AiProvider
 import com.neon.ascent.core.data.local.dao.NeuralMemoryDao
 import com.neon.ascent.core.data.local.entity.NeuralMemory
 import com.neon.ascent.feature.notifications.data.SmartPingScheduler
 import com.neon.ascent.model.Saying
-import com.neon.ascent.model.UserCharacter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
@@ -29,8 +29,8 @@ import kotlin.random.Random
 @HiltViewModel
 class CoreDashboardViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val userCharacterDao: UserCharacterDao,
-    private val sayingsDao: SayingsDao,
+    private val characterRepository: CharacterRepository,
+    private val sayingsRepository: SayingsRepository,
     private val journalDao: JournalDao,
     private val settingsRepository: SettingsRepository,
     private val aiProvider: AiProvider,
@@ -38,7 +38,7 @@ class CoreDashboardViewModel @Inject constructor(
     private val notificationScheduler: SmartPingScheduler
 ) : ViewModel() {
 
-    val userCharacter: StateFlow<UserCharacter?> = userCharacterDao.getUserCharacter()
+    val userCharacter: StateFlow<UserCharacter?> = characterRepository.getUserCharacter()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val neuralMemories: StateFlow<List<NeuralMemory>> = neuralMemoryDao.getAllMemories()
@@ -49,7 +49,7 @@ class CoreDashboardViewModel @Inject constructor(
     val philosophySeed = settingsRepository.philosophySeed
     val isNetrunnerMode = settingsRepository.isNetrunnerMode
 
-    val allSayings: StateFlow<List<Saying>> = sayingsDao.getAllSayings()
+    val allSayings: StateFlow<List<Saying>> = sayingsRepository.getAllSayings()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _hackHistory = MutableStateFlow<List<HackEvent>>(emptyList())
@@ -103,24 +103,13 @@ class CoreDashboardViewModel @Inject constructor(
 
     private fun checkFirstEntry() {
         viewModelScope.launch {
-            // Seeding if empty (in case Dashboard screen wasn't visited yet)
-            val count = sayingsDao.getAllSayings().first().size
-            if (count == 0) {
-                val initialSayings = listOf(
-                    Saying("s1", "In Night City's neon haze, know thyself before the corps rewrite your code.", "Self & Identity", 85),
-                    Saying("s2", "The unexamined implant is not worth jacking in.", "Self & Identity", 92),
-                    Saying("s3", "Chrome your body, but guard the analog heart.", "Self & Identity", 78),
-                    Saying("sm1", "What does it profit a man to gain the whole net, yet forfeit his ghost?", "Soul in the Machine", 94),
-                    Saying("sm2", "The ghost is the spark; the chrome is the cage.", "Soul in the Machine", 88)
-                )
-                sayingsDao.insertSayings(initialSayings)
-            }
+            sayingsRepository.syncUserSayingsFromDatabase()
 
             delay(300) // Brief pause to allow UI to settle
 
             if (settingsRepository.isFirstAiCoreEntry.value) {
                 // Fetch random saying from "Soul in the Machine"
-                val soulSayings = sayingsDao.getSayingsByCategory("Soul in the Machine")
+                val soulSayings = sayingsRepository.getSayingsByCategory("Soul in the Machine").first()
                 val randomSaying = if (soulSayings.isNotEmpty()) {
                     soulSayings[Random.nextInt(soulSayings.size)].text
                 } else {
@@ -164,21 +153,20 @@ class CoreDashboardViewModel @Inject constructor(
 
     fun addCustomSaying(text: String) {
         viewModelScope.launch {
-            val id = "custom_" + System.currentTimeMillis()
-            sayingsDao.insertSaying(Saying(id, text, "Custom", 100))
+            sayingsRepository.addCustomSaying(text)
         }
     }
 
     fun toggleSayingEnabled(saying: Saying) {
         viewModelScope.launch {
-            sayingsDao.insertSaying(saying.copy(isEnabled = !saying.isEnabled))
+            sayingsRepository.toggleSayingEnabled(saying)
         }
     }
 
     fun deleteSaying(saying: Saying) {
         viewModelScope.launch {
             if (saying.category == "Custom") {
-                sayingsDao.deleteSaying(saying)
+                sayingsRepository.deleteSaying(saying)
             }
         }
     }
@@ -206,7 +194,7 @@ class CoreDashboardViewModel @Inject constructor(
     fun claimBounty(event: HackEvent) {
         viewModelScope.launch {
             userCharacter.value?.let { char ->
-                userCharacterDao.updateUserCharacter(char.copy(eddies = char.eddies + event.bounty))
+                characterRepository.saveCharacter(char.copy(eddies = char.eddies + event.bounty))
                 // Remove from history after claiming
                 _hackHistory.value = _hackHistory.value.filter { it != event }
             }
@@ -217,7 +205,7 @@ class CoreDashboardViewModel @Inject constructor(
         viewModelScope.launch {
             val char = userCharacter.value ?: return@launch
             if (char.eddies >= 20) {
-                userCharacterDao.updateEddies(char.eddies - 20)
+                characterRepository.saveCharacter(char.copy(eddies = char.eddies - 20))
                 sessionUnlock(target)
             }
         }
@@ -275,7 +263,7 @@ class CoreDashboardViewModel @Inject constructor(
         viewModelScope.launch {
             val char = userCharacter.value ?: return@launch
             if (amount > 0 && char.eddies >= amount) {
-                userCharacterDao.updateUserCharacter(
+                characterRepository.saveCharacter(
                     char.copy(
                         eddies = char.eddies - amount,
                         secureEddies = char.secureEddies + amount

@@ -10,14 +10,16 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 
+import com.neon.ascent.core.domain.repository.AscensionRepository
+
 @Module
 @InstallIn(SingletonComponent::class)
 object GoalsModule {
 
     @Provides
     fun provideSeedStarterHabitsUseCase(
-        goalRepository: GoalRepository
-    ): SeedStarterHabitsUseCase = SeedStarterHabitsUseCase(goalRepository)
+        ascensionRepository: AscensionRepository
+    ): SeedStarterHabitsUseCase = SeedStarterHabitsUseCase(ascensionRepository)
 
     @Provides
     fun provideCompleteHabitAndUpdateGoalsUseCase(

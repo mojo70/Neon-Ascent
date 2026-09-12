@@ -11,8 +11,8 @@ import com.neon.ascent.core.data.processor.InsightProjectionProcessor
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.Priority
 import com.neon.ascent.data.local.BiohackingDao
-import com.neon.ascent.data.local.SayingsDao
 import com.neon.ascent.data.repository.*
+import com.neon.ascent.core.domain.character.repository.CharacterRepository
 import com.neon.ascent.data.local.HabitMetricDao
 import com.neon.ascent.feature.health.HealthSyncUseCase
 import com.neon.ascent.domain.usecase.GenerateCyberLoreUseCase
@@ -56,7 +56,7 @@ data class WeatherState(
 class DashboardViewModel @Inject constructor(
     private val characterRepository: CharacterRepository,
     private val biohackingDao: BiohackingDao,
-    private val sayingsDao: SayingsDao,
+    private val sayingsRepository: SayingsRepository,
     private val weatherRepository: WeatherRepository,
     private val settingsRepository: SettingsRepository,
     private val benchmarkRepository: BenchmarkRepository,
@@ -187,7 +187,7 @@ class DashboardViewModel @Inject constructor(
     private val _snapshotSaying = MutableStateFlow("STAY_CHROME")
     val snapshotSaying: StateFlow<String> = _snapshotSaying.asStateFlow()
 
-    val allSayings: StateFlow<List<Saying>> = sayingsDao.getAllSayings()
+    val allSayings: StateFlow<List<Saying>> = sayingsRepository.getAllSayings()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val tickerMessages: StateFlow<List<String>> = combine(userCharacter, _weatherState) { character, weather ->
@@ -440,27 +440,7 @@ class DashboardViewModel @Inject constructor(
 
     private fun seedSayingsIfEmpty() {
         viewModelScope.launch {
-            val count = sayingsDao.getAllSayings().first().size
-            if (count == 0) {
-                val initialSayings = listOf(
-                    Saying("s1", "In Night City's neon haze, know thyself before the corps rewrite your code.", "Self & Identity", 85),
-                    Saying("s2", "The unexamined implant is not worth jacking in.", "Self & Identity", 92),
-                    Saying("s3", "Chrome your body, but guard the analog heart.", "Self & Identity", 78),
-                    Saying("s4", "I know that I know nothing—except how to ghost this ICE.", "Self & Identity", 88),
-                    Saying("s5", "The reflection in your Kiroshi eyes holds more truth than the ad-screens.", "Self & Identity", 81),
-                    Saying("c1", "The corpo gods demand sacrifice; the street offers redemption in rain.", "Corporate Shadows", 90),
-                    Saying("c2", "Megacorps build towers; the wise build bridges in the net.", "Corporate Shadows", 82),
-                    Saying("d1", "Neon enlightenment: see the light, then hack the source.", "Digital Enlightenment", 93),
-                    Saying("d2", "The matrix is a cave; the wise unplug to see the forms.", "Digital Enlightenment", 95),
-                    Saying("sw1", "Break on through the firewall, where the real shadows play.", "Street Wisdom", 84),
-                    Saying("sw5", "Morrison howls from the beyond: the future's uncertain, but the end is always near—in pixels.", "Street Wisdom", 90),
-                    Saying("sm1", "What does it profit a man to gain the whole net, yet forfeit his ghost?", "Soul in the Machine", 94),
-                    Saying("r1", "Love your fellow choom as yourself, but always run a trace.", "Rebellion & Freedom", 75),
-                    Saying("t1", "The sky above the port was the color of television, tuned to a dead channel.", "Truth & Illusion", 98),
-                    Saying("np1", "In the sprawl, every runner is a parable waiting to be decrypted.", "Neon Parables", 73)
-                )
-                sayingsDao.insertSayings(initialSayings)
-            }
+            sayingsRepository.syncUserSayingsFromDatabase()
         }
     }
 
@@ -562,7 +542,7 @@ class DashboardViewModel @Inject constructor(
     }
 
     private suspend fun getRandomSayingFromDb(): String {
-        val sayings = sayingsDao.getAllSayings().first()
+        val sayings = sayingsRepository.getAllSayings().first()
         return if (sayings.isNotEmpty()) {
             val total = sayings.sumOf { it.engagementScore }
             var rand = Random.nextInt(total + 1)
@@ -618,7 +598,7 @@ class DashboardViewModel @Inject constructor(
     fun updateNetrunnerName(newName: String) {
         viewModelScope.launch {
             userCharacter.value?.let {
-                characterRepository.updateCharacter(it.copy(netrunnerName = newName))
+                characterRepository.saveCharacter(it.copy(netrunnerName = newName))
             }
         }
     }
@@ -699,7 +679,9 @@ class DashboardViewModel @Inject constructor(
 
     fun updateChessElo(newElo: Int) {
         viewModelScope.launch {
-            characterRepository.updateChessElo(newElo)
+            userCharacter.value?.let {
+                characterRepository.saveCharacter(it.copy(chessElo = newElo))
+            }
         }
     }
 }

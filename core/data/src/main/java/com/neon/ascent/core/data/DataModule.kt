@@ -2,13 +2,19 @@ package com.neon.ascent.core.data
 
 import com.neon.ascent.core.data.repository.AscensionRepositoryImpl
 import com.neon.ascent.core.data.repository.BiomarkerRepositoryImpl
+import com.neon.ascent.core.data.repository.ChronicleRepositoryImpl
 import com.neon.ascent.core.data.repository.DopamineMenuRepositoryImpl
 import com.neon.ascent.core.data.repository.InsightProjectionRepositoryImpl
+import com.neon.ascent.core.data.repository.LibraryRepositoryImpl
 import com.neon.ascent.core.data.repository.ProtocolRepositoryImpl
+import com.neon.ascent.core.data.repository.VaultRepositoryImpl
 import com.neon.ascent.core.data.repository.WorkoutRepositoryImpl
 import com.neon.ascent.core.domain.GoalRepository
 import com.neon.ascent.core.domain.SpecialRepository
+import com.neon.ascent.core.domain.chronicle.ChronicleRepository
+import com.neon.ascent.core.domain.library.repository.LibraryRepository
 import com.neon.ascent.core.domain.repository.AscensionRepository
+import com.neon.ascent.core.domain.vault.repository.VaultRepository
 import com.neon.ascent.core.domain.repository.BiomarkerRepository
 import com.neon.ascent.core.domain.repository.DopamineMenuRepository
 import com.neon.ascent.core.domain.repository.InsightProjectionRepository
@@ -71,4 +77,22 @@ abstract class DataModule {
     abstract fun bindBiomarkerRepository(
         biomarkerRepositoryImpl: BiomarkerRepositoryImpl
     ): BiomarkerRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindChronicleRepository(
+        chronicleRepositoryImpl: ChronicleRepositoryImpl
+    ): ChronicleRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindLibraryRepository(
+        libraryRepositoryImpl: LibraryRepositoryImpl
+    ): LibraryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindVaultRepository(
+        vaultRepositoryImpl: VaultRepositoryImpl
+    ): VaultRepository
 }

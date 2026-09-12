@@ -7,7 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
 import com.neon.ascent.BuildConfig
-import com.neon.ascent.data.repository.CharacterRepository
+import com.neon.ascent.core.domain.character.repository.CharacterRepository
 import com.neon.ascent.data.repository.UserPreferencesRepository
 import com.neon.ascent.domain.onboarding.OnboardingCompletionUseCase
 import com.neon.ascent.core.domain.character.models.UserCharacter

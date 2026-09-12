@@ -6,4 +6,5 @@ import kotlinx.coroutines.flow.Flow
 interface CharacterRepository {
     fun getUserCharacter(): Flow<UserCharacter?>
     suspend fun saveCharacter(character: UserCharacter)
+    suspend fun resetCharacter()
 }

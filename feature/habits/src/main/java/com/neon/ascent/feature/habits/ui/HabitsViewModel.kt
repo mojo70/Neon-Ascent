@@ -2,52 +2,52 @@ package com.neon.ascent.feature.habits.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.neon.ascent.core.domain.GoalRepository
-import com.neon.ascent.core.domain.goals.models.CompletionData
-import com.neon.ascent.core.domain.goals.models.Habit
-import com.neon.ascent.core.domain.goals.models.Mission
-import com.neon.ascent.core.domain.goals.usecases.CompleteHabitAndUpdateGoalsUseCase
+import com.neon.ascent.core.domain.goals.models.AscensionMission
+import com.neon.ascent.core.domain.goals.models.AscensionTask
+import com.neon.ascent.core.domain.goals.models.AscensionTaskType
 import com.neon.ascent.core.domain.model.SpecialType
+import com.neon.ascent.core.domain.repository.AscensionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
 class HabitsViewModel @Inject constructor(
-    private val goalRepository: GoalRepository,
-    private val completeHabitUseCase: CompleteHabitAndUpdateGoalsUseCase
+    private val ascensionRepository: AscensionRepository
 ) : ViewModel() {
 
-    val habits: StateFlow<List<Habit>> = goalRepository.getHabits()
+    val recurringTasks: StateFlow<List<AscensionTask>> = ascensionRepository.getAllRecurringTasks()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val todayMissions: StateFlow<List<Mission>> = goalRepository.getActiveMissions()
+    val activeMissions: StateFlow<List<AscensionMission>> = ascensionRepository.getActiveMissions()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val todayProgress: StateFlow<String> = combine(habits, todayMissions) { h, m ->
-        val completedHabits = h.count { it.progress.current >= 1f }
-        val totalHabits = h.size
-        val missionProgress = if (m.isEmpty()) 0 else (m.sumOf { it.progress.current.toDouble() } / m.size * 100).toInt()
-        "${completedHabits}/${totalHabits} habits • ${missionProgress}% missions"
+    val todayProgress: StateFlow<String> = combine(recurringTasks, activeMissions) { tasks, missions ->
+        val completedTasks = tasks.count { it.lastCompleted != null }
+        val totalTasks = tasks.size
+        val missionProgress = if (missions.isEmpty()) 0 else (missions.sumOf { it.progress.toDouble() } / missions.size * 100).toInt()
+        "${completedTasks}/${totalTasks} tasks • ${missionProgress}% missions"
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Loading...")
 
-    fun completeHabit(habitId: String) {
+    fun completeTask(task: AscensionTask) {
         viewModelScope.launch {
-            val habit = habits.value.find { it.id == habitId } ?: return@launch
-
-            val completionData = CompletionData(
-                progressDelta = 1f / habit.progress.target,
-                attributeContributions = habit.linkedAttributes.associateWith { 25L } // base XP
-            )
-
-            completeHabitUseCase(habitId, completionData)
+            ascensionRepository.completeTask(task, null, null, null)
         }
     }
 
     fun createQuickHabit(title: String, linkedAttributes: List<SpecialType>) {
         viewModelScope.launch {
-            // TODO: Call repository create + archetype suggestions later
+            val task = AscensionTask(
+                id = UUID.randomUUID().toString(),
+                parentId = null,
+                title = title,
+                description = "Quick recurring task",
+                type = AscensionTaskType.RECURRING,
+                linkedAttributes = linkedAttributes
+            )
+            ascensionRepository.insertTask(task)
         }
     }
 }
