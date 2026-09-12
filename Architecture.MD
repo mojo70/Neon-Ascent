@@ -67,8 +67,27 @@ To prevent data loss during sequential input flows (like the "Identity Forge"), 
 *   **Dependency Injection**: Hilt. All repository implementations must be bound to domain interfaces in Hilt modules to allow feature modules to remain decoupled from the data implementation.
 
 ### 4. Infrastructure
-*   **Persistence**: Secure Room database utilizing SQLCipher for encrypted storage.
-*   **AI**: Hybrid approach using Gemini Nano (Local) and Gemini Flash (Cloud), orchestrated by `AiProvider`.
+*   **Persistence**: Secure Room database utilizing SQLCipher for encrypted storage (`NeonAscentDatabase` in `:core:data` and legacy `AppDatabase` in `:app`).
+*   **Schema Versioning & Export**: Room schema export is enabled in `:core:data` via `androidx.room` plugin, writing schemas to `core/data/schemas/` with automated JSON schema verification across schema revisions.
+*   **AI**: Hybrid approach using Gemini Nano / LiteRT (Local) and Gemini Flash (Cloud), orchestrated by `AiProvider`.
+
+---
+
+## Data Pipeline, Synchronization & Workers
+
+### 1. Full Data Backup Pipeline
+Neon Ascent features a multi-domain offline-first backup and restoration pipeline orchestrated via WorkManager:
+*   **Architecture & Boundaries**:
+    *   **Domain Contracts (`:core:domain`)**: Defines `FullDataBackupRepository`, `NeonAscentBackupPayload`, `BackupScope`, and modular DTO sections (`WorkoutBackupSection`, `BiometricsBackupSection`, `CodexBackupSection`, `JournalBackupSection`, `CharacterBackupSection`).
+    *   **Implementation (`:app` / `:core:data`)**: `FullDataBackupRepositoryImpl` orchestrates cross-database data extraction, combining Room entities across `NeonAscentDatabase` and `AppDatabase`.
+    *   **Periodic & Triggered Backups**: `FullBackupWorker` executes scheduled background backups (Daily, Weekly, Post-Workout, or Manual) with Google Drive export capability.
+*   **Restoration Modes**: Supports both `MERGE` (upserts records without destroying untouched local entries) and `REPLACE` (wipes existing scoped tables before import) for disaster recovery.
+
+### 2. Health Connect Ingestion & Historical Backfill
+*   **Continuous Synchronization**: Real-time / periodic ingestion of Health Connect metrics (Heart Rate, Steps, Active Calories, Sleep Stages, Body Mass).
+*   **Historical Backfill Worker (`HealthConnectBackfillWorker`)**:
+    *   Runs in staggered weekly chunks (up to 30 or 180 days) to prevent device throttling and memory pressure.
+    *   Directly feeds `DailyVitalRollupDao` via `VitalsRollupWriter` and updates `BodySampleDao` via `BodyLogRepository`.
 
 ---
 

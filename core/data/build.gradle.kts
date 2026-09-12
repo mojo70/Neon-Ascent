@@ -1,7 +1,10 @@
+import androidx.room.gradle.RoomSchemaCopyTask
+
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.ksp)
     alias(libs.plugins.hilt)
+    id("androidx.room")
 }
 
 android {
@@ -10,6 +13,10 @@ android {
     defaultConfig {
         minSdk = 31
     }
+}
+
+room {
+    schemaDirectory(layout.projectDirectory.dir("schemas"))
 }
 
 dependencies {
@@ -30,3 +37,9 @@ dependencies {
 
     testImplementation(libs.junit)
 }
+
+// Workaround for Room Gradle Plugin Always-Run task warning
+tasks.withType<RoomSchemaCopyTask>().configureEach {
+    outputs.dir(layout.projectDirectory.dir("schemas")).withPropertyName("schemaDirectory")
+}
+

@@ -12,13 +12,16 @@ google-services.json
 keystore.properties
 *.jks
 *.keystore
+# scratch unpack / Studio dumps at repo root only
+/temp_*/
+/temp_aar/
+/temp_classes/
 *.hprof
 *.class
 *.so
 *.dm
 *.log
-temp_aar/
-temp_classes/
 .kotlin/
 app/release/
 output-metadata.json
+
