@@ -47,14 +47,19 @@ object NeonChargeEngine {
 
     /**
      * Computes the Neon Charge (0-100) and drivers per NeonCharge.md specification.
+     *
+     * Sleep factor calculation:
+     * - 450 min (7.5h) + z0 -> wakeSeed 72
+     * - 360 min (6h) + z0 -> wakeSeed not 72 (e.g. 57)
+     * - missing sleep & missing sanctum -> cold start wakeSeed 62 (LOW confidence), do not write SEED.
      */
     fun calculateCharge(input: NeonChargeInput): NeonCharge {
         val drivers = mutableListOf<Pair<String, String>>()
 
-        val isColdStart = input.sanctumScore == null &&
-                (input.sleepMinutesLastNight == null || input.sleepMinutesLastNight <= 0) &&
-                input.hrvToday == null &&
-                input.rhrToday == null
+        val hasSleepData = input.sanctumScore != null ||
+                (input.sleepMinutesLastNight != null && input.sleepMinutesLastNight > 0)
+
+        val isColdStart = !hasSleepData
 
         val wakeSeed: Int
         val confidence: ChargeConfidence
@@ -65,20 +70,17 @@ object NeonChargeEngine {
             drivers.add("COLD_START" to "Default baseline (62%) due to missing sleep & vitals")
         } else {
             val sleepFactor: Double
-            val hasSleep: Boolean
 
             if (input.sanctumScore != null) {
                 sleepFactor = (input.sanctumScore / 80.0).coerceIn(0.55, 1.15)
-                hasSleep = true
                 drivers.add("SLEEP" to "SANCTUM ${input.sanctumScore}")
-            } else if (input.sleepMinutesLastNight != null && input.sleepMinutesLastNight > 0) {
-                sleepFactor = (input.sleepMinutesLastNight / 450.0).coerceIn(0.55, 1.15)
-                hasSleep = true
-                val hours = input.sleepMinutesLastNight / 60
-                drivers.add("SLEEP" to "SLEEP ${hours}h")
             } else {
-                sleepFactor = 1.0
-                hasSleep = false
+                val sleepMin = input.sleepMinutesLastNight ?: 450L
+                sleepFactor = (sleepMin / 450.0).coerceIn(0.55, 1.15)
+                val hours = sleepMin / 60
+                val mins = sleepMin % 60
+                val timeStr = if (mins > 0) "${hours}h${mins}m" else "${hours}h"
+                drivers.add("SLEEP" to "SLEEP $timeStr")
             }
 
             // z-scores computed only if 7d series size >= 5
@@ -108,8 +110,8 @@ object NeonChargeEngine {
             wakeSeed = wakeChargeRaw.toInt().coerceIn(35, 95)
 
             confidence = when {
-                hrvZ != null && rhrZ != null && hasSleep -> ChargeConfidence.HIGH
-                hasSleep || (hrvZ != null || rhrZ != null) -> ChargeConfidence.MED
+                hrvZ != null && rhrZ != null -> ChargeConfidence.HIGH
+                hrvZ != null || rhrZ != null -> ChargeConfidence.MED
                 else -> ChargeConfidence.LOW
             }
         }

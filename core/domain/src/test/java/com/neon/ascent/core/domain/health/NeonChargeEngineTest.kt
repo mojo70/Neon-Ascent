@@ -87,10 +87,32 @@ class NeonChargeEngineTest {
 
         val charge = NeonChargeEngine.calculateCharge(input)
 
-        assertEquals(ChargeConfidence.MED, charge.confidence)
+        assertEquals(ChargeConfidence.LOW, charge.confidence)
         // Ensure z-score driver tags are not added since series < 5
         assertTrue(charge.drivers.none { it.first == "HRV_STRESS" })
         assertTrue(charge.drivers.none { it.first == "RHR_STRESS" })
+    }
+
+    @Test
+    fun `360 min sleep with z0 returns wakeSeed 57 not 72`() {
+        val now = Instant.now()
+        val input = NeonChargeInput(
+            sleepMinutesLastNight = 360L,
+            sanctumScore = null,
+            sleepEndedAt = now.minusSeconds(3600),
+            rhrToday = null,
+            rhr7d = emptyList(),
+            hrvToday = null,
+            hrv7d = emptyList(),
+            stepsToday = 0,
+            now = now
+        )
+
+        val charge = NeonChargeEngine.calculateCharge(input)
+
+        assertEquals(57, charge.wakeSeed)
+        assertEquals(ChargeConfidence.LOW, charge.confidence)
+        assertTrue(charge.drivers.any { it.first == "SLEEP" && it.second.contains("SLEEP 6h") })
     }
 
     @Test

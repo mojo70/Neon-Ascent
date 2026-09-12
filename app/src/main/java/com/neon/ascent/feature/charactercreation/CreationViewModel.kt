@@ -92,6 +92,9 @@ class CreationViewModel @Inject constructor(
             )
             characterRepository.saveCharacter(draftCharacter)
             userPreferencesRepository.updateMeasurementUnit(units)
+            if (name.isNotBlank() && weight.isNotBlank() && weight != "0" && units.isNotBlank()) {
+                userPreferencesRepository.setOnboardingComplete(true)
+            }
         }
     }
 
@@ -128,6 +131,7 @@ class CreationViewModel @Inject constructor(
                     avatarPath = savedPath ?: draftCharacter.avatarPath
                 )
                 characterRepository.saveCharacter(draftCharacter)
+                userPreferencesRepository.setOnboardingComplete(true)
 
                 // Seed starter habits and schedule Neural Pings
                 draftCharacter.archetype?.let { archetype ->

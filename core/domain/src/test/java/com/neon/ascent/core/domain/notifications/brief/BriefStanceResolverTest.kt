@@ -41,7 +41,7 @@ class BriefStanceResolverTest {
         val copy = AmTemplateWriter.write(facts, stance)
         assertEquals(BriefStance.HOLD, copy.stance)
         assertEquals("SLEEP 6h12 / 7h20 · SEED 68 HOLD", copy.shadeHeadline)
-        assertEquals("320 squat still on the log. Today is C — keep it easy.", copy.shadeBody)
+        assertEquals("320 squat still on the log. Legs today — keep it easy.", copy.shadeBody)
     }
 
     @Test

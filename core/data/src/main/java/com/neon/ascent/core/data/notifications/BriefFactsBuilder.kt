@@ -1,6 +1,9 @@
 package com.neon.ascent.core.data.notifications
 
+import com.neon.ascent.core.data.local.dao.DailyVitalRollupDao
 import com.neon.ascent.core.data.local.dao.InsightDao
+import com.neon.ascent.core.data.local.entity.DailyVitalRollupEntity
+import com.neon.ascent.core.domain.health.HealthManager
 import com.neon.ascent.core.domain.health.NeonChargeEngine
 import com.neon.ascent.core.domain.health.NeonChargeInput
 import com.neon.ascent.core.domain.health.SanctumEngine
@@ -11,8 +14,12 @@ import com.neon.ascent.core.domain.workout.models.SetType
 import com.neon.ascent.core.domain.workout.rules.RecoveryEngine
 import com.neon.ascent.core.data.datastore.BriefPreferencesDataStore
 import kotlinx.coroutines.flow.first
+import java.time.Duration
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -21,6 +28,8 @@ import javax.inject.Singleton
 class BriefFactsBuilder @Inject constructor(
     private val workoutRepository: WorkoutRepository,
     private val insightDao: InsightDao,
+    private val dailyVitalRollupDao: DailyVitalRollupDao,
+    private val healthManager: HealthManager,
     private val briefPrefs: BriefPreferencesDataStore
 ) {
     suspend fun build(slot: BriefSlot = BriefSlot.AM): BriefFacts {
@@ -67,13 +76,56 @@ class BriefFactsBuilder @Inject constructor(
         }
         val recoveryScore = RecoveryEngine.calculateScore(recentSessionsWithLogs, emptyList())
 
-        // 3. Biometrics Rollup
+        // 3. Biometrics Rollup & Sleep Winner Session
+        val zone = ZoneId.systemDefault()
+        val sleepWindowStart = LocalDate.now(zone).minusDays(1).atTime(18, 0).atZone(zone).toInstant()
+
+        val (winnerSession, winnerAsleepMin) = if (healthManager.isAvailableAndHasPermissions()) {
+            val sleepSessions = try { healthManager.sleepSessions(sleepWindowStart, now) } catch (_: Exception) { emptyList() }
+            val winner = healthManager.pickCoreNight(sleepSessions, zone)
+            if (winner != null) {
+                val stageMap = healthManager.stageMinutes(winner)
+                val tibMinutes = Duration.between(winner.startTime, winner.endTime).toMinutes()
+                val stagedAsleep = (stageMap["DEEP"] ?: 0) + (stageMap["LIGHT"] ?: 0) + (stageMap["REM"] ?: 0) + (stageMap["SLEEPING"] ?: 0)
+                val asleep = if (stagedAsleep > 0) {
+                    stagedAsleep.toLong()
+                } else {
+                    val awakeSum = (stageMap["AWAKE"] ?: 0) + (stageMap["AWAKE_IN_BED"] ?: 0) + (stageMap["OUT_OF_BED"] ?: 0)
+                    (tibMinutes - awakeSum).coerceAtLeast(0L)
+                }
+                winner to asleep
+            } else null to null
+        } else null to null
+
+        val todayStr = LocalDate.now(zone).format(DateTimeFormatter.ISO_LOCAL_DATE)
+        val yesterdayStr = LocalDate.now(zone).minusDays(1).format(DateTimeFormatter.ISO_LOCAL_DATE)
+
+        val persistedSleepMin = if (winnerAsleepMin == null) {
+            val rollups = dailyVitalRollupDao.getRangeList("SLEEP_MIN", yesterdayStr, todayStr)
+            rollups.lastOrNull()?.value?.toLong()
+        } else null
+
         val hrvEvents = insightDao.getBiometricEventsByType("HRV").first()
         val sleepEvents = insightDao.getBiometricEventsByType("SLEEP_DURATION").first()
         val rhrEvents = insightDao.getBiometricEventsByType("RHR").first()
 
         val lastSleepEvent = sleepEvents.firstOrNull { it.timestamp.isAfter(last48h) }
-        val sleepMinutes = lastSleepEvent?.value?.toLong()
+        val sleepMinutes = winnerAsleepMin ?: persistedSleepMin ?: lastSleepEvent?.value?.toLong()
+
+        // Persist SLEEP_MIN rollup if winner session was found
+        if (winnerAsleepMin != null && winnerAsleepMin > 0) {
+            val nightLocalDateStr = (winnerSession?.endTime ?: now).atZone(zone).toLocalDate().format(DateTimeFormatter.ISO_LOCAL_DATE)
+            dailyVitalRollupDao.upsert(
+                DailyVitalRollupEntity(
+                    localDate = nightLocalDateStr,
+                    metric = "SLEEP_MIN",
+                    value = winnerAsleepMin.toDouble(),
+                    source = "HC",
+                    quality = "OK",
+                    updatedAt = System.currentTimeMillis()
+                )
+            )
+        }
 
         val hrvCurrent = hrvEvents.firstOrNull { it.timestamp.isAfter(last24h) }?.value
         val hrvMean7d = hrvEvents.filter { it.timestamp.isAfter(last7d) }.map { it.value }.average().takeIf { !it.isNaN() }
@@ -82,9 +134,9 @@ class BriefFactsBuilder @Inject constructor(
         val rhrMean7d = rhrEvents.filter { it.timestamp.isAfter(last7d) }.map { it.value }.average().takeIf { !it.isNaN() }
 
         // 4. Sanctum Engine
-        val sanctumResult = if (lastSleepEvent != null && sleepMinutes != null && sleepMinutes > 0) {
-            val sessionStart = lastSleepEvent.timestamp.minus(sleepMinutes, ChronoUnit.MINUTES)
-            val sessionEnd = lastSleepEvent.timestamp
+        val sanctumResult = if (sleepMinutes != null && sleepMinutes > 0) {
+            val sessionEnd = winnerSession?.endTime ?: lastSleepEvent?.timestamp ?: now
+            val sessionStart = winnerSession?.startTime ?: sessionEnd.minus(sleepMinutes, ChronoUnit.MINUTES)
             SanctumEngine.calculateSanctum(
                 SanctumInput(
                     sessionStart = sessionStart,
@@ -95,21 +147,21 @@ class BriefFactsBuilder @Inject constructor(
         } else null
 
         // 5. Neon Charge Engine
-        val chargeResult = if (sleepMinutes != null || hrvCurrent != null || rhrCurrent != null) {
-            NeonChargeEngine.calculateCharge(
-                NeonChargeInput(
-                    sleepMinutesLastNight = sleepMinutes,
-                    sanctumScore = sanctumResult?.score,
-                    sleepEndedAt = lastSleepEvent?.timestamp,
-                    rhrToday = rhrCurrent,
-                    rhr7d = if (rhrMean7d != null) listOf(rhrMean7d, rhrMean7d, rhrMean7d, rhrMean7d, rhrMean7d) else emptyList(),
-                    hrvToday = hrvCurrent,
-                    hrv7d = if (hrvMean7d != null) listOf(hrvMean7d, hrvMean7d, hrvMean7d, hrvMean7d, hrvMean7d) else emptyList(),
-                    stepsToday = 0L,
-                    now = now
-                )
+        val chargeResult = NeonChargeEngine.calculateCharge(
+            NeonChargeInput(
+                sleepMinutesLastNight = sleepMinutes,
+                sanctumScore = sanctumResult?.score,
+                sleepEndedAt = winnerSession?.endTime ?: lastSleepEvent?.timestamp,
+                rhrToday = rhrCurrent,
+                rhr7d = if (rhrMean7d != null) listOf(rhrMean7d, rhrMean7d, rhrMean7d, rhrMean7d, rhrMean7d) else emptyList(),
+                hrvToday = hrvCurrent,
+                hrv7d = if (hrvMean7d != null) listOf(hrvMean7d, hrvMean7d, hrvMean7d, hrvMean7d, hrvMean7d) else emptyList(),
+                stepsToday = 0L,
+                now = now
             )
-        } else null
+        )
+
+        val hasSleepData = sleepMinutes != null && sleepMinutes > 0
 
         // 6. Build Vitals
         val vitals = BriefVitals(
@@ -118,15 +170,16 @@ class BriefFactsBuilder @Inject constructor(
             sanctumScore = sanctumResult?.score,
             sanctumTier = sanctumResult?.tier,
             sanctumBand = sanctumResult?.band,
-            seed = chargeResult?.wakeSeed,
-            seedBand = when {
-                chargeResult?.wakeSeed == null -> null
-                chargeResult.wakeSeed >= 80 -> "CLEAR"
-                chargeResult.wakeSeed >= 65 -> "WATCH"
-                chargeResult.wakeSeed >= 50 -> "HOLD"
-                else -> "GROUND"
-            },
-            chargeNow = chargeResult?.value,
+            seed = if (hasSleepData) chargeResult.wakeSeed else null,
+            seedBand = if (hasSleepData) {
+                when {
+                    chargeResult.wakeSeed >= 80 -> "CLEAR"
+                    chargeResult.wakeSeed >= 65 -> "WATCH"
+                    chargeResult.wakeSeed >= 50 -> "HOLD"
+                    else -> "GROUND"
+                }
+            } else null,
+            chargeNow = chargeResult.value,
             hrvNight = hrvCurrent,
             hrvBaseline7d = hrvMean7d,
             rhrLast = rhrCurrent,

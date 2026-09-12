@@ -14,9 +14,11 @@ import com.neon.ascent.feature.notifications.data.SmartPingScheduler
 import com.neon.ascent.core.data.notifications.BriefFactsBuilder
 import com.neon.ascent.core.domain.notifications.BriefService
 import com.neon.ascent.core.domain.notifications.brief.AmTemplateWriter
+import com.neon.ascent.core.domain.notifications.brief.BriefCopyValidator
 import com.neon.ascent.core.domain.notifications.brief.BriefStanceResolver
 import com.neon.ascent.core.domain.notifications.brief.PmTemplateWriter
 import com.neon.ascent.core.domain.notifications.brief.TemplateCopyWriter
+import com.neon.ascent.core.domain.notifications.models.BriefFacts
 import com.neon.ascent.core.domain.notifications.models.BriefSlot
 import com.neon.ascent.core.domain.notifications.models.BriefStance
 import dagger.assisted.Assisted
@@ -132,11 +134,11 @@ class NeuralBriefWorker @AssistedInject constructor(
         }
     }
 
-    private suspend fun runAiPolish(facts: com.neon.ascent.core.domain.notifications.models.BriefFacts, templateDraft: String): String? {
+    private suspend fun runAiPolish(facts: BriefFacts, templateDraft: String): String? {
         val factsJson = Gson().toJson(facts)
         val prompt = """
             [SYSTEM: Neural Brief Polisher]
-            Rewrite the following health/training brief to be more immersive and cyberpunk.
+            Rewrite the following health/training brief to be more immersive and concise.
             
             [FACTS]
             $factsJson
@@ -148,17 +150,18 @@ class NeuralBriefWorker @AssistedInject constructor(
             - Keep every number from the draft.
             - Maximum 80 words.
             - No questions.
-            - Do not use ERROR tokens or malfunction language.
+            - Do NOT include UUIDs, session IDs, markdown **, or terms like 'sprawl', 'reboot', 'dangerously'.
+            - Do NOT change the stance or core recommendation.
             - Output only the polished text.
         """.trimIndent()
 
         return when (val result = aiCore.generate(prompt, forceLocal = true)) {
             is AiResult.Success -> {
                 val polished = result.text
-                if (validatePolish(polished, templateDraft)) {
+                if (validatePolish(polished, templateDraft, facts)) {
                     polished
                 } else {
-                    Log.w(TAG, "// AI_POLISH_VALIDATION_FAILED: Numbers mismatched.")
+                    Log.w(TAG, "// AI_POLISH_VALIDATION_FAILED: Failed safety or validator checks.")
                     null
                 }
             }
@@ -166,8 +169,8 @@ class NeuralBriefWorker @AssistedInject constructor(
         }
     }
 
-    private fun validatePolish(polished: String, draft: String): Boolean {
-        if (polished.isBlank() || polished.contains("ERROR") || polished.contains("MALFUNCTION")) return false
+    private fun validatePolish(polished: String, draft: String, facts: BriefFacts): Boolean {
+        if (!BriefCopyValidator.isValid(polished, facts)) return false
 
         val draftNumbers = extractNumbers(draft)
         val polishedNumbers = extractNumbers(polished)

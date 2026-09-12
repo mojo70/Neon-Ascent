@@ -157,7 +157,13 @@ fun AppNavigation(
     val initialStartDestination = remember {
         if (isAppLoaded) {
             val char = dashboardViewModel.userCharacter.value
-            if (char?.isCreationComplete == true) Screen.MainHub else Screen.Creation
+            val hasCompleteProfile = char != null &&
+                    char.name.isNotBlank() &&
+                    char.weight.isNotBlank() &&
+                    char.weight != "0" &&
+                    char.units.isNotBlank()
+            val isComplete = char?.isCreationComplete == true || hasCompleteProfile
+            if (isComplete) Screen.MainHub else Screen.Creation
         } else {
             Screen.Loading
         }
@@ -179,7 +185,12 @@ fun AppNavigation(
                         dashboardViewModel.isCharacterLoaded.first { it }
                         
                         val char = dashboardViewModel.userCharacter.value
-                        val isComplete = char?.isCreationComplete == true
+                        val hasCompleteProfile = char != null &&
+                                char.name.isNotBlank() &&
+                                char.weight.isNotBlank() &&
+                                char.weight != "0" &&
+                                char.units.isNotBlank()
+                        val isComplete = char?.isCreationComplete == true || hasCompleteProfile
                         val target = if (isComplete) Screen.MainHub else Screen.Creation
 
                         navController.navigate(target) {
@@ -1028,14 +1039,28 @@ fun AppNavigation(
         )
     }
 
-    pendingNotification?.let { (title, message) ->
-        NotificationDetailDialog(
-            title = title,
-            message = message,
-            onDismiss = {
-                notificationViewModel.dismissNotification()
-            }
-        )
+    val isPreDeckRoute = remember(currentRoute) {
+        if (currentRoute == null) true
+        else {
+            val lower = currentRoute.lowercase()
+            lower.contains("creation") ||
+                    lower.contains("loading") ||
+                    lower.contains("personality") ||
+                    lower.contains("avatar") ||
+                    lower.contains("attributescan")
+        }
+    }
+
+    if (!isPreDeckRoute) {
+        pendingNotification?.let { (title, message) ->
+            NotificationDetailDialog(
+                title = title,
+                message = message,
+                onDismiss = {
+                    notificationViewModel.dismissNotification()
+                }
+            )
+        }
     }
 }
 

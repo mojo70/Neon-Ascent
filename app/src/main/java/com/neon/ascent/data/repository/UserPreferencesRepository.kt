@@ -24,6 +24,7 @@ class UserPreferencesRepository @Inject constructor(
         val LAST_BIO_AGE = floatPreferencesKey("last_bio_age")
         val LAST_BIO_AGE_TIMESTAMP = longPreferencesKey("last_bio_age_timestamp")
         val YEARLY_REVIEW_ENABLED = booleanPreferencesKey("yearly_review_enabled")
+        val ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
         
         // Neon Guide
         val GUIDE_VERBOSITY = stringPreferencesKey("guide_verbosity")
@@ -75,6 +76,18 @@ class UserPreferencesRepository @Inject constructor(
         }
         .map { preferences ->
             preferences[PreferencesKeys.MEASUREMENT_UNIT] ?: "Metric"
+        }
+
+    val isOnboardingComplete: Flow<Boolean> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            preferences[PreferencesKeys.ONBOARDING_COMPLETE] ?: false
         }
 
     val guideVerbosity: Flow<String> = context.dataStore.data
@@ -149,6 +162,12 @@ class UserPreferencesRepository @Inject constructor(
     suspend fun updateMeasurementUnit(unit: String) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.MEASUREMENT_UNIT] = unit
+        }
+    }
+
+    suspend fun setOnboardingComplete(complete: Boolean = true) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.ONBOARDING_COMPLETE] = complete
         }
     }
 
