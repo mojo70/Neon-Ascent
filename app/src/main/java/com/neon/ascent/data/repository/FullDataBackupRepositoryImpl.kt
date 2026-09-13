@@ -1,20 +1,25 @@
 package com.neon.ascent.data.repository
 
+import android.content.Context
+import android.util.Log
 import com.google.gson.GsonBuilder
 import com.neon.ascent.core.data.NeonAscentDatabase
 import com.neon.ascent.core.data.local.dao.BiomarkerDao
+import com.neon.ascent.core.data.local.dao.BodySampleDao
 import com.neon.ascent.core.data.local.dao.DailyVitalRollupDao
 import com.neon.ascent.core.data.local.dao.DopamineMenuDao
 import com.neon.ascent.core.data.local.dao.GoalDao
+import com.neon.ascent.core.data.local.dao.OperativeProfileDao
 import com.neon.ascent.core.data.local.dao.SpecialDao
 import com.neon.ascent.core.data.local.dao.WorkoutDao
 import com.neon.ascent.core.data.local.entity.*
 import com.neon.ascent.core.domain.backup.models.*
-import com.neon.ascent.core.domain.model.DopamineCategory
-import com.neon.ascent.core.domain.model.EnergyLevel
+import com.neon.ascent.core.domain.chronicle.ChronicleEntry
 import com.neon.ascent.core.domain.chronicle.ChronicleRepository
 import com.neon.ascent.core.domain.library.models.LibraryQuote
 import com.neon.ascent.core.domain.library.repository.LibraryRepository
+import com.neon.ascent.core.domain.model.DopamineCategory
+import com.neon.ascent.core.domain.model.EnergyLevel
 import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.core.domain.repository.FullDataBackupRepository
 import com.neon.ascent.data.local.AppDatabase
@@ -30,8 +35,12 @@ import com.neon.ascent.model.DailyPrayer
 import com.neon.ascent.model.JournalEntry
 import com.neon.ascent.model.QuoteEntity
 import com.neon.ascent.model.UserCharacter
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
+import java.io.File
 import java.time.Instant
+import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -52,8 +61,13 @@ class FullDataBackupRepositoryImpl @Inject constructor(
     private val goalDao: GoalDao,
     private val goalTaskDao: GoalTaskDao,
     private val chronicleRepository: ChronicleRepository,
+    private val operativeProfileDao: OperativeProfileDao,
+    private val bodySampleDao: BodySampleDao,
+    private val userPreferencesRepository: UserPreferencesRepository,
+    private val settingsRepository: SettingsRepository,
     private val coreDatabase: NeonAscentDatabase,
-    private val appDatabase: AppDatabase
+    private val appDatabase: AppDatabase,
+    @ApplicationContext private val context: Context
 ) : FullDataBackupRepository {
 
     private val gson = GsonBuilder().setPrettyPrinting().create()
@@ -153,8 +167,8 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                 )
             }
 
-            val profile = workoutDao.getUserProfile("default_user").first()
-            val profileDto = profile?.let { p ->
+            val allProfiles = workoutDao.getAllUserProfiles().first()
+            val profilesDto = allProfiles.map { p ->
                 UserWorkoutProfileDto(
                     userId = p.userId,
                     experienceLevel = p.experienceLevel,
@@ -168,6 +182,7 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                     coachingHintsEnabled = p.coachingHintsEnabled
                 )
             }
+            val primaryProfileDto = profilesDto.firstOrNull { it.userId == "default_user" } ?: profilesDto.firstOrNull()
 
             WorkoutBackupSection(
                 sessions = sessionsDto,
@@ -175,7 +190,8 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                 sets = setsDto,
                 customExercises = exercisesDto,
                 exerciseMaxes = maxesDto,
-                userProfile = profileDto
+                userProfile = primaryProfileDto,
+                userProfiles = profilesDto
             )
         } else null
 
@@ -199,9 +215,43 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                 )
             }
 
+            val nowMs = System.currentTimeMillis()
+            val start180dMs = nowMs - (180L * 86400L * 1000L)
+            val bodySampleDtos = bodySampleDao.getSamplesBetween(start180dMs, nowMs).map { b ->
+                BodySampleDto(
+                    id = b.id,
+                    localDate = b.localDate,
+                    loggedAtEpochMs = b.loggedAt,
+                    metric = b.metric,
+                    site = b.site,
+                    value = b.value,
+                    unit = b.unit,
+                    method = b.method,
+                    position = b.position,
+                    side = b.side,
+                    conditionTag = b.conditionTag,
+                    source = b.source,
+                    note = b.note
+                )
+            }
+
+            val start180dDate = LocalDate.now().minusDays(180).toString()
+            val vitalRollupDtos = dailyVitalRollupDao.getAllRollupsSince(start180dDate).map { r ->
+                DailyVitalRollupDto(
+                    localDate = r.localDate,
+                    metric = r.metric,
+                    value = r.value,
+                    source = r.source,
+                    quality = r.quality,
+                    updatedAtEpochMs = r.updatedAt
+                )
+            }
+
             BiometricsBackupSection(
                 biomarkers = samples,
-                specialAttributes = specialAttrs
+                specialAttributes = specialAttrs,
+                bodySamples = bodySampleDtos,
+                vitalRollups = vitalRollupDtos
             )
         } else null
 
@@ -252,9 +302,23 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                 )
             }
 
+            val chronicleEntries = chronicleRepository.observeChronicle().first().map { c ->
+                ChronicleEntryDto(
+                    source = c.source,
+                    sourceId = c.sourceId,
+                    wing = c.wing,
+                    room = c.room,
+                    content = c.content,
+                    timestampEpochMs = c.timestamp,
+                    hearted = c.hearted,
+                    metadata = c.metadata
+                )
+            }
+
             JournalBackupSection(
                 journalEntries = entries,
-                dailyPrayers = prayers
+                dailyPrayers = prayers,
+                chronicleEntries = chronicleEntries
             )
         } else null
 
@@ -272,6 +336,32 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                 )
             }
 
+            val op = operativeProfileDao.getOperativeProfileOnce("default_user")
+            val opDto = op?.let { o ->
+                OperativeProfileDto(
+                    id = o.id,
+                    name = o.name,
+                    netrunnerName = o.netrunnerName,
+                    sex = o.sex,
+                    dob = o.dob,
+                    units = o.units,
+                    heightFeet = o.heightFeet,
+                    heightInches = o.heightInches,
+                    heightCm = o.heightCm,
+                    weight = o.weight,
+                    somatotype = o.somatotype,
+                    level = o.level,
+                    experience = o.experience,
+                    iceLevel = o.iceLevel,
+                    eddies = o.eddies,
+                    secureEddies = o.secureEddies,
+                    prayerStreak = o.prayerStreak,
+                    lastPrayerDateEpochMs = o.lastPrayerDate,
+                    isCreationComplete = o.isCreationComplete,
+                    avatarPath = o.avatarPath
+                )
+            }
+
             val dopamineItems = dopamineMenuDao.getAllItems().first().map { d ->
                 DopamineMenuItemDto(
                     id = d.id,
@@ -285,19 +375,35 @@ class FullDataBackupRepositoryImpl @Inject constructor(
 
             CharacterBackupSection(
                 userCharacter = charDto,
+                operativeProfile = opDto,
                 dopamineItems = dopamineItems
             )
         } else null
 
+        val activeProfile = workoutDao.getUserProfile("default_user").firstOrNull()
+        val settingsSection = SettingsBackupSection(
+            themeMode = userPreferencesRepository.themeMode.first(),
+            measurementUnit = userPreferencesRepository.measurementUnit.first(),
+            activeProtocol = activeProfile?.activeProtocol,
+            weightIncrementCompound = activeProfile?.weightIncrementCompound ?: 5.0f,
+            weightIncrementIsolation = activeProfile?.weightIncrementIsolation ?: 2.5f,
+            isNeuralBriefEnabled = settingsRepository.isNeuralBriefEnabled.value,
+            briefFrequency = settingsRepository.briefFrequency.value,
+            quietHoursStart = settingsRepository.quietHoursStart.value,
+            quietHoursEnd = settingsRepository.quietHoursEnd.value,
+            backupFrequency = userPreferencesRepository.backupFrequency.first()
+        )
+
         val payload = NeonAscentBackupPayload(
-            version = 1,
+            version = 2,
             exportedAt = now,
             appVersion = "1.0",
             workoutPayload = workoutSection,
             biometricsPayload = biometricsSection,
             codexPayload = codexSection,
             journalPayload = journalSection,
-            characterPayload = characterSection
+            characterPayload = characterSection,
+            settingsPayload = settingsSection
         )
 
         return gson.toJson(payload)
@@ -320,12 +426,14 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                 payload.biometricsPayload == null &&
                 payload.codexPayload == null &&
                 payload.journalPayload == null &&
-                payload.characterPayload == null
+                payload.characterPayload == null &&
+                payload.settingsPayload == null
             ) {
                 return RestoreResult(success = false, message = "Invalid JSON payload structure: No backup sections found")
             }
 
             if (mode == RestoreMode.REPLACE) {
+                snapshotDatabasesBeforeReplace()
                 coreDatabase.clearAllTables()
                 appDatabase.clearAllTables()
             }
@@ -437,7 +545,8 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                     )
                 }
 
-                w.userProfile?.let { p ->
+                val profilesToRestore = if (w.userProfiles.isNotEmpty()) w.userProfiles else listOfNotNull(w.userProfile)
+                profilesToRestore.forEach { p ->
                     workoutDao.insertUserProfile(
                         UserWorkoutProfileEntity(
                             userId = p.userId,
@@ -495,6 +604,43 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                             totalXp = sa.totalXp,
                             lastUpdated = Instant.now()
                         )
+                    )
+                }
+
+                if (b.bodySamples.isNotEmpty()) {
+                    bodySampleDao.upsertSamples(
+                        b.bodySamples.map { bs ->
+                            BodySampleEntity(
+                                id = bs.id,
+                                localDate = bs.localDate,
+                                loggedAt = bs.loggedAtEpochMs,
+                                metric = bs.metric,
+                                site = bs.site,
+                                value = bs.value,
+                                unit = bs.unit,
+                                method = bs.method,
+                                position = bs.position,
+                                side = bs.side,
+                                conditionTag = bs.conditionTag,
+                                source = bs.source,
+                                note = bs.note
+                            )
+                        }
+                    )
+                }
+
+                if (b.vitalRollups.isNotEmpty()) {
+                    dailyVitalRollupDao.upsertAll(
+                        b.vitalRollups.map { vr ->
+                            DailyVitalRollupEntity(
+                                localDate = vr.localDate,
+                                metric = vr.metric,
+                                value = vr.value,
+                                source = vr.source,
+                                quality = vr.quality,
+                                updatedAt = vr.updatedAtEpochMs
+                            )
+                        }
                     )
                 }
             }
@@ -561,6 +707,21 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                         }
                     )
                 }
+
+                j.chronicleEntries.forEach { ce ->
+                    chronicleRepository.importIfAbsent(
+                        ChronicleEntry(
+                            source = ce.source,
+                            sourceId = ce.sourceId,
+                            wing = ce.wing,
+                            room = ce.room,
+                            content = ce.content,
+                            timestamp = ce.timestampEpochMs,
+                            hearted = ce.hearted,
+                            metadata = ce.metadata
+                        )
+                    )
+                }
             }
 
             // 5. Restore Character
@@ -585,6 +746,33 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                     )
                 }
 
+                char.operativeProfile?.let { op ->
+                    operativeProfileDao.upsertOperativeProfile(
+                        OperativeProfileEntity(
+                            id = op.id,
+                            name = op.name,
+                            netrunnerName = op.netrunnerName,
+                            sex = op.sex,
+                            dob = op.dob,
+                            units = op.units,
+                            heightFeet = op.heightFeet,
+                            heightInches = op.heightInches,
+                            heightCm = op.heightCm,
+                            weight = op.weight,
+                            somatotype = op.somatotype,
+                            level = op.level,
+                            experience = op.experience,
+                            iceLevel = op.iceLevel,
+                            eddies = op.eddies,
+                            secureEddies = op.secureEddies,
+                            prayerStreak = op.prayerStreak,
+                            lastPrayerDate = op.lastPrayerDateEpochMs,
+                            isCreationComplete = op.isCreationComplete,
+                            avatarPath = op.avatarPath
+                        )
+                    )
+                }
+
                 char.dopamineItems.forEach { item ->
                     val energy = try { EnergyLevel.valueOf(item.energyLevel) } catch (e: Exception) { EnergyLevel.MEDIUM }
                     val category = try { DopamineCategory.valueOf(item.category) } catch (e: Exception) { DopamineCategory.RESET }
@@ -604,6 +792,17 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                 }
             }
 
+            // 6. Restore Settings
+            payload.settingsPayload?.let { s ->
+                userPreferencesRepository.setThemeMode(s.themeMode)
+                userPreferencesRepository.updateMeasurementUnit(s.measurementUnit)
+                userPreferencesRepository.setBackupFrequency(s.backupFrequency)
+                settingsRepository.setNeuralBriefEnabled(s.isNeuralBriefEnabled)
+                settingsRepository.setBriefFrequency(s.briefFrequency)
+                settingsRepository.setQuietHoursStart(s.quietHoursStart)
+                settingsRepository.setQuietHoursEnd(s.quietHoursEnd)
+            }
+
             RestoreResult(
                 success = true,
                 message = "Uplink restore complete",
@@ -617,6 +816,42 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                 success = false,
                 message = "Restore failed: ${e.localizedMessage}"
             )
+        }
+    }
+
+    private fun snapshotDatabasesBeforeReplace() {
+        val epoch = System.currentTimeMillis()
+        val dbNames = listOf("neon_ascent_database", "neon_ascent_v5_secure.db")
+        for (dbName in dbNames) {
+            val dbFile = context.getDatabasePath(dbName)
+            if (dbFile.exists()) {
+                val dbBackup = File(dbFile.parentFile, "${dbFile.name}.pre_restore-$epoch")
+                copyFile(dbFile, dbBackup)
+
+                val walFile = File("${dbFile.path}-wal")
+                if (walFile.exists()) {
+                    val walBackup = File(walFile.parentFile, "${walFile.name}.pre_restore-$epoch")
+                    copyFile(walFile, walBackup)
+                }
+
+                val shmFile = File("${dbFile.path}-shm")
+                if (shmFile.exists()) {
+                    val shmBackup = File(shmFile.parentFile, "${shmFile.name}.pre_restore-$epoch")
+                    copyFile(shmFile, shmBackup)
+                }
+            }
+        }
+    }
+
+    private fun copyFile(source: File, destination: File) {
+        try {
+            source.inputStream().use { input ->
+                destination.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("FullDataBackupRepo", "Failed to create pre_restore snapshot for ${source.name}", e)
         }
     }
 }

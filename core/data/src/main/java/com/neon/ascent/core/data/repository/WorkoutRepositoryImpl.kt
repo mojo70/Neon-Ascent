@@ -11,12 +11,19 @@ import com.neon.ascent.core.domain.workout.rules.RecoveryEngine
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import android.content.Context
+import android.util.Log
+import androidx.work.ListenableWorker
+import androidx.work.OneTimeWorkRequest
+import androidx.work.WorkManager
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class WorkoutRepositoryImpl @Inject constructor(
-    private val workoutDao: WorkoutDao
+    private val workoutDao: WorkoutDao,
+    @ApplicationContext private val context: Context
 ) : WorkoutRepository {
 
     override fun getAllSessions(): Flow<List<WorkoutSession>> =
@@ -27,6 +34,17 @@ class WorkoutRepositoryImpl @Inject constructor(
 
     override suspend fun saveSession(session: WorkoutSession) {
         workoutDao.upsertSession(session.toEntity())
+        try {
+            val workerClass = Class.forName("com.neon.ascent.data.backup.FullBackupWorker")
+                .asSubclass(ListenableWorker::class.java)
+            val workRequest = OneTimeWorkRequest.Builder(workerClass)
+                .addTag("post_workout_backup")
+                .build()
+            WorkManager.getInstance(context).enqueue(workRequest)
+            Log.i("WorkoutRepositoryImpl", "Enqueued post-workout local vault backup")
+        } catch (e: Throwable) {
+            Log.e("WorkoutRepositoryImpl", "Post-session backup enqueue failed (non-fatal)", e)
+        }
     }
 
     override suspend fun exportHistoryToJson(): String {

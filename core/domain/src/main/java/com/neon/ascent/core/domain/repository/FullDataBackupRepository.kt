@@ -6,5 +6,5 @@ import com.neon.ascent.core.domain.backup.models.RestoreResult
 
 interface FullDataBackupRepository {
     suspend fun exportBackupJson(scope: BackupScope): String
-    suspend fun restoreBackupJson(jsonString: String, mode: RestoreMode): RestoreResult
+    suspend fun restoreBackupJson(jsonString: String, mode: RestoreMode = RestoreMode.MERGE): RestoreResult
 }

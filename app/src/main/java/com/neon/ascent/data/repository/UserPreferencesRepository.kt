@@ -15,7 +15,7 @@ import javax.inject.Singleton
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_preferences")
 
 @Singleton
-class UserPreferencesRepository @Inject constructor(
+open class UserPreferencesRepository @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     private object PreferencesKeys {
@@ -54,7 +54,7 @@ class UserPreferencesRepository @Inject constructor(
         val LAST_BACKUP_TIMESTAMP = longPreferencesKey("last_backup_timestamp")
     }
 
-    val themeMode: Flow<String> = context.dataStore.data
+    open val themeMode: Flow<String> = context.dataStore.data
         .catch { exception ->
             if (exception is IOException) {
                 emit(emptyPreferences())
@@ -66,7 +66,7 @@ class UserPreferencesRepository @Inject constructor(
             preferences[PreferencesKeys.THEME_MODE] ?: "CYBER"
         }
 
-    val measurementUnit: Flow<String> = context.dataStore.data
+    open val measurementUnit: Flow<String> = context.dataStore.data
         .catch { exception ->
             if (exception is IOException) {
                 emit(emptyPreferences())
@@ -124,7 +124,7 @@ class UserPreferencesRepository @Inject constructor(
             preferences[PreferencesKeys.YEARLY_REVIEW_ENABLED] ?: true
         }
 
-    val backupFrequency: Flow<String> = context.dataStore.data
+    open val backupFrequency: Flow<String> = context.dataStore.data
         .map { it[PreferencesKeys.BACKUP_FREQUENCY] ?: "DAILY" }
 
     val backupScopeWorkout: Flow<Boolean> = context.dataStore.data
@@ -151,7 +151,7 @@ class UserPreferencesRepository @Inject constructor(
     val lastBackupTimestamp: Flow<Long> = context.dataStore.data
         .map { it[PreferencesKeys.LAST_BACKUP_TIMESTAMP] ?: 0L }
 
-    suspend fun setThemeMode(mode: String) {
+    open suspend fun setThemeMode(mode: String) {
         val coercedMode = when (mode.uppercase()) {
             "STEVE" -> "STEVE"
             else -> "CYBER"
@@ -159,7 +159,7 @@ class UserPreferencesRepository @Inject constructor(
         context.dataStore.edit { it[PreferencesKeys.THEME_MODE] = coercedMode }
     }
 
-    suspend fun updateMeasurementUnit(unit: String) {
+    open suspend fun updateMeasurementUnit(unit: String) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.MEASUREMENT_UNIT] = unit
         }
@@ -218,7 +218,7 @@ class UserPreferencesRepository @Inject constructor(
         }
     }
 
-    suspend fun setBackupFrequency(freq: String) {
+    open suspend fun setBackupFrequency(freq: String) {
         context.dataStore.edit { it[PreferencesKeys.BACKUP_FREQUENCY] = freq }
     }
 

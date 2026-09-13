@@ -56,33 +56,26 @@ object DatabaseModule {
         val passphraseBytes = securityManager.getDatabasePassphrase("db_passphrase_app")
         val dbFile = context.getDatabasePath(dbName)
         
-        // Pre-verification without wiping database on open failure
+        // Pre-verification without wiping or renaming database on open failure (fail closed)
         if (dbFile.exists()) {
             var db: SQLiteDatabase? = null
             var openSuccessful = false
+            var verificationException: Throwable? = null
             try {
                 db = SQLiteDatabase.openDatabase(dbFile.absolutePath, String(passphraseBytes), null, SQLiteDatabase.OPEN_READWRITE)
                 db?.rawQuery("SELECT count(*) FROM sqlite_master", null)?.use { it.moveToFirst() }
                 openSuccessful = true
             } catch (e: Throwable) {
-                Log.e("DatabaseModule", "AppDatabase verification failed. Preserving file in quarantine.", e)
+                verificationException = e
+                Log.e("DatabaseModule", "AppDatabase verification failed. Preserving file in place.", e)
             } finally {
                 try { db?.close() } catch (_: Throwable) {}
             }
 
             if (!openSuccessful) {
-                try {
-                    val quarantineFile = context.getDatabasePath("$dbName.quarantine")
-                    if (quarantineFile.exists()) quarantineFile.delete()
-                    dbFile.renameTo(quarantineFile)
-                    val shmFile = context.getDatabasePath("$dbName-shm")
-                    if (shmFile.exists()) shmFile.renameTo(context.getDatabasePath("$dbName-shm.quarantine"))
-                    val walFile = context.getDatabasePath("$dbName-wal")
-                    if (walFile.exists()) walFile.renameTo(context.getDatabasePath("$dbName-wal.quarantine"))
-                    Log.w("DatabaseModule", "Successfully quarantined unopenable $dbName to ${quarantineFile.name}")
-                } catch (e: Throwable) {
-                    Log.e("DatabaseModule", "Failed to quarantine $dbName", e)
-                }
+                val errorMsg = "AppDatabase verification failed for $dbName. Leaving database file intact in place."
+                Log.e("DatabaseModule", errorMsg, verificationException)
+                throw IllegalStateException(errorMsg, verificationException)
             }
         }
 

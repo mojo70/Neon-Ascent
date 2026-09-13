@@ -2,6 +2,7 @@ package com.neon.ascent.data.repository
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -50,7 +51,7 @@ import javax.inject.Singleton
  */
 
 @Singleton
-class SettingsRepository @Inject constructor(
+open class SettingsRepository @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     private val masterKey by lazy {
@@ -69,7 +70,7 @@ class SettingsRepository @Inject constructor(
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
         } catch (e: Exception) {
-            android.util.Log.e("SettingsRepository", "EncryptedSharedPreferences failed", e)
+            try { Log.e("SettingsRepository", "EncryptedSharedPreferences failed", e) } catch (_: Throwable) {}
             context.getSharedPreferences("secure_settings_fallback", Context.MODE_PRIVATE)
         }
     }
@@ -148,7 +149,7 @@ class SettingsRepository @Inject constructor(
             _isAltarTrueTextMode.value = sharedPreferences.getBoolean("altar_true_text_mode", false)
             _lastRemainBuffDate.value = sharedPreferences.getLong("last_remain_buff_date", 0L)
         } catch (e: Exception) {
-            android.util.Log.e("SettingsRepository", "Failed to load initial settings", e)
+            try { Log.e("SettingsRepository", "Failed to load initial settings", e) } catch (_: Throwable) {}
         }
     }
 

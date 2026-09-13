@@ -39,14 +39,15 @@ data class RestoreResult(
 )
 
 data class NeonAscentBackupPayload(
-    val version: Int = 1,
+    val version: Int = 2,
     val exportedAt: String,
     val appVersion: String = "1.0",
     val workoutPayload: WorkoutBackupSection? = null,
     val biometricsPayload: BiometricsBackupSection? = null,
     val codexPayload: CodexBackupSection? = null,
     val journalPayload: JournalBackupSection? = null,
-    val characterPayload: CharacterBackupSection? = null
+    val characterPayload: CharacterBackupSection? = null,
+    val settingsPayload: SettingsBackupSection? = null
 )
 
 data class WorkoutBackupSection(
@@ -55,7 +56,8 @@ data class WorkoutBackupSection(
     val sets: List<SetLogDto> = emptyList(),
     val customExercises: List<ExerciseDefinitionDto> = emptyList(),
     val exerciseMaxes: List<ExerciseMaxDto> = emptyList(),
-    val userProfile: UserWorkoutProfileDto? = null
+    val userProfile: UserWorkoutProfileDto? = null,
+    val userProfiles: List<UserWorkoutProfileDto> = emptyList()
 )
 
 data class WorkoutSessionDto(
@@ -147,7 +149,9 @@ data class UserWorkoutProfileDto(
 
 data class BiometricsBackupSection(
     val biomarkers: List<BiomarkerDto> = emptyList(),
-    val specialAttributes: List<SpecialAttributeDto> = emptyList()
+    val specialAttributes: List<SpecialAttributeDto> = emptyList(),
+    val bodySamples: List<BodySampleDto> = emptyList(),
+    val vitalRollups: List<DailyVitalRollupDto> = emptyList()
 )
 
 data class BiomarkerDto(
@@ -163,6 +167,31 @@ data class SpecialAttributeDto(
     val currentValue: Int = 5,
     val percentile: Int? = null,
     val totalXp: Long = 0L
+)
+
+data class BodySampleDto(
+    val id: String,
+    val localDate: String,
+    val loggedAtEpochMs: Long,
+    val metric: String,
+    val site: String? = null,
+    val value: Double,
+    val unit: String,
+    val method: String? = null,
+    val position: String? = null,
+    val side: String? = null,
+    val conditionTag: String? = null,
+    val source: String,
+    val note: String? = null
+)
+
+data class DailyVitalRollupDto(
+    val localDate: String,
+    val metric: String,
+    val value: Double,
+    val source: String = "RESTORED",
+    val quality: String = "OK",
+    val updatedAtEpochMs: Long = System.currentTimeMillis()
 )
 
 data class CodexBackupSection(
@@ -181,7 +210,8 @@ data class QuoteDto(
 
 data class JournalBackupSection(
     val journalEntries: List<JournalEntryDto> = emptyList(),
-    val dailyPrayers: List<DailyPrayerDto> = emptyList()
+    val dailyPrayers: List<DailyPrayerDto> = emptyList(),
+    val chronicleEntries: List<ChronicleEntryDto> = emptyList()
 )
 
 data class JournalEntryDto(
@@ -207,8 +237,20 @@ data class DailyPrayerDto(
     val askTrue: String = ""
 )
 
+data class ChronicleEntryDto(
+    val source: String,
+    val sourceId: String,
+    val wing: String = "CHRONICLE",
+    val room: String = "ORIGIN",
+    val content: String,
+    val timestampEpochMs: Long,
+    val hearted: Boolean = false,
+    val metadata: String? = null
+)
+
 data class CharacterBackupSection(
     val userCharacter: UserCharacterDto? = null,
+    val operativeProfile: OperativeProfileDto? = null,
     val dopamineItems: List<DopamineMenuItemDto> = emptyList()
 )
 
@@ -222,6 +264,29 @@ data class UserCharacterDto(
     val lastPrayerDateEpochMs: Long = 0L
 )
 
+data class OperativeProfileDto(
+    val id: String = "default_user",
+    val name: String,
+    val netrunnerName: String? = null,
+    val sex: String,
+    val dob: String,
+    val units: String,
+    val heightFeet: String? = null,
+    val heightInches: String? = null,
+    val heightCm: String? = null,
+    val weight: String,
+    val somatotype: Float,
+    val level: Int = 1,
+    val experience: Long = 0,
+    val iceLevel: Int = 1,
+    val eddies: Int = 0,
+    val secureEddies: Int = 0,
+    val prayerStreak: Int = 0,
+    val lastPrayerDateEpochMs: Long = 0L,
+    val isCreationComplete: Boolean = false,
+    val avatarPath: String? = null
+)
+
 data class DopamineMenuItemDto(
     val id: String,
     val title: String,
@@ -229,4 +294,17 @@ data class DopamineMenuItemDto(
     val energyLevel: String = "MEDIUM",
     val category: String = "RESET",
     val usageCount: Int = 0
+)
+
+data class SettingsBackupSection(
+    val themeMode: String = "CYBER",
+    val measurementUnit: String = "Metric",
+    val activeProtocol: String? = null,
+    val weightIncrementCompound: Float = 5.0f,
+    val weightIncrementIsolation: Float = 2.5f,
+    val isNeuralBriefEnabled: Boolean = true,
+    val briefFrequency: String = "DAILY",
+    val quietHoursStart: String = "22:00",
+    val quietHoursEnd: String = "07:00",
+    val backupFrequency: String = "DAILY"
 )

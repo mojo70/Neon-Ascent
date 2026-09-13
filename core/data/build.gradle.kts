@@ -32,6 +32,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     implementation(libs.gson)
 
+    implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
 

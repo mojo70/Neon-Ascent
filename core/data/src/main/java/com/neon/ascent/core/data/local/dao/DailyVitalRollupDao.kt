@@ -23,4 +23,7 @@ interface DailyVitalRollupDao {
 
     @Query("SELECT * FROM daily_vital_rollups WHERE localDate = :localDate")
     fun getDay(localDate: String): Flow<List<DailyVitalRollupEntity>>
+
+    @Query("SELECT * FROM daily_vital_rollups WHERE localDate >= :fromDate ORDER BY localDate DESC")
+    suspend fun getAllRollupsSince(fromDate: String): List<DailyVitalRollupEntity>
 }

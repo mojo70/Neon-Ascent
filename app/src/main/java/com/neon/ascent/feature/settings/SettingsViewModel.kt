@@ -34,11 +34,18 @@ import com.neon.ascent.core.domain.repository.FullDataBackupRepository
 import com.neon.ascent.data.backup.GoogleDriveBackupManager
 import com.neon.ascent.data.backup.FullBackupWorker
 import android.content.Context
+import com.google.gson.Gson
 import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import java.util.UUID
-import javax.inject.Inject
+
+data class BackupPreview(
+    val sessionCount: Int,
+    val characterName: String,
+    val rawJson: String
+)
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -95,6 +102,15 @@ class SettingsViewModel @Inject constructor(
 
     val lastBackupTimestamp = userPreferencesRepository.lastBackupTimestamp
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
+
+    private val gson = Gson()
+
+    private val _pendingRestorePreview = MutableStateFlow<BackupPreview?>(null)
+    val pendingRestorePreview = _pendingRestorePreview.asStateFlow()
+
+    val lastVaultTimestamp = userPreferencesRepository.lastBackupTimestamp.map { ts ->
+        googleDriveBackupManager.getLastVaultModifiedTimestamp() ?: if (ts > 0L) ts else null
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), googleDriveBackupManager.getLastVaultModifiedTimestamp())
 
     private val _backupToastMessage = MutableStateFlow<String?>(null)
     val backupToastMessage = _backupToastMessage.asStateFlow()
@@ -527,18 +543,32 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun onRestoreFileSelected(jsonString: String) {
-        _pendingRestoreJson.value = jsonString
+        try {
+            val sanitized = jsonString.trim().removePrefix("\uFEFF")
+            val payload = gson.fromJson(sanitized, NeonAscentBackupPayload::class.java)
+            val sessionCount = payload?.workoutPayload?.sessions?.size ?: 0
+            val charName = payload?.characterPayload?.operativeProfile?.name?.takeIf { it.isNotBlank() }
+                ?: payload?.characterPayload?.userCharacter?.name?.takeIf { it.isNotBlank() }
+                ?: "Unknown Operative"
+            _pendingRestorePreview.value = BackupPreview(sessionCount, charName, sanitized)
+            _pendingRestoreJson.value = sanitized
+        } catch (e: Exception) {
+            _backupToastMessage.value = "Invalid backup file JSON"
+        }
     }
 
     fun dismissRestoreDialog() {
+        _pendingRestorePreview.value = null
         _pendingRestoreJson.value = null
     }
 
     fun confirmRestore(mode: RestoreMode) {
-        val json = _pendingRestoreJson.value ?: return
+        val preview = _pendingRestorePreview.value
+        val json = preview?.rawJson ?: _pendingRestoreJson.value ?: return
         viewModelScope.launch {
             val result = fullDataBackupRepository.restoreBackupJson(json, mode)
             _backupToastMessage.value = result.message
+            _pendingRestorePreview.value = null
             _pendingRestoreJson.value = null
         }
     }

@@ -26,6 +26,11 @@ class GoogleDriveBackupManager @Inject constructor(
         return if (backupFile.exists()) backupFile.readText() else null
     }
 
+    fun getLastVaultModifiedTimestamp(): Long? {
+        val backupFile = File(context.filesDir, "cloud_backups/neon_ascent_backup_latest.json")
+        return if (backupFile.exists()) backupFile.lastModified() else null
+    }
+
     fun writeToUri(contentUri: Uri, jsonContent: String): Boolean {
         return try {
             context.contentResolver.openOutputStream(contentUri)?.use { out ->

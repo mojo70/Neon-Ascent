@@ -138,8 +138,10 @@ fun SettingsScreen(
     val backupWifiOnly by viewModel.backupWifiOnly.collectAsState()
     val backupRequireCharging by viewModel.backupRequireCharging.collectAsState()
     val lastBackupTimestamp by viewModel.lastBackupTimestamp.collectAsState()
+    val lastVaultTimestamp by viewModel.lastVaultTimestamp.collectAsState(initial = null)
     val backupToastMessage by viewModel.backupToastMessage.collectAsState()
     val pendingRestoreJson by viewModel.pendingRestoreJson.collectAsState()
+    val pendingRestorePreview by viewModel.pendingRestorePreview.collectAsState()
 
     val biometricAuthManager = remember { BiometricAuthManager(context) }
     val healthPermissionsLauncher = rememberLauncherForActivityResult(
@@ -192,7 +194,8 @@ fun SettingsScreen(
 
     LaunchedEffect(Unit) {
         viewModel.backupExportEvent.collect { jsonContent ->
-            createDocumentLauncher.launch("neon_ascent_backup_${System.currentTimeMillis()}.json")
+            val dateStr = SimpleDateFormat("yyyyMMdd", Locale.US).format(Date())
+            createDocumentLauncher.launch("neon-ascent-$dateStr.json")
         }
     }
 
@@ -380,6 +383,13 @@ fun SettingsScreen(
                                 )
                             } else "AUTOMATIC (OVERNIGHT ON WI-FI)"
                             Text("LAST MANUAL EXPORT: $lastBackupDateStr", color = theme.ink.copy(alpha = 0.5f), fontSize = 9.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.padding(top = 2.dp))
+
+                            val lastVaultDateStr = if (lastVaultTimestamp != null && lastVaultTimestamp!! > 0L) {
+                                SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(
+                                    Date(lastVaultTimestamp!!)
+                                )
+                            } else "NO LOCAL VAULT FILE"
+                            Text("LAST LOCAL VAULT: $lastVaultDateStr", color = theme.ink.copy(alpha = 0.6f), fontSize = 9.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.padding(top = 2.dp))
                         }
                     }
 
@@ -688,7 +698,8 @@ fun SettingsScreen(
             )
         }
 
-        pendingRestoreJson?.let { json ->
+        if (pendingRestorePreview != null || pendingRestoreJson != null) {
+            val preview = pendingRestorePreview
             Dialog(onDismissRequest = { viewModel.dismissRestoreDialog() }) {
                 Box(
                     modifier = Modifier
@@ -699,22 +710,40 @@ fun SettingsScreen(
                         .padding(24.dp)
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("UPLINK_RESTORE_STRATEGY", color = theme.ink, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text("UPLINK RESTORE PREVIEW", color = theme.ink, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         Spacer(Modifier.height(12.dp))
+
+                        if (preview != null) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(theme.surfaceRaised)
+                                    .border(1.dp, theme.ink.copy(alpha = 0.2f))
+                                    .padding(12.dp)
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text("PREVIEW SUMMARY:", color = theme.ink, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                    Text("Operative: ${preview.characterName}", color = theme.ink.copy(alpha = 0.8f), fontSize = 11.sp)
+                                    Text("Sessions in file: ${preview.sessionCount}", color = theme.ink.copy(alpha = 0.8f), fontSize = 11.sp)
+                                }
+                            }
+                            Spacer(Modifier.height(16.dp))
+                        }
+
                         Text(
-                            "Select how to merge or replace local data with the imported backup JSON file:",
+                            "Select restore strategy (MERGE is default to preserve local history):",
                             color = theme.ink.copy(alpha = 0.8f),
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
                             textAlign = TextAlign.Center
                         )
-                        Spacer(Modifier.height(20.dp))
+                        Spacer(Modifier.height(16.dp))
 
                         Button(
                             onClick = { viewModel.confirmRestore(RestoreMode.MERGE) },
                             modifier = Modifier.fillMaxWidth().height(48.dp).border(1.dp, theme.ink, CyberButtonShape),
                             colors = ButtonDefaults.buttonColors(containerColor = theme.surfaceRaised)
                         ) {
-                            Text("MERGE (COMBINE WITH LOCAL)", color = theme.ink, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("MERGE (DEFAULT)", color = theme.ink, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
 
                         Spacer(Modifier.height(12.dp))
@@ -724,7 +753,7 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth().height(48.dp).border(1.dp, theme.secondary, CyberButtonShape),
                             colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
                         ) {
-                            Text("REPLACE (WIPE & OVERWRITE)", color = theme.secondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("REPLACE (SNAPSHOT FIRST)", color = theme.secondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
 
                         Spacer(Modifier.height(12.dp))
