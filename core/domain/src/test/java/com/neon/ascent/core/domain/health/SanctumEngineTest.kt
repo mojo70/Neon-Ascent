@@ -1,6 +1,7 @@
 package com.neon.ascent.core.domain.health
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -130,5 +131,30 @@ class SanctumEngineTest {
         assertEquals("LEAK", result.band)
         assertEquals(327L, result.asleepMin)
         assertEquals(440L, result.needMin)
+    }
+
+    @Test
+    fun `two RMSSD samples without HR coverage does not elevate to T2`() {
+        val start = Instant.parse("2026-09-06T00:00:00Z")
+        val end = Instant.parse("2026-09-06T07:30:00Z")
+
+        val rmssdSamples = listOf(
+            start.plusSeconds(3600) to 65.0,
+            start.plusSeconds(7200) to 70.0
+        )
+
+        val input = SanctumInput(
+            sessionStart = start,
+            sessionEnd = end,
+            stageMinutes = mapOf("LIGHT" to 220L, "DEEP" to 110L, "REM" to 120L),
+            hrInSession = emptyList(),
+            rmssdInSession = rmssdSamples,
+            userSleepNeedMin = 450L
+        )
+
+        val result = SanctumEngine.calculateSanctum(input)
+
+        assertNotEquals(2, result.tier)
+        assertEquals(1, result.tier)
     }
 }

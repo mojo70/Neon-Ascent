@@ -275,7 +275,11 @@ fun AppNavigation(
                         )
                         page == rigIndex -> CyberdeckScreen(
                             onWalletClick = { navController.navigate(Screen.Wallet) },
-                            onDatabaseClick = { navController.navigate(Screen.DatabaseCore) },
+                            onDatabaseClick = {
+                                if (BuildConfig.DEBUG) {
+                                    navController.navigate(Screen.DatabaseCore)
+                                }
+                            },
                             onIceBreachClick = { 
                                 navController.navigate(Screen.IceBreach("ROOT"))
                             },
@@ -494,14 +498,16 @@ fun AppNavigation(
             }
         }
 
-        composable<Screen.Journal> {
-            DatabaseCoreScreen(
-                navController = navController,
-                onEntryClick = { /* TODO: Navigate to entry detail */ },
-                onStoryClick = { navController.navigate(Screen.Story) },
-                onBack = { navController.popBackStack() },
-                onHackingRequired = { navController.navigate(Screen.SystemBreach) }
-            )
+        if (BuildConfig.DEBUG) {
+            composable<Screen.Journal> {
+                DatabaseCoreScreen(
+                    navController = navController,
+                    onEntryClick = { /* TODO: Navigate to entry detail */ },
+                    onStoryClick = { navController.navigate(Screen.Story) },
+                    onBack = { navController.popBackStack() },
+                    onHackingRequired = { navController.navigate(Screen.SystemBreach) }
+                )
+            }
         }
 
         composable<Screen.Story> {
@@ -606,14 +612,16 @@ fun AppNavigation(
             )
         }
 
-        composable<Screen.DatabaseCore> {
-            DatabaseCoreScreen(
-                navController = navController,
-                onEntryClick = { /* TODO: Navigate to entry detail */ },
-                onStoryClick = { navController.navigate(Screen.Story) },
-                onBack = { navController.popBackStack() },
-                onHackingRequired = { navController.navigate(Screen.SystemBreach) }
-            )
+        if (BuildConfig.DEBUG) {
+            composable<Screen.DatabaseCore> {
+                DatabaseCoreScreen(
+                    navController = navController,
+                    onEntryClick = { /* TODO: Navigate to entry detail */ },
+                    onStoryClick = { navController.navigate(Screen.Story) },
+                    onBack = { navController.popBackStack() },
+                    onHackingRequired = { navController.navigate(Screen.SystemBreach) }
+                )
+            }
         }
 
         composable<Screen.AspirationCreation> {
@@ -977,7 +985,11 @@ fun AppNavigation(
             AttributeDetailScreen(
                 attributeName = attr.attributeName,
                 onBack = { navController.popBackStack() },
-                onNavigateToDatabase = { navController.navigate(Screen.Journal) }
+                onNavigateToDatabase = {
+                    if (BuildConfig.DEBUG) {
+                        navController.navigate(Screen.Journal)
+                    }
+                }
             )
         }
 

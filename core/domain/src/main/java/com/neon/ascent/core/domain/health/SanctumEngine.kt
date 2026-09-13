@@ -114,8 +114,7 @@ object SanctumEngine {
         val hrCoverage = input.hrInSession.size >= 20 && hrSpanMinutes >= 120
 
         val rmssdCoverage = input.rmssdInSession.size >= 3 ||
-                (input.rmssdInSession.size == 1 && isTimestampInSession(input.rmssdInSession.first().first, input.sessionStart, input.sessionEnd)) ||
-                input.rmssdInSession.isNotEmpty()
+                (input.rmssdInSession.size == 1 && isTimestampInSession(input.rmssdInSession.first().first, input.sessionStart, input.sessionEnd))
 
         val isT2 = hrCoverage || rmssdCoverage
 
