@@ -29,10 +29,12 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_52_53
 import com.neon.ascent.core.data.local.migration.MIGRATION_53_54
 import com.neon.ascent.core.data.local.migration.MIGRATION_54_55
 import com.neon.ascent.core.data.local.migration.MIGRATION_55_56
+import com.neon.ascent.core.data.local.migration.MIGRATION_56_57
 import com.neon.ascent.core.data.local.dao.DailyVitalRollupDao
 import com.neon.ascent.core.data.local.dao.BodySampleDao
 import com.neon.ascent.core.data.local.dao.NeuralMemoryDao
 import com.neon.ascent.core.data.local.dao.WorkoutDao
+import com.neon.ascent.core.data.local.dao.RiteSessionDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -111,7 +113,7 @@ object DatabaseModule {
             MIGRATION_43_44, MIGRATION_45_46, MIGRATION_46_47, 
             MIGRATION_47_48, MIGRATION_48_49, MIGRATION_50_51,
             MIGRATION_51_52, MIGRATION_52_53, MIGRATION_53_54,
-            MIGRATION_54_55, MIGRATION_55_56
+            MIGRATION_54_55, MIGRATION_55_56, MIGRATION_56_57
         )
         .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
         .build()
@@ -185,5 +187,10 @@ object DatabaseModule {
     @Provides
     fun provideVaultDao(database: NeonAscentDatabase): VaultDao {
         return database.vaultDao()
+    }
+
+    @Provides
+    fun provideRiteSessionDao(database: NeonAscentDatabase): RiteSessionDao {
+        return database.riteSessionDao()
     }
 }

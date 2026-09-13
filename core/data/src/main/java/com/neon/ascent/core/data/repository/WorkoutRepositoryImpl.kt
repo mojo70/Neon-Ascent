@@ -2790,6 +2790,9 @@ class WorkoutRepositoryImpl @Inject constructor(
     override fun getProgressionState(exerciseId: String): Flow<ProgressionState?> =
         workoutDao.getProgressionState(exerciseId).map { it?.toDomain() }
 
+    override fun getStalledProgressionStates(): Flow<List<ProgressionState>> =
+        workoutDao.getStalledProgressionStates().map { list -> list.map { it.toDomain() } }
+
     override suspend fun saveProgressionState(state: ProgressionState) {
         workoutDao.insertProgressionState(state.toEntity())
     }

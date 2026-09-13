@@ -40,6 +40,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import com.neon.ascent.core.data.local.entity.BodySampleEntity
 import com.neon.ascent.core.data.repository.BodyLogRepository
+import com.neon.ascent.core.data.repository.RitesRepository
 import com.neon.ascent.feature.biohacking.ui.sheet.BodyLogInputState
 import com.neon.ascent.feature.health.data.workers.HealthConnectBackfillWorker
 import java.time.LocalDate
@@ -79,6 +80,7 @@ class BiohackingViewModel @Inject constructor(
     private val neuralMemoryDao: NeuralMemoryDao,
     private val uplinkManager: NeuralUplinkManager,
     private val bodyLogRepository: BodyLogRepository,
+    private val ritesRepository: RitesRepository,
     val modelDownloadManager: ModelDownloadManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -195,8 +197,9 @@ class BiohackingViewModel @Inject constructor(
         vitalsSnapshot,
         rhrSeries,
         hrvSeries,
-        workoutRepository.getFullHistory()
-    ) { snapshot, rhrList, hrvList, history ->
+        workoutRepository.getFullHistory(),
+        ritesRepository.getSitMaskWindowsFlow()
+    ) { snapshot, rhrList, hrvList, history, sitWindows ->
         val now = Instant.now()
         val startOfDay = now.atZone(ZoneId.systemDefault()).toLocalDate().atStartOfDay(ZoneId.systemDefault()).toInstant()
 
@@ -226,6 +229,7 @@ class BiohackingViewModel @Inject constructor(
             todaysSessions = todaysSessions,
             hrSamplesToday = hrSamples,
             exerciseWindowsToday = exerciseWindows,
+            sitWindowsToday = sitWindows,
             napsMinutesToday = 0,
             now = now
         )

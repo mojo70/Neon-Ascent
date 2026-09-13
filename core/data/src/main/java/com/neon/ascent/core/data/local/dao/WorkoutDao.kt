@@ -56,6 +56,9 @@ interface WorkoutDao {
     @Query("SELECT * FROM progression_states WHERE exerciseId = :exerciseId")
     fun getProgressionState(exerciseId: String): Flow<ProgressionStateEntity?>
 
+    @Query("SELECT * FROM progression_states WHERE consecutiveMisses >= 2")
+    fun getStalledProgressionStates(): Flow<List<ProgressionStateEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAccomplishments(entity: ExerciseAccomplishmentsEntity)
 

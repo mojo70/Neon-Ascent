@@ -35,6 +35,7 @@ import com.neon.ascent.data.backup.GoogleDriveBackupManager
 import com.neon.ascent.data.backup.FullBackupWorker
 import android.content.Context
 import com.google.gson.Gson
+import com.neon.ascent.core.data.repository.RitesRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import kotlinx.coroutines.channels.BufferOverflow
@@ -63,6 +64,7 @@ class SettingsViewModel @Inject constructor(
     private val workoutRepository: WorkoutRepository,
     private val appSessionManager: AppSessionManager,
     private val fullDataBackupRepository: FullDataBackupRepository,
+    private val ritesRepository: RitesRepository,
     private val googleDriveBackupManager: GoogleDriveBackupManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -186,6 +188,12 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val prayer = _currentDailyPrayer.value ?: return@launch
             val now = System.currentTimeMillis()
+
+            ritesRepository.recordSession(
+                kind = "PRAYER",
+                durationMin = 5,
+                source = "ALTAR"
+            )
 
             if (reflection.isNotBlank()) {
                 val entryText = "VERSE: ${prayer.scripture}\n\nREFLECTION: $reflection"

@@ -261,4 +261,34 @@ class NeonChargeEngineTest {
         assertTrue(charge.drivers.none { it.first == "SIT" })
         assertTrue(charge.drivers.none { it.first == "NAP_BONUS" })
     }
+
+    @Test
+    fun `sit window 10min or longer excludes elevated HR samples from HR_LOAD drain`() {
+        val now = Instant.now()
+        val start = now.minusSeconds(7200) // 2 hour span
+        val hrSamples = (0..24).map { i ->
+            start.plusSeconds(i * 300L) to 110
+        }
+
+        val sitWindow = start to now
+
+        val inputWithSitMask = NeonChargeInput(
+            sleepMinutesLastNight = 450L,
+            sanctumScore = 80,
+            sleepEndedAt = now.minusSeconds(7200),
+            rhrToday = 55.0,
+            rhr7d = emptyList(),
+            hrvToday = null,
+            hrv7d = emptyList(),
+            stepsToday = 0,
+            hrSamplesToday = hrSamples,
+            exerciseWindowsToday = emptyList(),
+            sitWindowsToday = listOf(sitWindow),
+            now = now
+        )
+
+        val charge = NeonChargeEngine.calculateCharge(inputWithSitMask)
+
+        assertTrue("HR_LOAD should be masked by sit window", charge.drivers.none { it.first == "HR_LOAD" })
+    }
 }

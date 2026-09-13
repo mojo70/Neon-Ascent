@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.neon.ascent.util.AmbientAudioPlayer
+import com.neon.ascent.core.data.repository.RitesRepository
+import java.time.Instant
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.seconds
 
@@ -26,13 +28,15 @@ data class StilljackUiState(
 
 @HiltViewModel
 class StilljackViewModel @Inject constructor(
-    private val ambientPlayer: AmbientAudioPlayer
+    private val ambientPlayer: AmbientAudioPlayer,
+    private val ritesRepository: RitesRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(StilljackUiState())
     val uiState: StateFlow<StilljackUiState> = _uiState.asStateFlow()
 
     private var timerJob: Job? = null
+    private var sessionStartInstant: Instant? = null
 
     fun setDuration(minutes: Int) {
         val seconds = minutes * 60
@@ -58,6 +62,7 @@ class StilljackViewModel @Inject constructor(
     fun startStilljack() {
         if (_uiState.value.isRunning) return
 
+        sessionStartInstant = Instant.now()
         _uiState.update { it.copy(isRunning = true) }
         
         if (_uiState.value.noiseEnabled) {
@@ -85,11 +90,32 @@ class StilljackViewModel @Inject constructor(
             }
             
             ambientPlayer.stopWhiteNoise()
+            val durMin = (_uiState.value.totalSeconds / 60).coerceAtLeast(1)
+            ritesRepository.recordSession(
+                kind = "SIT",
+                durationMin = durMin,
+                source = "STILLJACK",
+                startedAt = sessionStartInstant ?: Instant.now(),
+                endedAt = Instant.now()
+            )
             _uiState.update { it.copy(isRunning = false, remainingSeconds = it.totalSeconds) }
         }
     }
 
     fun stopStilljack() {
+        val completedSec = _uiState.value.totalSeconds - _uiState.value.remainingSeconds
+        if (completedSec >= 60) {
+            val durMin = completedSec / 60
+            viewModelScope.launch {
+                ritesRepository.recordSession(
+                    kind = "SIT",
+                    durationMin = durMin,
+                    source = "STILLJACK",
+                    startedAt = sessionStartInstant ?: Instant.now(),
+                    endedAt = Instant.now()
+                )
+            }
+        }
         timerJob?.cancel()
         ambientPlayer.stopWhiteNoise()
         _uiState.update { it.copy(isRunning = false, remainingSeconds = it.totalSeconds) }

@@ -43,6 +43,7 @@ import com.neon.ascent.core.data.local.entity.BodySampleEntity
 import com.neon.ascent.model.BioProtocolLog
 import com.neon.ascent.model.BiohackingData
 import com.neon.ascent.ui.*
+import com.neon.ascent.ui.components.ChargeInspectSheet
 import com.neon.ascent.feature.biohacking.ui.sheet.BodyLogSheet
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -114,6 +115,7 @@ fun BiohackingScreen(
     var showReport by remember { mutableStateOf(false) }
     var showEffectivenessLogger by remember { mutableStateOf(false) }
     var showBodyLogSheet by remember { mutableStateOf(false) }
+    var showChargeSheet by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -399,8 +401,17 @@ fun BiohackingScreen(
                     neonCyan = neonCyan,
                     neonMagenta = neonMagenta,
                     onNavigateToOps = onNavigateToOps,
-                    onRequestNutritionPermission = { viewModel.relink(UplinkProvider.HEALTH_CONNECT) }
+                    onRequestNutritionPermission = { viewModel.relink(UplinkProvider.HEALTH_CONNECT) },
+                    onChargeClick = { showChargeSheet = true }
                 )
+                
+                if (showChargeSheet) {
+                    ChargeInspectSheet(
+                        charge = neonCharge,
+                        onDismiss = { showChargeSheet = false },
+                        isLabsView = true
+                    )
+                }
                 
                 Spacer(modifier = Modifier.height(24.dp))
 

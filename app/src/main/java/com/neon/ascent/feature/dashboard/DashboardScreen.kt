@@ -43,6 +43,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.feature.settings.SettingsViewModel
 import com.neon.ascent.feature.health.ui.HealthViewModel
 import com.neon.ascent.feature.biohacking.BiohackingViewModel
+import com.neon.ascent.ui.components.ChargeInspectSheet
 import com.neon.ascent.core.common.*
 import com.neon.ascent.core.domain.character.models.UserCharacter
 import com.neon.ascent.feature.health.domain.uplink.LiveBiometrics
@@ -215,7 +216,8 @@ fun NeuralBriefCard(
     onActionClick: (String) -> Unit,
     onWorkoutClick: (String) -> Unit,
     systemColor: Color,
-    briefActive: Boolean = false
+    briefActive: Boolean = false,
+    onChargeClick: (() -> Unit)? = null
 ) {
     val theme = LocalNeonTheme.current
     val isWorkout = primaryActionTask?.tags?.any { 
@@ -250,7 +252,12 @@ fun NeuralBriefCard(
                     )
                 }
                 
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(start = 16.dp)) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .padding(start = 16.dp)
+                        .clickable { onChargeClick?.invoke() }
+                ) {
                     Canvas(modifier = Modifier.size(80.dp)) {
                         drawArc(
                             color = theme.ink.copy(alpha = 0.1f),
@@ -526,12 +533,20 @@ fun DashboardScreen(
     var isTerminalExpanded by rememberSaveable { mutableStateOf(false) }
     var showQuickTaskSheet by remember { mutableStateOf(false) }
     var showAllTasksDialog by remember { mutableStateOf(false) }
+    var showChargeSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         while(true) {
             kotlinx.coroutines.delay(1000)
             currentTime.value = LocalDateTime.now()
         }
+    }
+
+    if (showChargeSheet) {
+        ChargeInspectSheet(
+            charge = neonCharge,
+            onDismiss = { showChargeSheet = false }
+        )
     }
 
     Box(modifier = Modifier.fillMaxSize().background(theme.canvas)) {
@@ -571,7 +586,8 @@ fun DashboardScreen(
                 onActionClick = { id -> viewModel.completePulse(id) },
                 onWorkoutClick = { id -> onNavigateToWorkout(id) },
                 systemColor = systemColor,
-                briefActive = briefTitle != null || briefCardBody != null
+                briefActive = briefTitle != null || briefCardBody != null,
+                onChargeClick = { showChargeSheet = true }
             )
 
             Spacer(Modifier.height(24.dp))

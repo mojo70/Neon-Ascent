@@ -189,8 +189,10 @@ fun CodexScreen(
                         CodexWing.VITALS -> VitalsWing(
                             uiState = uiState,
                             isLoading = uiState.isLoading,
+                            onGroupSelected = { viewModel.selectVitalsGroup(it) },
                             onTypeSelected = { viewModel.selectVitalsType(it) },
                             onPeriodSelected = { viewModel.selectPeriod(it) },
+                            onQuickStampRite = { kind, dur -> viewModel.recordQuickStampRite(kind, dur) },
                             onBfMethodSelected = { viewModel.selectBfMethod(it) },
                             onBpPositionSelected = { viewModel.selectBpPosition(it) },
                             onDeleteSample = { viewModel.deleteBodySample(it) },
@@ -364,6 +366,18 @@ fun OpsLogWing(
 
         Spacer(modifier = Modifier.height(24.dp))
 
+        // Strength Board
+        SectionHeader("STRENGTH_BOARD")
+        StrengthBoardCard(uiState.strengthBoard)
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Stall Cards
+        SectionHeader("STALL_DOSSIER")
+        StallCardsSection(uiState.stallItems)
+
+        Spacer(modifier = Modifier.height(24.dp))
+
         // Protocol Metrics
         SectionHeader("PROTOCOL_SYNC")
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -469,15 +483,17 @@ fun OpsLogWing(
 fun VitalsWing(
     uiState: CodexUiState,
     isLoading: Boolean = false,
-    onTypeSelected: (VitalsType) -> Unit,
-    onPeriodSelected: (CodexPeriod) -> Unit,
+    onGroupSelected: (VitalsGroup) -> Unit = {},
+    onTypeSelected: (VitalsType) -> Unit = {},
+    onPeriodSelected: (CodexPeriod) -> Unit = {},
+    onQuickStampRite: (String, Int) -> Unit = { _, _ -> },
     onBfMethodSelected: (String) -> Unit = {},
     onBpPositionSelected: (String) -> Unit = {},
     onDeleteSample: (String) -> Unit = {},
     onAddWeightSample: (Double, LocalDate, LocalTime, String?) -> Unit = { _, _, _, _ -> },
     onAddBfSample: (Double, String, LocalDate, LocalTime, String?) -> Unit = { _, _, _, _, _ -> },
     onAddBpSample: (Double, Double, String, LocalDate, LocalTime, String?) -> Unit = { _, _, _, _, _, _ -> },
-    onRequestNutritionPermission: () -> Unit
+    onRequestNutritionPermission: () -> Unit = {}
 ) {
     if (isLoading) {
         LoadingWing("SYNCING_BIOMETRICS")
@@ -521,50 +537,74 @@ fun VitalsWing(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // Type Selector
+        // Group Selector Chips
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            items(VitalsType.entries) { type ->
-                val isSelected = uiState.vitalsType == type
-                val isEatenAndNoPerm = type == VitalsType.KCAL_EATEN && !uiState.hasNutritionPermission
-                val chipLabel = if (isEatenAndNoPerm) {
-                    "KCAL_EATEN [GRANT_NUTRITION]"
-                } else {
-                    type.label
-                }
+            items(VitalsGroup.entries) { group ->
+                val isSelected = uiState.vitalsGroup == group
                 FilterChip(
                     selected = isSelected,
-                    onClick = {
-                        onTypeSelected(type)
-                        if (isEatenAndNoPerm) {
-                            onRequestNutritionPermission()
-                        }
-                    },
-                    label = { 
+                    onClick = { onGroupSelected(group) },
+                    label = {
                         Text(
-                            chipLabel, 
-                            fontSize = 10.sp, 
+                            group.label,
+                            fontSize = 11.sp,
                             fontFamily = FontFamily.Monospace,
-                            fontWeight = if (isSelected) FontWeight.Black else FontWeight.Normal,
-                            color = if (isEatenAndNoPerm) Color(0xFFFF8C00) else Color.Unspecified
-                        ) 
+                            fontWeight = if (isSelected) FontWeight.Black else FontWeight.Normal
+                        )
                     },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = if (isEatenAndNoPerm) Color(0xFFFF8C00).copy(alpha = 0.2f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                        selectedLabelColor = if (isEatenAndNoPerm) Color(0xFFFF8C00) else MaterialTheme.colorScheme.primary,
+                        selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                        selectedLabelColor = MaterialTheme.colorScheme.primary,
                         labelColor = Color.Gray
                     ),
                     border = FilterChipDefaults.filterChipBorder(
                         enabled = true,
                         selected = isSelected,
-                        borderColor = if (isEatenAndNoPerm) Color(0xFFFF8C00).copy(alpha = 0.5f) else Color.DarkGray,
-                        selectedBorderColor = if (isEatenAndNoPerm) Color(0xFFFF8C00) else MaterialTheme.colorScheme.primary
+                        borderColor = Color.DarkGray,
+                        selectedBorderColor = MaterialTheme.colorScheme.primary
                     )
                 )
+            }
+        }
+
+        // Sub-type selector when BODY group is active
+        if (uiState.vitalsGroup == VitalsGroup.BODY) {
+            Spacer(modifier = Modifier.height(12.dp))
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(listOf(VitalsType.WEIGHT, VitalsType.BF_PCT, VitalsType.BODY_MEASUREMENTS, VitalsType.BLOOD_PRESSURE)) { type ->
+                    val isSelected = uiState.vitalsType == type
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { onTypeSelected(type) },
+                        label = {
+                            Text(
+                                type.label,
+                                fontSize = 9.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFF00CCFF).copy(alpha = 0.2f),
+                            selectedLabelColor = Color(0xFF00CCFF),
+                            labelColor = Color.Gray
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = isSelected,
+                            borderColor = Color.DarkGray,
+                            selectedBorderColor = Color(0xFF00CCFF)
+                        )
+                    )
+                }
             }
         }
 
@@ -639,285 +679,166 @@ fun VitalsWing(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Chart or Body Measurement Sections
-        if (uiState.vitalsType == VitalsType.BODY_MEASUREMENTS) {
-            if (uiState.bodyPartMeasurements.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                        .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            "NOT_LOGGED",
-                            color = Color.Gray,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "NO_TAPE_MEASUREMENTS_FOR_PERIOD // LOG IN LABS",
-                            color = Color.DarkGray,
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            } else {
+        when (uiState.vitalsGroup) {
+            VitalsGroup.SLEEP -> {
                 Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                    uiState.bodyPartMeasurements.forEach { section ->
-                        VitalsChart(
-                            data = section.data,
-                            sessionSummaries = uiState.sessionSummaries,
-                            vitalsType = VitalsType.BODY_MEASUREMENTS,
-                            customTitle = "${section.displayName}_TIMELINE"
-                        )
-                    }
-                }
-            }
-        } else if (uiState.vitalsType == VitalsType.BLOOD_PRESSURE) {
-            if (uiState.bpDualPoints.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                        .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            "NOT_LOGGED",
-                            color = Color.Gray,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "NO_BLOOD_PRESSURE_FOR_PERIOD // TAP RECORD BUTTON BELOW",
-                            color = Color.DarkGray,
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            } else {
-                BloodPressureDualChart(
-                    data = uiState.bpDualPoints,
-                    customTitle = "BP_${uiState.selectedBpPosition}_TIMELINE"
-                )
-            }
-
-            // Summary Card + Record Blood Pressure Button
-            Spacer(modifier = Modifier.height(20.dp))
-            val latestBp = uiState.bodyEntries.firstOrNull()
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    if (latestBp != null) {
-                        val headerDateFormatter = remember { DateTimeFormatter.ofPattern("EEE, MMM d, yyyy") }
-                        Text(
-                            latestBp.date.format(headerDateFormatter),
-                            color = Color.Gray,
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            latestBp.displayValue,
-                            color = Color.White,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Black,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-                }
-
-                Button(
-                    onClick = { showRecordDialog = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE58A3C)),
-                    shape = RoundedCornerShape(20.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        "Record Blood Pressure",
-                        color = Color.Black,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace
+                    SleepDualChart(
+                        data = uiState.sleepDualPoints,
+                        customTitle = "SLEEP_DURATION_AND_SANCTUM"
+                    )
+                    VitalsChart(
+                        data = uiState.hrvNightPoints,
+                        sessionSummaries = uiState.sessionSummaries,
+                        vitalsType = VitalsType.HRV_NIGHT,
+                        customTitle = "HRV_NIGHT_TIMELINE"
                     )
                 }
             }
-
-            // Entries List
-            if (uiState.bodyEntries.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(24.dp))
-                SectionHeader("Entries")
-                uiState.bodyEntries.forEach { entry ->
-                    BodyEntryRow(entry, onDelete = onDeleteSample)
-                }
-            }
-        } else if (uiState.vitalsType == VitalsType.WEIGHT || uiState.vitalsType == VitalsType.BF_PCT) {
-            if (uiState.vitalsData.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                        .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            "NOT_LOGGED",
-                            color = Color.Gray,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "NO_DATA_FOR_PERIOD // TAP RECORD BUTTON BELOW",
-                            color = Color.DarkGray,
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            } else {
-                VitalsChart(uiState.vitalsData, uiState.sessionSummaries, uiState.vitalsType)
-            }
-
-            // Summary Card + Record Button
-            Spacer(modifier = Modifier.height(20.dp))
-            val latestEntry = uiState.bodyEntries.firstOrNull()
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    if (latestEntry != null) {
-                        val headerDateFormatter = remember { DateTimeFormatter.ofPattern("EEE, MMM d, yyyy") }
-                        Text(
-                            latestEntry.date.format(headerDateFormatter),
-                            color = Color.Gray,
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            latestEntry.displayValue,
-                            color = Color.White,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Black,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-                }
-
-                val btnText = if (uiState.vitalsType == VitalsType.WEIGHT) "Record Weight" else "Record Body Fat"
-                Button(
-                    onClick = { showRecordDialog = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE58A3C)),
-                    shape = RoundedCornerShape(20.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        btnText,
-                        color = Color.Black,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace
+            VitalsGroup.TANK -> {
+                Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                    VitalsChart(
+                        data = uiState.chargePoints,
+                        sessionSummaries = uiState.sessionSummaries,
+                        vitalsType = VitalsType.SANCTUM,
+                        customTitle = "CHARGE_LEVEL_TIMELINE"
+                    )
+                    VitalsChart(
+                        data = uiState.hrLoadPoints,
+                        sessionSummaries = uiState.sessionSummaries,
+                        vitalsType = VitalsType.HR_LOAD,
+                        customTitle = "HR_LOAD_MIN_TIMELINE"
                     )
                 }
             }
-
-            // Entries List
-            if (uiState.bodyEntries.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(24.dp))
-                SectionHeader("Entries")
-                uiState.bodyEntries.forEach { entry ->
-                    BodyEntryRow(entry, onDelete = onDeleteSample)
+            VitalsGroup.HEART -> {
+                Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                    VitalsChart(
+                        data = uiState.rhrPoints,
+                        sessionSummaries = uiState.sessionSummaries,
+                        vitalsType = VitalsType.RHR,
+                        customTitle = "RHR_TIMELINE"
+                    )
+                    VitalsChart(
+                        data = uiState.hrvDayPoints,
+                        sessionSummaries = uiState.sessionSummaries,
+                        vitalsType = VitalsType.HRV,
+                        customTitle = "DAY_HRV_TIMELINE"
+                    )
                 }
             }
-        } else if (uiState.vitalsData.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
-                    .then(
-                        if (uiState.vitalsType == VitalsType.KCAL_EATEN && !uiState.hasNutritionPermission) {
-                            Modifier.clickable { onRequestNutritionPermission() }
-                        } else Modifier
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
-                    if (uiState.vitalsType == VitalsType.KCAL_EATEN) {
-                        if (!uiState.hasNutritionPermission) {
-                            Text(
-                                "GRANT_NUTRITION",
-                                color = Color(0xFFFF8C00),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                "Tap to grant Health Connect Nutrition permission.",
-                                color = Color.Gray,
-                                fontSize = 10.sp,
-                                fontFamily = FontFamily.Monospace,
-                                textAlign = TextAlign.Center
-                            )
-                        } else {
-                            Text(
-                                "NOT_LOGGED",
-                                color = Color.Gray,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                "Log meals in Google Fit or another app connected to Health Connect.",
-                                color = Color.DarkGray,
-                                fontSize = 10.sp,
-                                fontFamily = FontFamily.Monospace,
-                                textAlign = TextAlign.Center
-                            )
+            VitalsGroup.MOVE -> {
+                Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                    VitalsChart(
+                        data = uiState.stepsPoints,
+                        sessionSummaries = uiState.sessionSummaries,
+                        vitalsType = VitalsType.STEPS,
+                        customTitle = "STEPS_TIMELINE"
+                    )
+                    VitalsChart(
+                        data = uiState.kcalTotalPoints,
+                        sessionSummaries = uiState.sessionSummaries,
+                        vitalsType = VitalsType.KCAL_TOTAL,
+                        customTitle = "KCAL_TOTAL_TIMELINE"
+                    )
+                }
+            }
+            VitalsGroup.BODY -> {
+                if (uiState.vitalsType == VitalsType.BODY_MEASUREMENTS) {
+                    if (uiState.bodyPartMeasurements.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(180.dp)
+                                .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("NOT_LOGGED", color = Color.Gray, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                         }
                     } else {
-                        Text(
-                            "NOT_LOGGED",
-                            color = Color.Gray,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
+                        Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                            uiState.bodyPartMeasurements.forEach { section ->
+                                VitalsChart(
+                                    data = section.data,
+                                    sessionSummaries = uiState.sessionSummaries,
+                                    vitalsType = VitalsType.BODY_MEASUREMENTS,
+                                    customTitle = "${section.displayName}_TIMELINE"
+                                )
+                            }
+                        }
+                    }
+                } else if (uiState.vitalsType == VitalsType.BLOOD_PRESSURE) {
+                    if (uiState.bpDualPoints.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(180.dp)
+                                .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("NOT_LOGGED", color = Color.Gray, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        BloodPressureDualChart(
+                            data = uiState.bpDualPoints,
+                            customTitle = "BP_${uiState.selectedBpPosition}_TIMELINE"
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "NO_DATA_FOR_PERIOD // LOG IN LABS OR SYNC HEALTH CONNECT",
-                            color = Color.DarkGray,
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                            textAlign = TextAlign.Center
-                        )
+                    }
+                } else {
+                    if (uiState.vitalsData.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(180.dp)
+                                .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("NOT_LOGGED", color = Color.Gray, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        VitalsChart(uiState.vitalsData, uiState.sessionSummaries, uiState.vitalsType)
                     }
                 }
             }
-        } else {
-            VitalsChart(uiState.vitalsData, uiState.sessionSummaries, uiState.vitalsType)
+            VitalsGroup.FUEL -> {
+                if (!uiState.hasNutritionPermission) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp)
+                            .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+                            .clickable { onRequestNutritionPermission() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
+                            Text("GRANT_NUTRITION", color = Color(0xFFFF8C00), fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Tap to grant Health Connect Nutrition permission.", color = Color.Gray, fontSize = 10.sp, fontFamily = FontFamily.Monospace, textAlign = TextAlign.Center)
+                        }
+                    }
+                } else if (uiState.kcalEatenPoints.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp)
+                            .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
+                            Text("NOT_LOGGED", color = Color.Gray, fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Log meals in Google Fit or connected app.", color = Color.DarkGray, fontSize = 10.sp, fontFamily = FontFamily.Monospace, textAlign = TextAlign.Center)
+                        }
+                    }
+                } else {
+                    VitalsChart(uiState.kcalEatenPoints, uiState.sessionSummaries, VitalsType.KCAL_EATEN)
+                }
+            }
+            VitalsGroup.RITES -> {
+                RitesGroupView(
+                    ritesState = uiState.ritesState,
+                    onQuickStamp = onQuickStampRite
+                )
+            }
         }
 
         // Recovery & Volume Sparkline
@@ -1589,6 +1510,297 @@ fun formatAxisValue(value: Double, type: VitalsType): String {
         VitalsType.BF_PCT -> String.format(Locale.US, "%.1f", value)
         VitalsType.BODY_MEASUREMENTS -> String.format(Locale.US, "%.1f", value)
         VitalsType.BLOOD_PRESSURE -> "${value.toInt()}"
+    }
+}
+
+@Composable
+fun RitesGroupView(
+    ritesState: RitesAggregateState,
+    onQuickStamp: (String, Int) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        // PRAYER CARD
+        RiteCard(
+            title = "PRAYER_RITE",
+            streakText = "STREAK: ${ritesState.prayerStreak} DAYS",
+            summary = ritesState.prayerSummary,
+            accentColor = Color(0xFF00F5FF),
+            onStamp = { onQuickStamp("PRAYER", 5) }
+        )
+
+        // SIT CARD
+        RiteCard(
+            title = "SIT_RITE",
+            streakText = null,
+            summary = ritesState.sitSummary,
+            accentColor = Color(0xFFFF8C00),
+            onStamp = { onQuickStamp("SIT", 10) }
+        )
+
+        // KEGEL CARD
+        RiteCard(
+            title = "KEGEL_RITE",
+            streakText = null,
+            summary = ritesState.kegelSummary,
+            accentColor = Color(0xFFFF0088),
+            onStamp = { onQuickStamp("KEGEL", 0) }
+        )
+    }
+}
+
+@Composable
+fun RiteCard(
+    title: String,
+    streakText: String?,
+    summary: RiteKindSummary,
+    accentColor: Color,
+    onStamp: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+            .border(1.dp, accentColor.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                color = accentColor,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+
+            streakText?.let {
+                Box(
+                    modifier = Modifier
+                        .background(accentColor.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
+                        .border(1.dp, accentColor, RoundedCornerShape(4.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = it,
+                        color = accentColor,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        val minStr = if (summary.kind == "KEGEL" && summary.totalMinutes == 0) "" else " · Total: ${summary.totalMinutes}m"
+        Text(
+            text = "Days: ${summary.daysDone} · Sessions: ${summary.sessionCount}$minStr",
+            color = Color.White.copy(alpha = 0.9f),
+            fontSize = 12.sp,
+            fontFamily = FontFamily.Monospace
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = "COMPLIANCE_GRID",
+            color = Color.Gray,
+            fontSize = 9.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(summary.dayDots) { dot ->
+                Box(
+                    modifier = Modifier
+                        .size(14.dp)
+                        .background(
+                            if (dot.isDone) accentColor else Color.White.copy(alpha = 0.05f),
+                            RoundedCornerShape(2.dp)
+                        )
+                        .border(
+                            1.dp,
+                            if (dot.isDone) accentColor else Color.DarkGray.copy(alpha = 0.3f),
+                            RoundedCornerShape(2.dp)
+                        )
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = onStamp,
+            modifier = Modifier.align(Alignment.End),
+            colors = ButtonDefaults.buttonColors(containerColor = accentColor.copy(alpha = 0.2f), contentColor = accentColor),
+            shape = RoundedCornerShape(4.dp),
+            border = BorderStroke(1.dp, accentColor)
+        ) {
+            Text(
+                text = "STAMP TODAY",
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+fun SleepDualChart(
+    data: List<DualVitalsPoint>,
+    customTitle: String? = null
+) {
+    if (data.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp)
+                .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "NOT_LOGGED",
+                color = Color.Gray,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        return
+    }
+
+    val cyanColor = Color(0xFF00CCFF)
+    val greenColor = Color(0xFF00FF9C)
+    val gridColor = Color.White.copy(alpha = 0.08f)
+    val labelColor = Color.Gray
+
+    val lastPt = data.last()
+    val hours = lastPt.primaryValue.toInt()
+    val mins = (((lastPt.primaryValue - hours) * 60)).toInt()
+    val timeStr = if (mins > 0) "${hours}h ${mins}m" else "${hours}h"
+    val headerText = "$timeStr · SANCTUM ${lastPt.secondaryValue.toInt()}"
+
+    val startDate = data.first().date
+    val endDate = data.last().date
+    val midIndex = data.size / 2
+    val midDate = data[midIndex].date
+
+    val dateFormatter = DateTimeFormatter.ofPattern("M/d")
+    val startDateStr = startDate.format(dateFormatter)
+    val midDateStr = midDate.format(dateFormatter)
+    val endDateStr = endDate.format(dateFormatter)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+            .padding(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = customTitle ?: "SLEEP_DURATION_AND_SANCTUM",
+                color = labelColor,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp,
+                fontFamily = FontFamily.Monospace
+            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("SLEEP", color = cyanColor, fontSize = 9.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                Text("•", color = Color.DarkGray, fontSize = 9.sp)
+                Text("SANCTUM", color = greenColor, fontSize = 9.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = headerText,
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Black,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .width(42.dp)
+                    .fillMaxHeight(),
+                verticalArrangement = Arrangement.SpaceBetween,
+                horizontalAlignment = Alignment.End
+            ) {
+                Text("10h", color = labelColor, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                Text("5h", color = labelColor, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                Text("0h", color = labelColor, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+            }
+
+            Spacer(modifier = Modifier.width(6.dp))
+
+            Canvas(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+            ) {
+                val w = size.width
+                val h = size.height
+
+                drawLine(gridColor, Offset(0f, 0f), Offset(w, 0f), strokeWidth = 1f)
+                drawLine(gridColor, Offset(0f, h / 2f), Offset(w, h / 2f), strokeWidth = 1f)
+                drawLine(gridColor, Offset(0f, h), Offset(w, h), strokeWidth = 1f)
+
+                if (data.size >= 2) {
+                    val sleepPath = Path()
+                    val sanctumPath = Path()
+
+                    data.forEachIndexed { i, pt ->
+                        val x = i * (w / (data.size - 1))
+                        val sleepY = h - (pt.primaryValue / 12.0 * h).coerceIn(0.0, h.toDouble()).toFloat()
+                        val sanctumY = h - (pt.secondaryValue / 100.0 * h).coerceIn(0.0, h.toDouble()).toFloat()
+
+                        if (i == 0) {
+                            sleepPath.moveTo(x, sleepY)
+                            sanctumPath.moveTo(x, sanctumY)
+                        } else {
+                            sleepPath.lineTo(x, sleepY)
+                            sanctumPath.lineTo(x, sanctumY)
+                        }
+                    }
+
+                    drawPath(sleepPath, color = cyanColor, style = Stroke(width = 2.dp.toPx()))
+                    drawPath(sanctumPath, color = greenColor, style = Stroke(width = 2.dp.toPx()))
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 48.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(startDateStr, color = labelColor, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+            Text(midDateStr, color = labelColor, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+            Text(endDateStr, color = labelColor, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+        }
     }
 }
 
@@ -2582,7 +2794,11 @@ fun MuscleFrequencyRow(frequency: Map<String, Int>) {
 
 @Composable
 fun SessionHeatmap(summaries: List<SessionSummary>, period: CodexPeriod) {
-    val primaryColor = MaterialTheme.colorScheme.primary
+    val cyanColor = Color(0xFF00FF9C)
+    val deloadColor = Color(0xFFFF8C00)
+    val emptyColor = Color.White.copy(alpha = 0.05f)
+    val selectedBorderColor = Color(0xFF00CCFF)
+
     val daysToShow = when (period) {
         CodexPeriod.SEVEN_DAYS -> 7
         CodexPeriod.THIRTY_DAYS -> 35
@@ -2590,45 +2806,450 @@ fun SessionHeatmap(summaries: List<SessionSummary>, period: CodexPeriod) {
         CodexPeriod.YTD -> 364
         CodexPeriod.ALL -> 364
     }
-    
+
     val today = LocalDate.now()
     val startDate = today.minusDays((daysToShow - 1).toLong())
-    
-    Box(
+    var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "90D_ACTIVITY_GRID",
+                color = Color.Gray,
+                fontSize = 9.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Box(modifier = Modifier.size(8.dp).background(cyanColor, RoundedCornerShape(1.dp)))
+                    Text("Session", color = Color.Gray, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Box(modifier = Modifier.size(8.dp).background(deloadColor, RoundedCornerShape(1.dp)))
+                    Text("Deload", color = Color.Gray, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                }
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(110.dp)
+                .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+                .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(4.dp))
+                .padding(8.dp)
+        ) {
+            LazyHorizontalGrid(
+                rows = GridCells.Fixed(7),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(daysToShow) { index ->
+                    val date = startDate.plusDays(index.toLong())
+                    val daySessions = summaries.filter { it.date == date }
+                    val isHit = daySessions.isNotEmpty()
+                    val isDeload = daySessions.any { it.isDeload }
+                    val isFuture = date.isAfter(today)
+                    val isSelected = selectedDate == date
+
+                    val bgColor = when {
+                        isFuture -> Color.Transparent
+                        isHit && isDeload -> deloadColor
+                        isHit -> cyanColor
+                        else -> emptyColor
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(bgColor)
+                            .then(
+                                if (isSelected) Modifier.border(1.5.dp, selectedBorderColor, RoundedCornerShape(2.dp))
+                                else Modifier
+                            )
+                            .clickable(enabled = !isFuture) {
+                                selectedDate = if (selectedDate == date) null else date
+                            }
+                    )
+                }
+            }
+        }
+
+        selectedDate?.let { date ->
+            val matchingSessions = summaries.filter { it.date == date }
+            val dateFormatter = remember { DateTimeFormatter.ofPattern("EEE, MMM d, yyyy") }
+
+            Spacer(modifier = Modifier.height(10.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(4.dp))
+                    .border(1.dp, selectedBorderColor.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                    .padding(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = date.format(dateFormatter).uppercase(),
+                        color = selectedBorderColor,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    IconButton(
+                        onClick = { selectedDate = null },
+                        modifier = Modifier.size(18.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Color.Gray,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (matchingSessions.isEmpty()) {
+                    Text(
+                        text = "NO_WORKOUT_SESSIONS_LOGGED",
+                        color = Color.Gray,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                } else {
+                    matchingSessions.forEach { s ->
+                        val protoStr = s.protocol?.displayName ?: "OPS / FREE"
+                        val dayTypeStr = s.dayType?.name?.let { " · $it" } ?: ""
+                        val durMin = s.durationSeconds / 60
+                        val durStr = if (durMin > 0) " · ${durMin}m" else ""
+                        val rpeStr = s.sessionRpe?.let { " · RPE $it" } ?: ""
+                        val deloadBadge = if (s.isDeload) " [DELOAD]" else ""
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "• $protoStr$dayTypeStr$durStr$rpeStr$deloadBadge",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Medium
+                            )
+                            if (s.volume > 0) {
+                                Text(
+                                    text = "${s.volume} lbs",
+                                    color = cyanColor,
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun StrengthBoardCard(
+    boardState: StrengthBoardState
+) {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(100.dp)
             .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
-            .padding(8.dp)
+            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+            .padding(16.dp)
     ) {
-        LazyHorizontalGrid(
-            rows = GridCells.Fixed(7),
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
-            modifier = Modifier.fillMaxSize()
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            items(daysToShow) { index ->
-                val date = startDate.plusDays(index.toLong())
-                val session = summaries.find { it.date == date }
-                val isHit = session != null
-                val isDeload = session?.isDeload == true
-                val isFuture = date.isAfter(today)
-                
+            Text(
+                text = "STRENGTH_BOARD // 6_PILLARS",
+                color = MaterialTheme.colorScheme.primary,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+            Text(
+                text = "BW: ${String.format(Locale.US, "%.1f kg", boardState.bodyWeightKg)} · ${boardState.userSex}",
+                color = Color.Gray,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            boardState.rows.forEach { row ->
+                StrengthPillarRowItem(row)
+            }
+        }
+    }
+}
+
+@Composable
+fun StrengthPillarRowItem(row: StrengthPillarRow) {
+    var isExpanded by remember { mutableStateOf(false) }
+
+    val tierColor = when (row.tier) {
+        StrengthTier.UNRATED -> Color.Gray
+        StrengthTier.NOVICE -> Color(0xFF00CCFF)
+        StrengthTier.INTERMEDIATE -> Color(0xFF00FF9C)
+        StrengthTier.ADVANCED -> Color(0xFFFF8C00)
+        StrengthTier.WORLD_CLASS -> Color(0xFFFF0088)
+        StrengthTier.LEGENDARY -> Color(0xFFFFD700)
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+            .border(1.dp, if (isExpanded) tierColor else Color.White.copy(alpha = 0.05f), RoundedCornerShape(4.dp))
+            .clickable { isExpanded = !isExpanded }
+            .padding(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = row.pillarName.uppercase(),
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+                if (row.exerciseName != null) {
+                    Text(
+                        text = row.exerciseName,
+                        color = Color.Gray,
+                        fontSize = 9.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (!row.isUnrated) {
+                    Text(
+                        text = "${row.e1rmLbs.toInt()} lbs",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Black,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Text(
+                        text = "${String.format(Locale.US, "%.2f", row.bwRatio)}x",
+                        color = Color.Gray,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
-                        .clip(RoundedCornerShape(1.dp))
-                        .background(
-                            when {
-                                isFuture -> Color.Transparent
-                                isDeload -> primaryColor.copy(alpha = 0.3f)
-                                isHit -> primaryColor
-                                else -> Color.White.copy(alpha = 0.05f)
-                            }
-                        )
+                        .background(tierColor.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
+                        .border(1.dp, tierColor, RoundedCornerShape(4.dp))
+                        .padding(horizontal = 6.dp, vertical = 3.dp)
+                ) {
+                    Text(
+                        text = row.tier.displayName,
+                        color = tierColor,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+        }
+
+        // Progress Bar to Next Tier
+        if (!row.isUnrated && row.nextTierName != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                LinearProgressIndicator(
+                    progress = { row.progressToNextTier },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(2.dp)),
+                    color = tierColor,
+                    trackColor = Color.White.copy(alpha = 0.1f)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "NEXT: ${row.nextTierName}",
+                    color = Color.Gray,
+                    fontSize = 8.sp,
+                    fontFamily = FontFamily.Monospace
                 )
             }
         }
+
+        // Expanded details
+        if (isExpanded) {
+            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = row.bestSetSummary ?: "No tested max in last 180 days",
+                color = Color.LightGray,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+    }
+}
+
+@Composable
+fun StallCardsSection(
+    stallItems: List<StallItem>
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+            .border(
+                1.dp,
+                if (stallItems.isNotEmpty()) Color(0xFFFF8C00).copy(alpha = 0.5f) else Color.White.copy(alpha = 0.05f),
+                RoundedCornerShape(4.dp)
+            )
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "STALL_DOSSIER // CONSECUTIVE_MISSES",
+                color = if (stallItems.isNotEmpty()) Color(0xFFFF8C00) else Color.Gray,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+            Text(
+                text = if (stallItems.isNotEmpty()) "${stallItems.size} STALLED" else "0 STALLED",
+                color = if (stallItems.isNotEmpty()) Color(0xFFFF8C00) else Color.DarkGray,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        if (stallItems.isEmpty()) {
+            Text(
+                text = "NO_STALLED_EXERCISES // ALL_PILLARS_PROGRESSING",
+                color = Color.DarkGray,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                stallItems.forEach { item ->
+                    StallCardItem(item)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun StallCardItem(item: StallItem) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(4.dp))
+            .border(1.dp, Color(0xFFFF8C00).copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+            .padding(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = item.exerciseName,
+                color = Color.White,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+
+            Box(
+                modifier = Modifier
+                    .background(Color(0xFFFF8C00).copy(alpha = 0.15f), RoundedCornerShape(4.dp))
+                    .border(1.dp, Color(0xFFFF8C00), RoundedCornerShape(4.dp))
+                    .padding(horizontal = 6.dp, vertical = 3.dp)
+            ) {
+                Text(
+                    text = "${item.consecutiveMisses} MISSES",
+                    color = Color(0xFFFF8C00),
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "Load: ${item.currentWeightLbs.toInt()} lbs",
+                color = Color.LightGray,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace
+            )
+            Text(
+                text = "Last: ${item.lastDateStr}",
+                color = Color.Gray,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+        HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "ACTION: ${item.swapSuggestion}",
+            color = Color(0xFF00CCFF),
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Medium
+        )
     }
 }
 

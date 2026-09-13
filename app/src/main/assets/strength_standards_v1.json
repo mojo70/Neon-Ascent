@@ -1,0 +1,102 @@
+{
+  "version": "1.0-placeholder",
+  "note": "Conservative bodyweight-multiple thresholds per pillar family and sex",
+  "families": {
+    "SQUAT": {
+      "MALE": {
+        "NOVICE": 1.0,
+        "INTERMEDIATE": 1.5,
+        "ADVANCED": 2.0,
+        "WORLD_CLASS": 2.5,
+        "LEGENDARY": 3.0
+      },
+      "FEMALE": {
+        "NOVICE": 0.7,
+        "INTERMEDIATE": 1.1,
+        "ADVANCED": 1.5,
+        "WORLD_CLASS": 1.9,
+        "LEGENDARY": 2.3
+      }
+    },
+    "HINGE": {
+      "MALE": {
+        "NOVICE": 1.25,
+        "INTERMEDIATE": 1.75,
+        "ADVANCED": 2.25,
+        "WORLD_CLASS": 2.8,
+        "LEGENDARY": 3.4
+      },
+      "FEMALE": {
+        "NOVICE": 0.85,
+        "INTERMEDIATE": 1.3,
+        "ADVANCED": 1.75,
+        "WORLD_CLASS": 2.2,
+        "LEGENDARY": 2.7
+      }
+    },
+    "BENCH": {
+      "MALE": {
+        "NOVICE": 0.8,
+        "INTERMEDIATE": 1.15,
+        "ADVANCED": 1.5,
+        "WORLD_CLASS": 1.85,
+        "LEGENDARY": 2.2
+      },
+      "FEMALE": {
+        "NOVICE": 0.5,
+        "INTERMEDIATE": 0.75,
+        "ADVANCED": 1.0,
+        "WORLD_CLASS": 1.3,
+        "LEGENDARY": 1.6
+      }
+    },
+    "PRESS": {
+      "MALE": {
+        "NOVICE": 0.55,
+        "INTERMEDIATE": 0.8,
+        "ADVANCED": 1.1,
+        "WORLD_CLASS": 1.35,
+        "LEGENDARY": 1.65
+      },
+      "FEMALE": {
+        "NOVICE": 0.35,
+        "INTERMEDIATE": 0.55,
+        "ADVANCED": 0.75,
+        "WORLD_CLASS": 0.95,
+        "LEGENDARY": 1.15
+      }
+    },
+    "ROW": {
+      "MALE": {
+        "NOVICE": 0.7,
+        "INTERMEDIATE": 1.0,
+        "ADVANCED": 1.3,
+        "WORLD_CLASS": 1.6,
+        "LEGENDARY": 1.9
+      },
+      "FEMALE": {
+        "NOVICE": 0.45,
+        "INTERMEDIATE": 0.7,
+        "ADVANCED": 0.95,
+        "WORLD_CLASS": 1.2,
+        "LEGENDARY": 1.45
+      }
+    },
+    "PULL": {
+      "MALE": {
+        "NOVICE": 1.0,
+        "INTERMEDIATE": 1.25,
+        "ADVANCED": 1.5,
+        "WORLD_CLASS": 1.85,
+        "LEGENDARY": 2.2
+      },
+      "FEMALE": {
+        "NOVICE": 0.75,
+        "INTERMEDIATE": 0.95,
+        "ADVANCED": 1.2,
+        "WORLD_CLASS": 1.45,
+        "LEGENDARY": 1.75
+      }
+    }
+  }
+}

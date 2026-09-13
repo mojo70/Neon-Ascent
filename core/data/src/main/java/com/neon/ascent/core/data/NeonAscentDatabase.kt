@@ -27,6 +27,7 @@ import com.neon.ascent.core.data.local.dao.WorkoutDao
 
 import com.neon.ascent.core.data.local.dao.LibraryDao
 import com.neon.ascent.core.data.local.dao.VaultDao
+import com.neon.ascent.core.data.local.dao.RiteSessionDao
 
 @Database(
     entities = [
@@ -74,9 +75,10 @@ import com.neon.ascent.core.data.local.dao.VaultDao
         LibraryQuoteEntity::class,
         VaultAccountEntity::class,
         VaultSnapshotEntity::class,
-        VaultWatchlistItemEntity::class
+        VaultWatchlistItemEntity::class,
+        RiteSessionEntity::class
     ],
-    version = 56,
+    version = 57,
     exportSchema = true
 )
 @TypeConverters(
@@ -109,4 +111,5 @@ abstract class NeonAscentDatabase : RoomDatabase() {
     abstract fun operativeProfileDao(): OperativeProfileDao
     abstract fun libraryDao(): LibraryDao
     abstract fun vaultDao(): VaultDao
+    abstract fun riteSessionDao(): RiteSessionDao
 }

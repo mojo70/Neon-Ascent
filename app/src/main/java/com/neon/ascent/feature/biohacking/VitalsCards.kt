@@ -38,13 +38,15 @@ fun VitalsStack(
     neonCyan: Color,
     neonMagenta: Color,
     onNavigateToOps: () -> Unit,
-    onRequestNutritionPermission: () -> Unit
+    onRequestNutritionPermission: () -> Unit,
+    onChargeClick: (() -> Unit)? = null
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         NeonChargeCard(
             charge = neonCharge,
             neonCyan = neonCyan,
-            neonMagenta = neonMagenta
+            neonMagenta = neonMagenta,
+            onChargeClick = onChargeClick
         )
 
         SleepLastNightCard(snapshot, neonCyan, neonMagenta)
@@ -99,10 +101,13 @@ fun VitalsStack(
 fun NeonChargeCard(
     charge: NeonCharge?,
     neonCyan: Color,
-    neonMagenta: Color
+    neonMagenta: Color,
+    onChargeClick: (() -> Unit)? = null
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onChargeClick?.invoke() },
         shape = CyberCutShape,
         colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.4f)),
         border = BorderStroke(1.dp, neonCyan.copy(alpha = 0.4f))

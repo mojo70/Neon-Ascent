@@ -20,6 +20,7 @@ import com.neon.ascent.domain.usecase.GenerateDailyTasksUseCase
 import com.neon.ascent.domain.usecase.SuggestGoalsUseCase
 import com.neon.ascent.feature.biohacking.AiProvider
 import com.neon.ascent.core.ai.AiPersona
+import com.neon.ascent.core.data.repository.RitesRepository
 import com.neon.ascent.feature.health.data.HealthConnectManager
 import com.neon.ascent.feature.health.data.uplink.*
 import com.neon.ascent.feature.health.domain.uplink.*
@@ -83,7 +84,8 @@ class DashboardViewModel @Inject constructor(
     private val briefPrefs: BriefPreferencesDataStore,
     private val healthManager: com.neon.ascent.core.domain.health.HealthManager,
     private val workoutRepository: WorkoutRepository,
-    private val healthRepository: HealthRepository
+    private val healthRepository: HealthRepository,
+    private val ritesRepository: RitesRepository
 ) : ViewModel() {
     val userCharacter: StateFlow<UserCharacter?> = characterRepository.getUserCharacter()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -113,8 +115,9 @@ class DashboardViewModel @Inject constructor(
         uplinkManager.combinedVitalsSnapshot,
         _rhrSeries,
         _hrvSeries,
-        workoutRepository.getFullHistory()
-    ) { snapshot, rhrList, hrvList, history ->
+        workoutRepository.getFullHistory(),
+        ritesRepository.getSitMaskWindowsFlow()
+    ) { snapshot, rhrList, hrvList, history, sitWindows ->
         val now = java.time.Instant.now()
         val startOfDay = now.atZone(ZoneId.systemDefault()).toLocalDate().atStartOfDay(ZoneId.systemDefault()).toInstant()
 
@@ -144,6 +147,7 @@ class DashboardViewModel @Inject constructor(
             todaysSessions = todaysSessions,
             hrSamplesToday = hrSamples,
             exerciseWindowsToday = exerciseWindows,
+            sitWindowsToday = sitWindows,
             napsMinutesToday = 0,
             now = now
         )

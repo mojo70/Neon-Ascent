@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.neon.ascent.ui.components.ChargeInspectSheet
 import androidx.compose.ui.draw.scale
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.core.common.*
@@ -94,6 +95,7 @@ fun HolographicAvatarHub(
     var isEditingName by remember { mutableStateOf(false) }
     var editedName by remember { mutableStateOf("") }
     var showSnapshotPreview by remember { mutableStateOf(false) }
+    var showChargeSheet by remember { mutableStateOf(false) }
 
     // Instant glitch burst state for interactive feedback
     var glitchBurstIntensity by remember { mutableFloatStateOf(0f) }
@@ -597,7 +599,11 @@ fun HolographicAvatarHub(
             Row(modifier = Modifier.weight(0.5f), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 CyberFrame(label = "SYSTEM_LOAD", modifier = Modifier.weight(0.8f)) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        EnergyBar(label = "CHARGE", value = (deepMetrics?.sanctumResult?.score ?: 100) / 100f)
+                        EnergyBar(
+                            label = "CHARGE",
+                            value = chargeVal,
+                            onClick = { showChargeSheet = true }
+                        )
                         MemorySlotsDisplay(userCharacter)
                     }
                 }
@@ -652,12 +658,27 @@ fun HolographicAvatarHub(
             showSnapshotPreview = false
         }
     }
+
+    if (showChargeSheet) {
+        ChargeInspectSheet(
+            charge = neonCharge,
+            onDismiss = { showChargeSheet = false }
+        )
+    }
 }
 
 @Composable
-fun EnergyBar(label: String, value: Float) {
+fun EnergyBar(
+    label: String,
+    value: Float,
+    onClick: (() -> Unit)? = null
+) {
     val theme = LocalNeonTheme.current
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick?.invoke() }
+    ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(label, color = theme.accent, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
             Text("${(value * 100).toInt()}%", color = theme.ink, fontSize = 10.sp, fontFamily = FontFamily.Monospace)

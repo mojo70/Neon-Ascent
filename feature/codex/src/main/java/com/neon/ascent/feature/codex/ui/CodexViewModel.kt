@@ -10,6 +10,7 @@ import com.neon.ascent.core.data.local.entity.DailyVitalRollupEntity
 import com.neon.ascent.core.domain.health.HealthManager
 import com.neon.ascent.core.domain.repository.WorkoutRepository
 import com.neon.ascent.core.data.local.dao.InsightDao
+import com.neon.ascent.core.data.repository.RitesRepository
 import com.neon.ascent.core.domain.codex.models.BiomarkerKeys
 import com.neon.ascent.core.domain.codex.models.BiomarkerSample
 import com.neon.ascent.core.domain.codex.models.BiomarkerStatus
@@ -23,9 +24,15 @@ import com.neon.ascent.core.domain.workout.models.WorkoutLog
 import com.neon.ascent.core.domain.workout.models.SetLog
 import com.neon.ascent.core.domain.workout.rules.CyberCrappRules
 import com.neon.ascent.core.domain.backup.models.BackupScope
+import com.neon.ascent.core.domain.character.repository.CharacterRepository
 import com.neon.ascent.core.domain.repository.FullDataBackupRepository
+import com.neon.ascent.core.domain.workout.models.MovementType
+import com.neon.ascent.core.domain.workout.models.ProtocolDayType
 import com.neon.ascent.core.domain.workout.models.UnitSystem
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import org.json.JSONObject
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -35,6 +42,7 @@ import java.util.Locale
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
 import javax.inject.Inject
 
@@ -66,8 +74,18 @@ data class CodexUiState(
     val isLoading: Boolean = false,
     
     // Vitals State
-    val vitalsType: VitalsType = VitalsType.HRV,
+    val vitalsGroup: VitalsGroup = VitalsGroup.SLEEP,
+    val vitalsType: VitalsType = VitalsType.WEIGHT,
     val vitalsData: List<VitalsPoint> = emptyList(),
+    val sleepDualPoints: List<DualVitalsPoint> = emptyList(),
+    val hrvNightPoints: List<VitalsPoint> = emptyList(),
+    val chargePoints: List<VitalsPoint> = emptyList(),
+    val hrLoadPoints: List<VitalsPoint> = emptyList(),
+    val rhrPoints: List<VitalsPoint> = emptyList(),
+    val hrvDayPoints: List<VitalsPoint> = emptyList(),
+    val stepsPoints: List<VitalsPoint> = emptyList(),
+    val kcalTotalPoints: List<VitalsPoint> = emptyList(),
+    val kcalEatenPoints: List<VitalsPoint> = emptyList(),
     val bpDualPoints: List<DualVitalsPoint> = emptyList(),
     val bodyEntries: List<BodyEntryItem> = emptyList(),
     val selectedBpPosition: String = "SITTING", // "SITTING" or "STANDING"
@@ -78,6 +96,9 @@ data class CodexUiState(
     val fuelHistory: List<com.neon.ascent.core.domain.workout.models.FuelSnapshot> = emptyList(),
     val latestInsight: String? = null,
     val recoveryScore: RecoveryScore? = null,
+    val ritesState: RitesAggregateState = RitesAggregateState(),
+    val strengthBoard: StrengthBoardState = StrengthBoardState(),
+    val stallItems: List<StallItem> = emptyList(),
 
     // Serum State
     val latestBiomarkers: List<BiomarkerStatus> = emptyList(),
@@ -92,6 +113,16 @@ data class CodexUiState(
     val periodExerciseIds: Set<String> = emptySet(),
     val userProfile: UserWorkoutProfile? = null
 )
+
+enum class VitalsGroup(val label: String) {
+    SLEEP("SLEEP"),
+    TANK("TANK"),
+    HEART("HEART"),
+    MOVE("MOVE"),
+    BODY("BODY"),
+    FUEL("FUEL"),
+    RITES("RITES")
+}
 
 enum class VitalsType(val label: String, val rollupMetric: String) {
     SANCTUM("SANCTUM", "SANCTUM"),
@@ -136,13 +167,73 @@ data class VitalsPoint(
     val value: Double
 )
 
+data class RiteDayDot(
+    val date: LocalDate,
+    val isDone: Boolean
+)
+
+data class RiteKindSummary(
+    val kind: String, // PRAYER, SIT, KEGEL
+    val daysDone: Int,
+    val sessionCount: Int,
+    val totalMinutes: Int,
+    val dayDots: List<RiteDayDot>
+)
+
+data class RitesAggregateState(
+    val prayerSummary: RiteKindSummary = RiteKindSummary("PRAYER", 0, 0, 0, emptyList()),
+    val sitSummary: RiteKindSummary = RiteKindSummary("SIT", 0, 0, 0, emptyList()),
+    val kegelSummary: RiteKindSummary = RiteKindSummary("KEGEL", 0, 0, 0, emptyList()),
+    val prayerStreak: Int = 0
+)
+
+enum class StrengthTier(val displayName: String) {
+    UNRATED("UNRATED"),
+    NOVICE("NOVICE"),
+    INTERMEDIATE("INTERMEDIATE"),
+    ADVANCED("ADVANCED"),
+    WORLD_CLASS("WORLD_CLASS"),
+    LEGENDARY("LEGENDARY")
+}
+
+data class StrengthPillarRow(
+    val pillarKey: String,
+    val pillarName: String,
+    val exerciseName: String?,
+    val e1rmLbs: Float,
+    val bwRatio: Float,
+    val tier: StrengthTier,
+    val nextTierName: String?,
+    val progressToNextTier: Float,
+    val bestSetSummary: String?,
+    val isUnrated: Boolean
+)
+
+data class StrengthBoardState(
+    val rows: List<StrengthPillarRow> = emptyList(),
+    val bodyWeightKg: Double = 75.0,
+    val userSex: String = "MALE"
+)
+
+data class StallItem(
+    val exerciseId: String,
+    val exerciseName: String,
+    val currentWeightLbs: Float,
+    val consecutiveMisses: Int,
+    val lastDateStr: String,
+    val familyName: String,
+    val swapSuggestion: String
+)
+
 data class SessionSummary(
     val date: LocalDate,
     val isDeload: Boolean,
     val volume: Long = 0,
     val protocol: com.neon.ascent.core.domain.workout.models.WorkoutProtocol? = null,
     val primaryAugmentName: String? = null,
-    val dayType: com.neon.ascent.core.domain.workout.models.ProtocolDayType? = null
+    val dayType: ProtocolDayType? = null,
+    val durationSeconds: Long = 0,
+    val sessionRpe: Int? = null
 )
 
 data class ExerciseDossier(
@@ -192,7 +283,10 @@ class CodexViewModel @Inject constructor(
     private val dataStore: HealthPreferencesDataStore,
     private val insightDao: InsightDao,
     private val healthManager: HealthManager,
-    private val fullDataBackupRepository: FullDataBackupRepository
+    private val fullDataBackupRepository: FullDataBackupRepository,
+    private val ritesRepository: RitesRepository,
+    private val characterRepository: CharacterRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CodexUiState())
@@ -225,6 +319,7 @@ class CodexViewModel @Inject constructor(
 
                 loadCodexData(period)
                 loadVitalsData(period, _uiState.value.vitalsType)
+                loadVitalsGroupData(period, _uiState.value.vitalsGroup)
                 loadFuelHistory(period)
                 if (lastExerciseId != null) {
                     loadDossier(lastExerciseId)
@@ -234,6 +329,8 @@ class CodexViewModel @Inject constructor(
         loadPrs()
         loadExercises()
         loadUserProfile()
+        loadStrengthBoard()
+        loadStallDossier()
         loadLatestInsight()
         loadRecoveryScore()
         loadSerumData()
@@ -325,6 +422,11 @@ class CodexViewModel @Inject constructor(
 
     fun updateSearchQuery(query: String) {
         _uiState.update { it.copy(exerciseSearchQuery = query) }
+    }
+
+    fun selectVitalsGroup(group: VitalsGroup) {
+        _uiState.update { it.copy(vitalsGroup = group) }
+        loadVitalsGroupData(_uiState.value.selectedPeriod, group)
     }
 
     fun selectVitalsType(type: VitalsType) {
@@ -568,6 +670,180 @@ class CodexViewModel @Inject constructor(
     fun selectBfMethod(method: String) {
         _uiState.update { it.copy(selectedBfMethod = method) }
         loadVitalsData(_uiState.value.selectedPeriod, _uiState.value.vitalsType)
+    }
+
+    private fun loadVitalsGroupData(period: CodexPeriod, group: VitalsGroup) {
+        val (start, end) = getRangeForPeriod(period)
+        val zone = ZoneId.systemDefault()
+        val startDate = start.atZone(zone).toLocalDate().toString()
+        val endDate = end.atZone(zone).toLocalDate().toString()
+
+        viewModelScope.launch {
+            when (group) {
+                VitalsGroup.SLEEP -> {
+                    val sleepFlow = rollupDao.getRange("SLEEP_MIN", startDate, endDate)
+                    val sanctumFlow = rollupDao.getRange("SANCTUM", startDate, endDate)
+                    val hrvNightFlow = rollupDao.getRange("HRV_NIGHT", startDate, endDate)
+
+                    combine(sleepFlow, sanctumFlow, hrvNightFlow) { sleepList, sanctumList, hrvNightList ->
+                        val sleepMap = sleepList.associate { it.localDate to it.value }
+                        val sanctumMap = sanctumList.associate { it.localDate to it.value }
+                        val allDates = (sleepMap.keys + sanctumMap.keys).sorted()
+                        val dualPoints = allDates.mapNotNull { d ->
+                            val sMin = sleepMap[d] ?: 0.0
+                            val sanctum = sanctumMap[d] ?: 0.0
+                            if (sMin > 0.0 || sanctum > 0.0) {
+                                DualVitalsPoint(LocalDate.parse(d), sMin / 60.0, sanctum)
+                            } else null
+                        }
+                        val hrvNightPts = hrvNightList.filter { it.value > 0.0 }.map {
+                            VitalsPoint(LocalDate.parse(it.localDate), it.value)
+                        }
+                        Pair(dualPoints, hrvNightPts)
+                    }.collect { (dualPoints, hrvNightPts) ->
+                        _uiState.update {
+                            it.copy(
+                                sleepDualPoints = dualPoints,
+                                hrvNightPoints = hrvNightPts
+                            )
+                        }
+                    }
+                }
+                VitalsGroup.TANK -> {
+                    val sanctumFlow = rollupDao.getRange("SANCTUM", startDate, endDate)
+                    val hrLoadFlow = rollupDao.getRange("HR_LOAD_MIN", startDate, endDate)
+
+                    combine(sanctumFlow, hrLoadFlow) { sanctumList, hrLoadList ->
+                        val chargePts = sanctumList.filter { it.value > 0.0 }.map {
+                            VitalsPoint(LocalDate.parse(it.localDate), it.value)
+                        }
+                        val hrLoadPts = hrLoadList.filter { it.value > 0.0 }.map {
+                            VitalsPoint(LocalDate.parse(it.localDate), it.value)
+                        }
+                        Pair(chargePts, hrLoadPts)
+                    }.collect { (chargePts, hrLoadPts) ->
+                        _uiState.update {
+                            it.copy(
+                                chargePoints = chargePts,
+                                hrLoadPoints = hrLoadPts
+                            )
+                        }
+                    }
+                }
+                VitalsGroup.HEART -> {
+                    val rhrFlow = rollupDao.getRange("RHR", startDate, endDate)
+                    val hrvDayFlow = rollupDao.getRange("HRV_RMSSD", startDate, endDate)
+
+                    combine(rhrFlow, hrvDayFlow) { rhrList, hrvDayList ->
+                        val rhrPts = rhrList.filter { it.value > 0.0 }.map {
+                            VitalsPoint(LocalDate.parse(it.localDate), it.value)
+                        }
+                        val hrvDayPts = hrvDayList.filter { it.value > 0.0 }.map {
+                            VitalsPoint(LocalDate.parse(it.localDate), it.value)
+                        }
+                        Pair(rhrPts, hrvDayPts)
+                    }.collect { (rhrPts, hrvDayPts) ->
+                        _uiState.update {
+                            it.copy(
+                                rhrPoints = rhrPts,
+                                hrvDayPoints = hrvDayPts
+                            )
+                        }
+                    }
+                }
+                VitalsGroup.MOVE -> {
+                    val stepsFlow = rollupDao.getRange("STEPS", startDate, endDate)
+                    val kcalTotalFlow = rollupDao.getRange("KCAL_TOTAL", startDate, endDate)
+
+                    combine(stepsFlow, kcalTotalFlow) { stepsList, kcalTotalList ->
+                        val stepsPts = stepsList.map {
+                            VitalsPoint(LocalDate.parse(it.localDate), it.value)
+                        }
+                        val kcalTotalPts = kcalTotalList.map {
+                            VitalsPoint(LocalDate.parse(it.localDate), it.value)
+                        }
+                        Pair(stepsPts, kcalTotalPts)
+                    }.collect { (stepsPts, kcalTotalPts) ->
+                        _uiState.update {
+                            it.copy(
+                                stepsPoints = stepsPts,
+                                kcalTotalPoints = kcalTotalPts
+                            )
+                        }
+                    }
+                }
+                VitalsGroup.BODY -> {
+                    loadVitalsData(period, _uiState.value.vitalsType)
+                }
+                VitalsGroup.FUEL -> {
+                    val hasNutr = healthManager.hasNutritionPermission()
+                    _uiState.update { it.copy(hasNutritionPermission = hasNutr) }
+                    rollupDao.getRange("KCAL_EATEN", startDate, endDate).collect { list ->
+                        val eatenPts = list.filter { it.value > 0.0 }.map {
+                            VitalsPoint(LocalDate.parse(it.localDate), it.value)
+                        }
+                        _uiState.update {
+                            it.copy(kcalEatenPoints = eatenPts)
+                        }
+                    }
+                }
+                VitalsGroup.RITES -> {
+                    val startDateObj = start.atZone(zone).toLocalDate()
+                    val endDateObj = end.atZone(zone).toLocalDate()
+                    val daysInPeriod = (ChronoUnit.DAYS.between(startDateObj, endDateObj).toInt() + 1).coerceAtLeast(1)
+                    val datesList = (0 until daysInPeriod).map { startDateObj.plusDays(it.toLong()) }
+
+                    ritesRepository.getAllSessions().collect { allSessions ->
+                        val char = characterRepository.getUserCharacter().firstOrNull()
+                        val prayerStreak = char?.prayerStreak ?: 0
+
+                        val periodSessions = allSessions.filter { session ->
+                            val sessionDate = LocalDate.parse(session.localDate)
+                            !sessionDate.isBefore(startDateObj) && !sessionDate.isAfter(endDateObj)
+                        }
+
+                        fun summarizeKind(kind: String): RiteKindSummary {
+                            val kindSessions = periodSessions.filter { it.kind == kind }
+                            val doneDates = kindSessions.map { it.localDate }.toSet()
+                            val daysDone = doneDates.size
+                            val totalMinutes = kindSessions.sumOf { it.durationMin }
+                            val dayDots = datesList.map { date ->
+                                RiteDayDot(date, doneDates.contains(date.toString()))
+                            }
+                            return RiteKindSummary(
+                                kind = kind,
+                                daysDone = daysDone,
+                                sessionCount = kindSessions.size,
+                                totalMinutes = totalMinutes,
+                                dayDots = dayDots
+                            )
+                        }
+
+                        _uiState.update {
+                            it.copy(
+                                ritesState = RitesAggregateState(
+                                    prayerSummary = summarizeKind("PRAYER"),
+                                    sitSummary = summarizeKind("SIT"),
+                                    kegelSummary = summarizeKind("KEGEL"),
+                                    prayerStreak = prayerStreak
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fun recordQuickStampRite(kind: String, durationMin: Int = 0) {
+        viewModelScope.launch {
+            ritesRepository.recordSession(
+                kind = kind,
+                durationMin = durationMin,
+                source = "QUICK_STAMP"
+            )
+            loadVitalsGroupData(_uiState.value.selectedPeriod, VitalsGroup.RITES)
+        }
     }
 
     private fun loadVitalsData(period: CodexPeriod, type: VitalsType) {
@@ -837,7 +1113,9 @@ class CodexViewModel @Inject constructor(
                         volume = vol,
                         protocol = session.protocol,
                         primaryAugmentName = augmentName,
-                        dayType = session.protocolDayType
+                        dayType = session.protocolDayType,
+                        durationSeconds = session.durationSeconds,
+                        sessionRpe = session.sessionRpe
                     )
                 }.sortedByDescending { it.date }
 
@@ -876,6 +1154,162 @@ class CodexViewModel @Inject constructor(
                 Triple(week, month, year)
             }.collect { (week, month, year) ->
                 _uiState.update { it.copy(weekCount = week, monthCount = month, yearCount = year) }
+            }
+        }
+    }
+
+    fun loadStrengthBoard() {
+        viewModelScope.launch {
+            combine(
+                workoutRepository.getAllAccomplishments(),
+                workoutRepository.getExerciseDefinitions(),
+                bodySampleDao.getSamplesForMetricRangeFlow("WEIGHT", "2020-01-01", LocalDate.now().toString()),
+                workoutRepository.getUserProfile("default_user")
+            ) { accomplishments, exercises, weightSamples, profile ->
+                val now = Instant.now()
+                val cutoff180Days = now.minus(180, ChronoUnit.DAYS)
+
+                val amFastedWeight = weightSamples.filter { it.conditionTag == "AM_FASTED" }.maxByOrNull { it.loggedAt }?.value
+                val latestWeight = weightSamples.maxByOrNull { it.loggedAt }?.value
+                val bwKg = amFastedWeight ?: latestWeight ?: profile?.weightKg?.toDouble() ?: 75.0
+                val bwLbs = (bwKg * 2.20462262).toFloat()
+                val sexStr = profile?.gender?.name?.uppercase() ?: "MALE"
+                val isFemale = sexStr.contains("FEMALE") || sexStr == "F"
+                val sexKey = if (isFemale) "FEMALE" else "MALE"
+
+                val standardsJson = try {
+                    context.assets.open("strength_standards_v1.json").bufferedReader().use { it.readText() }
+                } catch (e: Exception) {
+                    null
+                }
+
+                val jsonObject = if (standardsJson != null) JSONObject(standardsJson) else null
+                val familiesObj = jsonObject?.optJSONObject("families")
+
+                val accMap = accomplishments.associateBy { it.exerciseId }
+
+                val pillars = listOf(
+                    Triple("SQUAT", "Squat") { ex: Exercise -> ex.familyId.contains("squat", true) || ex.movementType == MovementType.QUAD_DOMINANT },
+                    Triple("HINGE", "Hinge") { ex: Exercise -> ex.familyId.contains("deadlift", true) || ex.familyId.contains("hinge", true) || ex.movementType == MovementType.DEADLIFT || ex.movementType == MovementType.POSTERIOR_CHAIN },
+                    Triple("BENCH", "Bench") { ex: Exercise -> ex.familyId.contains("bench", true) || ex.movementType == MovementType.COMPOUND_UPPER },
+                    Triple("PRESS", "Press") { ex: Exercise -> ex.familyId.contains("press", true) || ex.name.contains("overhead", true) || ex.name.contains("military", true) },
+                    Triple("ROW", "Row") { ex: Exercise -> ex.familyId.contains("row", true) || ex.movementType == MovementType.BACK_THICKNESS },
+                    Triple("PULL", "Pull") { ex: Exercise -> ex.familyId.contains("pull", true) || ex.familyId.contains("chin", true) || ex.movementType == MovementType.BACK_WIDTH }
+                )
+
+                val rows = pillars.map { (pillarKey, pillarName, filter) ->
+                    val matchingExs = exercises.filter(filter)
+                    var bestAcc: ExerciseAccomplishments? = null
+                    var bestEx: Exercise? = null
+                    var bestE1rm = 0f
+
+                    for (ex in matchingExs) {
+                        val acc = accMap[ex.id] ?: continue
+                        val date = acc.maxOneRepMaxDate ?: acc.heaviestWeightDate ?: continue
+                        if (date.isBefore(cutoff180Days)) continue
+
+                        val e1rm = acc.maxEstimatedOneRepMax
+                        if (e1rm > bestE1rm) {
+                            bestE1rm = e1rm
+                            bestAcc = acc
+                            bestEx = ex
+                        }
+                    }
+
+                    if (bestAcc == null || bestEx == null || bestE1rm <= 0f) {
+                        StrengthPillarRow(
+                            pillarKey = pillarKey,
+                            pillarName = pillarName,
+                            exerciseName = null,
+                            e1rmLbs = 0f,
+                            bwRatio = 0f,
+                            tier = StrengthTier.UNRATED,
+                            nextTierName = "NOVICE",
+                            progressToNextTier = 0f,
+                            bestSetSummary = "No tested max in last 180 days",
+                            isUnrated = true
+                        )
+                    } else {
+                        val ratio = if (bwLbs > 0) bestE1rm / bwLbs else 0f
+                        val familyObj = familiesObj?.optJSONObject(pillarKey)
+                        val sexObj = familyObj?.optJSONObject(sexKey)
+
+                        val novTh = sexObj?.optDouble("NOVICE", 1.0)?.toFloat() ?: 1.0f
+                        val intTh = sexObj?.optDouble("INTERMEDIATE", 1.5)?.toFloat() ?: 1.5f
+                        val advTh = sexObj?.optDouble("ADVANCED", 2.0)?.toFloat() ?: 2.0f
+                        val worldTh = sexObj?.optDouble("WORLD_CLASS", 2.5)?.toFloat() ?: 2.5f
+                        val legTh = sexObj?.optDouble("LEGENDARY", 3.0)?.toFloat() ?: 3.0f
+
+                        val (tier, nextTier, progress) = when {
+                            ratio < novTh -> Triple(StrengthTier.UNRATED, "NOVICE", (ratio / novTh).coerceIn(0f, 1f))
+                            ratio < intTh -> Triple(StrengthTier.NOVICE, "INTERMEDIATE", ((ratio - novTh) / (intTh - novTh)).coerceIn(0f, 1f))
+                            ratio < advTh -> Triple(StrengthTier.INTERMEDIATE, "ADVANCED", ((ratio - intTh) / (advTh - intTh)).coerceIn(0f, 1f))
+                            ratio < worldTh -> Triple(StrengthTier.ADVANCED, "WORLD_CLASS", ((ratio - advTh) / (worldTh - advTh)).coerceIn(0f, 1f))
+                            ratio < legTh -> Triple(StrengthTier.WORLD_CLASS, "LEGENDARY", ((ratio - worldTh) / (legTh - worldTh)).coerceIn(0f, 1f))
+                            else -> Triple(StrengthTier.LEGENDARY, null, 1.0f)
+                        }
+
+                        val dateStr = bestAcc.maxOneRepMaxDate?.atZone(ZoneId.systemDefault())?.toLocalDate()?.toString() ?: ""
+                        val summary = "Estimated from ${bestAcc.heaviestWeightReps} @ ${bestAcc.heaviestWeight.toInt()} lbs on $dateStr"
+
+                        StrengthPillarRow(
+                            pillarKey = pillarKey,
+                            pillarName = pillarName,
+                            exerciseName = bestEx.name,
+                            e1rmLbs = bestE1rm,
+                            bwRatio = ratio,
+                            tier = tier,
+                            nextTierName = nextTier,
+                            progressToNextTier = progress,
+                            bestSetSummary = summary,
+                            isUnrated = false
+                        )
+                    }
+                }
+
+                StrengthBoardState(
+                    rows = rows,
+                    bodyWeightKg = bwKg,
+                    userSex = sexKey
+                )
+            }.collect { boardState ->
+                _uiState.update { it.copy(strengthBoard = boardState) }
+            }
+        }
+    }
+
+    fun loadStallDossier() {
+        viewModelScope.launch {
+            combine(
+                workoutRepository.getStalledProgressionStates(),
+                workoutRepository.getExerciseDefinitions(),
+                workoutRepository.getAllAccomplishments()
+            ) { stalledStates, exercises, accomplishments ->
+                val exMap = exercises.associateBy { it.id }
+                val accMap = accomplishments.associateBy { it.exerciseId }
+
+                stalledStates.map { state ->
+                    val ex = exMap[state.exerciseId]
+                    val acc = accMap[state.exerciseId]
+                    val name = ex?.name ?: state.exerciseId
+                    val family = ex?.familyName ?: "exercise"
+                    val weight = if (state.currentWeight > 0f) state.currentWeight else state.weightAtBest
+                    val dateStr = acc?.maxOneRepMaxDate?.atZone(ZoneId.systemDefault())?.toLocalDate()?.toString()
+                        ?: acc?.heaviestWeightDate?.atZone(ZoneId.systemDefault())?.toLocalDate()?.toString()
+                        ?: "Recent"
+
+                    StallItem(
+                        exerciseId = state.exerciseId,
+                        exerciseName = name,
+                        currentWeightLbs = weight,
+                        consecutiveMisses = state.consecutiveMisses,
+                        lastDateStr = dateStr,
+                        familyName = family,
+                        swapSuggestion = "Swap to another $family implement inside family"
+                    )
+                }
+            }.collect { stalls ->
+                _uiState.update { it.copy(stallItems = stalls) }
             }
         }
     }

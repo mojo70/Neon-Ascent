@@ -7,6 +7,7 @@ import com.neon.ascent.data.local.DailyPrayerDao
 import com.neon.ascent.core.domain.character.repository.CharacterRepository
 import com.neon.ascent.data.repository.JournalRepository
 import com.neon.ascent.data.repository.SettingsRepository
+import com.neon.ascent.core.data.repository.RitesRepository
 import com.neon.ascent.feature.settings.DailyPrayerSeeds
 import com.neon.ascent.model.DailyPrayer
 import com.neon.ascent.model.JournalEntry
@@ -40,7 +41,8 @@ class AltarViewModel @Inject constructor(
     private val characterRepository: CharacterRepository,
     private val settingsRepository: SettingsRepository,
     private val dailyPrayerDao: DailyPrayerDao,
-    private val journalRepository: JournalRepository
+    private val journalRepository: JournalRepository,
+    private val ritesRepository: RitesRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AltarUiState())
@@ -160,6 +162,13 @@ class AltarViewModel @Inject constructor(
             val now = System.currentTimeMillis()
             settingsRepository.setLastRemainBuffDate(now)
 
+            val durMin = (_uiState.value.remainSelectedDurationSeconds / 60).coerceAtLeast(1)
+            ritesRepository.recordSession(
+                kind = "PRAYER",
+                durationMin = durMin,
+                source = "ALTAR"
+            )
+
             val char = characterRepository.getUserCharacter().first()
             if (char != null) {
                 val updated = char.copy(
@@ -181,6 +190,12 @@ class AltarViewModel @Inject constructor(
             val prayer = _uiState.value.currentPrayer ?: return@launch
             val now = System.currentTimeMillis()
             val char = characterRepository.getUserCharacter().first() ?: return@launch
+
+            ritesRepository.recordSession(
+                kind = "PRAYER",
+                durationMin = 5,
+                source = "ALTAR"
+            )
 
             val isSameDay = isSameDay(char.lastPrayerDate, now)
             if (isSameDay) {
@@ -223,6 +238,63 @@ class AltarViewModel @Inject constructor(
                 prayerStreak = newStreak,
                 toastMessage = "AMEN // UPLINK SEALED (+${expToAdd} XP)"
             )
+        }
+    }
+
+    fun quickStampKegel(durationMin: Int = 0) {
+        viewModelScope.launch {
+            ritesRepository.recordSession(
+                kind = "KEGEL",
+                durationMin = durationMin,
+                source = "QUICK_STAMP"
+            )
+            _uiState.value = _uiState.value.copy(
+                toastMessage = "KEGEL RITE // RECORDED"
+            )
+        }
+    }
+
+    fun quickStampSit(durationMin: Int = 10) {
+        viewModelScope.launch {
+            ritesRepository.recordSession(
+                kind = "SIT",
+                durationMin = durationMin,
+                source = "QUICK_STAMP"
+            )
+            _uiState.value = _uiState.value.copy(
+                toastMessage = "SIT RITE // RECORDED ($durationMin MIN)"
+            )
+        }
+    }
+
+    fun quickStampPrayer(durationMin: Int = 5) {
+        viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            val char = characterRepository.getUserCharacter().first()
+            ritesRepository.recordSession(
+                kind = "PRAYER",
+                durationMin = durationMin,
+                source = "QUICK_STAMP"
+            )
+            if (char != null) {
+                val isNextDay = isNextDay(char.lastPrayerDate, now)
+                val isSameDay = isSameDay(char.lastPrayerDate, now)
+                val newStreak = when {
+                    isSameDay -> char.prayerStreak
+                    isNextDay || char.lastPrayerDate == 0L -> char.prayerStreak + 1
+                    else -> 1
+                }
+                characterRepository.saveCharacter(
+                    char.copy(
+                        prayerStreak = newStreak,
+                        lastPrayerDate = now
+                    )
+                )
+                _uiState.value = _uiState.value.copy(
+                    prayerStreak = newStreak,
+                    toastMessage = "PRAYER RITE // RECORDED ($durationMin MIN)"
+                )
+            }
         }
     }
 
