@@ -188,7 +188,6 @@ class WorkoutViewModel @Inject constructor(
             .sortedBy { it.name }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private var workoutDurationJob: kotlinx.coroutines.Job? = null
     private var stretchTimerJob: kotlinx.coroutines.Job? = null
     private var sessionJob: kotlinx.coroutines.Job? = null
     private var zoomUpdateJob: kotlinx.coroutines.Job? = null
@@ -491,7 +490,7 @@ class WorkoutViewModel @Inject constructor(
                 logs.forEach { (log, _) -> loadPreviousData(log.exerciseId) }
             }
         }
-        startWorkoutTimer()
+        startWorkoutTimer(session.durationSeconds)
     }
 
     fun saveCustomExercise(name: String, muscleGroup: String, equipment: String, description: String) {
@@ -696,9 +695,13 @@ class WorkoutViewModel @Inject constructor(
         val state = _uiState.value
         if (state.newRoutineName.isBlank()) return
         
+        val existingRoutine = state.routines.find { it.id == state.editingRoutineId }
         val routine = WorkoutRoutine(
             id = state.editingRoutineId ?: UUID.randomUUID().toString(),
             name = state.newRoutineName,
+            protocol = existingRoutine?.protocol ?: WorkoutProtocol.GENERAL,
+            isSystem = existingRoutine?.isSystem ?: false,
+            isAddedToLibrary = true,
             exercises = state.newRoutineExercises,
             augments = state.newRoutineAugments
         )
@@ -1529,16 +1532,8 @@ class WorkoutViewModel @Inject constructor(
         _uiState.update { it.copy(showDeactivateProtocolDialog = false) }
     }
 
-    private fun startWorkoutTimer() {
-        workoutDurationJob?.cancel()
-        workoutDurationJob = viewModelScope.launch {
-            while (true) {
-                kotlinx.coroutines.delay(1000)
-                if (!_uiState.value.isPaused) {
-                    _uiState.update { it.copy(workoutDurationSeconds = it.workoutDurationSeconds + 1) }
-                }
-            }
-        }
+    private fun startWorkoutTimer(initialDurationSeconds: Long = 0) {
+        activeSessionController.startDurationTimer(initialDurationSeconds)
     }
 
     fun startSession(protocol: WorkoutProtocol, isDeload: Boolean = false) {
@@ -1546,30 +1541,42 @@ class WorkoutViewModel @Inject constructor(
             _uiState.update { it.copy(activeSessionError = "A workout session is already in progress. Please finish or discard it before starting a new one.") }
             return
         }
-        val sessionId = UUID.randomUUID().toString()
-        val session = WorkoutSession(
-            id = sessionId, 
-            protocol = protocol,
-            isDeload = isDeload
-        )
-        _uiState.update { it.copy(
-            session = session, 
-            isLoading = true, 
-            workoutDurationSeconds = 0, 
-            isPaused = false,
-            previousLogs = emptyMap(),
-            workoutPhase = if (protocol == WorkoutProtocol.CYBER_CRAPP && !isDeload) RestPausePhase.MINI_SET_1 else RestPausePhase.NOT_ACTIVE
-        ) }
-        
-        sessionJob?.cancel()
-        sessionJob = viewModelScope.launch {
-            repository.saveSession(session)
-            startWorkoutTimer()
-            repository.getLogsForSession(sessionId).collect { logs ->
-                _uiState.update { it.copy(logs = logs, isLoading = false) }
-                // Load previous data for each exercise in the current logs
-                logs.forEach { (log, _) ->
-                    loadPreviousData(log.exerciseId)
+
+        viewModelScope.launch {
+            val sessions = repository.getAllSessions().first()
+            val routines = repository.getAllRoutines().first()
+            val matchingRoutine = _uiState.value.nextSequencedRoutine?.takeIf { it.protocol == protocol }
+                ?: WorkoutRotationResolver.resolveNextRoutine(sessions, routines, protocol)
+
+            if (matchingRoutine != null) {
+                startRoutine(matchingRoutine, isDeload)
+            } else {
+                val sessionId = UUID.randomUUID().toString()
+                val session = WorkoutSession(
+                    id = sessionId, 
+                    protocol = protocol,
+                    isDeload = isDeload
+                )
+                _uiState.update { it.copy(
+                    session = session, 
+                    isLoading = true, 
+                    workoutDurationSeconds = 0, 
+                    isPaused = false,
+                    previousLogs = emptyMap(),
+                    workoutPhase = if (protocol == WorkoutProtocol.CYBER_CRAPP && !isDeload) RestPausePhase.MINI_SET_1 else RestPausePhase.NOT_ACTIVE
+                ) }
+                
+                sessionJob?.cancel()
+                sessionJob = viewModelScope.launch {
+                    repository.saveSession(session)
+                    startWorkoutTimer()
+                    repository.getLogsForSession(sessionId).collect { logs ->
+                        _uiState.update { it.copy(logs = logs, isLoading = false) }
+                        // Load previous data for each exercise in the current logs
+                        logs.forEach { (log, _) ->
+                            loadPreviousData(log.exerciseId)
+                        }
+                    }
                 }
             }
         }
@@ -2486,7 +2493,8 @@ class WorkoutViewModel @Inject constructor(
                 )
                 repository.saveWorkoutLog(workoutLog)
 
-                val progressionState = _uiState.value.progressionStates[routineExercise.exercise.id]
+                val previousSets = repository.getLatestSetsForExercise(routineExercise.exercise.id, sessionId).first()
+                val progressionState = repository.getProgressionState(routineExercise.exercise.id).first()
                 val afterWeightJump = progressionState != null && progressionState.bestClusterReps == 0 && progressionState.currentWeight > 0
 
                 val exerciseMax = repository.getExerciseMax(routineExercise.exercise.familyId).first()
@@ -2521,6 +2529,8 @@ class WorkoutViewModel @Inject constructor(
                     }
                 } else {
                     // Fallback to manual routine sets or CC logic
+                    var warmupCount = 0
+                    var normalCount = 0
                     routineExercise.sets.forEach { routineSet ->
                         val goalReps = if (routineSet.goalReps != null) {
                             routineSet.goalReps
@@ -2536,7 +2546,24 @@ class WorkoutViewModel @Inject constructor(
                             ).label
                         }
                         
-                        val setWeight = routineSet.weight
+                        var setWeight = routineSet.weight
+                        if (setWeight <= 0f) {
+                            if (routineSet.type == SetType.REST_PAUSE) {
+                                setWeight = progressionState?.currentWeight 
+                                    ?: previousSets.firstOrNull { it.type == SetType.REST_PAUSE }?.weight 
+                                    ?: 0f
+                            } else if (routineSet.type == SetType.WARMUP) {
+                                val prevWarmup = previousSets.filter { it.type == SetType.WARMUP }.getOrNull(warmupCount)
+                                setWeight = prevWarmup?.weight ?: 0f
+                                warmupCount++
+                            } else {
+                                val prevNormal = previousSets.filter { it.type == routineSet.type && it.clusterMiniSetIndex == null }.getOrNull(normalCount)
+                                setWeight = prevNormal?.weight 
+                                    ?: progressionState?.currentWeight 
+                                    ?: 0f
+                                normalCount++
+                            }
+                        }
 
                         if (session.protocol == WorkoutProtocol.CYBER_CRAPP && routineSet.type == SetType.REST_PAUSE) {
                             val typeToSave = if (isDeload) SetType.NORMAL else SetType.REST_PAUSE
@@ -2685,7 +2712,7 @@ class WorkoutViewModel @Inject constructor(
                 workoutDurationSeconds = 0,
                 workoutPhase = RestPausePhase.NOT_ACTIVE
             ) }
-            workoutDurationJob?.cancel()
+            activeSessionController.resetSession()
         }
     }
 
@@ -3359,6 +3386,8 @@ class WorkoutViewModel @Inject constructor(
 
         val updatedRoutine = activeRoutine.copy(
             exercises = updatedExercises,
+            protocol = activeRoutine.protocol,
+            isSystem = activeRoutine.isSystem,
             isAddedToLibrary = true // Ensure modified system routines persist in user library
         )
         
@@ -3495,7 +3524,7 @@ class WorkoutViewModel @Inject constructor(
                 previousLogs = emptyMap(),
                 workoutPhase = RestPausePhase.NOT_ACTIVE
             ) }
-            workoutDurationJob?.cancel()
+            activeSessionController.resetSession()
             sessionJob?.cancel()
         }
     }

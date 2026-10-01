@@ -4441,12 +4441,18 @@ fun WorkoutLogCard(
                 textAlign = TextAlign.Center
             )
         } else {
+            val prevWarmupSets = previousSets.filter { it.type == SetType.WARMUP }
             warmupSets.forEachIndexed { i, s -> 
+                val prevWarmup = prevWarmupSets.getOrNull(i)
+                val warmupPrevText = if (prevWarmup != null && prevWarmup.weight > 0) {
+                    if (prevWarmup.reps > 0) "${prevWarmup.weight.toInt()} × ${prevWarmup.reps}" else "${prevWarmup.weight.toInt()}lbs"
+                } else "-"
+
                 SetLogRow(
                     setNumber = i + 1,
                     set = s,
                     showGoal = showGoalColumn,
-                    previousData = "-",
+                    previousData = warmupPrevText,
                     zoomLevel = uiState.zoomLevel,
                     prescribedWeight = s.prescribedWeight,
                     prescribedReps = s.prescribedReps,
@@ -4465,12 +4471,18 @@ fun WorkoutLogCard(
         if (isDynamicMode) {
             FlowRow(modifier = Modifier.fillMaxWidth(), maxItemsInEachRow = 2) {
                 workSets.forEachIndexed { i, s -> 
+                    val prevTypeSets = previousSets.filter { it.type == s.type && it.clusterMiniSetIndex == null }
+                    val prevWork = prevTypeSets.getOrNull(i)
+                    val workPrevText = if (prevWork != null && prevWork.weight > 0) {
+                        if (prevWork.reps > 0) "${prevWork.weight.toInt()} × ${prevWork.reps}" else "${prevWork.weight.toInt()}lbs"
+                    } else "-"
+
                     Box(modifier = Modifier.fillMaxWidth(0.5f)) {
                         SetLogRow(
                             setNumber = i + warmupSets.size + 1,
                             set = s,
                             showGoal = showGoalColumn,
-                            previousData = "-",
+                            previousData = workPrevText,
                             zoomLevel = uiState.zoomLevel,
                             prescribedWeight = s.prescribedWeight,
                             prescribedReps = s.prescribedReps,
@@ -4508,11 +4520,21 @@ fun WorkoutLogCard(
                 } else if (item is SetLog) {
                     val s = item
                     key(s.id) {
+                        val prevTypeSets = previousSets.filter { it.type == s.type && it.clusterMiniSetIndex == null }
+                        val workSetsOfType = sets.filter { it.type == s.type && it.clusterMiniSetIndex == null }
+                        val setTypeIndex = workSetsOfType.indexOfFirst { it.id == s.id }
+                        val prevWork = if (setTypeIndex >= 0) prevTypeSets.getOrNull(setTypeIndex) else null
+                        val workPrevText = if (prevWork != null && prevWork.weight > 0) {
+                            if (prevWork.reps > 0) "${prevWork.weight.toInt()} × ${prevWork.reps}" else "${prevWork.weight.toInt()}lbs"
+                        } else if (progressionState?.currentWeight != null && progressionState.currentWeight > 0) {
+                            "${progressionState.currentWeight.toInt()}lbs"
+                        } else "-"
+
                         SetLogRow(
                             setNumber = index + warmupSets.size + 1,
                             set = s,
                             showGoal = showGoalColumn,
-                            previousData = "-",
+                            previousData = workPrevText,
                             zoomLevel = uiState.zoomLevel,
                             prescribedWeight = s.prescribedWeight,
                             prescribedReps = s.prescribedReps,

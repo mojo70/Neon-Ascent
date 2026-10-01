@@ -27,6 +27,7 @@ import com.neon.ascent.core.domain.backup.models.BackupScope
 import com.neon.ascent.core.domain.character.repository.CharacterRepository
 import com.neon.ascent.core.domain.repository.FullDataBackupRepository
 import com.neon.ascent.core.domain.workout.models.MovementType
+import com.neon.ascent.core.domain.workout.models.Implement
 import com.neon.ascent.core.domain.workout.models.ProtocolDayType
 import com.neon.ascent.core.domain.workout.models.UnitSystem
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -1188,13 +1189,73 @@ class CodexViewModel @Inject constructor(
 
                 val accMap = accomplishments.associateBy { it.exerciseId }
 
+                fun getPillarPriority(pillarKey: String, ex: Exercise): Int {
+                    return when (pillarKey) {
+                        "SQUAT" -> when {
+                            ex.id == "back_squat" -> 10
+                            ex.familyId == "squat" && ex.implement == Implement.BARBELL -> 8
+                            ex.familyId == "squat" -> 6
+                            else -> 1
+                        }
+                        "HINGE" -> when {
+                            ex.id == "deadlift" || ex.id == "deadlift_sumo" -> 10
+                            ex.familyId == "deadlift" && ex.implement == Implement.BARBELL -> 8
+                            ex.familyId == "deadlift" -> 6
+                            ex.familyId == "romanian_deadlift" || ex.familyId == "rack_pull" -> 4
+                            else -> 1
+                        }
+                        "BENCH" -> when {
+                            ex.id == "bench_press" -> 10
+                            ex.familyId == "bench_press" && ex.implement == Implement.BARBELL -> 8
+                            ex.familyId == "bench_press" -> 6
+                            else -> 1
+                        }
+                        "PRESS" -> when {
+                            ex.id == "military_press" -> 10
+                            ex.familyId == "overhead_press" && ex.implement == Implement.BARBELL -> 8
+                            ex.familyId == "overhead_press" -> 6
+                            else -> 1
+                        }
+                        "ROW" -> when {
+                            ex.id == "bent_over_row" -> 10
+                            (ex.familyId == "rows" || ex.familyId == "bent_over_row") && ex.implement == Implement.BARBELL -> 8
+                            ex.familyId == "rows" || ex.familyId == "bent_over_row" || ex.familyId == "tbar_row" -> 6
+                            else -> 1
+                        }
+                        "PULL" -> when {
+                            ex.id == "weighted_pullups" || ex.id == "pullup_bodyweight" -> 10
+                            ex.familyId == "pull_up" -> 8
+                            ex.familyId == "chin_up" -> 7
+                            ex.familyId == "lat_pulldown" -> 4
+                            else -> 1
+                        }
+                        else -> 0
+                    }
+                }
+
                 val pillars = listOf(
-                    Triple("SQUAT", "Squat") { ex: Exercise -> ex.familyId.contains("squat", true) || ex.movementType == MovementType.QUAD_DOMINANT },
-                    Triple("HINGE", "Hinge") { ex: Exercise -> ex.familyId.contains("deadlift", true) || ex.familyId.contains("hinge", true) || ex.movementType == MovementType.DEADLIFT || ex.movementType == MovementType.POSTERIOR_CHAIN },
-                    Triple("BENCH", "Bench") { ex: Exercise -> ex.familyId.contains("bench", true) || ex.movementType == MovementType.COMPOUND_UPPER },
-                    Triple("PRESS", "Press") { ex: Exercise -> ex.familyId.contains("press", true) || ex.name.contains("overhead", true) || ex.name.contains("military", true) },
-                    Triple("ROW", "Row") { ex: Exercise -> ex.familyId.contains("row", true) || ex.movementType == MovementType.BACK_THICKNESS },
-                    Triple("PULL", "Pull") { ex: Exercise -> ex.familyId.contains("pull", true) || ex.familyId.contains("chin", true) || ex.movementType == MovementType.BACK_WIDTH }
+                    Triple("SQUAT", "Squat") { ex: Exercise -> 
+                        ex.familyId == "squat" || ex.id == "back_squat" || (ex.name.contains("squat", true) && !ex.name.contains("split", true) && !ex.name.contains("hack", true))
+                    },
+                    Triple("HINGE", "Hinge") { ex: Exercise -> 
+                        (ex.familyId == "deadlift" || ex.familyId == "romanian_deadlift" || ex.familyId == "rack_pull" || ex.id.contains("deadlift", true) || ex.name.contains("deadlift", true)) &&
+                        !ex.id.contains("hip_thrust") && !ex.name.contains("hip thrust", true)
+                    },
+                    Triple("BENCH", "Bench") { ex: Exercise -> 
+                        (ex.familyId == "bench_press" || ex.id == "bench_press" || ex.name.contains("bench press", true)) &&
+                        !ex.name.contains("overhead", true)
+                    },
+                    Triple("PRESS", "Press") { ex: Exercise -> 
+                        (ex.familyId == "overhead_press" || ex.id == "military_press" || ex.name.contains("overhead", true) || ex.name.contains("military", true) || ex.name.contains("shoulder press", true)) &&
+                        !ex.familyId.contains("bench", true) && !ex.name.contains("bench", true) && !ex.name.contains("chest", true)
+                    },
+                    Triple("ROW", "Row") { ex: Exercise -> 
+                        (ex.familyId == "rows" || ex.familyId == "bent_over_row" || ex.familyId == "tbar_row" || ex.familyId == "one_arm_row" || ex.familyId == "seated_row" || ex.name.contains("row", true)) &&
+                        !ex.name.contains("upright", true)
+                    },
+                    Triple("PULL", "Pull") { ex: Exercise -> 
+                        ex.familyId == "pull_up" || ex.familyId == "chin_up" || ex.familyId == "lat_pulldown" || ex.name.contains("pullup", true) || ex.name.contains("pull-up", true) || ex.name.contains("chinup", true) || ex.name.contains("chin-up", true)
+                    }
                 )
 
                 val rows = pillars.map { (pillarKey, pillarName, filter) ->
@@ -1202,6 +1263,7 @@ class CodexViewModel @Inject constructor(
                     var bestAcc: ExerciseAccomplishments? = null
                     var bestEx: Exercise? = null
                     var bestE1rm = 0f
+                    var bestPriority = -1
 
                     for (ex in matchingExs) {
                         val acc = accMap[ex.id] ?: continue
@@ -1209,7 +1271,10 @@ class CodexViewModel @Inject constructor(
                         if (date.isBefore(cutoff180Days)) continue
 
                         val e1rm = acc.maxEstimatedOneRepMax
-                        if (e1rm > bestE1rm) {
+                        val priority = getPillarPriority(pillarKey, ex)
+
+                        if (priority > bestPriority || (priority == bestPriority && e1rm > bestE1rm)) {
+                            bestPriority = priority
                             bestE1rm = e1rm
                             bestAcc = acc
                             bestEx = ex
