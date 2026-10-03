@@ -78,6 +78,9 @@ open class SettingsRepository @Inject constructor(
     private val _isBiometricLockEnabled = MutableStateFlow(false)
     val isBiometricLockEnabled: StateFlow<Boolean> = _isBiometricLockEnabled.asStateFlow()
 
+    private val _biometricLockTimeout = MutableStateFlow("IMMEDIATE")
+    val biometricLockTimeout: StateFlow<String> = _biometricLockTimeout.asStateFlow()
+
     private val _isReligionShortcutEnabled = MutableStateFlow(false)
     val isReligionShortcutEnabled: StateFlow<Boolean> = _isReligionShortcutEnabled.asStateFlow()
 
@@ -132,6 +135,7 @@ open class SettingsRepository @Inject constructor(
         // Initialize values from sharedPreferences with safety
         try {
             _isBiometricLockEnabled.value = sharedPreferences.getBoolean("biometric_lock", false)
+            _biometricLockTimeout.value = sharedPreferences.getString("biometric_lock_timeout", "IMMEDIATE") ?: "IMMEDIATE"
             _isReligionShortcutEnabled.value = sharedPreferences.getBoolean("religion_shortcut", false)
             _isLocalAiOnly.value = sharedPreferences.getBoolean("local_ai_only", false)
             _nanoTemperature.value = sharedPreferences.getFloat("nano_temp", 0.7f)
@@ -160,6 +164,15 @@ open class SettingsRepository @Inject constructor(
             android.util.Log.e("SettingsRepository", "Failed to save biometric_lock", e)
         }
         _isBiometricLockEnabled.value = enabled
+    }
+
+    fun setBiometricLockTimeout(timeout: String) {
+        try {
+            sharedPreferences.edit().putString("biometric_lock_timeout", timeout).apply()
+        } catch (e: Exception) {
+            Log.e("SettingsRepository", "Failed to save biometric_lock_timeout", e)
+        }
+        _biometricLockTimeout.value = timeout
     }
 
     fun setReligionShortcutEnabled(enabled: Boolean) {

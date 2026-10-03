@@ -193,7 +193,7 @@ class SmartPingScheduler @Inject constructor(
                 .build()
             workManager.enqueueUniqueWork(
                 "neural_brief_update",
-                ExistingWorkPolicy.KEEP,
+                ExistingWorkPolicy.REPLACE,
                 request
             )
         }

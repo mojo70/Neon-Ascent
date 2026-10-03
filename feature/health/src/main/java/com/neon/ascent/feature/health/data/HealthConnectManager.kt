@@ -18,6 +18,7 @@ import com.neon.ascent.core.domain.health.HealthDataSnapshot
 import com.neon.ascent.core.domain.health.HealthManager
 import com.neon.ascent.core.domain.health.LiveMetrics
 import com.neon.ascent.core.domain.special.HealthDataProcessor
+import com.neon.ascent.feature.health.data.uplink.NeuralUplinkManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -25,12 +26,14 @@ import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import javax.inject.Inject
+import javax.inject.Provider
 import javax.inject.Singleton
 
 @Singleton
 class HealthConnectManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val processor: HealthDataProcessor
+    private val processor: HealthDataProcessor,
+    private val uplinkManagerProvider: Provider<NeuralUplinkManager>
 ) : HealthManager {
 
     private val healthConnectClient by lazy {
@@ -356,11 +359,11 @@ class HealthConnectManager @Inject constructor(
         }
         if (garminWinner != null) return garminWinner
 
-        // Overlapping 00:00-08:00 local time check
+        // Overlapping overnight window check (20:00 previous day to 12:00 wake day)
         val nightOverlappingSessions = validSessions.filter { session ->
-            val sessionStartDate = session.startTime.atZone(zone).toLocalDate()
-            val nightStart = sessionStartDate.atStartOfDay(zone).toInstant()
-            val nightEnd = sessionStartDate.atTime(8, 0).atZone(zone).toInstant()
+            val wakeDate = session.endTime.atZone(zone).toLocalDate()
+            val nightStart = wakeDate.minusDays(1).atTime(20, 0).atZone(zone).toInstant()
+            val nightEnd = wakeDate.atTime(12, 0).atZone(zone).toInstant()
             session.startTime.isBefore(nightEnd) && session.endTime.isAfter(nightStart)
         }
 
@@ -442,10 +445,14 @@ class HealthConnectManager @Inject constructor(
         return legacyMap
     }
 
-    /** One-shot sync that feeds directly into S.P.E.C.I.A.L. */
+    /** One-shot sync that feeds directly into biometrics and S.P.E.C.I.A.L. */
     override suspend fun performDailySync() {
         if (!isAvailableAndHasPermissions()) return
-        // This will be triggered by a WorkManager or manual sync
+        try {
+            uplinkManagerProvider.get().fetchAllDeepMetrics()
+        } catch (e: Exception) {
+            Log.e("HealthConnectManager", "Error during performDailySync", e)
+        }
     }
 
     /** Reactive flow for real-time dashboard updates */

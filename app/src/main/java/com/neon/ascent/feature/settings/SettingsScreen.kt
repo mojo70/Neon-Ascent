@@ -118,6 +118,7 @@ fun SettingsScreen(
     // Biometrics & Sync State
     val isHealthGranted by viewModel.isHealthConnectGranted.collectAsState()
     val biometricLockEnabled by viewModel.isBiometricLockEnabled.collectAsState()
+    val biometricLockTimeout by viewModel.biometricLockTimeout.collectAsState()
     
     // Appearance State
     val neonIntensity by viewModel.neonIntensity.collectAsState()
@@ -561,6 +562,36 @@ fun SettingsScreen(
                                     "Confirm identity",
                                     onSuccess = { viewModel.setBiometricLockEnabled(false) },
                                     onError = {}
+                                )
+                            }
+                        }
+                    }
+
+                    if (biometricLockEnabled) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "LOCK TIMEOUT (BACKGROUND)",
+                            color = theme.ink.copy(alpha = 0.6f),
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth().selectableGroup(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            listOf(
+                                "IMMEDIATE" to "IMMEDIATE",
+                                "1_MIN" to "1 MIN",
+                                "5_MIN" to "5 MIN",
+                                "15_MIN" to "15 MIN"
+                            ).forEach { (key, display) ->
+                                val isSelected = biometricLockTimeout == key
+                                CyberTabButton(
+                                    selected = isSelected,
+                                    onClick = { viewModel.setBiometricLockTimeout(key) },
+                                    label = display,
+                                    modifier = Modifier.weight(1f)
                                 )
                             }
                         }

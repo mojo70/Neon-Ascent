@@ -25,6 +25,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navDeepLink
@@ -96,8 +99,11 @@ import com.neon.ascent.feature.wallet.EurodollarWalletScreen
 import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.core.common.*
 import com.neon.ascent.data.AppSessionManager
+import com.neon.ascent.data.BiometricLockViewModel
 import com.neon.ascent.feature.biohacking.BiohackingViewModel
 import com.neon.ascent.feature.health.domain.uplink.UplinkProvider
+import com.neon.ascent.feature.loading.LoadingViewModel
+import com.neon.ascent.ui.components.BiometricLockOverlay
 import com.neon.ascent.util.derivePersonalityArchetype
 import com.neon.ascent.ui.components.NeonBottomBar
 import com.neon.ascent.ui.components.NavItem
@@ -109,7 +115,8 @@ fun AppNavigation(
     dashboardViewModel: DashboardViewModel = hiltViewModel(),
     notificationViewModel: NotificationPermissionViewModel = hiltViewModel(),
     workoutViewModel: com.neon.ascent.feature.workout.ui.WorkoutViewModel = hiltViewModel(),
-    loadingViewModel: com.neon.ascent.feature.loading.LoadingViewModel = hiltViewModel()
+    loadingViewModel: LoadingViewModel = hiltViewModel(),
+    biometricLockViewModel: BiometricLockViewModel = hiltViewModel()
 ) {
     val theme = LocalNeonTheme.current
     val navController = rememberNavController()
@@ -120,6 +127,28 @@ fun AppNavigation(
     val pendingNotification by notificationViewModel.pendingNotification.collectAsState()
     val pendingTaskId by notificationViewModel.pendingTaskId.collectAsState()
     var pendingGuideMessage by remember { mutableStateOf<String?>(null) }
+
+    val isBiometricLockEnabled by biometricLockViewModel.isBiometricLockEnabled.collectAsState()
+    val isAppUnlocked by biometricLockViewModel.isAppUnlocked.collectAsState()
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_STOP -> {
+                    biometricLockViewModel.onAppBackgrounded()
+                }
+                Lifecycle.Event.ON_START -> {
+                    biometricLockViewModel.onAppForegrounded()
+                }
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -1083,6 +1112,14 @@ fun AppNavigation(
                 }
             )
         }
+    }
+
+    if (isBiometricLockEnabled && !isAppUnlocked) {
+        BiometricLockOverlay(
+            onUnlockSuccess = {
+                biometricLockViewModel.unlock()
+            }
+        )
     }
 }
 

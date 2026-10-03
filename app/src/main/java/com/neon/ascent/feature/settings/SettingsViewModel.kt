@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import com.neon.ascent.data.AppSessionManager
+import com.neon.ascent.data.BiometricLockManager
 import com.neon.ascent.feature.notifications.data.SmartPingScheduler
 import com.neon.ascent.core.common.VisualMode
 import com.neon.ascent.core.domain.backup.models.*
@@ -63,6 +64,7 @@ class SettingsViewModel @Inject constructor(
     private val notificationScheduler: SmartPingScheduler,
     private val workoutRepository: WorkoutRepository,
     private val appSessionManager: AppSessionManager,
+    private val biometricLockManager: BiometricLockManager,
     private val fullDataBackupRepository: FullDataBackupRepository,
     private val ritesRepository: RitesRepository,
     private val googleDriveBackupManager: GoogleDriveBackupManager,
@@ -251,6 +253,9 @@ class SettingsViewModel @Inject constructor(
     val isBiometricLockEnabled: StateFlow<Boolean> = settingsRepository.isBiometricLockEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    val biometricLockTimeout: StateFlow<String> = settingsRepository.biometricLockTimeout
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "IMMEDIATE")
+
     val isReligionShortcutEnabled: StateFlow<Boolean> = settingsRepository.isReligionShortcutEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
@@ -396,6 +401,13 @@ class SettingsViewModel @Inject constructor(
     fun setBiometricLockEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setBiometricLockEnabled(enabled)
+            biometricLockManager.unlock()
+        }
+    }
+
+    fun setBiometricLockTimeout(timeout: String) {
+        viewModelScope.launch {
+            settingsRepository.setBiometricLockTimeout(timeout)
         }
     }
 

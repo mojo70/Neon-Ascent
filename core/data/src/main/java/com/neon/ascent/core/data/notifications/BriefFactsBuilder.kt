@@ -83,6 +83,12 @@ class BriefFactsBuilder @Inject constructor(
         val zone = ZoneId.systemDefault()
         val sleepWindowStart = LocalDate.now(zone).minusDays(1).atTime(18, 0).atZone(zone).toInstant()
 
+        if (healthManager.isAvailableAndHasPermissions()) {
+            try {
+                healthManager.performDailySync()
+            } catch (_: Exception) {}
+        }
+
         val (winnerSession, winnerAsleepMin) = if (healthManager.isAvailableAndHasPermissions()) {
             val sleepSessions = try { healthManager.sleepSessions(sleepWindowStart, now) } catch (_: Exception) { emptyList() }
             val winner = healthManager.pickCoreNight(sleepSessions, zone)
