@@ -11,6 +11,8 @@ interface HealthManager {
     suspend fun hasWeightPermission(): Boolean
     suspend fun hasHistoryPermission(): Boolean
     suspend fun isHistoryFeatureAvailable(): Boolean
+    suspend fun hasBackgroundPermission(): Boolean
+    suspend fun isBackgroundFeatureAvailable(): Boolean
     suspend fun getPermissionsToRequest(): Set<String>
     fun getPermissionRationale(): Map<String, String>
 

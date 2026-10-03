@@ -154,6 +154,31 @@ class HealthConnectManager @Inject constructor(
         }
     }
 
+    override suspend fun hasBackgroundPermission(): Boolean {
+        return try {
+            val availability = HealthConnectClient.getSdkStatus(context)
+            if (availability != HealthConnectClient.SDK_AVAILABLE) return false
+            val granted = healthConnectClient.permissionController.getGrantedPermissions()
+            PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND in granted
+        } catch (e: Throwable) {
+            false
+        }
+    }
+
+    @Suppress("OPT_IN_USAGE", "OPT_IN_USAGE_ERROR")
+    override suspend fun isBackgroundFeatureAvailable(): Boolean {
+        return try {
+            val availability = HealthConnectClient.getSdkStatus(context)
+            if (availability != HealthConnectClient.SDK_AVAILABLE) return false
+            val featureStatus = healthConnectClient.features.getFeatureStatus(
+                HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND
+            )
+            featureStatus == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+        } catch (e: Throwable) {
+            false
+        }
+    }
+
     /**
      * Get permissions to request.
      */
@@ -165,10 +190,17 @@ class HealthConnectManager @Inject constructor(
             }
             val granted = healthConnectClient.permissionController.getGrantedPermissions()
             val missing = requiredPermissions - granted
-            if (missing.isEmpty() && isHistoryFeatureAvailable() && PERMISSION_READ_HEALTH_DATA_HISTORY !in granted) {
-                setOf(PERMISSION_READ_HEALTH_DATA_HISTORY)
+            val extraToRequest = mutableSetOf<String>()
+            if (isHistoryFeatureAvailable() && PERMISSION_READ_HEALTH_DATA_HISTORY !in granted) {
+                extraToRequest.add(PERMISSION_READ_HEALTH_DATA_HISTORY)
+            }
+            if (isBackgroundFeatureAvailable() && PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND !in granted) {
+                extraToRequest.add(PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND)
+            }
+            if (missing.isEmpty()) {
+                extraToRequest
             } else {
-                missing
+                missing + extraToRequest
             }
         } catch (e: Throwable) {
             Log.e("HealthConnectManager", "Error getting permissions to request", e)
@@ -195,11 +227,13 @@ class HealthConnectManager @Inject constructor(
         BloodPressureRecord::class.simpleName!! to "Scale and cuff readings, and logs you save in Neon.",
         HeightRecord::class.simpleName!! to "Scale and cuff readings, and logs you save in Neon.",
         LeanBodyMassRecord::class.simpleName!! to "Scale and cuff readings, and logs you save in Neon.",
-        PERMISSION_READ_HEALTH_DATA_HISTORY to "Build sleep and heart baselines from nights already on this phone."
+        PERMISSION_READ_HEALTH_DATA_HISTORY to "Build sleep and heart baselines from nights already on this phone.",
+        PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND to "Keep sleep and recovery telemetry up-to-date in the background without needing to open the app."
     )
 
     companion object {
         const val PERMISSION_READ_HEALTH_DATA_HISTORY = "android.permission.health.READ_HEALTH_DATA_HISTORY"
+        const val PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND = "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"
     }
 
     /** 

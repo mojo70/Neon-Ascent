@@ -142,6 +142,9 @@ class BriefFactsBuilder @Inject constructor(
         val rhrCurrent = rhrEvents.firstOrNull { it.timestamp.isAfter(last24h) }?.value
         val rhrMean7d = rhrEvents.filter { it.timestamp.isAfter(last7d) }.map { it.value }.average().takeIf { !it.isNaN() }
 
+        val rhrCurrentRounded = rhrCurrent?.let { kotlin.math.round(it) }
+        val rhrMean7dRounded = rhrMean7d?.let { kotlin.math.round(it) }
+
         // 4. Sanctum Engine
         val sanctumResult = if (sleepMinutes != null && sleepMinutes > 0) {
             val sessionEnd = winnerSession?.endTime ?: lastSleepEvent?.timestamp ?: now
@@ -161,8 +164,8 @@ class BriefFactsBuilder @Inject constructor(
                 sleepMinutesLastNight = sleepMinutes,
                 sanctumScore = sanctumResult?.score,
                 sleepEndedAt = winnerSession?.endTime ?: lastSleepEvent?.timestamp,
-                rhrToday = rhrCurrent,
-                rhr7d = if (rhrMean7d != null) listOf(rhrMean7d, rhrMean7d, rhrMean7d, rhrMean7d, rhrMean7d) else emptyList(),
+                rhrToday = rhrCurrentRounded,
+                rhr7d = if (rhrMean7dRounded != null) listOf(rhrMean7dRounded, rhrMean7dRounded, rhrMean7dRounded, rhrMean7dRounded, rhrMean7dRounded) else emptyList(),
                 hrvToday = hrvCurrent,
                 hrv7d = if (hrvMean7d != null) listOf(hrvMean7d, hrvMean7d, hrvMean7d, hrvMean7d, hrvMean7d) else emptyList(),
                 stepsToday = 0L,
@@ -191,8 +194,8 @@ class BriefFactsBuilder @Inject constructor(
             chargeNow = chargeResult.value,
             hrvNight = hrvCurrent,
             hrvBaseline7d = hrvMean7d,
-            rhrLast = rhrCurrent,
-            rhrBaseline7d = rhrMean7d,
+            rhrLast = rhrCurrentRounded,
+            rhrBaseline7d = rhrMean7dRounded,
             stepsSoFar = 0L
         )
 

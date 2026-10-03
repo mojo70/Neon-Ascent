@@ -1,5 +1,9 @@
 package com.neon.ascent.feature.loading
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.pm.ActivityInfo
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
@@ -23,6 +27,7 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -43,6 +48,18 @@ fun LoadingScreen(
     onLoadingFinished: () -> Unit,
     viewModel: LoadingViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
+
+    // Lock screen orientation to Portrait during initial loading
+    DisposableEffect(context) {
+        val activity = context.findActivity()
+        val originalOrientation = activity?.requestedOrientation ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        onDispose {
+            activity?.requestedOrientation = originalOrientation
+        }
+    }
+
     val progress = remember { Animatable(0f) }
     val textMeasurer = rememberTextMeasurer()
     val aiType by viewModel.activeAiType.collectAsState()
@@ -358,3 +375,13 @@ fun LoadingScreen(
         }
     }
 }
+
+private fun Context.findActivity(): Activity? {
+    var ctx = this
+    while (ctx is ContextWrapper) {
+        if (ctx is Activity) return ctx
+        ctx = ctx.baseContext
+    }
+    return null
+}
+
