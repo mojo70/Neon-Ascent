@@ -1,7 +1,11 @@
 package com.neon.ascent.feature.codex.ui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
@@ -50,6 +54,7 @@ import java.time.format.DateTimeFormatter
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.Locale
+import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -1741,6 +1746,8 @@ fun SleepDualChart(
     val timeStr = if (mins > 0) "${hours}h ${mins}m" else "${hours}h"
     val headerText = "$timeStr · SANCTUM ${lastPt.secondaryValue.toInt()}"
 
+    var selectedIndex by remember(data) { mutableStateOf<Int?>(null) }
+
     val startDate = data.first().date
     val endDate = data.last().date
     val midIndex = data.size / 2
@@ -1785,6 +1792,43 @@ fun SleepDualChart(
             }
         }
 
+        AnimatedVisibility(visible = selectedIndex != null) {
+            val sel = data.getOrNull(selectedIndex ?: -1)
+            if (sel != null) {
+                val selDateStr = sel.date.format(DateTimeFormatter.ofPattern("EEE, MMM d"))
+                val hVal = sel.primaryValue.toInt()
+                val mVal = (((sel.primaryValue - hVal) * 60)).toInt()
+                val tDisplay = if (mVal > 0) "${hVal}h ${mVal}m" else "${hVal}h"
+                val selSleepStr = "$tDisplay · SANCTUM ${sel.secondaryValue.toInt()}"
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                        .background(cyanColor.copy(alpha = 0.15f), RoundedCornerShape(2.dp))
+                        .border(1.dp, cyanColor, RoundedCornerShape(2.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "$selDateStr: $selSleepStr",
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Clear Selection",
+                        tint = cyanColor,
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clickable { selectedIndex = null }
+                    )
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(12.dp))
 
         Row(
@@ -1810,6 +1854,39 @@ fun SleepDualChart(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
+                    .pointerInput(data) {
+                        detectTapGestures { offset ->
+                            val w = size.width
+                            val touchX = offset.x
+                            val div = (data.size - 1).toFloat().coerceAtLeast(1f)
+                            selectedIndex = data.indices.minByOrNull { i ->
+                                val ptX = if (data.size > 1) i * (w / div) else w / 2f
+                                abs(ptX - touchX)
+                            }
+                        }
+                    }
+                    .pointerInput(data) {
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                val w = size.width
+                                val touchX = offset.x
+                                val div = (data.size - 1).toFloat().coerceAtLeast(1f)
+                                selectedIndex = data.indices.minByOrNull { i ->
+                                    val ptX = if (data.size > 1) i * (w / div) else w / 2f
+                                    abs(ptX - touchX)
+                                }
+                            },
+                            onDrag = { change, _ ->
+                                val w = size.width
+                                val touchX = change.position.x
+                                val div = (data.size - 1).toFloat().coerceAtLeast(1f)
+                                selectedIndex = data.indices.minByOrNull { i ->
+                                    val ptX = if (data.size > 1) i * (w / div) else w / 2f
+                                    abs(ptX - touchX)
+                                }
+                            }
+                        )
+                    }
             ) {
                 val w = size.width
                 val h = size.height
@@ -1838,6 +1915,33 @@ fun SleepDualChart(
 
                     drawPath(sleepPath, color = cyanColor, style = Stroke(width = 2.dp.toPx()))
                     drawPath(sanctumPath, color = greenColor, style = Stroke(width = 2.dp.toPx()))
+                }
+
+                // Selected Point Guideline and Highlights
+                val idx = selectedIndex
+                if (idx != null && idx in data.indices) {
+                    val selPt = data[idx]
+                    val selX = if (data.size > 1) idx * (w / (data.size - 1)) else w / 2f
+                    val sleepY = h - (selPt.primaryValue / 12.0 * h).coerceIn(0.0, h.toDouble()).toFloat()
+                    val sanctumY = h - (selPt.secondaryValue / 100.0 * h).coerceIn(0.0, h.toDouble()).toFloat()
+
+                    drawLine(
+                        color = Color.White.copy(alpha = 0.7f),
+                        start = Offset(selX, 0f),
+                        end = Offset(selX, h),
+                        strokeWidth = 1.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
+                    )
+
+                    // Sleep Highlight
+                    drawCircle(cyanColor.copy(alpha = 0.35f), 8.dp.toPx(), Offset(selX, sleepY))
+                    drawCircle(Color.White, 4.dp.toPx(), Offset(selX, sleepY))
+                    drawCircle(cyanColor, 2.5.dp.toPx(), Offset(selX, sleepY))
+
+                    // Sanctum Highlight
+                    drawCircle(greenColor.copy(alpha = 0.35f), 8.dp.toPx(), Offset(selX, sanctumY))
+                    drawCircle(Color.White, 4.dp.toPx(), Offset(selX, sanctumY))
+                    drawCircle(greenColor, 2.5.dp.toPx(), Offset(selX, sanctumY))
                 }
             }
         }
@@ -1898,6 +2002,8 @@ fun BloodPressureDualChart(
     val lastPt = data.last()
     val headerText = "${lastPt.primaryValue.toInt()}/${lastPt.secondaryValue.toInt()} mmHg"
 
+    var selectedIndex by remember(data) { mutableStateOf<Int?>(null) }
+
     val startDate = data.first().date
     val endDate = data.last().date
 
@@ -1948,6 +2054,40 @@ fun BloodPressureDualChart(
             }
         }
 
+        AnimatedVisibility(visible = selectedIndex != null) {
+            val sel = data.getOrNull(selectedIndex ?: -1)
+            if (sel != null) {
+                val selDateStr = sel.date.format(DateTimeFormatter.ofPattern("EEE, MMM d"))
+                val selBpStr = "${sel.primaryValue.toInt()}/${sel.secondaryValue.toInt()} mmHg"
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                        .background(cyanColor.copy(alpha = 0.15f), RoundedCornerShape(2.dp))
+                        .border(1.dp, cyanColor, RoundedCornerShape(2.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "$selDateStr: $selBpStr",
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Clear Selection",
+                        tint = cyanColor,
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clickable { selectedIndex = null }
+                    )
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(12.dp))
 
         // Chart area with Y-axis ticks
@@ -1974,6 +2114,39 @@ fun BloodPressureDualChart(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
+                    .pointerInput(data) {
+                        detectTapGestures { offset ->
+                            val w = size.width
+                            val touchX = offset.x
+                            val div = (data.size - 1).toFloat().coerceAtLeast(1f)
+                            selectedIndex = data.indices.minByOrNull { i ->
+                                val ptX = if (data.size > 1) i * (w / div) else w / 2f
+                                abs(ptX - touchX)
+                            }
+                        }
+                    }
+                    .pointerInput(data) {
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                val w = size.width
+                                val touchX = offset.x
+                                val div = (data.size - 1).toFloat().coerceAtLeast(1f)
+                                selectedIndex = data.indices.minByOrNull { i ->
+                                    val ptX = if (data.size > 1) i * (w / div) else w / 2f
+                                    abs(ptX - touchX)
+                                }
+                            },
+                            onDrag = { change, _ ->
+                                val w = size.width
+                                val touchX = change.position.x
+                                val div = (data.size - 1).toFloat().coerceAtLeast(1f)
+                                selectedIndex = data.indices.minByOrNull { i ->
+                                    val ptX = if (data.size > 1) i * (w / div) else w / 2f
+                                    abs(ptX - touchX)
+                                }
+                            }
+                        )
+                    }
             ) {
                 val w = size.width
                 val h = size.height
@@ -2040,6 +2213,33 @@ fun BloodPressureDualChart(
                     val yDia = h - ((lastPt.secondaryValue - minY) / rangeY * h).toFloat()
                     drawCircle(cyanColor, 4.dp.toPx(), Offset(x, ySys))
                     drawCircle(pinkColor, 4.dp.toPx(), Offset(x, yDia))
+                }
+
+                // Selected Point Guideline and Highlights
+                val idx = selectedIndex
+                if (idx != null && idx in data.indices) {
+                    val selPt = data[idx]
+                    val selX = if (data.size > 1) idx * (w / (data.size - 1)) else w / 2f
+                    val ySys = h - ((selPt.primaryValue - minY) / rangeY * h).toFloat()
+                    val yDia = h - ((selPt.secondaryValue - minY) / rangeY * h).toFloat()
+
+                    drawLine(
+                        color = Color.White.copy(alpha = 0.7f),
+                        start = Offset(selX, 0f),
+                        end = Offset(selX, h),
+                        strokeWidth = 1.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
+                    )
+
+                    // Systolic Highlight
+                    drawCircle(cyanColor.copy(alpha = 0.35f), 8.dp.toPx(), Offset(selX, ySys))
+                    drawCircle(Color.White, 4.dp.toPx(), Offset(selX, ySys))
+                    drawCircle(cyanColor, 2.5.dp.toPx(), Offset(selX, ySys))
+
+                    // Diastolic Highlight
+                    drawCircle(pinkColor.copy(alpha = 0.35f), 8.dp.toPx(), Offset(selX, yDia))
+                    drawCircle(Color.White, 4.dp.toPx(), Offset(selX, yDia))
+                    drawCircle(pinkColor, 2.5.dp.toPx(), Offset(selX, yDia))
                 }
             }
         }
@@ -2361,6 +2561,8 @@ fun VitalsChart(
     val gridColor = Color.White.copy(alpha = 0.08f)
     val labelColor = Color.Gray
 
+    var selectedIndex by remember(data) { mutableStateOf<Int?>(null) }
+
     val rawMin = data.minOf { it.value }
     val rawMax = data.maxOf { it.value }
     val rawRange = rawMax - rawMin
@@ -2428,6 +2630,40 @@ fun VitalsChart(
             )
         }
 
+        AnimatedVisibility(visible = selectedIndex != null) {
+            val sel = data.getOrNull(selectedIndex ?: -1)
+            if (sel != null) {
+                val selDateStr = sel.date.format(DateTimeFormatter.ofPattern("EEE, MMM d"))
+                val selValStr = formatHeaderValue(sel.value, vitalsType, isImperial)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                        .background(cyanColor.copy(alpha = 0.15f), RoundedCornerShape(2.dp))
+                        .border(1.dp, cyanColor, RoundedCornerShape(2.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "$selDateStr: $selValStr",
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Clear Selection",
+                        tint = cyanColor,
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clickable { selectedIndex = null }
+                    )
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(12.dp))
 
         // Chart area with Y-axis ticks
@@ -2456,6 +2692,36 @@ fun VitalsChart(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
+                    .pointerInput(data, daysRange) {
+                        detectTapGestures { offset ->
+                            val w = size.width
+                            val touchX = offset.x
+                            selectedIndex = data.indices.minByOrNull { i ->
+                                val pointX = (ChronoUnit.DAYS.between(startDate, data[i].date).toFloat() / daysRange) * w
+                                abs(pointX - touchX)
+                            }
+                        }
+                    }
+                    .pointerInput(data, daysRange) {
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                val w = size.width
+                                val touchX = offset.x
+                                selectedIndex = data.indices.minByOrNull { i ->
+                                    val pointX = (ChronoUnit.DAYS.between(startDate, data[i].date).toFloat() / daysRange) * w
+                                    abs(pointX - touchX)
+                                }
+                            },
+                            onDrag = { change, _ ->
+                                val w = size.width
+                                val touchX = change.position.x
+                                selectedIndex = data.indices.minByOrNull { i ->
+                                    val pointX = (ChronoUnit.DAYS.between(startDate, data[i].date).toFloat() / daysRange) * w
+                                    abs(pointX - touchX)
+                                }
+                            }
+                        )
+                    }
             ) {
                 val w = size.width
                 val h = size.height
@@ -2509,6 +2775,39 @@ fun VitalsChart(
                         color = cyanColor,
                         radius = 2.5.dp.toPx(),
                         center = Offset(x, y)
+                    )
+                }
+
+                // Selected Point Guideline and Highlight
+                val idx = selectedIndex
+                if (idx != null && idx in data.indices) {
+                    val selPoint = data[idx]
+                    val d = ChronoUnit.DAYS.between(startDate, selPoint.date)
+                    val selX = (d.toFloat() / daysRange) * w
+                    val selY = h - (((selPoint.value - minY) / rangeY) * h).toFloat()
+
+                    drawLine(
+                        color = Color.White.copy(alpha = 0.7f),
+                        start = Offset(selX, 0f),
+                        end = Offset(selX, h),
+                        strokeWidth = 1.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
+                    )
+
+                    drawCircle(
+                        color = cyanColor.copy(alpha = 0.35f),
+                        radius = 8.dp.toPx(),
+                        center = Offset(selX, selY)
+                    )
+                    drawCircle(
+                        color = Color.White,
+                        radius = 4.dp.toPx(),
+                        center = Offset(selX, selY)
+                    )
+                    drawCircle(
+                        color = cyanColor,
+                        radius = 2.5.dp.toPx(),
+                        center = Offset(selX, selY)
                     )
                 }
             }
