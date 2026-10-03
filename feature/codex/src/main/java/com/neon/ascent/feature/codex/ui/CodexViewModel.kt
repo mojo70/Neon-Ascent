@@ -75,8 +75,8 @@ data class CodexUiState(
     val isLoading: Boolean = false,
     
     // Vitals State
-    val vitalsGroup: VitalsGroup = VitalsGroup.SLEEP,
-    val vitalsType: VitalsType = VitalsType.WEIGHT,
+    val vitalsGroup: VitalsGroup = VitalsGroup.BODY,
+    val vitalsType: VitalsType = VitalsType.BLOOD_PRESSURE,
     val vitalsData: List<VitalsPoint> = emptyList(),
     val sleepDualPoints: List<DualVitalsPoint> = emptyList(),
     val hrvNightPoints: List<VitalsPoint> = emptyList(),
@@ -116,11 +116,11 @@ data class CodexUiState(
 )
 
 enum class VitalsGroup(val label: String) {
+    BODY("BODY"),
     SLEEP("SLEEP"),
     TANK("TANK"),
     HEART("HEART"),
     MOVE("MOVE"),
-    BODY("BODY"),
     FUEL("FUEL"),
     RITES("RITES")
 }
@@ -426,8 +426,24 @@ class CodexViewModel @Inject constructor(
     }
 
     fun selectVitalsGroup(group: VitalsGroup) {
-        _uiState.update { it.copy(vitalsGroup = group) }
+        val nextType = when (group) {
+            VitalsGroup.BODY -> {
+                if (_uiState.value.vitalsType in listOf(VitalsType.BLOOD_PRESSURE, VitalsType.WEIGHT, VitalsType.BF_PCT, VitalsType.BODY_MEASUREMENTS)) {
+                    _uiState.value.vitalsType
+                } else {
+                    VitalsType.BLOOD_PRESSURE
+                }
+            }
+            VitalsGroup.SLEEP -> VitalsType.SLEEP_MIN
+            VitalsGroup.TANK -> VitalsType.SANCTUM
+            VitalsGroup.HEART -> VitalsType.RHR
+            VitalsGroup.MOVE -> VitalsType.STEPS
+            VitalsGroup.FUEL -> VitalsType.KCAL_EATEN
+            VitalsGroup.RITES -> VitalsType.SANCTUM
+        }
+        _uiState.update { it.copy(vitalsGroup = group, vitalsType = nextType) }
         loadVitalsGroupData(_uiState.value.selectedPeriod, group)
+        loadVitalsData(_uiState.value.selectedPeriod, nextType)
     }
 
     fun selectVitalsType(type: VitalsType) {

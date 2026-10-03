@@ -572,14 +572,14 @@ fun VitalsWing(
             }
         }
 
-        // Sub-type selector when BODY group is active
+        // Sub-type selector and controls when BODY group is active
         if (uiState.vitalsGroup == VitalsGroup.BODY) {
             Spacer(modifier = Modifier.height(12.dp))
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                items(listOf(VitalsType.WEIGHT, VitalsType.BF_PCT, VitalsType.BODY_MEASUREMENTS, VitalsType.BLOOD_PRESSURE)) { type ->
+                items(listOf(VitalsType.BLOOD_PRESSURE, VitalsType.WEIGHT, VitalsType.BF_PCT, VitalsType.BODY_MEASUREMENTS)) { type ->
                     val isSelected = uiState.vitalsType == type
                     FilterChip(
                         selected = isSelected,
@@ -606,74 +606,105 @@ fun VitalsWing(
                     )
                 }
             }
-        }
 
-        // Posture Chips for BLOOD_PRESSURE
-        if (uiState.vitalsType == VitalsType.BLOOD_PRESSURE) {
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("SITTING", "STANDING").forEach { pos ->
-                    val isSelected = uiState.selectedBpPosition == pos
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { onBpPositionSelected(pos) },
-                        label = {
-                            Text(
-                                text = "POSTURE: $pos",
-                                fontSize = 9.sp,
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                            )
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFF00CCFF).copy(alpha = 0.2f),
-                            selectedLabelColor = Color(0xFF00CCFF),
-                            labelColor = Color.Gray
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
+            // Posture Chips for BLOOD_PRESSURE
+            if (uiState.vitalsType == VitalsType.BLOOD_PRESSURE) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("SITTING", "STANDING").forEach { pos ->
+                        val isSelected = uiState.selectedBpPosition == pos
+                        FilterChip(
                             selected = isSelected,
-                            borderColor = Color.DarkGray,
-                            selectedBorderColor = Color(0xFF00CCFF)
+                            onClick = { onBpPositionSelected(pos) },
+                            label = {
+                                Text(
+                                    text = "POSTURE: $pos",
+                                    fontSize = 9.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFF00CCFF).copy(alpha = 0.2f),
+                                selectedLabelColor = Color(0xFF00CCFF),
+                                labelColor = Color.Gray
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = isSelected,
+                                borderColor = Color.DarkGray,
+                                selectedBorderColor = Color(0xFF00CCFF)
+                            )
                         )
-                    )
+                    }
                 }
             }
-        }
 
-        // BF% Method Chips (shown only when BF_PCT is selected and multiple methods exist)
-        if (uiState.vitalsType == VitalsType.BF_PCT && uiState.availableBfMethods.size > 1) {
-            Spacer(modifier = Modifier.height(12.dp))
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                items(uiState.availableBfMethods) { method ->
-                    val isSelected = uiState.selectedBfMethod == method
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { onBfMethodSelected(method) },
-                        label = {
-                            Text(
-                                text = "METHOD: $method",
-                                fontSize = 9.sp,
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                            )
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFFFF0088).copy(alpha = 0.2f),
-                            selectedLabelColor = Color(0xFFFF0088),
-                            labelColor = Color.Gray
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
+            // BF% Method Chips (shown only when BF_PCT is selected and multiple methods exist)
+            if (uiState.vitalsType == VitalsType.BF_PCT && uiState.availableBfMethods.size > 1) {
+                Spacer(modifier = Modifier.height(12.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(uiState.availableBfMethods) { method ->
+                        val isSelected = uiState.selectedBfMethod == method
+                        FilterChip(
                             selected = isSelected,
-                            borderColor = Color.DarkGray,
-                            selectedBorderColor = Color(0xFFFF0088)
+                            onClick = { onBfMethodSelected(method) },
+                            label = {
+                                Text(
+                                    text = "METHOD: $method",
+                                    fontSize = 9.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFFFF0088).copy(alpha = 0.2f),
+                                selectedLabelColor = Color(0xFFFF0088),
+                                labelColor = Color.Gray
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = isSelected,
+                                borderColor = Color.DarkGray,
+                                selectedBorderColor = Color(0xFFFF0088)
+                            )
                         )
-                    )
+                    }
                 }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = { showRecordDialog = true },
+                modifier = Modifier.fillMaxWidth().height(42.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF00CCFF),
+                    contentColor = Color.Black
+                ),
+                shape = RoundedCornerShape(2.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = null,
+                    tint = Color.Black,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = when (uiState.vitalsType) {
+                        VitalsType.BLOOD_PRESSURE -> "+ RECORD BLOOD PRESSURE"
+                        VitalsType.WEIGHT -> "+ RECORD WEIGHT"
+                        VitalsType.BF_PCT -> "+ RECORD BODY FAT %"
+                        else -> "+ RECORD ENTRY"
+                    },
+                    fontWeight = FontWeight.Black,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 12.sp,
+                    letterSpacing = 1.sp
+                )
             }
         }
 
@@ -761,7 +792,8 @@ fun VitalsWing(
                                     data = section.data,
                                     sessionSummaries = uiState.sessionSummaries,
                                     vitalsType = VitalsType.BODY_MEASUREMENTS,
-                                    customTitle = "${section.displayName}_TIMELINE"
+                                    customTitle = "${section.displayName}_TIMELINE",
+                                    isImperial = isImperial
                                 )
                             }
                         }
@@ -795,7 +827,12 @@ fun VitalsWing(
                             Text("NOT_LOGGED", color = Color.Gray, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                         }
                     } else {
-                        VitalsChart(uiState.vitalsData, uiState.sessionSummaries, uiState.vitalsType)
+                        VitalsChart(
+                            data = uiState.vitalsData,
+                            sessionSummaries = uiState.sessionSummaries,
+                            vitalsType = uiState.vitalsType,
+                            isImperial = isImperial
+                        )
                     }
                 }
             }
@@ -1464,7 +1501,7 @@ fun RecoveryMetric(label: String, value: String, color: Color, modifier: Modifie
     }
 }
 
-fun formatHeaderValue(value: Double, type: VitalsType): String {
+fun formatHeaderValue(value: Double, type: VitalsType, isImperial: Boolean = false): String {
     return when (type) {
         VitalsType.SANCTUM -> "${value.toInt()}"
         VitalsType.STEPS -> {
@@ -1482,14 +1519,22 @@ fun formatHeaderValue(value: Double, type: VitalsType): String {
             String.format(Locale.US, "%.1f H", hours)
         }
         VitalsType.KCAL_TOTAL, VitalsType.KCAL_EATEN -> "${value.toInt()} KCAL"
-        VitalsType.WEIGHT -> String.format(Locale.US, "%.1f KG", value)
+        VitalsType.WEIGHT -> {
+            val displayVal = if (isImperial) value * 2.20462262 else value
+            val unit = if (isImperial) "LBS" else "KG"
+            String.format(Locale.US, "%.1f %s", displayVal, unit)
+        }
         VitalsType.BF_PCT -> String.format(Locale.US, "%.1f%%", value)
-        VitalsType.BODY_MEASUREMENTS -> String.format(Locale.US, "%.1f CM", value)
+        VitalsType.BODY_MEASUREMENTS -> {
+            val displayVal = if (isImperial) value * 0.393700787 else value
+            val unit = if (isImperial) "IN" else "CM"
+            String.format(Locale.US, "%.1f %s", displayVal, unit)
+        }
         VitalsType.BLOOD_PRESSURE -> "${value.toInt()} mmHg"
     }
 }
 
-fun formatAxisValue(value: Double, type: VitalsType): String {
+fun formatAxisValue(value: Double, type: VitalsType, isImperial: Boolean = false): String {
     return when (type) {
         VitalsType.SANCTUM -> "${value.toInt()}"
         VitalsType.STEPS -> {
@@ -1506,9 +1551,15 @@ fun formatAxisValue(value: Double, type: VitalsType): String {
             String.format(Locale.US, "%.1fH", hours)
         }
         VitalsType.KCAL_TOTAL, VitalsType.KCAL_EATEN -> "${value.toInt()}"
-        VitalsType.WEIGHT -> String.format(Locale.US, "%.1f", value)
+        VitalsType.WEIGHT -> {
+            val displayVal = if (isImperial) value * 2.20462262 else value
+            String.format(Locale.US, "%.1f", displayVal)
+        }
         VitalsType.BF_PCT -> String.format(Locale.US, "%.1f", value)
-        VitalsType.BODY_MEASUREMENTS -> String.format(Locale.US, "%.1f", value)
+        VitalsType.BODY_MEASUREMENTS -> {
+            val displayVal = if (isImperial) value * 0.393700787 else value
+            String.format(Locale.US, "%.1f", displayVal)
+        }
         VitalsType.BLOOD_PRESSURE -> "${value.toInt()}"
     }
 }
@@ -2282,7 +2333,8 @@ fun VitalsChart(
     data: List<VitalsPoint>,
     sessionSummaries: List<SessionSummary>,
     vitalsType: VitalsType,
-    customTitle: String? = null
+    customTitle: String? = null,
+    isImperial: Boolean = false
 ) {
     if (data.isEmpty()) {
         Box(
@@ -2329,7 +2381,7 @@ fun VitalsChart(
     val rangeY = (maxY - minY).coerceAtLeast(1.0)
 
     val lastValue = data.last().value
-    val headerText = formatHeaderValue(lastValue, vitalsType)
+    val headerText = formatHeaderValue(lastValue, vitalsType, isImperial)
 
     val startDate = data.first().date
     val endDate = data.last().date
@@ -2343,9 +2395,9 @@ fun VitalsChart(
     val midDateStr = midDate.format(dateFormatter)
     val endDateStr = endDate.format(dateFormatter)
 
-    val maxLabel = formatAxisValue(maxY, vitalsType)
-    val midLabel = formatAxisValue(midY, vitalsType)
-    val minLabel = formatAxisValue(minY, vitalsType)
+    val maxLabel = formatAxisValue(maxY, vitalsType, isImperial)
+    val midLabel = formatAxisValue(midY, vitalsType, isImperial)
+    val minLabel = formatAxisValue(minY, vitalsType, isImperial)
 
     Column(
         modifier = Modifier

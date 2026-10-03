@@ -1686,26 +1686,54 @@ fun BodyLogCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 BodyCompactField("WAIST", waistStr, Modifier.weight(1f), neonCyan)
-                BodyCompactField("BP (SIT)", bpStr, Modifier.weight(1f), neonCyan)
+                BodyCompactField(
+                    "BP (SIT)",
+                    bpStr,
+                    Modifier.weight(1f).clickable { onLogBodyClick() },
+                    neonCyan
+                )
             }
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            Button(
-                onClick = onLogBodyClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(36.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = neonCyan),
-                shape = RoundedCornerShape(2.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = "LOG_BODY",
-                    color = Color.Black,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 11.sp
-                )
+                Button(
+                    onClick = onLogBodyClick,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(36.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = neonCyan),
+                    shape = RoundedCornerShape(2.dp)
+                ) {
+                    Text(
+                        text = "LOG_BLOOD_PRESSURE",
+                        color = Color.Black,
+                        fontWeight = FontWeight.Black,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 10.sp
+                    )
+                }
+
+                Button(
+                    onClick = onLogBodyClick,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(36.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = theme.overlay, contentColor = neonCyan),
+                    shape = RoundedCornerShape(2.dp),
+                    border = BorderStroke(1.dp, neonCyan.copy(alpha = 0.5f))
+                ) {
+                    Text(
+                        text = "LOG_ALL_BODY",
+                        color = neonCyan,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 10.sp
+                    )
+                }
             }
         }
     }
