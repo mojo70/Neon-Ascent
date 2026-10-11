@@ -362,6 +362,10 @@ fun InteractiveRadialMap(
     val theme = LocalNeonTheme.current
     val cyan = theme.accent
 
+    val currentItems by rememberUpdatedState(items)
+    val currentOnNodeTapped by rememberUpdatedState(onNodeTapped)
+    val currentOnNodeDragged by rememberUpdatedState(onNodeDragged)
+
     var zoomScale by remember { mutableFloatStateOf(1.0f) }
     var panOffset by remember { mutableStateOf(Offset.Zero) }
 
@@ -380,7 +384,7 @@ fun InteractiveRadialMap(
                         }
                     }
                 }
-                .pointerInput(items, zoomScale, panOffset) {
+                .pointerInput(Unit) {
                     detectTapGestures(
                         onDoubleTap = {
                             zoomScale = 1.0f
@@ -390,50 +394,52 @@ fun InteractiveRadialMap(
                             val center = Offset(size.width / 2f, size.height / 2f)
                             val maxRadius = minOf(size.width, size.height) / 2f * 0.85f
 
-                            val clickedItem = items.firstOrNull { item ->
-                                val modelOffset = calculateNodeOffset(item, items, center, maxRadius)
+                            val clickedItem = currentItems.firstOrNull { item ->
+                                val modelOffset = calculateNodeOffset(item, currentItems, center, maxRadius)
                                 val screenOffset = center + panOffset + (modelOffset - center) * zoomScale
                                 (tapOffset - screenOffset).getDistance() <= 28.dp.toPx()
                             }
                             if (clickedItem != null) {
-                                onNodeTapped(clickedItem)
+                                currentOnNodeTapped(clickedItem)
                             }
                         }
                     )
                 }
-                .pointerInput(items, zoomScale, panOffset) {
+                .pointerInput(Unit) {
                     detectDragGestures(
                         onDragStart = { startOffset ->
                             val center = Offset(size.width / 2f, size.height / 2f)
                             val maxRadius = minOf(size.width, size.height) / 2f * 0.85f
 
-                            val target = items.firstOrNull { item ->
-                                val modelOffset = calculateNodeOffset(item, items, center, maxRadius)
+                            val target = currentItems.firstOrNull { item ->
+                                val modelOffset = calculateNodeOffset(item, currentItems, center, maxRadius)
                                 val screenOffset = center + panOffset + (modelOffset - center) * zoomScale
                                 (startOffset - screenOffset).getDistance() <= 32.dp.toPx()
                             }
                             if (target != null) {
                                 draggingItemId = target.id
                                 dragPos = startOffset
+                            } else {
+                                draggingItemId = null
                             }
                         },
                         onDrag = { change, dragAmount ->
-                            change.consume()
                             if (draggingItemId != null) {
+                                change.consume()
                                 dragPos += dragAmount
                             }
                         },
                         onDragEnd = {
                             val currentId = draggingItemId
                             if (currentId != null) {
-                                val targetItem = items.firstOrNull { it.id == currentId }
+                                val targetItem = currentItems.firstOrNull { it.id == currentId }
                                 if (targetItem != null) {
                                     val center = Offset(size.width / 2f, size.height / 2f)
                                     val maxRadius = minOf(size.width, size.height) / 2f * 0.85f
                                     val modelDragPos = center + (dragPos - center - panOffset) / zoomScale
                                     val currentDist = (modelDragPos - center).getDistance()
                                     val newImp = (1.0f - (currentDist / maxRadius)).coerceIn(0.0f, 1.0f)
-                                    onNodeDragged(targetItem, newImp)
+                                    currentOnNodeDragged(targetItem, newImp)
                                 }
                             }
                             draggingItemId = null
@@ -445,160 +451,159 @@ fun InteractiveRadialMap(
                 }
         ) {
             val center = Offset(size.width / 2f, size.height / 2f)
+            val screenCenter = center + panOffset
             val maxRadius = minOf(size.width, size.height) / 2f * 0.85f
 
-            translate(panOffset.x, panOffset.y) {
-                scale(zoomScale, zoomScale, center) {
-                    // --- 1. VIVID CYBERPUNK GRID LINES ---
-                    val gridSpacing = 40.dp.toPx()
-                    val gridColor = Color(0xFF00FFFF).copy(alpha = 0.12f)
-                    val gridLinePx = 1.dp.toPx()
+            // --- 1. VIVID CYBERPUNK GRID LINES ---
+            val gridSpacing = 40.dp.toPx()
+            val gridColor = Color(0xFF00FFFF).copy(alpha = 0.12f)
+            val gridLinePx = 1.dp.toPx()
 
-                    for (y in 0..size.height.toInt() step gridSpacing.toInt()) {
-                        drawLine(
-                            color = gridColor,
-                            start = Offset(0f, y.toFloat()),
-                            end = Offset(size.width, y.toFloat()),
-                            strokeWidth = gridLinePx
-                        )
-                    }
-                    for (x in 0..size.width.toInt() step gridSpacing.toInt()) {
-                        drawLine(
-                            color = gridColor,
-                            start = Offset(x.toFloat(), 0f),
-                            end = Offset(x.toFloat(), size.height),
-                            strokeWidth = gridLinePx
-                        )
-                    }
+            for (y in 0..size.height.toInt() step gridSpacing.toInt()) {
+                drawLine(
+                    color = gridColor,
+                    start = Offset(0f, y.toFloat()),
+                    end = Offset(size.width, y.toFloat()),
+                    strokeWidth = gridLinePx
+                )
+            }
+            for (x in 0..size.width.toInt() step gridSpacing.toInt()) {
+                drawLine(
+                    color = gridColor,
+                    start = Offset(x.toFloat(), 0f),
+                    end = Offset(x.toFloat(), size.height),
+                    strokeWidth = gridLinePx
+                )
+            }
 
-                    val textPaint = android.graphics.Paint().apply {
-                        isAntiAlias = true
-                        textSize = 26f
-                        typeface = android.graphics.Typeface.MONOSPACE
-                        textAlign = android.graphics.Paint.Align.CENTER
-                    }
+            val ringTextPaint = android.graphics.Paint().apply {
+                isAntiAlias = true
+                textSize = 11.sp.toPx()
+                typeface = android.graphics.Typeface.MONOSPACE
+                textAlign = android.graphics.Paint.Align.CENTER
+            }
 
-                    // --- 2. HIGH-CONTRAST CONCENTRIC POWER RINGS ---
-                    val rCore = maxRadius * 0.3f
-                    drawCircle(
-                        color = Color(0xFFFF0055).copy(alpha = 0.15f),
-                        radius = rCore,
-                        center = center
-                    )
-                    drawCircle(
-                        color = Color(0xFFFF0055).copy(alpha = 0.85f),
-                        radius = rCore,
-                        center = center,
-                        style = Stroke(width = 2.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 12f), 0f))
-                    )
-                    textPaint.color = android.graphics.Color.parseColor("#FFFF0055")
-                    drawContext.canvas.nativeCanvas.drawText("CORE (0.7-1.0)", center.x, center.y - rCore + 30f, textPaint)
+            // --- 2. HIGH-CONTRAST CONCENTRIC POWER RINGS ---
+            val rCore = maxRadius * 0.3f * zoomScale
+            drawCircle(
+                color = Color(0xFFFF0055).copy(alpha = 0.15f),
+                radius = rCore,
+                center = screenCenter
+            )
+            drawCircle(
+                color = Color(0xFFFF0055).copy(alpha = 0.85f),
+                radius = rCore,
+                center = screenCenter,
+                style = Stroke(width = 2.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 12f), 0f))
+            )
+            ringTextPaint.color = android.graphics.Color.parseColor("#FFFF0055")
+            drawContext.canvas.nativeCanvas.drawText("CORE (0.7-1.0)", screenCenter.x, screenCenter.y - rCore + 24f, ringTextPaint)
 
-                    val rHigh = maxRadius * 0.6f
-                    drawCircle(
-                        color = Color(0xFF00FFFF).copy(alpha = 0.1f),
-                        radius = rHigh,
-                        center = center
-                    )
-                    drawCircle(
-                        color = Color(0xFF00FFFF).copy(alpha = 0.75f),
-                        radius = rHigh,
-                        center = center,
-                        style = Stroke(width = 2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f))
-                    )
-                    textPaint.color = android.graphics.Color.parseColor("#FF00FFFF")
-                    drawContext.canvas.nativeCanvas.drawText("HIGH (0.4-0.7)", center.x, center.y - rHigh + 30f, textPaint)
+            val rHigh = maxRadius * 0.6f * zoomScale
+            drawCircle(
+                color = Color(0xFF00FFFF).copy(alpha = 0.1f),
+                radius = rHigh,
+                center = screenCenter
+            )
+            drawCircle(
+                color = Color(0xFF00FFFF).copy(alpha = 0.75f),
+                radius = rHigh,
+                center = screenCenter,
+                style = Stroke(width = 2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f))
+            )
+            ringTextPaint.color = android.graphics.Color.parseColor("#FF00FFFF")
+            drawContext.canvas.nativeCanvas.drawText("HIGH (0.4-0.7)", screenCenter.x, screenCenter.y - rHigh + 24f, ringTextPaint)
 
-                    val rMed = maxRadius * 0.8f
-                    drawCircle(
-                        color = Color(0xFFFFD700).copy(alpha = 0.65f),
-                        radius = rMed,
-                        center = center,
-                        style = Stroke(width = 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f))
-                    )
-                    textPaint.color = android.graphics.Color.parseColor("#FFFFD700")
-                    drawContext.canvas.nativeCanvas.drawText("MEDIUM (0.2-0.4)", center.x, center.y - rMed + 30f, textPaint)
+            val rMed = maxRadius * 0.8f * zoomScale
+            drawCircle(
+                color = Color(0xFFFFD700).copy(alpha = 0.65f),
+                radius = rMed,
+                center = screenCenter,
+                style = Stroke(width = 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f))
+            )
+            ringTextPaint.color = android.graphics.Color.parseColor("#FFFFD700")
+            drawContext.canvas.nativeCanvas.drawText("MEDIUM (0.2-0.4)", screenCenter.x, screenCenter.y - rMed + 24f, ringTextPaint)
 
-                    drawCircle(
-                        color = Color(0xFF00FF9F).copy(alpha = 0.55f),
-                        radius = maxRadius,
-                        center = center,
-                        style = Stroke(width = 1.5.dp.toPx())
-                    )
-                    textPaint.color = android.graphics.Color.parseColor("#FF00FF9F")
-                    drawContext.canvas.nativeCanvas.drawText("PERIPHERAL (0.0-0.2)", center.x, center.y - maxRadius + 30f, textPaint)
+            val scaledMaxRadius = maxRadius * zoomScale
+            drawCircle(
+                color = Color(0xFF00FF9F).copy(alpha = 0.55f),
+                radius = scaledMaxRadius,
+                center = screenCenter,
+                style = Stroke(width = 1.5.dp.toPx())
+            )
+            ringTextPaint.color = android.graphics.Color.parseColor("#FF00FF9F")
+            drawContext.canvas.nativeCanvas.drawText("PERIPHERAL (0.0-0.2)", screenCenter.x, screenCenter.y - scaledMaxRadius + 24f, ringTextPaint)
 
-                    // --- 3. CENTER "SELF" NODE ---
-                    drawCircle(
-                        color = Color(0xFF00FFFF).copy(alpha = 0.35f),
-                        radius = 36f,
-                        center = center
-                    )
-                    drawCircle(
-                        color = Color(0xFF00FFFF),
-                        radius = 22f,
-                        center = center,
-                        style = Stroke(width = 2.5f)
-                    )
-                    drawCircle(
-                        color = Color.White,
-                        radius = 10f,
-                        center = center
-                    )
-                    textPaint.color = android.graphics.Color.WHITE
-                    textPaint.textSize = 22f
-                    drawContext.canvas.nativeCanvas.drawText("SELF", center.x, center.y + 44f, textPaint)
+            // --- 3. CENTER "SELF" NODE ---
+            drawCircle(
+                color = Color(0xFF00FFFF).copy(alpha = 0.35f),
+                radius = 36f,
+                center = screenCenter
+            )
+            drawCircle(
+                color = Color(0xFF00FFFF),
+                radius = 22f,
+                center = screenCenter,
+                style = Stroke(width = 2.5f)
+            )
+            drawCircle(
+                color = Color.White,
+                radius = 10f,
+                center = screenCenter
+            )
+            ringTextPaint.color = android.graphics.Color.WHITE
+            ringTextPaint.textSize = 12.sp.toPx()
+            drawContext.canvas.nativeCanvas.drawText("SELF", screenCenter.x, screenCenter.y + 44f, ringTextPaint)
 
-                    // --- 4. DRAW ATTACHMENT NODES & TEXT LABELS ---
-                    val nodeLabelPaint = android.graphics.Paint().apply {
-                        isAntiAlias = true
-                        textSize = 26f
-                        typeface = android.graphics.Typeface.MONOSPACE
-                        textAlign = android.graphics.Paint.Align.LEFT
-                        color = android.graphics.Color.WHITE
-                    }
+            // --- 4. DRAW ATTACHMENT NODES & TEXT LABELS ---
+            val nodeLabelPaint = android.graphics.Paint().apply {
+                isAntiAlias = true
+                textSize = 13.sp.toPx()
+                typeface = android.graphics.Typeface.MONOSPACE
+                textAlign = android.graphics.Paint.Align.LEFT
+                color = android.graphics.Color.WHITE
+            }
 
-                    items.forEach { item ->
-                        val nodePos = if (item.id == draggingItemId) {
-                            center + (dragPos - center - panOffset) / zoomScale
-                        } else {
-                            calculateNodeOffset(item, items, center, maxRadius)
-                        }
-
-                        val catColor = getCategoryColor(item.category)
-
-                        drawLine(
-                            color = catColor.copy(alpha = 0.65f),
-                            start = center,
-                            end = nodePos,
-                            strokeWidth = 1.5.dp.toPx()
-                        )
-
-                        drawCircle(
-                            color = catColor.copy(alpha = 0.45f),
-                            radius = 18.dp.toPx(),
-                            center = nodePos
-                        )
-
-                        drawCircle(
-                            color = catColor,
-                            radius = 11.dp.toPx(),
-                            center = nodePos
-                        )
-                        drawCircle(
-                            color = Color.White,
-                            radius = 5.dp.toPx(),
-                            center = nodePos
-                        )
-
-                        drawContext.canvas.nativeCanvas.drawText(
-                            item.name,
-                            nodePos.x + 20.dp.toPx(),
-                            nodePos.y + 8.dp.toPx(),
-                            nodeLabelPaint
-                        )
-                    }
+            currentItems.forEach { item ->
+                val screenNodePos = if (item.id == draggingItemId) {
+                    dragPos
+                } else {
+                    val modelOffset = calculateNodeOffset(item, currentItems, center, maxRadius)
+                    screenCenter + (modelOffset - center) * zoomScale
                 }
+
+                val catColor = getCategoryColor(item.category)
+
+                drawLine(
+                    color = catColor.copy(alpha = 0.65f),
+                    start = screenCenter,
+                    end = screenNodePos,
+                    strokeWidth = 1.5.dp.toPx()
+                )
+
+                drawCircle(
+                    color = catColor.copy(alpha = 0.45f),
+                    radius = 18.dp.toPx(),
+                    center = screenNodePos
+                )
+
+                drawCircle(
+                    color = catColor,
+                    radius = 11.dp.toPx(),
+                    center = screenNodePos
+                )
+                drawCircle(
+                    color = Color.White,
+                    radius = 5.dp.toPx(),
+                    center = screenNodePos
+                )
+
+                drawContext.canvas.nativeCanvas.drawText(
+                    item.name,
+                    screenNodePos.x + 22.dp.toPx(),
+                    screenNodePos.y + 5.dp.toPx(),
+                    nodeLabelPaint
+                )
             }
         }
 

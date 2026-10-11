@@ -30,6 +30,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -230,23 +231,33 @@ fun HolographicAvatarHub(
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Row(
-                    modifier = Modifier.padding(8.dp),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF00FF9C))
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color(0xFF00FF9C),
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
+
+                    Spacer(Modifier.width(4.dp))
                     
                     Box(
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(36.dp)
                             .clip(CircleShape)
-                            .neonBorder(Color(0xFF00FF9C), cornerRadius = 22.dp)
+                            .neonBorder(Color(0xFF00FF9C), cornerRadius = 18.dp)
                     ) {
                         AvatarImage(userCharacter, modifier = Modifier.fillMaxSize(), alpha = 1f)
                     }
 
-                    Spacer(Modifier.width(12.dp))
+                    Spacer(Modifier.width(8.dp))
 
                     Column(modifier = Modifier.weight(1f)) {
                         if (isEditingName) {
@@ -254,6 +265,7 @@ fun HolographicAvatarHub(
                                 value = editedName,
                                 onValueChange = { editedName = it },
                                 modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = Color(0xFF00FF9C),
                                     unfocusedBorderColor = Color(0xFF00FF9C).copy(alpha = 0.5f),
@@ -273,59 +285,74 @@ fun HolographicAvatarHub(
                             Text(
                                 text = "//${userCharacter?.netrunnerName ?: "RUNNER_UNKNOWN"}",
                                 modifier = Modifier.clickable { isEditingName = true },
-                                style = MaterialTheme.typography.titleMedium.copy(
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.titleSmall.copy(
                                     color = Color(0xFF00FF9C),
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Black,
-                                    letterSpacing = 2.sp
+                                    letterSpacing = 1.sp
                                 )
                             )
                         }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
                             Text(
-                                text = "LEVEL ${userCharacter?.level ?: 1} $runnerTitle // SEC_ID: 0x${(userCharacter?.id ?: 0).toString(16).uppercase()}",
+                                text = "LVL ${userCharacter?.level ?: 1} $runnerTitle // SEC_ID: 0x${(userCharacter?.id ?: 0).toString(16).uppercase()}",
                                 color = titleColor,
                                 fontSize = 9.sp,
                                 fontFamily = FontFamily.Monospace,
-                                fontWeight = titleFontWeight
+                                fontWeight = titleFontWeight,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
                             )
-                            Spacer(Modifier.width(8.dp))
+                            Spacer(Modifier.width(6.dp))
                             Text(
-                                text = "[XP_QTR: ${state.totalXpThisQuarter}]",
+                                text = "[XP: ${state.totalXpThisQuarter}]",
                                 color = NeonCyan.copy(alpha = 0.7f),
                                 fontSize = 9.sp,
+                                fontFamily = FontFamily.Monospace,
+                                maxLines = 1
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.width(8.dp))
+
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss")),
+                            color = Color(0xFF00FF9C),
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
+                        Spacer(Modifier.height(3.dp))
+                        // SELF MAP CANVAS TRIGGER
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Color(0xFF00FF9C).copy(alpha = 0.15f))
+                                .border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                                .clickable { hubViewMode = AvatarHubMode.SELF_MAP }
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "SELF MAP",
+                                color = Color(0xFF00FF9C),
+                                fontSize = 8.5.sp,
+                                fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace
                             )
                         }
                     }
-
-                    // SELF MAP CANVAS TRIGGER
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(Color(0xFF00FF9C).copy(alpha = 0.15f))
-                            .border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.5f), RoundedCornerShape(4.dp))
-                            .clickable { hubViewMode = AvatarHubMode.SELF_MAP }
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = "SELF MAP",
-                            color = Color(0xFF00FF9C),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-
-                    Spacer(Modifier.width(8.dp))
-                    
-                    Text(
-                        text = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss")),
-                        color = Color(0xFF00FF9C),
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
                 }
             }
 
