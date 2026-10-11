@@ -243,6 +243,7 @@ fun CodexScreen(
                             }
                         )
                         CodexWing.CHRONICLE -> chronicleContent()
+                        CodexWing.SELF_MAP -> SelfMapWing()
                     }
                 }
             }

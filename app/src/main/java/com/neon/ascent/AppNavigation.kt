@@ -356,6 +356,9 @@ fun AppNavigation(
                                     pagerState.animateScrollToPage(deckIndex) // DECK
                                 }
                             },
+                            onNavigateToSelfMap = {
+                                navController.navigate(Screen.HolographicHub)
+                            },
                             onNavigateToForge = { type, title, desc, biometrics ->
                                 navController.navigate(Screen.AscensionForge(type.name, title, desc, biometrics = biometrics))
                             },
@@ -424,6 +427,7 @@ fun AppNavigation(
             BiohackingScreen(
                 focus = bio.focus,
                 onBack = { navController.popBackStack() },
+                onNavigateToSelfMap = { navController.navigate(Screen.HolographicHub) },
                 onNavigateToForge = { type, title, desc, biometrics ->
                     navController.navigate(Screen.AscensionForge(type.name, title, desc, biometrics = biometrics))
                 },

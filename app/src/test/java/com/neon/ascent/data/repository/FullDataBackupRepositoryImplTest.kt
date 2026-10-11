@@ -52,6 +52,8 @@ class FullDataBackupRepositoryImplTest {
             sessions[session.id] = session
         }
 
+        override fun getStalledProgressionStates(): Flow<List<com.neon.ascent.core.data.local.entity.ProgressionStateEntity>> = flowOf(emptyList())
+
         override fun getAllSessions(): Flow<List<WorkoutSessionEntity>> = flowOf(sessions.values.toList())
         override suspend fun getSessionById(sessionId: String): WorkoutSessionEntity? = sessions[sessionId]
 
@@ -343,6 +345,8 @@ class FullDataBackupRepositoryImplTest {
         override fun operativeProfileDao(): OperativeProfileDao = throw NotImplementedError()
         override fun libraryDao(): LibraryDao = throw NotImplementedError()
         override fun vaultDao(): VaultDao = throw NotImplementedError()
+        override fun riteSessionDao(): RiteSessionDao = throw NotImplementedError()
+        override fun selfMapDao(): com.neon.ascent.core.data.local.dao.SelfMapDao = throw NotImplementedError()
     }
 
     private class TestAppDatabase : AppDatabase() {

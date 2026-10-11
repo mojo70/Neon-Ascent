@@ -28,6 +28,8 @@ import com.neon.ascent.core.data.local.dao.WorkoutDao
 import com.neon.ascent.core.data.local.dao.LibraryDao
 import com.neon.ascent.core.data.local.dao.VaultDao
 import com.neon.ascent.core.data.local.dao.RiteSessionDao
+import com.neon.ascent.core.data.local.dao.SelfMapDao
+import com.neon.ascent.core.data.local.migration.MIGRATION_57_58
 
 @Database(
     entities = [
@@ -76,9 +78,12 @@ import com.neon.ascent.core.data.local.dao.RiteSessionDao
         VaultAccountEntity::class,
         VaultSnapshotEntity::class,
         VaultWatchlistItemEntity::class,
-        RiteSessionEntity::class
+        RiteSessionEntity::class,
+        SelfItemEntity::class,
+        EoEEntryEntity::class,
+        SelfMapSnapshotEntity::class
     ],
-    version = 57,
+    version = 58,
     exportSchema = true
 )
 @TypeConverters(
@@ -94,7 +99,8 @@ import com.neon.ascent.core.data.local.dao.RiteSessionDao
     DopamineCategoryConverter::class,
     EnergyLevelConverter::class,
     SuccessMetricListConverter::class,
-    IntListConverter::class
+    IntListConverter::class,
+    SelfMapCategoryConverter::class
 )
 abstract class NeonAscentDatabase : RoomDatabase() {
     abstract fun goalDao(): GoalDao
@@ -112,4 +118,5 @@ abstract class NeonAscentDatabase : RoomDatabase() {
     abstract fun libraryDao(): LibraryDao
     abstract fun vaultDao(): VaultDao
     abstract fun riteSessionDao(): RiteSessionDao
+    abstract fun selfMapDao(): SelfMapDao
 }

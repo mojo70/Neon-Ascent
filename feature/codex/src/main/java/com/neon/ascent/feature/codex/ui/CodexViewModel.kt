@@ -48,7 +48,7 @@ import java.time.temporal.TemporalAdjusters
 import javax.inject.Inject
 
 enum class CodexWing {
-    OPS_LOG, VITALS, SERUM, CHRONICLE
+    OPS_LOG, VITALS, SERUM, CHRONICLE, SELF_MAP
 }
 
 enum class CodexPeriod(val label: String, val days: Int?) {

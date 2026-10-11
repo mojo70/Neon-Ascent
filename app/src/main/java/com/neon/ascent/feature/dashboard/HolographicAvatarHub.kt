@@ -61,6 +61,16 @@ import com.neon.ascent.feature.attributes.QuickGame
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
+import com.neon.ascent.core.data.local.entity.SelfItemEntity
+import com.neon.ascent.feature.dashboard.selfmap.EoELoggingSheet
+import com.neon.ascent.feature.dashboard.selfmap.SelfMapIntakeWizardScreen
+import com.neon.ascent.feature.dashboard.selfmap.SelfMapOnboardingScreen
+import com.neon.ascent.feature.dashboard.selfmap.SelfMapRadialCanvas
+import com.neon.ascent.feature.dashboard.selfmap.SelfMapViewModel
+
+enum class AvatarHubMode {
+    AVATAR, SELF_MAP, WIZARD
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,7 +95,55 @@ fun HolographicAvatarHub(
     val isNetrunnerMode by viewModel.isNetrunnerMode.collectAsState()
     val isReligionEnabled by viewModel.isReligionShortcutEnabled.collectAsState()
     
+    val selfMapViewModel: SelfMapViewModel = hiltViewModel()
+    val selfMapUiState by selfMapViewModel.uiState.collectAsState()
+    var hubViewMode by remember { mutableStateOf(AvatarHubMode.AVATAR) }
+    var eoeTargetItem by remember { mutableStateOf<SelfItemEntity?>(null) }
+    var showEoELogSheet by remember { mutableStateOf(false) }
+
     val theme = LocalNeonTheme.current
+
+    if (hubViewMode == AvatarHubMode.SELF_MAP) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (!selfMapUiState.isOnboardingSeen) {
+                SelfMapOnboardingScreen(
+                    onSkip = { selfMapViewModel.skipOnboarding() },
+                    onComplete = { selfMapViewModel.completeOnboarding() }
+                )
+            } else {
+                SelfMapRadialCanvas(
+                    viewModel = selfMapViewModel,
+                    onOpenWizard = { hubViewMode = AvatarHubMode.WIZARD },
+                    onOpenEoELog = { item ->
+                        eoeTargetItem = item
+                        showEoELogSheet = true
+                    }
+                )
+            }
+        }
+        if (showEoELogSheet) {
+            EoELoggingSheet(
+                initialItem = eoeTargetItem,
+                viewModel = selfMapViewModel,
+                onDismiss = {
+                    showEoELogSheet = false
+                    eoeTargetItem = null
+                }
+            )
+        }
+        return
+    }
+
+    if (hubViewMode == AvatarHubMode.WIZARD) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            SelfMapIntakeWizardScreen(
+                viewModel = selfMapViewModel,
+                onFinishWizard = { hubViewMode = AvatarHubMode.SELF_MAP },
+                onExitWizard = { hubViewMode = AvatarHubMode.SELF_MAP }
+            )
+        }
+        return
+    }
 
     var selectedAttribute by remember { mutableStateOf<SpecialType?>(null) }
     val sheetState = rememberModalBottomSheetState()
@@ -221,6 +279,26 @@ fun HolographicAvatarHub(
                             )
                         }
                     }
+
+                    // SELF MAP CANVAS TRIGGER
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xFF00FF9C).copy(alpha = 0.15f))
+                            .border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                            .clickable { hubViewMode = AvatarHubMode.SELF_MAP }
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "SELF MAP",
+                            color = Color(0xFF00FF9C),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+
+                    Spacer(Modifier.width(8.dp))
                     
                     Text(
                         text = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss")),

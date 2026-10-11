@@ -15,6 +15,7 @@ import com.neon.ascent.core.data.local.dao.OperativeProfileDao
 import com.neon.ascent.core.data.local.dao.ProtocolDao
 import com.neon.ascent.core.data.local.dao.LibraryDao
 import com.neon.ascent.core.data.local.dao.VaultDao
+import com.neon.ascent.core.data.local.dao.SelfMapDao
 import com.neon.ascent.core.data.local.migration.MIGRATION_2_3
 import com.neon.ascent.core.data.local.migration.MIGRATION_3_4
 import com.neon.ascent.core.data.local.migration.MIGRATION_11_12
@@ -28,6 +29,9 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_51_52
 import com.neon.ascent.core.data.local.migration.MIGRATION_52_53
 import com.neon.ascent.core.data.local.migration.MIGRATION_53_54
 import com.neon.ascent.core.data.local.migration.MIGRATION_54_55
+import com.neon.ascent.core.data.local.migration.MIGRATION_55_56
+import com.neon.ascent.core.data.local.migration.MIGRATION_56_57
+import com.neon.ascent.core.data.local.migration.MIGRATION_57_58
 import com.neon.ascent.core.data.local.migration.MIGRATION_55_56
 import com.neon.ascent.core.data.local.migration.MIGRATION_56_57
 import com.neon.ascent.core.data.local.dao.DailyVitalRollupDao
@@ -113,7 +117,8 @@ object DatabaseModule {
             MIGRATION_43_44, MIGRATION_45_46, MIGRATION_46_47, 
             MIGRATION_47_48, MIGRATION_48_49, MIGRATION_50_51,
             MIGRATION_51_52, MIGRATION_52_53, MIGRATION_53_54,
-            MIGRATION_54_55, MIGRATION_55_56, MIGRATION_56_57
+            MIGRATION_54_55, MIGRATION_55_56, MIGRATION_56_57,
+            MIGRATION_57_58
         )
         .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
         .build()
@@ -192,5 +197,10 @@ object DatabaseModule {
     @Provides
     fun provideRiteSessionDao(database: NeonAscentDatabase): RiteSessionDao {
         return database.riteSessionDao()
+    }
+
+    @Provides
+    fun provideSelfMapDao(database: NeonAscentDatabase): SelfMapDao {
+        return database.selfMapDao()
     }
 }

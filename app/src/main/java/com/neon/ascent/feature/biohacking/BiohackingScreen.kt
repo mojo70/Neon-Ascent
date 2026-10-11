@@ -51,6 +51,8 @@ import java.time.Period
 import java.time.format.DateTimeFormatter
 import java.util.*
 
+import com.neon.ascent.feature.dashboard.selfmap.SelfMapViewModel
+import com.neon.ascent.feature.dashboard.selfmap.getLoadBandLabel
 import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 
 @Composable
@@ -62,6 +64,7 @@ fun BiohackingScreen(
     onNavigateToDopamineMenu: () -> Unit = {},
     onNavigateToOps: () -> Unit = {},
     onRelink: (UplinkProvider) -> Unit = {},
+    onNavigateToSelfMap: () -> Unit = {},
     viewModel: BiohackingViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -316,7 +319,12 @@ fun BiohackingScreen(
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Self Map Attachment Load Card
+                SelfMapLabsCard(onNavigateToSelfMap = onNavigateToSelfMap)
+
+                Spacer(modifier = Modifier.height(20.dp))
 
                 // Hero: Full Body Holographic Selector
                 CyberFrame(label = "HOLOGRAPHIC_SELECTOR", borderColor = neonCyan) {
@@ -1874,6 +1882,86 @@ fun Sparkline(
                 end = Offset(width, y),
                 strokeWidth = 1f
             )
+        }
+    }
+}
+
+@Composable
+fun SelfMapLabsCard(
+    onNavigateToSelfMap: () -> Unit,
+    selfMapViewModel: SelfMapViewModel = hiltViewModel()
+) {
+    val uiState by selfMapViewModel.uiState.collectAsState()
+    val theme = LocalNeonTheme.current
+    val cyan = theme.accent
+
+    val (bandText, bandColor) = getLoadBandLabel(uiState.coreAttachmentLoad)
+
+    CyberFrame(
+        label = "SELF_MAP // ATTACHMENT_LOAD",
+        borderColor = cyan,
+        accentColor = cyan,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onNavigateToSelfMap() }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "CORE ATTACHMENT LOAD: ",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = Color.Gray,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    )
+                    Text(
+                        text = "${uiState.coreAttachmentLoad.toInt()}%",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            color = bandColor,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Text(
+                    text = "Band: $bandText | Core items (≥0.7): ${uiState.coreCount}",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = Color.LightGray,
+                        fontFamily = FontFamily.Monospace
+                    )
+                )
+
+                val formattedAvg = (Math.round(uiState.avgImportance * 100.0) / 100.0).toString()
+                Text(
+                    text = "Active attachments: ${uiState.activeItems.size} | Avg importance: $formattedAvg",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = Color.Gray,
+                        fontFamily = FontFamily.Monospace
+                    )
+                )
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "CANVAS →",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        color = cyan,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        letterSpacing = 1.sp
+                    )
+                )
+            }
         }
     }
 }
