@@ -28,10 +28,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.core.common.LocalNeonTheme
 import com.neon.ascent.core.data.local.entity.EoEEntryEntity
 import com.neon.ascent.core.data.local.entity.SelfItemEntity
+import com.neon.ascent.core.data.local.entity.SelfMapMoodEntryEntity
+import com.neon.ascent.core.data.local.entity.SelfMapSnapshotEntity
 import com.neon.ascent.core.domain.selfmap.SelfMapCategory
 import kotlinx.coroutines.launch
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlin.math.abs
 
 val codexEmotionChips = listOf(
     "Anger", "Fear", "Anxiety", "Sadness", "Frustration", "Disappointment", "Jealousy", "Happiness", "Relief"
@@ -298,6 +301,106 @@ fun SelfMapWing(
             }
         }
 
+        // --- 1B. DENSITY REDUCTION CALLOUT (SUCCESS SIGNAL) ---
+        item {
+            val baseline = uiState.baselineMass
+            val current = uiState.currentMass
+            if (baseline != null && baseline > 0f && current < baseline) {
+                val dropPct = (((baseline - current) / baseline) * 100f).toInt()
+                val formattedCurrent = (Math.round(current * 100.0) / 100.0).toString()
+                val formattedBaseline = (Math.round(baseline * 100.0) / 100.0).toString()
+
+                CodexFrame(
+                    label = "DENSITY_REDUCTION // SUCCESS_SIGNAL",
+                    borderColor = Color(0xFF00FF9F),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column {
+                        Text(
+                            text = "▼ ATTACHMENT MASS DOWN $dropPct% SINCE BASELINE ($formattedBaseline → $formattedCurrent)",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                color = Color(0xFF00FF9F),
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        )
+                        Text(
+                            text = "Fewer or less-central attachments generate fewer automatic negative reactions and increase baseline capacity for happiness.",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = Color.LightGray,
+                                fontFamily = FontFamily.Monospace
+                            ),
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // --- 1C. DUAL TELEMETRY TREND (MASS VS. REPORTED MOOD) ---
+        item {
+            CodexFrame(
+                label = "DUAL_TELEMETRY_TREND // MASS VS. REPORTED MOOD",
+                borderColor = cyan,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column {
+                    Text(
+                        text = "Snapshot Mass vs. Your Reported Mood (1–10). Local trend history.",
+                        style = MaterialTheme.typography.bodySmall.copy(color = Color.LightGray, fontFamily = FontFamily.Monospace)
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    if (uiState.snapshots.isEmpty() && uiState.moodEntries.isEmpty()) {
+                        Text(
+                            text = "No snapshots or mood check-ins recorded yet.",
+                            style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray, fontFamily = FontFamily.Monospace)
+                        )
+                    } else {
+                        val historyRows = uiState.snapshots.take(5)
+                        historyRows.forEach { snap ->
+                            val snapDate = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+                                .withZone(ZoneId.systemDefault())
+                                .format(snap.timestamp)
+                            val closestMood = uiState.moodEntries.firstOrNull { it.snapshotId == snap.id }
+                                ?: uiState.moodEntries.minByOrNull { abs(it.timestamp.toEpochMilli() - snap.timestamp.toEpochMilli()) }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        text = snapDate,
+                                        style = MaterialTheme.typography.labelSmall.copy(color = Color.Gray, fontFamily = FontFamily.Monospace)
+                                    )
+                                    val formattedMass = (Math.round(snap.mass * 100.0) / 100.0).toString()
+                                    Text(
+                                        text = "Mass: $formattedMass (${snap.itemCount} items, ${snap.coreCount} cores)",
+                                        style = MaterialTheme.typography.bodySmall.copy(color = Color.White, fontFamily = FontFamily.Monospace)
+                                    )
+                                }
+
+                                Text(
+                                    text = closestMood?.let { "Mood: ${it.score}/10" } ?: "Mood: --",
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        color = cyan,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                )
+                            }
+                            HorizontalDivider(color = Color.DarkGray.copy(alpha = 0.5f), thickness = 0.5.dp)
+                        }
+                    }
+                }
+            }
+        }
+
         // --- 2. LIVE QUERY CATALOG OF ATTACHMENTS ---
         item {
             CodexFrame(
@@ -372,11 +475,26 @@ fun SelfMapWing(
                             modifier = Modifier.padding(top = 4.dp)
                         )
                     }
+
+                    val linkedChronicles = uiState.chronicleEntries.filter { it.selfItemId == item.id }
+                    if (linkedChronicles.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Linked Chronicle Reflections (${linkedChronicles.size}):",
+                            style = MaterialTheme.typography.labelSmall.copy(color = cyan, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        )
+                        linkedChronicles.forEach { chronicle ->
+                            Text(
+                                text = "• \"${chronicle.content}\"",
+                                style = MaterialTheme.typography.bodySmall.copy(color = Color.LightGray, fontFamily = FontFamily.Monospace)
+                            )
+                        }
+                    }
                 }
             }
         }
 
-        // --- 3. EQUATION OF EMOTION REACTION LOGS ARCHIVE ---
+        // --- 3. EQUATION OF EMOTION REACTION LOGS ARCHIVE + LINKED MOODS ---
         item {
             CodexFrame(
                 label = "EQUATION_OF_EMOTION // REACTION_ARCHIVE [${filteredEoEs.size}]",
@@ -415,7 +533,7 @@ fun SelfMapWing(
             }
         }
 
-        // Read-only EoE Reaction Rows
+        // Read-only EoE Reaction Rows with Linked Mood Check-Ins
         if (filteredEoEs.isEmpty()) {
             item {
                 Text(
@@ -433,6 +551,7 @@ fun SelfMapWing(
                 }
 
                 val linkedItem = uiState.activeItems.firstOrNull { it.id == entry.selfItemId }
+                val linkedMood = uiState.moodEntries.firstOrNull { it.eoeId == entry.id }
 
                 CodexFrame(
                     label = "${entry.emotionLabel.uppercase()} // INTENSITY: ${entry.intensity ?: 5}/10",
@@ -478,6 +597,26 @@ fun SelfMapWing(
                                 style = MaterialTheme.typography.labelSmall.copy(color = cyan, fontFamily = FontFamily.Monospace),
                                 modifier = Modifier.padding(top = 4.dp)
                             )
+                        }
+
+                        if (linkedMood != null) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "• Linked Reported Mood: ",
+                                    style = MaterialTheme.typography.labelSmall.copy(color = Color.Gray, fontFamily = FontFamily.Monospace)
+                                )
+                                Text(
+                                    text = "${linkedMood.score}/10",
+                                    style = MaterialTheme.typography.labelSmall.copy(color = cyan, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                                )
+                                if (!linkedMood.note.isNullOrBlank()) {
+                                    Text(
+                                        text = " (${linkedMood.note})",
+                                        style = MaterialTheme.typography.labelSmall.copy(color = Color.LightGray, fontFamily = FontFamily.Monospace)
+                                    )
+                                }
+                            }
                         }
                     }
                 }

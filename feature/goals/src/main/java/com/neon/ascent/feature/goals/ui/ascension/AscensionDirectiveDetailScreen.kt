@@ -257,6 +257,30 @@ fun AscensionDirectiveDetailScreen(
                                                 fontFamily = FontFamily.Monospace,
                                                 modifier = Modifier.padding(top = 4.dp)
                                             )
+
+                                            if (!directive.anchoredSelfItemName.isNullOrBlank()) {
+                                                Spacer(modifier = Modifier.height(6.dp))
+                                                SuggestionChip(
+                                                    onClick = {},
+                                                    label = {
+                                                        Text(
+                                                            text = "⚓ Anchored to ${directive.anchoredSelfItemName}",
+                                                            fontSize = 10.sp,
+                                                            fontFamily = FontFamily.Monospace,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = Color(0xFF00FF9F)
+                                                        )
+                                                    },
+                                                    colors = SuggestionChipDefaults.suggestionChipColors(
+                                                        containerColor = Color(0xFF081C12),
+                                                        labelColor = Color(0xFF00FF9F)
+                                                    ),
+                                                    border = SuggestionChipDefaults.suggestionChipBorder(
+                                                        enabled = true,
+                                                        borderColor = Color(0xFF00FF9F).copy(alpha = 0.6f)
+                                                    )
+                                                )
+                                            }
                                         }
 
                                         Spacer(modifier = Modifier.width(8.dp))

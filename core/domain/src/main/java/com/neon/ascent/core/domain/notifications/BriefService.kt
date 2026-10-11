@@ -18,6 +18,7 @@ interface BriefService {
         const val ACTION_LOG_COMPLETE = "com.neon.ascent.ACTION_LOG_COMPLETE"
         const val ACTION_FORGE_DIRECTIVE = "com.neon.ascent.ACTION_FORGE_DIRECTIVE"
         const val ACTION_OPEN_DECK = "com.neon.ascent.ACTION_OPEN_DECK"
+        const val ACTION_OPEN_SELF_MAP = "ACTION_OPEN_SELF_MAP"
         const val ACTION_SNOOZE = "com.neon.ascent.ACTION_SNOOZE"
         const val ACTION_SKIP_REFLECT = "com.neon.ascent.ACTION_SKIP_REFLECT"
 

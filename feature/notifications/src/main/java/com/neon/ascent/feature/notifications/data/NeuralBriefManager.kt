@@ -95,6 +95,10 @@ class NeuralBriefManager @Inject constructor(
                     val intent = deepLinkHelper.createDashboardIntent()
                     PendingIntent.getActivity(context, targetId + index, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
                 }
+                BriefService.ACTION_OPEN_SELF_MAP -> {
+                    val intent = deepLinkHelper.createSelfMapIntent(action = action.type)
+                    PendingIntent.getActivity(context, targetId + index, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                }
                 BriefService.ACTION_LOG_COMPLETE -> {
                     val intent = deepLinkHelper.createTaskCompletionIntent(action.type.ifBlank { "generic" })
                     intent.setPackage(context.packageName)

@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Update
 import com.neon.ascent.core.data.local.entity.EoEEntryEntity
 import com.neon.ascent.core.data.local.entity.SelfItemEntity
+import com.neon.ascent.core.data.local.entity.SelfMapMoodEntryEntity
 import com.neon.ascent.core.data.local.entity.SelfMapSnapshotEntity
 import com.neon.ascent.core.domain.selfmap.SelfMapCategory
 import kotlinx.coroutines.flow.Flow
@@ -103,6 +104,33 @@ interface SelfMapDao {
 
     @Query("DELETE FROM self_map_snapshots")
     suspend fun deleteAllSnapshots()
+
+
+    // --- SelfMapMoodEntry Queries ---
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMoodEntry(entry: SelfMapMoodEntryEntity): Long
+
+    @Query("SELECT * FROM self_map_mood_entries ORDER BY timestamp DESC")
+    fun getAllMoodEntries(): Flow<List<SelfMapMoodEntryEntity>>
+
+    @Query("SELECT * FROM self_map_mood_entries ORDER BY timestamp DESC")
+    suspend fun getAllMoodEntriesOnce(): List<SelfMapMoodEntryEntity>
+
+    @Query("SELECT * FROM self_map_mood_entries ORDER BY timestamp DESC LIMIT :limit")
+    fun getRecentMoodEntries(limit: Int): Flow<List<SelfMapMoodEntryEntity>>
+
+    @Query("SELECT * FROM self_map_mood_entries ORDER BY timestamp DESC LIMIT 1")
+    fun getLatestMoodEntry(): Flow<SelfMapMoodEntryEntity?>
+
+    @Query("SELECT * FROM self_map_mood_entries ORDER BY timestamp DESC LIMIT 1")
+    suspend fun getLatestMoodEntryOnce(): SelfMapMoodEntryEntity?
+
+    @Query("DELETE FROM self_map_mood_entries WHERE id = :id")
+    suspend fun deleteMoodEntry(id: Long)
+
+    @Query("DELETE FROM self_map_mood_entries")
+    suspend fun deleteAllMoodEntries()
 }
 
 /**

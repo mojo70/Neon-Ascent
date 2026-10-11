@@ -266,6 +266,8 @@ fun MissionSpecificFields(uiState: AscensionForgeUiState, viewModel: AscensionFo
                 modifier = Modifier.fillMaxWidth(),
                 textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace)
             )
+
+            AnchorToSelfMapSection(uiState, viewModel)
         }
     }
 }
@@ -315,6 +317,61 @@ fun DirectiveSpecificFields(uiState: AscensionForgeUiState, viewModel: Ascension
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = NeonPink.copy(alpha = 0.2f),
                                 selectedLabelColor = NeonPink
+                            )
+                        )
+                    }
+                }
+            }
+
+            AnchorToSelfMapSection(uiState, viewModel)
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+@Composable
+fun AnchorToSelfMapSection(
+    uiState: AscensionForgeUiState,
+    viewModel: AscensionForgeViewModel
+) {
+    if (uiState.selfMapItems.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(12.dp))
+        CyberFrame(label = "ANCHOR TO SELF MAP ITEM (OPTIONAL)", accentColor = Color(0xFF00FF9F)) {
+            Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "Anchor this protocol to a core Self Map attachment to ground motivation.",
+                    color = Color.Gray,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    val isNoneSelected = uiState.selectedAnchoredSelfItemId == null
+                    FilterChip(
+                        selected = isNoneSelected,
+                        onClick = { viewModel.selectAnchoredSelfItem(null) },
+                        label = { Text("NONE", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
+                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color.DarkGray, selectedLabelColor = Color.White)
+                    )
+
+                    uiState.selfMapItems.take(6).forEach { item ->
+                        val isSelected = uiState.selectedAnchoredSelfItemId == item.id
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                if (isSelected) viewModel.selectAnchoredSelfItem(null)
+                                else viewModel.selectAnchoredSelfItem(item)
+                            },
+                            label = {
+                                Text(
+                                    text = "⚓ ${item.name} (${(item.importance * 100).toInt()}%)",
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFF00FF9F),
+                                selectedLabelColor = Color.Black
                             )
                         )
                     }

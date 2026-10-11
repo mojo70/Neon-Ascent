@@ -32,6 +32,8 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_54_55
 import com.neon.ascent.core.data.local.migration.MIGRATION_55_56
 import com.neon.ascent.core.data.local.migration.MIGRATION_56_57
 import com.neon.ascent.core.data.local.migration.MIGRATION_57_58
+import com.neon.ascent.core.data.local.migration.MIGRATION_58_59
+import com.neon.ascent.core.data.local.migration.MIGRATION_59_60
 import com.neon.ascent.core.data.local.migration.MIGRATION_55_56
 import com.neon.ascent.core.data.local.migration.MIGRATION_56_57
 import com.neon.ascent.core.data.local.dao.DailyVitalRollupDao
@@ -118,7 +120,7 @@ object DatabaseModule {
             MIGRATION_47_48, MIGRATION_48_49, MIGRATION_50_51,
             MIGRATION_51_52, MIGRATION_52_53, MIGRATION_53_54,
             MIGRATION_54_55, MIGRATION_55_56, MIGRATION_56_57,
-            MIGRATION_57_58
+            MIGRATION_57_58, MIGRATION_58_59, MIGRATION_59_60
         )
         .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
         .build()

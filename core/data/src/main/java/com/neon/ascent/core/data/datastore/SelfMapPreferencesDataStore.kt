@@ -20,6 +20,9 @@ class SelfMapPreferencesDataStore @Inject constructor(
         val ONBOARDING_COMPLETED = booleanPreferencesKey("self_map_onboarding_completed")
         val BASELINE_MASS = floatPreferencesKey("self_map_baseline_mass")
         val BIOMETRIC_LOCK_ENABLED = booleanPreferencesKey("self_map_biometric_lock_enabled")
+        val CONVERSATIONAL_INTAKE_SEEN = booleanPreferencesKey("self_map_conversational_intake_seen")
+        val REVIEW_REMINDER_ENABLED = booleanPreferencesKey("self_map_review_reminder_enabled")
+        val REVIEW_REMINDER_CADENCE_DAYS = intPreferencesKey("self_map_review_reminder_cadence_days")
     }
 
     private val dataStore = context.selfMapDataStore
@@ -34,6 +37,18 @@ class SelfMapPreferencesDataStore @Inject constructor(
 
     val biometricLockEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[Keys.BIOMETRIC_LOCK_ENABLED] ?: false
+    }
+
+    val conversationalIntakeSeen: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.CONVERSATIONAL_INTAKE_SEEN] ?: false
+    }
+
+    val reviewReminderEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.REVIEW_REMINDER_ENABLED] ?: false
+    }
+
+    val reviewReminderCadenceDays: Flow<Int> = dataStore.data.map { prefs ->
+        prefs[Keys.REVIEW_REMINDER_CADENCE_DAYS] ?: 14
     }
 
     suspend fun setOnboardingCompleted(completed: Boolean) {
@@ -51,6 +66,24 @@ class SelfMapPreferencesDataStore @Inject constructor(
     suspend fun setBiometricLockEnabled(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[Keys.BIOMETRIC_LOCK_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setConversationalIntakeSeen(seen: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.CONVERSATIONAL_INTAKE_SEEN] = seen
+        }
+    }
+
+    suspend fun setReviewReminderEnabled(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.REVIEW_REMINDER_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setReviewReminderCadenceDays(days: Int) {
+        dataStore.edit { prefs ->
+            prefs[Keys.REVIEW_REMINDER_CADENCE_DAYS] = days
         }
     }
 

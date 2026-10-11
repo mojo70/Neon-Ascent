@@ -11,6 +11,7 @@ fun JournalEntry.toChronicleEntry(): ChronicleEntry {
         room = "ORIGIN",
         content = text,
         timestamp = timestamp,
-        hearted = isHearted
+        hearted = isHearted,
+        selfItemId = selfItemId
     )
 }

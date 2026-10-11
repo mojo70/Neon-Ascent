@@ -53,6 +53,7 @@ private fun ChronicleEntry.toJournalEntry(): JournalEntry {
         text = content,
         category = "ORIGIN",
         timestamp = timestamp,
-        isHearted = hearted
+        isHearted = hearted,
+        selfItemId = selfItemId
     )
 }

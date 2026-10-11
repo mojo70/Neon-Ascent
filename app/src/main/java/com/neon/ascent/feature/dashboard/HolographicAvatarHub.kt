@@ -63,13 +63,14 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import com.neon.ascent.core.data.local.entity.SelfItemEntity
 import com.neon.ascent.feature.dashboard.selfmap.EoELoggingSheet
+import com.neon.ascent.feature.dashboard.selfmap.SelfMapConversationalIntakeScreen
 import com.neon.ascent.feature.dashboard.selfmap.SelfMapIntakeWizardScreen
 import com.neon.ascent.feature.dashboard.selfmap.SelfMapOnboardingScreen
 import com.neon.ascent.feature.dashboard.selfmap.SelfMapRadialCanvas
 import com.neon.ascent.feature.dashboard.selfmap.SelfMapViewModel
 
 enum class AvatarHubMode {
-    AVATAR, SELF_MAP, WIZARD
+    AVATAR, SELF_MAP, WIZARD, CONVERSATIONAL_INTAKE
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -103,6 +104,17 @@ fun HolographicAvatarHub(
 
     val theme = LocalNeonTheme.current
 
+    if (hubViewMode == AvatarHubMode.CONVERSATIONAL_INTAKE) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            SelfMapConversationalIntakeScreen(
+                viewModel = selfMapViewModel,
+                onFinishIntake = { hubViewMode = AvatarHubMode.SELF_MAP },
+                onSkipToManual = { hubViewMode = AvatarHubMode.WIZARD }
+            )
+        }
+        return
+    }
+
     if (hubViewMode == AvatarHubMode.SELF_MAP) {
         Box(modifier = Modifier.fillMaxSize()) {
             if (!selfMapUiState.isOnboardingSeen) {
@@ -110,10 +122,17 @@ fun HolographicAvatarHub(
                     onSkip = { selfMapViewModel.skipOnboarding() },
                     onComplete = { selfMapViewModel.completeOnboarding() }
                 )
+            } else if (!selfMapUiState.isConversationalIntakeSeen) {
+                SelfMapConversationalIntakeScreen(
+                    viewModel = selfMapViewModel,
+                    onFinishIntake = { hubViewMode = AvatarHubMode.SELF_MAP },
+                    onSkipToManual = { hubViewMode = AvatarHubMode.WIZARD }
+                )
             } else {
                 SelfMapRadialCanvas(
                     viewModel = selfMapViewModel,
                     onOpenWizard = { hubViewMode = AvatarHubMode.WIZARD },
+                    onOpenConversationalIntake = { hubViewMode = AvatarHubMode.CONVERSATIONAL_INTAKE },
                     onOpenEoELog = { item ->
                         eoeTargetItem = item
                         showEoELogSheet = true

@@ -2,6 +2,8 @@ package com.neon.ascent.feature.goals.ui.ascension
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.neon.ascent.core.data.local.entity.SelfItemEntity
+import com.neon.ascent.core.data.repository.SelfMapRepository
 import com.neon.ascent.core.domain.goals.models.*
 import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.core.domain.repository.AscensionRepository
@@ -42,6 +44,9 @@ data class AscensionForgeUiState(
     val mentorInput: String = "",
     val expandedMissions: Set<String> = emptySet(),
     val dopamineEvent: DopamineEvent? = null,
+    val selfMapItems: List<SelfItemEntity> = emptyList(),
+    val selectedAnchoredSelfItemId: Long? = null,
+    val selectedAnchoredSelfItemName: String? = null,
     // Task specific
     val taskType: AscensionTaskType = AscensionTaskType.ONE_TIME,
     val recurrenceType: RecurrenceTypeV3 = RecurrenceTypeV3.DAILY,
@@ -58,7 +63,8 @@ class AscensionForgeViewModel @Inject constructor(
     private val mentorUseCase: NeonMentorUseCase,
     private val skillRepository: SkillRepository,
     private val dopamineCoordinator: DopamineCoordinator,
-    private val neuralPingScheduler: NeuralPingScheduler
+    private val neuralPingScheduler: NeuralPingScheduler,
+    private val selfMapRepository: SelfMapRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AscensionForgeUiState())
@@ -69,7 +75,6 @@ class AscensionForgeViewModel @Inject constructor(
             // Ensure imported_quests directive exists if not already present
             val directives = repository.getAllDirectives().first()
             if (directives.none { it.id == "imported_quests" }) {
-                // If there are missions under imported_quests or needed as fallback
                 val missions = repository.getMissionsForDirective("imported_quests").first()
                 if (missions.isNotEmpty()) {
                     repository.insertDirective(
@@ -88,6 +93,12 @@ class AscensionForgeViewModel @Inject constructor(
                 _uiState.update { it.copy(dopamineEvent = event) }
             }
         }
+        viewModelScope.launch {
+            selfMapRepository.activeItems.collect { items ->
+                val sorted = items.sortedByDescending { it.importance }
+                _uiState.update { it.copy(selfMapItems = sorted) }
+            }
+        }
     }
 
     fun clearDopamineEvent() = _uiState.update { it.copy(dopamineEvent = null) }
@@ -101,6 +112,15 @@ class AscensionForgeViewModel @Inject constructor(
     fun updateAiMentorMode(mode: MentorMode) = _uiState.update { it.copy(aiMentorMode = mode) }
     fun updateSelectedSkill(skill: String?) = _uiState.update { it.copy(selectedSkill = skill) }
     fun updateMentorInput(input: String) = _uiState.update { it.copy(mentorInput = input) }
+
+    fun selectAnchoredSelfItem(item: SelfItemEntity?) {
+        _uiState.update {
+            it.copy(
+                selectedAnchoredSelfItemId = item?.id,
+                selectedAnchoredSelfItemName = item?.name
+            )
+        }
+    }
     
     fun toggleAttribute(type: SpecialType) = _uiState.update { state ->
         val newList = if (state.linkedAttributes.contains(type)) {
@@ -149,7 +169,6 @@ class AscensionForgeViewModel @Inject constructor(
             )
         }
         
-        // If prefilled, start a conversation with the mentor automatically
         if (title != null || description != null) {
             startInitialConversation()
         }
@@ -237,7 +256,9 @@ class AscensionForgeViewModel @Inject constructor(
                             createdAt = Instant.now(),
                             successMetrics = emptyList(),
                             aiMentorMode = state.aiMentorMode,
-                            archetypeTag = state.selectedArchetype
+                            archetypeTag = state.selectedArchetype,
+                            anchoredSelfItemId = state.selectedAnchoredSelfItemId,
+                            anchoredSelfItemName = state.selectedAnchoredSelfItemName
                         )
                         repository.insertDirective(directive)
                     }
@@ -249,7 +270,9 @@ class AscensionForgeViewModel @Inject constructor(
                             description = state.description,
                             linkedAttributes = state.linkedAttributes,
                             createdAt = Instant.now(),
-                            contributionWeight = 1.0f
+                            contributionWeight = 1.0f,
+                            anchoredSelfItemId = state.selectedAnchoredSelfItemId,
+                            anchoredSelfItemName = state.selectedAnchoredSelfItemName
                         )
                         repository.insertMission(mission)
                     }
@@ -305,7 +328,9 @@ class AscensionForgeViewModel @Inject constructor(
                     successMetrics = proposedMetrics,
                     aiGenerated = true,
                     archetypeTag = state.selectedArchetype,
-                    aiMentorMode = state.aiMentorMode
+                    aiMentorMode = state.aiMentorMode,
+                    anchoredSelfItemId = state.selectedAnchoredSelfItemId,
+                    anchoredSelfItemName = state.selectedAnchoredSelfItemName
                 )
                 repository.insertDirective(directive)
 
@@ -318,7 +343,9 @@ class AscensionForgeViewModel @Inject constructor(
                         description = pMission.description,
                         aiGenerated = true,
                         contributionWeight = pMission.contributionWeight,
-                        linkedAttributes = pMission.linkedAttributes
+                        linkedAttributes = pMission.linkedAttributes,
+                        anchoredSelfItemId = state.selectedAnchoredSelfItemId,
+                        anchoredSelfItemName = state.selectedAnchoredSelfItemName
                     )
                     repository.insertMission(mission)
                     

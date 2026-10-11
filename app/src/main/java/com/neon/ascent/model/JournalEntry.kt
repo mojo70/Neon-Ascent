@@ -9,5 +9,6 @@ data class JournalEntry(
     val text: String,
     val category: String,
     val timestamp: Long = System.currentTimeMillis(),
-    val isHearted: Boolean = false
+    val isHearted: Boolean = false,
+    val selfItemId: Long? = null
 )

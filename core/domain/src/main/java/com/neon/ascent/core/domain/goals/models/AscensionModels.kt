@@ -26,7 +26,9 @@ data class AscensionDirective(
     val aiGenerated: Boolean = false,
     val notes: String? = null,
     val completionHistorySummary: String? = null,
-    val lastReviewDate: LocalDate? = null
+    val lastReviewDate: LocalDate? = null,
+    val anchoredSelfItemId: Long? = null,
+    val anchoredSelfItemName: String? = null
 )
 
 data class SuccessMetric(
@@ -68,7 +70,9 @@ data class AscensionMission(
     val completionHistorySummary: String? = null,
     val tags: List<String> = emptyList(),
     val linkedAttributes: List<SpecialType> = emptyList(),
-    val linkedArchetype: String? = null
+    val linkedArchetype: String? = null,
+    val anchoredSelfItemId: Long? = null,
+    val anchoredSelfItemName: String? = null
 )
 
 enum class AscensionMissionStatus { ACTIVE, PAUSED, COMPLETED, ARCHIVED, RECOVERY }

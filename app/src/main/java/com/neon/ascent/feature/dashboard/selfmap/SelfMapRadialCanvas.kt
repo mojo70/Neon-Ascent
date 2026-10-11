@@ -14,6 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
@@ -72,6 +73,7 @@ fun getLoadBandLabel(loadPercentage: Float): Pair<String, Color> {
 fun SelfMapRadialCanvas(
     viewModel: SelfMapViewModel,
     onOpenWizard: () -> Unit,
+    onOpenConversationalIntake: () -> Unit = {},
     onOpenEoELog: (SelfItemEntity?) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -150,6 +152,28 @@ fun SelfMapRadialCanvas(
                                 fontFamily = FontFamily.Monospace
                             )
                         )
+
+                        val reportedMoodText = uiState.latestMoodEntry?.let { "${it.score}/10" } ?: "--"
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable { viewModel.triggerMoodCheckIn() }
+                        ) {
+                            Text(
+                                text = "Your reported mood: ",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = Color.Gray,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            )
+                            Text(
+                                text = reportedMoodText,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = cyan,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            )
+                        }
                     }
 
                     Row {
@@ -160,6 +184,14 @@ fun SelfMapRadialCanvas(
                                 imageVector = if (uiState.biometricLockEnabled) Icons.Default.Lock else Icons.Default.LockOpen,
                                 contentDescription = "Toggle Biometric Lock",
                                 tint = if (uiState.biometricLockEnabled) danger else cyan
+                            )
+                        }
+
+                        IconButton(onClick = onOpenConversationalIntake) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Chat,
+                                contentDescription = "Guided Start Conversation",
+                                tint = cyan
                             )
                         }
 
@@ -305,6 +337,15 @@ fun SelfMapRadialCanvas(
     // --- HELP TOOLTIP SHEET ---
     if (showHelpSheet) {
         SelfMapHelpSheet(onDismiss = { showHelpSheet = false })
+    }
+
+    // --- MOOD CHECK-IN SHEET ---
+    if (uiState.showMoodCheckInSheet) {
+        SelfMapMoodCheckInSheet(
+            viewModel = viewModel,
+            eoeId = uiState.pendingMoodEoeId,
+            onDismiss = { viewModel.dismissMoodCheckIn() }
+        )
     }
 }
 
@@ -846,6 +887,108 @@ fun SelfItemDetailSheet(
                         )
                     }
                 }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // LINKED CHRONICLE ENTRIES
+            val linkedChronicle = remember(uiState.chronicleEntries, item.id) {
+                uiState.chronicleEntries.filter { it.selfItemId == item.id }
+            }
+            var showAddChronicleDialog by remember { mutableStateOf(false) }
+            var chronicleInputText by remember { mutableStateOf("") }
+
+            CyberFrame(
+                label = "LINKED CHRONICLE ENTRIES [${linkedChronicle.size}]",
+                borderColor = cyan,
+                accentColor = cyan,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    if (linkedChronicle.isEmpty()) {
+                        Text(
+                            text = "No Chronicle entries linked to this item yet.",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = Color.Gray,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        )
+                    } else {
+                        linkedChronicle.take(3).forEach { entry ->
+                            Text(
+                                text = "• \"${entry.content}\"",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = Color.White,
+                                    fontFamily = FontFamily.Monospace
+                                ),
+                                modifier = Modifier.padding(bottom = 4.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    TextButton(
+                        onClick = { showAddChronicleDialog = true },
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text(
+                            text = "+ WRITE LINKED CHRONICLE ENTRY",
+                            color = cyan,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            if (showAddChronicleDialog) {
+                AlertDialog(
+                    onDismissRequest = { showAddChronicleDialog = false },
+                    containerColor = Color(0xFF10141A),
+                    title = {
+                        Text(
+                            text = "WRITE CHRONICLE ENTRY",
+                            style = MaterialTheme.typography.titleMedium.copy(color = cyan, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        )
+                    },
+                    text = {
+                        Column {
+                            Text(
+                                text = "Link entry to item: ${item.name}",
+                                style = MaterialTheme.typography.labelSmall.copy(color = Color.Gray, fontFamily = FontFamily.Monospace)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = chronicleInputText,
+                                onValueChange = { chronicleInputText = it },
+                                placeholder = { Text("Write reflection...", fontFamily = FontFamily.Monospace, fontSize = 12.sp) },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = cyan, unfocusedBorderColor = Color.Gray, focusedTextColor = Color.White)
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                if (chronicleInputText.isNotBlank()) {
+                                    viewModel.saveLinkedChronicleEntry(chronicleInputText, item.id)
+                                    chronicleInputText = ""
+                                    showAddChronicleDialog = false
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = cyan, contentColor = Color.Black),
+                            shape = MaterialTheme.shapes.extraSmall
+                        ) {
+                            Text("SAVE TO CHRONICLE", fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showAddChronicleDialog = false }) {
+                            Text("CANCEL", color = Color.Gray, fontFamily = FontFamily.Monospace)
+                        }
+                    }
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))

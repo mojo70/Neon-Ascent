@@ -57,4 +57,21 @@ class DeepLinkHelper @Inject constructor(@ApplicationContext private val context
             } ?: return Intent()
         )
     }
+
+    fun createSelfMapIntent(itemId: Long? = null, action: String? = null): Intent {
+        val uriBuilder = Uri.Builder()
+            .scheme("neon-ascent")
+            .authority("selfmap")
+        if (itemId != null) uriBuilder.appendQueryParameter("itemId", itemId.toString())
+        if (action != null) uriBuilder.appendQueryParameter("action", action)
+
+        return Intent(
+            Intent.ACTION_VIEW,
+            uriBuilder.build(),
+            context,
+            context.packageManager.getLaunchIntentForPackage(context.packageName)?.component?.let { 
+                Class.forName(it.className) 
+            } ?: return Intent()
+        )
+    }
 }

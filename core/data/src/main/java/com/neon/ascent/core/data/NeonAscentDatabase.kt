@@ -30,6 +30,8 @@ import com.neon.ascent.core.data.local.dao.VaultDao
 import com.neon.ascent.core.data.local.dao.RiteSessionDao
 import com.neon.ascent.core.data.local.dao.SelfMapDao
 import com.neon.ascent.core.data.local.migration.MIGRATION_57_58
+import com.neon.ascent.core.data.local.migration.MIGRATION_58_59
+import com.neon.ascent.core.data.local.migration.MIGRATION_59_60
 
 @Database(
     entities = [
@@ -81,9 +83,10 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_57_58
         RiteSessionEntity::class,
         SelfItemEntity::class,
         EoEEntryEntity::class,
-        SelfMapSnapshotEntity::class
+        SelfMapSnapshotEntity::class,
+        SelfMapMoodEntryEntity::class
     ],
-    version = 58,
+    version = 60,
     exportSchema = true
 )
 @TypeConverters(

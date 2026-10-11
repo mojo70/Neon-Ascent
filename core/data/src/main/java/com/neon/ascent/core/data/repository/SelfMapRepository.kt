@@ -6,6 +6,7 @@ import com.neon.ascent.core.data.local.dao.SelfMapDao
 import com.neon.ascent.core.data.local.dao.calculateWeightedRadialMass
 import com.neon.ascent.core.data.local.entity.EoEEntryEntity
 import com.neon.ascent.core.data.local.entity.SelfItemEntity
+import com.neon.ascent.core.data.local.entity.SelfMapMoodEntryEntity
 import com.neon.ascent.core.data.local.entity.SelfMapSnapshotEntity
 import com.neon.ascent.core.domain.selfmap.SelfMapCategory
 import kotlinx.coroutines.flow.Flow
@@ -13,6 +14,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -34,6 +37,12 @@ class SelfMapRepository @Inject constructor(
     val onboardingCompleted: Flow<Boolean> = preferencesDataStore.onboardingCompleted
 
     val biometricLockEnabled: Flow<Boolean> = preferencesDataStore.biometricLockEnabled
+
+    val conversationalIntakeSeen: Flow<Boolean> = preferencesDataStore.conversationalIntakeSeen
+
+    val reviewReminderEnabled: Flow<Boolean> = preferencesDataStore.reviewReminderEnabled
+
+    val reviewReminderCadenceDays: Flow<Int> = preferencesDataStore.reviewReminderCadenceDays
 
     val baselineMass: Flow<Float?> = preferencesDataStore.baselineMass
 
@@ -93,6 +102,18 @@ class SelfMapRepository @Inject constructor(
 
     suspend fun setBiometricLockEnabled(enabled: Boolean) {
         preferencesDataStore.setBiometricLockEnabled(enabled)
+    }
+
+    suspend fun setConversationalIntakeSeen(seen: Boolean) {
+        preferencesDataStore.setConversationalIntakeSeen(seen)
+    }
+
+    suspend fun setReviewReminderEnabled(enabled: Boolean) {
+        preferencesDataStore.setReviewReminderEnabled(enabled)
+    }
+
+    suspend fun setReviewReminderCadenceDays(days: Int) {
+        preferencesDataStore.setReviewReminderCadenceDays(days)
     }
 
     suspend fun setBaselineMass(mass: Float) {
@@ -205,21 +226,68 @@ class SelfMapRepository @Inject constructor(
         return selfMapDao.getLatestSnapshot()
     }
 
+    // --- Mood Logging ---
+
+    val allMoodEntries: Flow<List<SelfMapMoodEntryEntity>> = selfMapDao.getAllMoodEntries()
+
+    val latestMoodEntry: Flow<SelfMapMoodEntryEntity?> = selfMapDao.getLatestMoodEntry()
+
+    fun getRecentMoodEntries(limit: Int = 10): Flow<List<SelfMapMoodEntryEntity>> {
+        return selfMapDao.getRecentMoodEntries(limit)
+    }
+
+    /**
+     * Inserts a self-reported mood entry (1–10).
+     * Auto-creates a snapshot if none exists for today or if [snapshotId] is null.
+     */
+    suspend fun insertMoodEntry(
+        score: Int,
+        note: String? = null,
+        eoeId: Long? = null,
+        snapshotId: Long? = null
+    ): Long {
+        val effectiveSnapshotId = snapshotId ?: run {
+            val latestSnapshot = selfMapDao.getLatestSnapshot().first()
+            val todayStart = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()
+            if (latestSnapshot == null || latestSnapshot.timestamp.isBefore(todayStart)) {
+                val newSnapshot = createSnapshot()
+                newSnapshot.id
+            } else {
+                latestSnapshot.id
+            }
+        }
+
+        val entry = SelfMapMoodEntryEntity(
+            timestamp = Instant.now(),
+            score = score.coerceIn(1, 10),
+            note = note,
+            eoeId = eoeId,
+            snapshotId = effectiveSnapshotId
+        )
+        return selfMapDao.insertMoodEntry(entry)
+    }
+
+    suspend fun deleteMoodEntry(id: Long) {
+        selfMapDao.deleteMoodEntry(id)
+    }
+
     // --- Export & Reset ---
 
     suspend fun exportDataAsJson(): String {
         val items = selfMapDao.getAllItemsOnce()
         val entries = selfMapDao.getAllEoEEntriesOnce()
         val snapshots = selfMapDao.getAllSnapshotsOnce()
+        val moodEntries = selfMapDao.getAllMoodEntriesOnce()
         val baseline = preferencesDataStore.baselineMass.first()
 
         val exportMap = mapOf(
-            "version" to 1,
+            "version" to 2,
             "exportedAt" to Instant.now().toString(),
             "baselineMass" to baseline,
             "items" to items,
             "eoeEntries" to entries,
-            "snapshots" to snapshots
+            "snapshots" to snapshots,
+            "moodEntries" to moodEntries
         )
         return gson.toJson(exportMap)
     }
@@ -228,6 +296,7 @@ class SelfMapRepository @Inject constructor(
         selfMapDao.deleteAllSelfItems()
         selfMapDao.deleteAllEoEEntries()
         selfMapDao.deleteAllSnapshots()
+        selfMapDao.deleteAllMoodEntries()
         preferencesDataStore.clearAll()
     }
 }

@@ -124,5 +124,14 @@ class SelfMapCanvasTest {
         override suspend fun getAllSnapshotsOnce(): List<SelfMapSnapshotEntity> = emptyList()
         override fun getLatestSnapshot(): Flow<SelfMapSnapshotEntity?> = flowOf(null)
         override suspend fun deleteAllSnapshots() {}
+
+        override suspend fun insertMoodEntry(entry: com.neon.ascent.core.data.local.entity.SelfMapMoodEntryEntity): Long = 1L
+        override fun getAllMoodEntries(): Flow<List<com.neon.ascent.core.data.local.entity.SelfMapMoodEntryEntity>> = flowOf(emptyList())
+        override suspend fun getAllMoodEntriesOnce(): List<com.neon.ascent.core.data.local.entity.SelfMapMoodEntryEntity> = emptyList()
+        override fun getRecentMoodEntries(limit: Int): Flow<List<com.neon.ascent.core.data.local.entity.SelfMapMoodEntryEntity>> = flowOf(emptyList())
+        override fun getLatestMoodEntry(): Flow<com.neon.ascent.core.data.local.entity.SelfMapMoodEntryEntity?> = flowOf(null)
+        override suspend fun getLatestMoodEntryOnce(): com.neon.ascent.core.data.local.entity.SelfMapMoodEntryEntity? = null
+        override suspend fun deleteMoodEntry(id: Long) {}
+        override suspend fun deleteAllMoodEntries() {}
     }
 }

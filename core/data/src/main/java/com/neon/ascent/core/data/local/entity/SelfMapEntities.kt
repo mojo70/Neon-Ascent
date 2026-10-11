@@ -63,3 +63,22 @@ data class SelfMapSnapshotEntity(
     val avgImportance: Float,
     val coreCount: Int
 )
+
+@Entity(
+    tableName = "self_map_mood_entries",
+    indices = [
+        Index(value = ["timestamp"]),
+        Index(value = ["eoeId"]),
+        Index(value = ["snapshotId"])
+    ]
+)
+data class SelfMapMoodEntryEntity(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val timestamp: Instant = Instant.now(),
+    val score: Int, // 1–10 self-reported score
+    val note: String? = null,
+    val eoeId: Long? = null,
+    val snapshotId: Long? = null
+)
+

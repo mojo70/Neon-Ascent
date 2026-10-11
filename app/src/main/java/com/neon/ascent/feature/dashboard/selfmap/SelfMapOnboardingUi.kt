@@ -17,7 +17,10 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -321,6 +324,7 @@ fun SelfMapOnboardingScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SelfMapHelpSheet(
+    viewModel: SelfMapViewModel = hiltViewModel(),
     onDismiss: () -> Unit
 ) {
     val theme = LocalNeonTheme.current
@@ -408,6 +412,76 @@ fun SelfMapHelpSheet(
                             ),
                             modifier = Modifier.padding(top = 4.dp)
                         )
+                    }
+                }
+            }
+
+            // OPT-IN REVIEW REMINDERS SETTINGS
+            val uiState by viewModel.uiState.collectAsState()
+            CyberFrame(
+                label = "PERIODIC_REVIEW_REMINDERS // OPT-IN",
+                borderColor = cyan.copy(alpha = 0.8f),
+                accentColor = cyan,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp)
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Enable Review Reminders",
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            )
+                            Text(
+                                text = "Opt-in prompts for high-attachment items untouched for ${uiState.reviewReminderCadenceDays} days.",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = Color.LightGray,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            )
+                        }
+
+                        Switch(
+                            checked = uiState.reviewReminderEnabled,
+                            onCheckedChange = { viewModel.setReviewReminderEnabled(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.Black,
+                                checkedTrackColor = cyan
+                            )
+                        )
+                    }
+
+                    if (uiState.reviewReminderEnabled) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "CADENCE (DAYS)",
+                            style = MaterialTheme.typography.labelSmall.copy(color = Color.Gray, fontFamily = FontFamily.Monospace)
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.padding(top = 4.dp)
+                        ) {
+                            listOf(7, 14, 30).forEach { days ->
+                                FilterChip(
+                                    selected = uiState.reviewReminderCadenceDays == days,
+                                    onClick = { viewModel.setReviewReminderCadenceDays(days) },
+                                    label = { Text("$days DAYS", fontFamily = FontFamily.Monospace, fontSize = 10.sp) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = cyan,
+                                        selectedLabelColor = Color.Black
+                                    )
+                                )
+                            }
+                        }
                     }
                 }
             }

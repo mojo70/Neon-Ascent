@@ -32,7 +32,9 @@ data class AscensionDirectiveEntity(
     val aiGenerated: Boolean,
     val notes: String?,
     val completionHistorySummary: String?,
-    val lastReviewDate: LocalDate?
+    val lastReviewDate: LocalDate?,
+    val anchoredSelfItemId: Long? = null,
+    val anchoredSelfItemName: String? = null
 )
 
 @Entity(
@@ -70,7 +72,9 @@ data class AscensionMissionEntity(
     val completionHistorySummary: String?,
     val tags: List<String>,
     val linkedAttributes: List<String>,
-    val linkedArchetype: String?
+    val linkedArchetype: String?,
+    val anchoredSelfItemId: Long? = null,
+    val anchoredSelfItemName: String? = null
 )
 
 @Entity(

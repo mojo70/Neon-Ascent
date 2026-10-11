@@ -21,7 +21,8 @@ class ChronicleRepositoryImpl @Inject constructor(
     private data class MetadataPayload(
         val source: String? = null,
         val sourceId: String? = null,
-        val hearted: Boolean = false
+        val hearted: Boolean = false,
+        val selfItemId: Long? = null
     )
 
     override fun observeChronicle(): Flow<List<ChronicleEntry>> {
@@ -106,7 +107,8 @@ class ChronicleRepositoryImpl @Inject constructor(
             content = memory.content,
             timestamp = memory.timestamp,
             hearted = isHearted,
-            metadata = memory.metadata
+            metadata = memory.metadata,
+            selfItemId = payload?.selfItemId
         )
     }
 
@@ -115,7 +117,8 @@ class ChronicleRepositoryImpl @Inject constructor(
         val metadataObj = MetadataPayload(
             source = entry.source,
             sourceId = entry.sourceId,
-            hearted = entry.hearted
+            hearted = entry.hearted,
+            selfItemId = entry.selfItemId
         )
         val metadataJson = gson.toJson(metadataObj)
 

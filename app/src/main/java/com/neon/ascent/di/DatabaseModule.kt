@@ -88,6 +88,7 @@ object DatabaseModule {
         )
         .openHelperFactory(factory)
         .addTypeConverter(Converters())
+        .addMigrations(com.neon.ascent.data.local.MIGRATION_59_60_APP)
         .build()
     }
 

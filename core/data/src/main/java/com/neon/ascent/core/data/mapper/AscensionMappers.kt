@@ -26,7 +26,9 @@ fun AscensionDirectiveEntity.toDomain() = AscensionDirective(
     aiGenerated = aiGenerated,
     notes = notes,
     completionHistorySummary = completionHistorySummary,
-    lastReviewDate = lastReviewDate
+    lastReviewDate = lastReviewDate,
+    anchoredSelfItemId = anchoredSelfItemId,
+    anchoredSelfItemName = anchoredSelfItemName
 )
 
 fun AscensionDirective.toEntity() = AscensionDirectiveEntity(
@@ -50,7 +52,9 @@ fun AscensionDirective.toEntity() = AscensionDirectiveEntity(
     aiGenerated = aiGenerated,
     notes = notes,
     completionHistorySummary = completionHistorySummary,
-    lastReviewDate = lastReviewDate
+    lastReviewDate = lastReviewDate,
+    anchoredSelfItemId = anchoredSelfItemId,
+    anchoredSelfItemName = anchoredSelfItemName
 )
 
 fun AscensionMissionEntity.toDomain() = AscensionMission(
@@ -76,7 +80,9 @@ fun AscensionMissionEntity.toDomain() = AscensionMission(
     completionHistorySummary = completionHistorySummary,
     tags = tags,
     linkedAttributes = linkedAttributes.map { try { SpecialType.valueOf(it) } catch (e: Exception) { SpecialType.LUCK } },
-    linkedArchetype = linkedArchetype
+    linkedArchetype = linkedArchetype,
+    anchoredSelfItemId = anchoredSelfItemId,
+    anchoredSelfItemName = anchoredSelfItemName
 )
 
 fun AscensionMission.toEntity() = AscensionMissionEntity(
@@ -102,7 +108,9 @@ fun AscensionMission.toEntity() = AscensionMissionEntity(
     completionHistorySummary = completionHistorySummary,
     tags = tags,
     linkedAttributes = linkedAttributes.map { it.name },
-    linkedArchetype = linkedArchetype
+    linkedArchetype = linkedArchetype,
+    anchoredSelfItemId = anchoredSelfItemId,
+    anchoredSelfItemName = anchoredSelfItemName
 )
 
 
