@@ -1,6 +1,8 @@
 package com.neon.ascent.feature.workout.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,12 +44,20 @@ fun SetLogRow(
     val theme = LocalNeonTheme.current
     val haptic = LocalHapticFeedback.current
     val rowGreenHighlight = if (theme.mode == VisualMode.STEVE) {
-        Color(0xFF4CD964).copy(alpha = 0.22f)
+        Color(0xFF4CD964).copy(alpha = 0.32f)
     } else {
-        Color(0xFF4CD964).copy(alpha = 0.15f)
+        Color(0xFF00FF9C).copy(alpha = 0.28f)
     }
     val defaultBackgroundColor = if (setNumber % 2 == 0) Color.Transparent else theme.surfaceRaised.copy(alpha = 0.3f)
     val backgroundColor = if (set.isCompleted) rowGreenHighlight else defaultBackgroundColor
+    val completedBorder = if (set.isCompleted) {
+        if (theme.mode == VisualMode.STEVE) {
+            BorderStroke(1.dp, Color(0xFF4CD964).copy(alpha = 0.8f))
+        } else {
+            BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.7f))
+        }
+    } else null
+
     val weightPlaceholder = prescribedWeight?.let { if (it % 1 == 0f) it.toInt().toString() else it.toString() } 
         ?: previousWeight?.let { if (it % 1 == 0f) it.toInt().toString() else it.toString() } ?: "0"
     
@@ -67,7 +77,9 @@ fun SetLogRow(
         SetType.MAX_EFFORT -> "ME"
     }
     
-    val labelColor = if (theme.mode == VisualMode.STEVE) {
+    val labelColor = if (set.isCompleted && set.type == SetType.NORMAL) {
+        if (theme.mode == VisualMode.STEVE) Color(0xFF1B5E20) else Color(0xFF00FF9C)
+    } else if (theme.mode == VisualMode.STEVE) {
         theme.ink
     } else {
         when (set.type) {
@@ -88,6 +100,10 @@ fun SetLogRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .then(
+                if (completedBorder != null) Modifier.border(completedBorder, RoundedCornerShape(4.dp))
+                else Modifier
+            )
             .background(backgroundColor, RoundedCornerShape(4.dp))
             .padding(vertical = 4.dp, horizontal = 4.dp)
     ) {
@@ -152,13 +168,14 @@ fun SetLogRow(
             )
             
             // Completion Check
+            val checkBgColor = if (set.isCompleted) {
+                if (theme.mode == VisualMode.STEVE) Color(0xFF4CD964) else Color(0xFF00FF9C)
+            } else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+
             Box(
                 modifier = Modifier
                     .size(24.dp)
-                    .background(
-                        if (set.isCompleted) Color(0xFF4CD964) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f), 
-                        RoundedCornerShape(4.dp)
-                    )
+                    .background(checkBgColor, RoundedCornerShape(4.dp))
                     .clickable {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onCompleteToggle()

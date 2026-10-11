@@ -1,6 +1,8 @@
 package com.neon.ascent.feature.workout.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,16 +45,27 @@ fun ClusterSetRow(
     val weightPlaceholder = previousWeight?.let { if (it % 1 == 0f) it.toInt().toString() else it.toString() } ?: "0"
 
     val rowGreenHighlight = if (theme.mode == VisualMode.STEVE) {
-        Color(0xFF4CD964).copy(alpha = 0.22f)
+        Color(0xFF4CD964).copy(alpha = 0.32f)
     } else {
-        Color(0xFF4CD964).copy(alpha = 0.15f)
+        Color(0xFF00FF9C).copy(alpha = 0.28f)
     }
     val defaultBackgroundColor = if (theme.mode == VisualMode.STEVE) theme.surfaceRaised.copy(alpha = 0.5f) else Color(0xFF00FFAA).copy(alpha = 0.05f)
     val rowBackgroundColor = if (isCompleted) rowGreenHighlight else defaultBackgroundColor
+    val completedBorder = if (isCompleted) {
+        if (theme.mode == VisualMode.STEVE) {
+            BorderStroke(1.dp, Color(0xFF4CD964).copy(alpha = 0.8f))
+        } else {
+            BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.7f))
+        }
+    } else null
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .then(
+                if (completedBorder != null) Modifier.border(completedBorder, RoundedCornerShape(4.dp))
+                else Modifier
+            )
             .background(rowBackgroundColor, RoundedCornerShape(4.dp))
             .padding(vertical = 4.dp, horizontal = 4.dp)
     ) {
@@ -69,7 +82,7 @@ fun ClusterSetRow(
             ) {
                 Text(
                     "RP",
-                    color = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00FFAA),
+                    color = if (isCompleted) (if (theme.mode == VisualMode.STEVE) Color(0xFF1B5E20) else Color(0xFF00FF9C)) else if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00FFAA),
                     fontWeight = FontWeight.Black,
                     fontSize = 16.sp
                 )
@@ -145,18 +158,22 @@ fun ClusterSetRow(
             }
 
             // Completion Check (Clickable area)
+            val checkBgColor = if (isCompleted) {
+                if (theme.mode == VisualMode.STEVE) Color(0xFF4CD964) else Color(0xFF00FF9C)
+            } else theme.inkMuted.copy(alpha = 0.5f)
+
             Box(
                 modifier = Modifier
                     .size(24.dp)
                     .background(
-                        if (isCompleted) Color(0xFF4CD964) else theme.inkMuted.copy(alpha = 0.5f),
+                        checkBgColor,
                         RoundedCornerShape(4.dp)
                     )
                     .clickable { onClick() },
                 contentAlignment = Alignment.Center
             ) {
                 if (isCompleted) {
-                    Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Check, contentDescription = null, tint = Color.Black, modifier = Modifier.size(16.dp))
                 }
             }
         }

@@ -5235,9 +5235,9 @@ fun ClusterLoggingDialog(
                     val prevSet = previousSets.find { it.clusterMiniSetIndex == set.clusterMiniSetIndex }
                     val isActive = !set.isCompleted && (index == 0 || sets[index - 1].isCompleted) && !uiState.isResting
                     val miniSetRowGreenHighlight = if (theme.mode == VisualMode.STEVE) {
-                        Color(0xFF4CD964).copy(alpha = 0.22f)
+                        Color(0xFF4CD964).copy(alpha = 0.32f)
                     } else {
-                        Color(0xFF4CD964).copy(alpha = 0.15f)
+                        Color(0xFF00FF9C).copy(alpha = 0.28f)
                     }
                     val surfaceColor = if (set.isCompleted) {
                         miniSetRowGreenHighlight
@@ -5246,14 +5246,20 @@ fun ClusterLoggingDialog(
                     } else {
                         Color.Transparent
                     }
-                    
+                    val miniSetBorder = if (set.isCompleted) {
+                        if (theme.mode == VisualMode.STEVE) BorderStroke(1.dp, Color(0xFF4CD964).copy(alpha = 0.8f))
+                        else BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.7f))
+                    } else if (isActive && !set.isCompleted) {
+                        BorderStroke(1.dp, Color(0xFF00FFAA).copy(alpha = 0.3f))
+                    } else null
+
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp),
                         color = surfaceColor,
                         shape = RoundedCornerShape(8.dp),
-                        border = if (isActive && !set.isCompleted) BorderStroke(1.dp, Color(0xFF00FFAA).copy(alpha = 0.3f)) else null
+                        border = miniSetBorder
                     ) {
                         Row(
                             modifier = Modifier.padding(8.dp),
@@ -5261,7 +5267,7 @@ fun ClusterLoggingDialog(
                         ) {
                             Text(
                                 "M-${index + 1}",
-                                color = if (set.isCompleted) Color(0xFF00FFAA) else if (isActive) MaterialTheme.colorScheme.onSurface else theme.inkMuted,
+                                color = if (set.isCompleted) (if (theme.mode == VisualMode.STEVE) Color(0xFF1B5E20) else Color(0xFF00FF9C)) else if (isActive) MaterialTheme.colorScheme.onSurface else theme.inkMuted,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.width(40.dp)
@@ -5290,19 +5296,23 @@ fun ClusterLoggingDialog(
 
                             Spacer(modifier = Modifier.width(16.dp))
 
+                            val checkBg = if (set.isCompleted) {
+                                if (theme.mode == VisualMode.STEVE) Color(0xFF4CD964) else Color(0xFF00FF9C)
+                            } else theme.inkMuted.copy(alpha = 0.2f)
+
                             IconButton(
                                 onClick = { viewModel.updateSet(set, isCompleted = !set.isCompleted) },
                                 modifier = Modifier
                                     .size(36.dp)
                                     .background(
-                                        if (set.isCompleted) Color(0xFF00FFAA) else theme.inkMuted.copy(alpha = 0.2f),
+                                        checkBg,
                                         RoundedCornerShape(8.dp)
                                     )
                             ) {
                                 Icon(
                                     Icons.Default.Check,
                                     contentDescription = null,
-                                    tint = if (set.isCompleted) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                    tint = if (set.isCompleted) Color.Black else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
