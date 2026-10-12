@@ -29,10 +29,12 @@ import com.neon.ascent.core.data.local.dao.LibraryDao
 import com.neon.ascent.core.data.local.dao.VaultDao
 import com.neon.ascent.core.data.local.dao.RiteSessionDao
 import com.neon.ascent.core.data.local.dao.SelfMapDao
+import com.neon.ascent.core.data.local.dao.ReconstitutionDao
 import com.neon.ascent.core.data.local.migration.MIGRATION_57_58
 import com.neon.ascent.core.data.local.migration.MIGRATION_58_59
 import com.neon.ascent.core.data.local.migration.MIGRATION_59_60
 import com.neon.ascent.core.data.local.migration.MIGRATION_60_61
+import com.neon.ascent.core.data.local.migration.MIGRATION_61_62
 
 @Database(
     entities = [
@@ -85,9 +87,10 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_60_61
         SelfItemEntity::class,
         EoEEntryEntity::class,
         SelfMapSnapshotEntity::class,
-        SelfMapMoodEntryEntity::class
+        SelfMapMoodEntryEntity::class,
+        SavedReconstitutionEntity::class
     ],
-    version = 61,
+    version = 62,
     exportSchema = true
 )
 @TypeConverters(
@@ -123,4 +126,5 @@ abstract class NeonAscentDatabase : RoomDatabase() {
     abstract fun vaultDao(): VaultDao
     abstract fun riteSessionDao(): RiteSessionDao
     abstract fun selfMapDao(): SelfMapDao
+    abstract fun reconstitutionDao(): ReconstitutionDao
 }

@@ -167,6 +167,15 @@ sealed interface Screen {
     data object DopamineMenu : Screen
 
     @Serializable
+    data object ReconstitutionCalculator : Screen
+
+    @Serializable
+    data object HalfLifeSketch : Screen
+
+    @Serializable
+    data object UnitConverter : Screen
+
+    @Serializable
     data object Stilljack : Screen
 
     @Serializable

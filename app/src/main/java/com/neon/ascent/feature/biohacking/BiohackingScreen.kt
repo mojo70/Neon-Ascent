@@ -62,6 +62,9 @@ fun BiohackingScreen(
     onNavigateToForge: (SpecialType, String?, String?, String?) -> Unit = { _, _, _, _ -> },
     onNavigateToGuide: (String?) -> Unit = {},
     onNavigateToDopamineMenu: () -> Unit = {},
+    onNavigateToReconstitutionCalculator: () -> Unit = {},
+    onNavigateToHalfLifeSketch: () -> Unit = {},
+    onNavigateToUnitConverter: () -> Unit = {},
     onNavigateToOps: () -> Unit = {},
     onRelink: (UplinkProvider) -> Unit = {},
     onNavigateToSelfMap: () -> Unit = {},
@@ -361,6 +364,54 @@ fun BiohackingScreen(
                     color = neonMagenta,
                     onClick = onNavigateToDopamineMenu
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // LABS Tools Section
+                CyberFrame(label = "LABS_TOOLS // DETERMINISTIC_CALCULATORS", borderColor = neonCyan) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "PRECISION BIO-CALCULATORS",
+                            color = neonCyan,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Deterministic calculation tools for reconstitution, exponential half-life decay, and compound unit conversions.",
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        CyberActionButton(
+                            label = "LAUNCH // RECONSTITUTION_CALCULATOR",
+                            color = neonCyan,
+                            onClick = onNavigateToReconstitutionCalculator
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            CyberActionButton(
+                                label = "HALF-LIFE SKETCH",
+                                color = neonCyan,
+                                modifier = Modifier.weight(1f),
+                                onClick = onNavigateToHalfLifeSketch
+                            )
+                            CyberActionButton(
+                                label = "UNIT CONVERTER",
+                                color = neonCyan,
+                                modifier = Modifier.weight(1f),
+                                onClick = onNavigateToUnitConverter
+                            )
+                        }
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(24.dp))
 

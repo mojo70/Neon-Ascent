@@ -35,6 +35,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.neon.ascent.feature.biohacking.BiohackingScreen
 import com.neon.ascent.feature.biohacking.DopamineMenuScreen
+import com.neon.ascent.feature.biohacking.ui.labs.ReconstitutionCalculatorScreen
+import com.neon.ascent.feature.biohacking.ui.labs.HalfLifeSketchScreen
+import com.neon.ascent.feature.biohacking.ui.labs.UnitConverterScreen
 import com.neon.ascent.feature.charactercreation.AttributeScanScreen
 import com.neon.ascent.feature.charactercreation.AvatarCaptureScreen
 import com.neon.ascent.feature.charactercreation.CharacterCreationScreen
@@ -372,6 +375,15 @@ fun AppNavigation(
                             onNavigateToDopamineMenu = {
                                 navController.navigate(Screen.DopamineMenu)
                             },
+                            onNavigateToReconstitutionCalculator = {
+                                navController.navigate(Screen.ReconstitutionCalculator)
+                            },
+                            onNavigateToHalfLifeSketch = {
+                                navController.navigate(Screen.HalfLifeSketch)
+                            },
+                            onNavigateToUnitConverter = {
+                                navController.navigate(Screen.UnitConverter)
+                            },
                             onNavigateToOps = {
                                 coroutineScope.launch {
                                     pagerState.animateScrollToPage(opsIndex) // OPS
@@ -434,6 +446,9 @@ fun AppNavigation(
                 },
                 onNavigateToGuide = { navController.navigate(Screen.NeonGuide()) },
                 onNavigateToDopamineMenu = { navController.navigate(Screen.DopamineMenu) },
+                onNavigateToReconstitutionCalculator = { navController.navigate(Screen.ReconstitutionCalculator) },
+                onNavigateToHalfLifeSketch = { navController.navigate(Screen.HalfLifeSketch) },
+                onNavigateToUnitConverter = { navController.navigate(Screen.UnitConverter) },
                 onNavigateToOps = {
                     navController.navigate(Screen.MainHub) // Pager logic is complex for deep links, just go to hub
                 },
@@ -1037,6 +1052,24 @@ fun AppNavigation(
 
         composable<Screen.DopamineMenu> {
             DopamineMenuScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable<Screen.ReconstitutionCalculator> {
+            ReconstitutionCalculatorScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable<Screen.HalfLifeSketch> {
+            HalfLifeSketchScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable<Screen.UnitConverter> {
+            UnitConverterScreen(
                 onBack = { navController.popBackStack() }
             )
         }
