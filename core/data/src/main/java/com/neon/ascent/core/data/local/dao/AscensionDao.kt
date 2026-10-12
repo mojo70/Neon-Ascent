@@ -11,6 +11,9 @@ interface AscensionDao {
     @Query("SELECT * FROM ascension_directives ORDER BY createdAt DESC")
     fun getAllDirectives(): Flow<List<AscensionDirectiveEntity>>
 
+    @Query("SELECT * FROM ascension_directives WHERE status = 'ACTIVE'")
+    fun getActiveDirectives(): Flow<List<AscensionDirectiveEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertDirective(directive: AscensionDirectiveEntity)
 

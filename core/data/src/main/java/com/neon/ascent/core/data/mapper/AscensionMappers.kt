@@ -28,7 +28,13 @@ fun AscensionDirectiveEntity.toDomain() = AscensionDirective(
     completionHistorySummary = completionHistorySummary,
     lastReviewDate = lastReviewDate,
     anchoredSelfItemId = anchoredSelfItemId,
-    anchoredSelfItemName = anchoredSelfItemName
+    anchoredSelfItemName = anchoredSelfItemName,
+    priorityTier = priorityTier?.let {
+        try { PriorityTier.valueOf(it) } catch (e: Exception) { null }
+    },
+    outcomeStatement = outcomeStatement,
+    affirmation = affirmation,
+    visualUri = visualUri
 )
 
 fun AscensionDirective.toEntity() = AscensionDirectiveEntity(
@@ -54,7 +60,11 @@ fun AscensionDirective.toEntity() = AscensionDirectiveEntity(
     completionHistorySummary = completionHistorySummary,
     lastReviewDate = lastReviewDate,
     anchoredSelfItemId = anchoredSelfItemId,
-    anchoredSelfItemName = anchoredSelfItemName
+    anchoredSelfItemName = anchoredSelfItemName,
+    priorityTier = priorityTier?.name,
+    outcomeStatement = outcomeStatement,
+    affirmation = affirmation,
+    visualUri = visualUri
 )
 
 fun AscensionMissionEntity.toDomain() = AscensionMission(

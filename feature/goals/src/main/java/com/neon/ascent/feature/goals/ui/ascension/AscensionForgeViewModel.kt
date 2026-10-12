@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.Instant
+import java.time.LocalDate
 import java.util.UUID
 import javax.inject.Inject
 import com.neon.ascent.feature.goals.domain.usecases.NeonMentorUseCase
@@ -47,6 +48,11 @@ data class AscensionForgeUiState(
     val selfMapItems: List<SelfItemEntity> = emptyList(),
     val selectedAnchoredSelfItemId: Long? = null,
     val selectedAnchoredSelfItemName: String? = null,
+    val targetEndDate: LocalDate? = null,
+    val priorityTier: PriorityTier = PriorityTier.B,
+    val outcomeStatement: String = "",
+    val affirmation: String = "",
+    val visualUri: String = "",
     // Task specific
     val taskType: AscensionTaskType = AscensionTaskType.ONE_TIME,
     val recurrenceType: RecurrenceTypeV3 = RecurrenceTypeV3.DAILY,
@@ -112,6 +118,11 @@ class AscensionForgeViewModel @Inject constructor(
     fun updateAiMentorMode(mode: MentorMode) = _uiState.update { it.copy(aiMentorMode = mode) }
     fun updateSelectedSkill(skill: String?) = _uiState.update { it.copy(selectedSkill = skill) }
     fun updateMentorInput(input: String) = _uiState.update { it.copy(mentorInput = input) }
+    fun updateTargetEndDate(date: LocalDate?) = _uiState.update { it.copy(targetEndDate = date) }
+    fun updatePriorityTier(tier: PriorityTier) = _uiState.update { it.copy(priorityTier = tier) }
+    fun updateOutcomeStatement(statement: String) = _uiState.update { it.copy(outcomeStatement = statement) }
+    fun updateAffirmation(affirmation: String) = _uiState.update { it.copy(affirmation = affirmation) }
+    fun updateVisualUri(uri: String?) = _uiState.update { it.copy(visualUri = uri ?: "") }
 
     fun selectAnchoredSelfItem(item: SelfItemEntity?) {
         _uiState.update {
@@ -258,7 +269,12 @@ class AscensionForgeViewModel @Inject constructor(
                             aiMentorMode = state.aiMentorMode,
                             archetypeTag = state.selectedArchetype,
                             anchoredSelfItemId = state.selectedAnchoredSelfItemId,
-                            anchoredSelfItemName = state.selectedAnchoredSelfItemName
+                            anchoredSelfItemName = state.selectedAnchoredSelfItemName,
+                            targetEndDate = state.targetEndDate,
+                            priorityTier = state.priorityTier,
+                            outcomeStatement = state.outcomeStatement.takeIf { it.isNotBlank() },
+                            affirmation = state.affirmation.takeIf { it.isNotBlank() },
+                            visualUri = state.visualUri.takeIf { it.isNotBlank() }
                         )
                         repository.insertDirective(directive)
                     }

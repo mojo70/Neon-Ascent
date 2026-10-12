@@ -2952,24 +2952,33 @@ class WorkoutViewModel @Inject constructor(
             currentBase.clusterMiniSetIndex
         }
 
+        val targetIsCompleted = isCompleted ?: currentBase.isCompleted
+        val justMarkedCompleted = isCompleted == true && !currentBase.isCompleted
+
         val updatedSet = currentBase.copy(
             weight = weight ?: currentBase.weight,
             reps = reps ?: currentBase.reps,
             type = newType,
             goalReps = newGoalReps,
-            isCompleted = isCompleted ?: currentBase.isCompleted,
+            isCompleted = targetIsCompleted,
             rir = rir ?: currentBase.rir,
             clusterMiniSetIndex = newClusterIndex
         )
 
-        // UX: If user entered reps but weight is still 0, auto-fill from history/bodyweight
-        val finalWeight = if (reps != null && reps > 0 && updatedSet.weight == 0f) {
+        val autoFillReps = if (justMarkedCompleted && updatedSet.reps == 0) {
+            getAutoFillReps(updatedSet)
+        } else {
+            updatedSet.reps
+        }
+
+        // UX: If user entered reps or set is completed with reps, auto-fill weight from history/bodyweight if still 0
+        val autoFillWeight = if ((reps != null && reps > 0 || (justMarkedCompleted && autoFillReps > 0)) && updatedSet.weight == 0f) {
             getAutoFillWeight(updatedSet)
         } else {
             updatedSet.weight
         }
 
-        val finalizedSet = updatedSet.copy(weight = finalWeight)
+        val finalizedSet = updatedSet.copy(weight = autoFillWeight, reps = autoFillReps)
         
         // Immediate UI feedback and state consistency for sequential updates (e.g. Phase change)
         _uiState.update { state ->
@@ -3056,6 +3065,43 @@ class WorkoutViewModel @Inject constructor(
             
             if (prevSet != null && prevSet.weight > 0) prevSet.weight else prevWFallback
         }
+    }
+
+    private fun getAutoFillReps(setLog: SetLog): Int {
+        val prescribed = setLog.prescribedReps
+        if (prescribed != null && prescribed > 0) {
+            return prescribed
+        }
+
+        val state = _uiState.value
+        val log = state.logs.find { it.first.id == setLog.workoutLogId }?.first
+            ?: return extractRepsFromGoal(setLog.goalReps)
+        val prevSets = state.previousLogs[log.exerciseId] ?: emptyList()
+
+        if (setLog.clusterMiniSetIndex != null) {
+            val prevClusterSets = prevSets.filter { it.clusterMiniSetIndex == setLog.clusterMiniSetIndex }
+            val prevSet = prevClusterSets.firstOrNull()
+            if (prevSet != null && prevSet.reps > 0) return prevSet.reps
+
+            val fallbackClusterSet = prevSets.firstOrNull { it.clusterMiniSetIndex != null }
+            if (fallbackClusterSet != null && fallbackClusterSet.reps > 0) return fallbackClusterSet.reps
+        } else {
+            val currentSets = state.logs.find { it.first.id == setLog.workoutLogId }?.second ?: emptyList()
+            val typeSets = currentSets.filter { it.type == setLog.type && it.clusterMiniSetIndex == null }
+            val index = typeSets.indexOfFirst { it.id == setLog.id }
+
+            val prevTypeSets = prevSets.filter { it.type == setLog.type && it.clusterMiniSetIndex == null }
+            val prevSet = if (index >= 0) prevTypeSets.getOrNull(index) else null
+
+            if (prevSet != null && prevSet.reps > 0) return prevSet.reps
+        }
+
+        return extractRepsFromGoal(setLog.goalReps)
+    }
+
+    private fun extractRepsFromGoal(goalReps: String?): Int {
+        if (goalReps.isNullOrBlank()) return 0
+        return goalReps.split("-", " ").firstOrNull()?.filter { it.isDigit() }?.toIntOrNull() ?: 0
     }
 
     private suspend fun expandToCluster(setLog: SetLog) {

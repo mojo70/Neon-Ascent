@@ -32,6 +32,7 @@ import com.neon.ascent.core.data.local.dao.SelfMapDao
 import com.neon.ascent.core.data.local.migration.MIGRATION_57_58
 import com.neon.ascent.core.data.local.migration.MIGRATION_58_59
 import com.neon.ascent.core.data.local.migration.MIGRATION_59_60
+import com.neon.ascent.core.data.local.migration.MIGRATION_60_61
 
 @Database(
     entities = [
@@ -86,7 +87,7 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_59_60
         SelfMapSnapshotEntity::class,
         SelfMapMoodEntryEntity::class
     ],
-    version = 60,
+    version = 61,
     exportSchema = true
 )
 @TypeConverters(

@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface AscensionRepository {
     fun getAllDirectives(): Flow<List<AscensionDirective>>
+    fun getActiveDirectives(): Flow<List<AscensionDirective>>
     suspend fun insertDirective(directive: AscensionDirective)
     suspend fun updateDirective(directive: AscensionDirective)
     suspend fun updateDirectiveNotes(id: String, notes: String)

@@ -5,6 +5,8 @@ import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
 
+enum class PriorityTier { A, B, C }
+
 data class AscensionDirective(
     val id: String,
     val title: String,
@@ -28,8 +30,28 @@ data class AscensionDirective(
     val completionHistorySummary: String? = null,
     val lastReviewDate: LocalDate? = null,
     val anchoredSelfItemId: Long? = null,
-    val anchoredSelfItemName: String? = null
+    val anchoredSelfItemName: String? = null,
+    val priorityTier: PriorityTier? = null,
+    val outcomeStatement: String? = null,
+    val affirmation: String? = null,
+    val visualUri: String? = null
 )
+
+val AscensionDirectiveComparator = Comparator<AscensionDirective> { d1, d2 ->
+    val p1 = (d1.priorityTier ?: PriorityTier.B).ordinal
+    val p2 = (d2.priorityTier ?: PriorityTier.B).ordinal
+    if (p1 != p2) {
+        return@Comparator p1.compareTo(p2)
+    }
+    val date1 = d1.targetEndDate
+    val date2 = d2.targetEndDate
+    when {
+        date1 == date2 -> 0
+        date1 == null -> 1
+        date2 == null -> -1
+        else -> date1.compareTo(date2)
+    }
+}
 
 data class SuccessMetric(
     val id: String,

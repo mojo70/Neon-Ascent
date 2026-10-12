@@ -287,6 +287,7 @@ fun AppNavigation(
                                 chronicleContent = {
                                     LoreScreenContent(viewModel = loreViewModel)
                                 },
+                                onDirectiveClick = { id -> navController.navigate(Screen.DirectiveDetail(id)) },
                                 onRequestNutritionPermission = {
                                     biohackingViewModel.relink(UplinkProvider.HEALTH_CONNECT)
                                 }
@@ -1079,6 +1080,7 @@ fun AppNavigation(
                 chronicleContent = {
                     LoreScreenContent(viewModel = loreViewModel)
                 },
+                onDirectiveClick = { id -> navController.navigate(Screen.DirectiveDetail(id)) },
                 onRequestNutritionPermission = {
                     biohackingViewModel.relink(UplinkProvider.HEALTH_CONNECT)
                 },

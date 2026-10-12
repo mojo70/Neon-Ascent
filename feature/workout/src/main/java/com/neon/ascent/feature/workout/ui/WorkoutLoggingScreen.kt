@@ -4453,6 +4453,8 @@ fun WorkoutLogCard(
                     set = s,
                     showGoal = showGoalColumn,
                     previousData = warmupPrevText,
+                    previousWeight = prevWarmup?.weight,
+                    previousReps = prevWarmup?.reps,
                     zoomLevel = uiState.zoomLevel,
                     prescribedWeight = s.prescribedWeight,
                     prescribedReps = s.prescribedReps,
@@ -4483,6 +4485,8 @@ fun WorkoutLogCard(
                             set = s,
                             showGoal = showGoalColumn,
                             previousData = workPrevText,
+                            previousWeight = prevWork?.weight,
+                            previousReps = prevWork?.reps,
                             zoomLevel = uiState.zoomLevel,
                             prescribedWeight = s.prescribedWeight,
                             prescribedReps = s.prescribedReps,
@@ -4535,6 +4539,8 @@ fun WorkoutLogCard(
                             set = s,
                             showGoal = showGoalColumn,
                             previousData = workPrevText,
+                            previousWeight = prevWork?.weight ?: progressionState?.currentWeight,
+                            previousReps = prevWork?.reps,
                             zoomLevel = uiState.zoomLevel,
                             prescribedWeight = s.prescribedWeight,
                             prescribedReps = s.prescribedReps,
@@ -5283,12 +5289,18 @@ fun ClusterLoggingDialog(
                                 )
                             }
 
+                            val miniSetPlaceholder = set.prescribedReps?.toString()
+                                ?: prevSet?.reps?.takeIf { it > 0 }?.toString()
+                                ?: set.goalReps?.split("-", " ")?.firstOrNull()?.filter { it.isDigit() }?.takeIf { it.isNotEmpty() }
+                                ?: "0"
+
                             EditableValueBox(
                                 value = if (set.reps == 0 && !set.isCompleted) "" else set.reps.toString(),
                                 onValueChange = { 
                                     val newVal = it.toIntOrNull() ?: 0
                                     viewModel.updateSet(set, reps = newVal) 
                                 },
+                                placeholder = miniSetPlaceholder,
                                 modifier = Modifier.width(80.dp),
                                 keyboardType = KeyboardType.Number,
                                 enabled = !uiState.isResting

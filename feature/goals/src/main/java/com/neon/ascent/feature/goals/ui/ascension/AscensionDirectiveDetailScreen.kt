@@ -70,6 +70,10 @@ fun AscensionDirectiveDetailScreen(
     var archetypeTagInput by remember { mutableStateOf("") }
     var targetDateInput by remember { mutableStateOf("") }
     var notesInput by remember { mutableStateOf("") }
+    var priorityTierInput by remember { mutableStateOf(PriorityTier.B) }
+    var outcomeStatementInput by remember { mutableStateOf("") }
+    var affirmationInput by remember { mutableStateOf("") }
+    var visualUriInput by remember { mutableStateOf("") }
 
     LaunchedEffect(directiveId) {
         viewModel.loadDirective(directiveId)
@@ -84,6 +88,10 @@ fun AscensionDirectiveDetailScreen(
             archetypeTagInput = dir.archetypeTag ?: ""
             targetDateInput = dir.targetEndDate?.toString() ?: ""
             notesInput = dir.notes ?: ""
+            priorityTierInput = dir.priorityTier ?: PriorityTier.B
+            outcomeStatementInput = dir.outcomeStatement ?: ""
+            affirmationInput = dir.affirmation ?: ""
+            visualUriInput = dir.visualUri ?: ""
         }
     }
 
@@ -817,6 +825,50 @@ fun AscensionDirectiveDetailScreen(
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonPink)
                     )
 
+                    Text("PRIORITY_TIER", color = NeonPink, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PriorityTier.entries.forEach { tier ->
+                            val isSelected = priorityTierInput == tier
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { priorityTierInput = tier },
+                                label = { Text("TIER ${tier.name}", fontSize = 9.sp, fontFamily = FontFamily.Monospace) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = NeonPink.copy(alpha = 0.3f),
+                                    selectedLabelColor = NeonPink
+                                )
+                            )
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = outcomeStatementInput,
+                        onValueChange = { outcomeStatementInput = it },
+                        label = { Text("QUANTIFIED_OUTCOME", fontSize = 9.sp, fontFamily = FontFamily.Monospace) },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                        textStyle = MaterialTheme.typography.bodySmall.copy(color = Color.White, fontFamily = FontFamily.Monospace),
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonPink)
+                    )
+
+                    OutlinedTextField(
+                        value = affirmationInput,
+                        onValueChange = { affirmationInput = it },
+                        label = { Text("DAILY_AFFIRMATION", fontSize = 9.sp, fontFamily = FontFamily.Monospace) },
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = MaterialTheme.typography.bodySmall.copy(color = Color.White, fontFamily = FontFamily.Monospace),
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonPink)
+                    )
+
+                    OutlinedTextField(
+                        value = visualUriInput,
+                        onValueChange = { visualUriInput = it },
+                        label = { Text("VISUAL_URI / IMAGE_REF", fontSize = 9.sp, fontFamily = FontFamily.Monospace) },
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = MaterialTheme.typography.bodySmall.copy(color = Color.White, fontFamily = FontFamily.Monospace),
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonPink)
+                    )
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -852,7 +904,11 @@ fun AscensionDirectiveDetailScreen(
                                     visionStatement = visionInput.ifBlank { null },
                                     isQuarterly = isQuarterlyInput,
                                     archetypeTag = archetypeTagInput.ifBlank { null },
-                                    targetEndDate = date
+                                    targetEndDate = date,
+                                    priorityTier = priorityTierInput,
+                                    outcomeStatement = outcomeStatementInput.ifBlank { null },
+                                    affirmation = affirmationInput.ifBlank { null },
+                                    visualUri = visualUriInput.ifBlank { null }
                                 )
                                 showEditDirectiveDialog = false
                             },

@@ -40,6 +40,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.runtime.Composable
 import java.time.DayOfWeek
+import java.time.LocalDate
 
 import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 
@@ -322,6 +323,60 @@ fun DirectiveSpecificFields(uiState: AscensionForgeUiState, viewModel: Ascension
                     }
                 }
             }
+
+            Text("PRIORITY_TIER", color = NeonPink, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PriorityTier.entries.forEach { tier ->
+                    val isSelected = uiState.priorityTier == tier
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { viewModel.updatePriorityTier(tier) },
+                        label = { Text("TIER ${tier.name}", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = NeonPink.copy(alpha = 0.3f),
+                            selectedLabelColor = NeonPink
+                        )
+                    )
+                }
+            }
+
+            OutlinedTextField(
+                value = uiState.targetEndDate?.toString() ?: "",
+                onValueChange = { input ->
+                    val date = try { LocalDate.parse(input.trim()) } catch (e: Exception) { null }
+                    viewModel.updateTargetEndDate(date)
+                },
+                label = { Text("TARGET_DATE (YYYY-MM-DD, OPTIONAL)", fontSize = 10.sp) },
+                modifier = Modifier.fillMaxWidth(),
+                textStyle = TextStyle(color = Color.White, fontFamily = FontFamily.Monospace)
+            )
+
+            OutlinedTextField(
+                value = uiState.outcomeStatement,
+                onValueChange = viewModel::updateOutcomeStatement,
+                label = { Text("QUANTIFIED_OUTCOME (OPTIONAL)", fontSize = 10.sp) },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 2,
+                textStyle = TextStyle(color = Color.White, fontFamily = FontFamily.Monospace)
+            )
+
+            OutlinedTextField(
+                value = uiState.affirmation,
+                onValueChange = viewModel::updateAffirmation,
+                label = { Text("DAILY_AFFIRMATION (OPTIONAL)", fontSize = 10.sp) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                textStyle = TextStyle(color = Color.White, fontFamily = FontFamily.Monospace)
+            )
+
+            OutlinedTextField(
+                value = uiState.visualUri,
+                onValueChange = viewModel::updateVisualUri,
+                label = { Text("VISUAL_URI / IMAGE_REF (OPTIONAL)", fontSize = 10.sp) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                textStyle = TextStyle(color = Color.White, fontFamily = FontFamily.Monospace)
+            )
 
             AnchorToSelfMapSection(uiState, viewModel)
         }

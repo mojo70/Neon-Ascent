@@ -30,6 +30,7 @@ fun SetLogRow(
     showGoal: Boolean,
     previousData: String,
     previousWeight: Float? = null,
+    previousReps: Int? = null,
     zoomLevel: Float = 1.0f,
     prescribedWeight: Float? = null,
     prescribedReps: Int? = null,
@@ -60,6 +61,11 @@ fun SetLogRow(
 
     val weightPlaceholder = prescribedWeight?.let { if (it % 1 == 0f) it.toInt().toString() else it.toString() } 
         ?: previousWeight?.let { if (it % 1 == 0f) it.toInt().toString() else it.toString() } ?: "0"
+
+    val repsPlaceholder = prescribedReps?.toString()
+        ?: previousReps?.takeIf { it > 0 }?.toString()
+        ?: set.goalReps?.split("-", " ")?.firstOrNull()?.filter { it.isDigit() }?.takeIf { it.isNotEmpty() }
+        ?: "0"
     
     val showPrescribed = (prescribedWeight != null || prescribedReps != null) && zoomLevel < 1.5f
     
@@ -163,6 +169,7 @@ fun SetLogRow(
                     val clean = it.replace("s", "")
                     clean.toIntOrNull()?.let { r -> onUpdateReps(r) } 
                 },
+                placeholder = repsPlaceholder,
                 modifier = Modifier.weight(1.5f),
                 keyboardType = KeyboardType.Number
             )

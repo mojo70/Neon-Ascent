@@ -94,7 +94,11 @@ class AscensionDirectiveDetailViewModel @Inject constructor(
         visionStatement: String?,
         isQuarterly: Boolean,
         archetypeTag: String?,
-        targetEndDate: LocalDate?
+        targetEndDate: LocalDate?,
+        priorityTier: PriorityTier? = PriorityTier.B,
+        outcomeStatement: String? = null,
+        affirmation: String? = null,
+        visualUri: String? = null
     ) {
         val dir = _uiState.value.directive ?: return
         viewModelScope.launch {
@@ -105,7 +109,11 @@ class AscensionDirectiveDetailViewModel @Inject constructor(
                     visionStatement = visionStatement,
                     isQuarterly = isQuarterly,
                     archetypeTag = archetypeTag,
-                    targetEndDate = targetEndDate
+                    targetEndDate = targetEndDate,
+                    priorityTier = priorityTier,
+                    outcomeStatement = outcomeStatement,
+                    affirmation = affirmation,
+                    visualUri = visualUri
                 )
             )
         }

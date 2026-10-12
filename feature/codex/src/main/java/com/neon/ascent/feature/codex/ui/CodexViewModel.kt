@@ -30,6 +30,9 @@ import com.neon.ascent.core.domain.workout.models.MovementType
 import com.neon.ascent.core.domain.workout.models.Implement
 import com.neon.ascent.core.domain.workout.models.ProtocolDayType
 import com.neon.ascent.core.domain.workout.models.UnitSystem
+import com.neon.ascent.core.domain.goals.models.AscensionDirective
+import com.neon.ascent.core.domain.goals.models.AscensionDirectiveComparator
+import com.neon.ascent.core.domain.repository.AscensionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import android.content.Context
@@ -112,7 +115,8 @@ data class CodexUiState(
     val exerciseSearchQuery: String = "",
     val availableExercises: List<Exercise> = emptyList(),
     val periodExerciseIds: Set<String> = emptySet(),
-    val userProfile: UserWorkoutProfile? = null
+    val userProfile: UserWorkoutProfile? = null,
+    val activeDirectives: List<AscensionDirective> = emptyList()
 )
 
 enum class VitalsGroup(val label: String) {
@@ -287,6 +291,7 @@ class CodexViewModel @Inject constructor(
     private val fullDataBackupRepository: FullDataBackupRepository,
     private val ritesRepository: RitesRepository,
     private val characterRepository: CharacterRepository,
+    private val ascensionRepository: AscensionRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -301,6 +306,12 @@ class CodexViewModel @Inject constructor(
     val exportJsonEvent = _exportJsonEvent.asSharedFlow()
 
     init {
+        viewModelScope.launch {
+            ascensionRepository.getActiveDirectives().collect { directives ->
+                val sorted = directives.sortedWith(AscensionDirectiveComparator)
+                _uiState.update { it.copy(activeDirectives = sorted) }
+            }
+        }
         viewModelScope.launch {
             combine(
                 dataStore.codexPeriod,

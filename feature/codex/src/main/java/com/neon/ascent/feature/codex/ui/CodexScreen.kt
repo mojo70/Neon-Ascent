@@ -48,6 +48,11 @@ import com.neon.ascent.core.domain.codex.models.BiomarkerKeys
 import com.neon.ascent.core.domain.codex.models.BiomarkerSample
 import com.neon.ascent.core.domain.codex.models.BiomarkerStatus
 import com.neon.ascent.core.domain.workout.models.UnitSystem
+import androidx.compose.ui.text.style.TextOverflow
+import com.neon.ascent.core.common.NeonCyan
+import com.neon.ascent.core.common.NeonPink
+import com.neon.ascent.core.domain.goals.models.AscensionDirective
+import com.neon.ascent.core.domain.goals.models.PriorityTier
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -61,6 +66,7 @@ import kotlin.math.abs
 fun CodexScreen(
     onBack: () -> Unit,
     chronicleContent: @Composable () -> Unit,
+    onDirectiveClick: ((String) -> Unit)? = null,
     onRequestNutritionPermission: (() -> Unit)? = null,
     viewModel: CodexViewModel = hiltViewModel()
 ) {
@@ -172,6 +178,12 @@ fun CodexScreen(
                     .fillMaxSize()
                     .padding(padding)
             ) {
+                // Directives Panel
+                CodexDirectivesPanel(
+                    directives = uiState.activeDirectives,
+                    onDirectiveClick = { directiveId -> onDirectiveClick?.invoke(directiveId) }
+                )
+
                 // Wing Switcher
                 WingSwitcher(
                     selectedWing = uiState.activeWing,
@@ -3901,5 +3913,182 @@ private fun ExportLogOptionRow(
                 checkmarkColor = Color.Black
             )
         )
+    }
+}
+
+@Composable
+fun CodexDirectivesPanel(
+    directives: List<AscensionDirective>,
+    onDirectiveClick: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .background(Color(0xFF0D0A12), RoundedCornerShape(4.dp))
+            .border(1.dp, NeonCyan.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+            .padding(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "⚡ ACTIVE_DIRECTIVES // BIG_GOALS",
+                color = NeonCyan,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "${directives.size} ACTIVE",
+                color = Color.Gray,
+                fontSize = 9.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        if (directives.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No directives. Forge one in OPS.",
+                    color = Color.Gray,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+        } else {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(directives, key = { it.id }) { directive ->
+                    CodexDirectiveCard(
+                        directive = directive,
+                        onClick = { onDirectiveClick(directive.id) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CodexDirectiveCard(
+    directive: AscensionDirective,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .width(220.dp)
+            .clickable(onClick = onClick),
+        color = Color(0xFF140F1D),
+        shape = RoundedCornerShape(4.dp),
+        border = BorderStroke(1.dp, NeonPink.copy(alpha = 0.5f))
+    ) {
+        Column(
+            modifier = Modifier.padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = directive.title.uppercase(),
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                val priority = directive.priorityTier
+                if (priority != null) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Surface(
+                        color = NeonPink.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(2.dp),
+                        border = BorderStroke(1.dp, NeonPink)
+                    ) {
+                        Text(
+                            text = "TIER ${priority.name}",
+                            color = NeonPink,
+                            fontSize = 8.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                        )
+                    }
+                }
+            }
+
+            // Target Date + Days Remaining or "NO DATE"
+            val targetDateText = if (directive.targetEndDate != null) {
+                val days = ChronoUnit.DAYS.between(LocalDate.now(), directive.targetEndDate)
+                when {
+                    days > 0 -> "${directive.targetEndDate} ($days DAYS REMAINING)"
+                    days == 0L -> "${directive.targetEndDate} (DUE TODAY)"
+                    else -> "${directive.targetEndDate} (${abs(days)} DAYS OVERDUE)"
+                }
+            } else {
+                "NO DATE"
+            }
+
+            Text(
+                text = targetDateText,
+                color = if (directive.targetEndDate != null) NeonCyan else Color.Gray,
+                fontSize = 9.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Medium
+            )
+
+            // Outcome statement, affirmation, or description
+            val subtitleText = directive.outcomeStatement.takeIf { !it.isNullOrBlank() }
+                ?: directive.affirmation.takeIf { !it.isNullOrBlank() }
+                ?: directive.description
+
+            if (subtitleText.isNotBlank()) {
+                Text(
+                    text = subtitleText,
+                    color = Color.White.copy(alpha = 0.8f),
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            // Optional Thumbnail if visualUri is set
+            if (!directive.visualUri.isNullOrBlank()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Image,
+                        contentDescription = "Visual Reference",
+                        tint = NeonCyan,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Text(
+                        text = "VISUAL ATTACHED",
+                        color = NeonCyan,
+                        fontSize = 8.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+        }
     }
 }

@@ -34,7 +34,11 @@ data class AscensionDirectiveEntity(
     val completionHistorySummary: String?,
     val lastReviewDate: LocalDate?,
     val anchoredSelfItemId: Long? = null,
-    val anchoredSelfItemName: String? = null
+    val anchoredSelfItemName: String? = null,
+    val priorityTier: String? = null,
+    val outcomeStatement: String? = null,
+    val affirmation: String? = null,
+    val visualUri: String? = null
 )
 
 @Entity(

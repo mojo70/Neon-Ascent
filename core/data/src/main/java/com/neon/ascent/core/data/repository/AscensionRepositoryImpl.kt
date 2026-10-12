@@ -18,6 +18,9 @@ class AscensionRepositoryImpl @Inject constructor(
     override fun getAllDirectives(): Flow<List<AscensionDirective>> =
         dao.getAllDirectives().map { list -> list.map { it.toDomain() } }
 
+    override fun getActiveDirectives(): Flow<List<AscensionDirective>> =
+        dao.getActiveDirectives().map { list -> list.map { it.toDomain() } }
+
     override suspend fun insertDirective(directive: AscensionDirective) =
         dao.insertDirective(directive.toEntity())
 
