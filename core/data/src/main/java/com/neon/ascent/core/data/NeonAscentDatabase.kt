@@ -35,6 +35,7 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_58_59
 import com.neon.ascent.core.data.local.migration.MIGRATION_59_60
 import com.neon.ascent.core.data.local.migration.MIGRATION_60_61
 import com.neon.ascent.core.data.local.migration.MIGRATION_61_62
+import com.neon.ascent.core.data.local.migration.MIGRATION_62_63
 
 @Database(
     entities = [
@@ -90,7 +91,7 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_61_62
         SelfMapMoodEntryEntity::class,
         SavedReconstitutionEntity::class
     ],
-    version = 62,
+    version = 63,
     exportSchema = true
 )
 @TypeConverters(

@@ -99,9 +99,6 @@ class DashboardViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
-    private val _rhrSeries = MutableStateFlow<List<Pair<LocalDate, Double>>>(emptyList())
-    private val _hrvSeries = MutableStateFlow<List<Pair<LocalDate, Double>>>(emptyList())
-
     private val _weatherState = MutableStateFlow(WeatherState())
     val weatherState: StateFlow<WeatherState> = _weatherState.asStateFlow()
 
@@ -113,8 +110,8 @@ class DashboardViewModel @Inject constructor(
 
     val neonCharge: StateFlow<com.neon.ascent.core.domain.health.NeonCharge?> = combine(
         uplinkManager.combinedVitalsSnapshot,
-        _rhrSeries,
-        _hrvSeries,
+        healthRepository.series("RHR", 7),
+        healthRepository.series("HRV_RMSSD", 7),
         workoutRepository.getFullHistory(),
         ritesRepository.getSitMaskWindowsFlow()
     ) { snapshot, rhrList, hrvList, history, sitWindows ->
@@ -162,14 +159,6 @@ class DashboardViewModel @Inject constructor(
                     current.copy(aiEngineTelemetry = telemetry)
                 }
             }
-        }
-
-        viewModelScope.launch {
-            healthRepository.series("RHR", 7).collectLatest { _rhrSeries.value = it }
-        }
-
-        viewModelScope.launch {
-            healthRepository.series("HRV_RMSSD", 7).collectLatest { _hrvSeries.value = it }
         }
 
         viewModelScope.launch {
@@ -271,7 +260,9 @@ class DashboardViewModel @Inject constructor(
                 specialRepository.getAllSpecialAttributes(),
                 identityCoordinator.identity,
                 ascensionRepository.getCompletionsInRange(Instant.now().minus(90, ChronoUnit.DAYS)),
-                workoutRepository.getAllSessions()
+                workoutRepository.getAllSessions(),
+                workoutRepository.getUserProfile("default_user"),
+                workoutRepository.getAllRoutines()
             ) { array ->
                 val story = array[0] as com.neon.ascent.domain.model.UserStory
                 val directives = array[1] as List<AscensionDirective>
@@ -284,6 +275,8 @@ class DashboardViewModel @Inject constructor(
                 val identity = array[8] as com.neon.ascent.core.common.OperatorIdentity
                 val quarterlyCompletions = array[9] as List<AscensionTaskCompletion>
                 val sessions = array[10] as List<com.neon.ascent.core.domain.workout.models.WorkoutSession>
+                val userProfile = array[11] as com.neon.ascent.core.domain.workout.models.UserWorkoutProfile?
+                val routines = (array[12] as? List<*>)?.filterIsInstance<com.neon.ascent.core.domain.workout.models.WorkoutRoutine>() ?: emptyList()
 
                 // Calculate total XP this quarter
                 val totalXpThisQuarter = quarterlyCompletions.sumOf { completion ->
@@ -312,35 +305,69 @@ class DashboardViewModel @Inject constructor(
                 val startOfWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).atStartOfDay(zone).toInstant()
                 val sessionsThisWeekCount = sessions.count { !it.date.isBefore(startOfWeek) }
 
-                val char = userCharacter.value
-                val userProfile = try { workoutRepository.getUserProfile(char?.id?.toString() ?: "default_user").first() } catch (_: Exception) { null }
                 val scheduledCount = userProfile?.scheduledDays?.size ?: 3
                 val isWeeklyTargetMet = sessionsThisWeekCount >= scheduledCount
 
-                val pulsesToday = dailyTasks.filter { task ->
-                    if (task.tags.contains("workout_session")) {
-                        val completedInstant = task.lastCompleted
-                        val isCompletedToday = completedInstant != null &&
-                                completedInstant.atZone(zone).toLocalDate() == today
-                        if (isCompletedToday) return@filter false
+                val nextRoutine = com.neon.ascent.core.domain.workout.rules.WorkoutRotationResolver.resolveNextRoutine(sessions, routines)
+                val routineTitle = "TRAINING SESSION: ${(nextRoutine?.name ?: "GENERAL").uppercase()}"
 
-                        if (isWeeklyTargetMet) return@filter false
+                val scheduledToday = userProfile?.scheduledDays?.find { DayOfWeek.of(it.dayOfWeek) == today.dayOfWeek }
+                val completedToday = sessions.any { it.date.atZone(zone).toLocalDate() == today }
 
-                        val scheduledDays = userProfile?.scheduledDays?.map { DayOfWeek.of(it.dayOfWeek) }?.toSet()
-                        if (scheduledDays != null && scheduledDays.isNotEmpty() && !scheduledDays.contains(today.dayOfWeek)) {
-                            return@filter false
-                        }
+                var workoutTask = dailyTasks.find { it.tags.contains("workout_session") }
 
-                        return@filter true
+                val pulsesList = mutableListOf<AscensionTask>()
+
+                if (scheduledToday != null && !completedToday && !isWeeklyTargetMet) {
+                    if (workoutTask == null) {
+                        workoutTask = AscensionTask(
+                            id = "workout_session_today",
+                            parentId = null,
+                            title = routineTitle,
+                            description = "Sync with ${nextRoutine?.name ?: "scheduled workout"}.",
+                            type = AscensionTaskType.RECURRING,
+                            recurrence = RecurrenceV3(
+                                type = RecurrenceTypeV3.DAYS_OF_WEEK,
+                                daysOfWeek = setOf(today.dayOfWeek)
+                            ),
+                            timeWindows = listOf(scheduledToday.time),
+                            reminderEnabled = true,
+                            xpValue = 25,
+                            tags = listOf("workout_session", "routine_${nextRoutine?.id ?: "default"}")
+                        )
+                    } else {
+                        workoutTask = workoutTask.copy(
+                            title = routineTitle,
+                            timeWindows = if (workoutTask.timeWindows.isEmpty()) listOf(scheduledToday.time) else workoutTask.timeWindows
+                        )
                     }
-                    val recurrence = task.recurrence ?: return@filter true
-                    when (recurrence.type) {
+                    pulsesList.add(workoutTask)
+                }
+
+                dailyTasks.forEach { task ->
+                    if (task.tags.contains("workout_session")) {
+                        return@forEach
+                    }
+                    val recurrence = task.recurrence ?: run {
+                        pulsesList.add(task)
+                        return@forEach
+                    }
+                    val matchesDay = when (recurrence.type) {
                         RecurrenceTypeV3.DAILY -> true
                         RecurrenceTypeV3.WEEKDAYS -> today.dayOfWeek.value in 1..5
                         RecurrenceTypeV3.DAYS_OF_WEEK -> recurrence.daysOfWeek.contains(today.dayOfWeek)
                         else -> true
                     }
+                    if (matchesDay) {
+                        val completedInstant = task.lastCompleted
+                        val isCompletedToday = completedInstant != null && completedInstant.atZone(zone).toLocalDate() == today
+                        if (!isCompletedToday) {
+                            pulsesList.add(task)
+                        }
+                    }
                 }
+
+                val pulsesToday = pulsesList.distinctBy { it.id }
 
                 DashboardUiState(
                     userStory = story,

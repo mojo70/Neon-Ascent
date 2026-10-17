@@ -23,6 +23,7 @@ import com.neon.ascent.core.domain.workout.models.UserWorkoutProfile
 import com.neon.ascent.core.domain.workout.models.WorkoutLog
 import com.neon.ascent.core.domain.workout.models.SetLog
 import com.neon.ascent.core.domain.workout.rules.CyberCrappRules
+import com.neon.ascent.core.domain.workout.rules.ProgressionCalculator
 import com.neon.ascent.core.domain.backup.models.BackupScope
 import com.neon.ascent.core.domain.character.repository.CharacterRepository
 import com.neon.ascent.core.domain.repository.FullDataBackupRepository
@@ -37,6 +38,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import android.content.Context
 import org.json.JSONObject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -320,7 +322,9 @@ class CodexViewModel @Inject constructor(
             ) { periodName, wingName, lastExerciseId ->
                 Triple(periodName, wingName, lastExerciseId)
             }.collect { (periodName, wingName, lastExerciseId) ->
-                val period = runCatching { CodexPeriod.valueOf(periodName) }.getOrDefault(CodexPeriod.THIRTY_DAYS)
+                val period = CodexPeriod.entries.find { 
+                    it.name.equals(periodName, ignoreCase = true) || it.label.equals(periodName, ignoreCase = true) 
+                } ?: CodexPeriod.THIRTY_DAYS
                 val wing = runCatching { CodexWing.valueOf(wingName) }.getOrDefault(CodexWing.OPS_LOG)
                 
                 _uiState.update { it.copy(
@@ -816,7 +820,11 @@ class CodexViewModel @Inject constructor(
                     }
                 }
                 VitalsGroup.RITES -> {
-                    val startDateObj = start.atZone(zone).toLocalDate()
+                    val startDateObj = if (period == CodexPeriod.ALL) {
+                        LocalDate.now().minusDays(365)
+                    } else {
+                        start.atZone(zone).toLocalDate()
+                    }
                     val endDateObj = end.atZone(zone).toLocalDate()
                     val daysInPeriod = (ChronoUnit.DAYS.between(startDateObj, endDateObj).toInt() + 1).coerceAtLeast(1)
                     val datesList = (0 until daysInPeriod).map { startDateObj.plusDays(it.toLong()) }
@@ -1029,7 +1037,18 @@ class CodexViewModel @Inject constructor(
                         )
                     }.sortedByDescending { it.date }
 
-                    Pair(dualPoints, entries)
+                    val effectiveDualPoints = if (dualPoints.isNotEmpty()) {
+                        dualPoints
+                    } else {
+                        filteredSys.mapNotNull { sys ->
+                            val matchingDia = diaSamples.find { it.localDate == sys.localDate && Math.abs(it.loggedAt - sys.loggedAt) < 60000 }
+                            if (matchingDia != null) {
+                                DualVitalsPoint(LocalDate.parse(sys.localDate), sys.value, matchingDia.value)
+                            } else null
+                        }.sortedBy { it.date }
+                    }
+
+                    Pair(effectiveDualPoints, entries)
                 }.collect { (dualPoints, entries) ->
                     _uiState.update {
                         it.copy(
@@ -1045,7 +1064,15 @@ class CodexViewModel @Inject constructor(
                 val rollupFlow = rollupDao.getRange("WEIGHT", startDate, endDate)
 
                 combine(rollupFlow, samplesFlow) { rollups, samples ->
-                    val points = rollups.map { VitalsPoint(LocalDate.parse(it.localDate), it.value) }
+                    val points = if (rollups.isNotEmpty()) {
+                        rollups.map { VitalsPoint(LocalDate.parse(it.localDate), it.value) }
+                    } else {
+                        samples.groupBy { it.localDate }
+                            .map { (dateStr, daySamples) ->
+                                VitalsPoint(LocalDate.parse(dateStr), daySamples.first().value)
+                            }
+                            .sortedBy { it.date }
+                    }
                     val entries = samples.map { s ->
                         val date = LocalDate.parse(s.localDate)
                         val timeInstant = Instant.ofEpochMilli(s.loggedAt)
@@ -1121,7 +1148,26 @@ class CodexViewModel @Inject constructor(
         val zone = ZoneId.systemDefault()
 
         viewModelScope.launch {
-            workoutRepository.getSessionsBetween(start, end).collect { sessions ->
+            val sessionsFlow = if (period == CodexPeriod.YTD) {
+                workoutRepository.getSessionsBetween(Instant.ofEpochMilli(0L), end).map { allSessions ->
+                    if (allSessions.isEmpty()) {
+                        emptyList()
+                    } else {
+                        val currentYear = LocalDate.now(zone).year
+                        val currentYearSessions = allSessions.filter { it.first.date.atZone(zone).year == currentYear }
+                        if (currentYearSessions.isNotEmpty()) {
+                            currentYearSessions
+                        } else {
+                            val latestYear = allSessions.maxOf { it.first.date.atZone(zone).year }
+                            allSessions.filter { it.first.date.atZone(zone).year == latestYear }
+                        }
+                    }
+                }
+            } else {
+                workoutRepository.getSessionsBetween(start, end)
+            }
+
+            sessionsFlow.collect { sessions ->
                 val totalVol = sessions.sumOf { (_, logs) ->
                     logs.sumOf { (_, sets) -> 
                         sets.sumOf { (it.weight * it.reps).toLong() }
@@ -1470,8 +1516,14 @@ class CodexViewModel @Inject constructor(
         val (start, end) = getRangeForPeriod(period)
         val zone = ZoneId.systemDefault()
         
+        val effectiveStart = if (period == CodexPeriod.ALL) {
+            summaries.minOfOrNull { it.date }?.atStartOfDay(zone)?.toInstant() ?: start
+        } else {
+            start
+        }
+
         var expectedCount = 0
-        var check = start.atZone(zone).toLocalDate()
+        var check = effectiveStart.atZone(zone).toLocalDate()
         val endLocalDate = end.atZone(zone).toLocalDate()
         
         val scheduledDaysSet = profile.scheduledDays.map { it.dayOfWeek }.toSet()
@@ -1560,11 +1612,14 @@ class CodexViewModel @Inject constructor(
         if (mainWeightSeries.isNotEmpty() && profile?.autoWeightIncrement == true) {
             val last = mainWeightSeries.last()
             if (last.reps >= repRange.max) {
-                val isCompound = exercise.movementType.name.contains("COMPOUND") || 
-                                 exercise.movementType == com.neon.ascent.core.domain.workout.models.MovementType.QUAD_DOMINANT || 
-                                 exercise.movementType == com.neon.ascent.core.domain.workout.models.MovementType.DEADLIFT
-                val increment = if (isCompound) profile.weightIncrementCompound else profile.weightIncrementIsolation
-                incrementCopy = "Hit ${repRange.max} @ ${last.value.toInt()} -> next load ${last.value.toInt() + increment.toInt()}, min ${repRange.min}"
+                val nextLoad = ProgressionCalculator.calculateNextWeight(
+                    currentWeight = last.value,
+                    movementType = exercise.movementType,
+                    profile = profile
+                )
+                val displayNext = if (nextLoad % 1f == 0f) nextLoad.toInt().toString() else "%.1f".format(nextLoad)
+                val displayLast = if (last.value % 1f == 0f) last.value.toInt().toString() else "%.1f".format(last.value)
+                incrementCopy = "Hit ${repRange.max} @ $displayLast -> next load $displayNext, min ${repRange.min}"
             }
         }
 
@@ -1581,18 +1636,18 @@ class CodexViewModel @Inject constructor(
     }
 
     private fun getRangeForPeriod(period: CodexPeriod): Pair<Instant, Instant> {
-        val now = Instant.now()
         val localNow = LocalDate.now()
         val zone = ZoneId.systemDefault()
+        val end = localNow.plusDays(1).atStartOfDay(zone).toInstant()
         
         val start = when (period) {
             CodexPeriod.SEVEN_DAYS -> localNow.minusDays(7).atStartOfDay(zone).toInstant()
             CodexPeriod.THIRTY_DAYS -> localNow.minusDays(30).atStartOfDay(zone).toInstant()
             CodexPeriod.NINETY_DAYS -> localNow.minusDays(90).atStartOfDay(zone).toInstant()
             CodexPeriod.YTD -> localNow.with(TemporalAdjusters.firstDayOfYear()).atStartOfDay(zone).toInstant()
-            CodexPeriod.ALL -> Instant.EPOCH
+            CodexPeriod.ALL -> Instant.ofEpochMilli(0L)
         }
         
-        return start to now
+        return start to end
     }
 }

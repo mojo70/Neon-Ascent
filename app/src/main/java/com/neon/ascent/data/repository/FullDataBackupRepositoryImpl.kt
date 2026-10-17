@@ -176,8 +176,13 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                     activeProtocol = p.activeProtocol,
                     sequencerEnabled = p.sequencerEnabled,
                     autoWeightIncrement = p.autoWeightIncrement,
-                    weightIncrementCompound = p.weightIncrementCompound,
+                    progressionMode = p.progressionMode,
+                    weightIncrementCompound = p.weightIncrementUpperCompound,
+                    weightIncrementUpperCompound = p.weightIncrementUpperCompound,
+                    weightIncrementLowerCompound = p.weightIncrementLowerCompound,
                     weightIncrementIsolation = p.weightIncrementIsolation,
+                    progressionPercentage = p.progressionPercentage,
+                    roundingIncrement = p.roundingIncrement,
                     rirCapturePerMiniSet = p.rirCapturePerMiniSet,
                     coachingHintsEnabled = p.coachingHintsEnabled
                 )
@@ -566,8 +571,13 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                             deepLinkToRoutine = false,
                             sequencerEnabled = p.sequencerEnabled,
                             autoWeightIncrement = p.autoWeightIncrement,
-                            weightIncrementCompound = p.weightIncrementCompound,
+                            progressionMode = p.progressionMode,
+                            weightIncrementCompound = p.weightIncrementUpperCompound,
+                            weightIncrementUpperCompound = p.weightIncrementUpperCompound,
+                            weightIncrementLowerCompound = p.weightIncrementLowerCompound,
                             weightIncrementIsolation = p.weightIncrementIsolation,
+                            progressionPercentage = p.progressionPercentage,
+                            roundingIncrement = p.roundingIncrement,
                             rirCapturePerMiniSet = p.rirCapturePerMiniSet,
                             coachingHintsEnabled = p.coachingHintsEnabled
                         )
