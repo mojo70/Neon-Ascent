@@ -43,6 +43,9 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import java.util.UUID
 
+import com.neon.ascent.core.data.datastore.DirectivePreferencesDataStore
+import com.neon.ascent.core.domain.goals.models.DirectiveIntakeMode
+
 data class BackupPreview(
     val sessionCount: Int,
     val characterName: String,
@@ -55,6 +58,7 @@ class SettingsViewModel @Inject constructor(
     private val biohackingDao: BiohackingDao,
     private val settingsRepository: SettingsRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
+    private val directivePreferencesDataStore: DirectivePreferencesDataStore,
     private val dailyPrayerDao: DailyPrayerDao,
     private val journalRepository: JournalRepository,
     private val healthRepository: HealthRepository,
@@ -106,6 +110,15 @@ class SettingsViewModel @Inject constructor(
 
     val lastBackupTimestamp = userPreferencesRepository.lastBackupTimestamp
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
+
+    val directiveIntakeMode: StateFlow<DirectiveIntakeMode> = directivePreferencesDataStore.directiveIntakeMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DirectiveIntakeMode.MENTOR)
+
+    fun setDirectiveIntakeMode(mode: DirectiveIntakeMode) {
+        viewModelScope.launch {
+            directivePreferencesDataStore.setDirectiveIntakeMode(mode)
+        }
+    }
 
     private val gson = Gson()
 

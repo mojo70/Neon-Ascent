@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.neon.ascent.core.domain.goals.models.DirectiveIntakeMode
 import com.neon.ascent.ui.*
 import com.neon.ascent.core.common.*
 import com.neon.ascent.core.domain.backup.models.RestoreMode
@@ -114,6 +115,7 @@ fun SettingsScreen(
     val guideVerbosity by viewModel.guideVerbosity.collectAsState()
     val cloudFallbackEnabled by viewModel.cloudFallbackEnabled.collectAsState()
     val expertWeighting by viewModel.expertWeighting.collectAsState()
+    val directiveIntakeMode by viewModel.directiveIntakeMode.collectAsState()
 
     // Biometrics & Sync State
     val isHealthGranted by viewModel.isHealthConnectGranted.collectAsState()
@@ -471,6 +473,18 @@ fun SettingsScreen(
                     }
                     ToggleSetting("Show Self Map Grid", isSelfMapVisible) {
                         viewModel.setSelfMapVisible(it)
+                    }
+                    Text("Directive intake default", color = theme.ink.copy(alpha = 0.6f), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                    Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DirectiveIntakeMode.entries.forEach { mode ->
+                            CyberTabButton(
+                                selected = directiveIntakeMode == mode,
+                                onClick = { viewModel.setDirectiveIntakeMode(mode) },
+                                label = if (mode == DirectiveIntakeMode.MENTOR) "MENTOR (CHAT)" else "FORM (MANUAL)",
+                                modifier = Modifier.weight(1f),
+                                palette = theme
+                            )
+                        }
                     }
                     SettingsItem("EDIT INTERFACE LAYOUT") {
                         // TODO: Navigate to layout editor
