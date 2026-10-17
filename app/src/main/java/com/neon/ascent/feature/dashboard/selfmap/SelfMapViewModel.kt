@@ -9,11 +9,13 @@ import com.neon.ascent.core.data.repository.SelfMapRepository
 import com.neon.ascent.core.domain.chronicle.ChronicleEntry
 import com.neon.ascent.core.domain.chronicle.ChronicleRepository
 import com.neon.ascent.core.domain.selfmap.SelfMapCategory
+import com.neon.ascent.core.domain.selfmap.SelfMapIntakeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -24,6 +26,8 @@ import kotlin.math.abs
 data class SelfMapUiState(
     val isOnboardingSeen: Boolean = false,
     val isConversationalIntakeSeen: Boolean = false,
+    val intakeModePreference: SelfMapIntakeMode = SelfMapIntakeMode.CHAT,
+    val activeSessionIntakeMode: SelfMapIntakeMode = SelfMapIntakeMode.CHAT,
     val isLoading: Boolean = true,
     val activeItems: List<SelfItemEntity> = emptyList(),
     val coreAttachmentLoad: Float = 100f,
@@ -41,7 +45,12 @@ data class SelfMapUiState(
     val isGeneratingIntakeResponse: Boolean = false,
     val intakeChatMessage: String = "",
     val pendingProposals: List<ProposedItemCandidate> = emptyList(),
-    val acceptedProposals: List<ProposedItemCandidate> = emptyList()
+    val acceptedProposals: List<ProposedItemCandidate> = emptyList(),
+    val draftName: String = "",
+    val draftCategory: SelfMapCategory = SelfMapCategory.BODY_SENSES,
+    val draftImportance: Float = 0.7f,
+    val draftNotes: String = "",
+    val isSuggestingFromMentor: Boolean = false
 )
 
 @HiltViewModel
@@ -58,11 +67,19 @@ class SelfMapViewModel @Inject constructor(
     private val _acceptedProposals = MutableStateFlow<List<ProposedItemCandidate>>(emptyList())
     private val _showMoodCheckInSheet = MutableStateFlow(false)
     private val _pendingMoodEoeId = MutableStateFlow<Long?>(null)
+    private val _sessionIntakeMode = MutableStateFlow<SelfMapIntakeMode?>(null)
+    private val _draftName = MutableStateFlow("")
+    private val _draftCategory = MutableStateFlow(SelfMapCategory.BODY_SENSES)
+    private val _draftImportance = MutableStateFlow(0.7f)
+    private val _draftNotes = MutableStateFlow("")
+    private val _isSuggestingFromMentor = MutableStateFlow(false)
 
     @Suppress("UNCHECKED_CAST")
     val uiState: StateFlow<SelfMapUiState> = combine(
         repository.onboardingCompleted,
         repository.conversationalIntakeSeen,
+        repository.selfMapIntakeMode,
+        _sessionIntakeMode,
         repository.activeItems,
         repository.coreAttachmentLoadPercentage,
         repository.coreCount,
@@ -79,31 +96,45 @@ class SelfMapViewModel @Inject constructor(
         _isGeneratingIntake,
         _intakeChatMessage,
         _pendingProposals,
-        _acceptedProposals
+        _acceptedProposals,
+        _draftName,
+        _draftCategory,
+        _draftImportance,
+        _draftNotes,
+        _isSuggestingFromMentor
     ) { flows: Array<Any?> ->
         val onboardingSeen = flows[0] as Boolean
         val intakeSeen = flows[1] as Boolean
-        val items = flows[2] as List<SelfItemEntity>
-        val loadPct = flows[3] as Float
-        val cores = flows[4] as Int
-        val avgImp = flows[5] as Float
-        val bioLock = flows[6] as Boolean
-        val reminderEnabled = flows[7] as Boolean
-        val reminderCadence = flows[8] as Int
-        val entries = flows[9] as List<EoEEntryEntity>
-        val chronicleMsgs = flows[10] as List<ChronicleEntry>
-        val latestMood = flows[11] as SelfMapMoodEntryEntity?
-        val showMoodSheet = flows[12] as Boolean
-        val moodEoeId = flows[13] as Long?
-        val stepIdx = flows[14] as Int
-        val isGen = flows[15] as Boolean
-        val chatMsg = flows[16] as String
-        val pendingProps = flows[17] as List<ProposedItemCandidate>
-        val acceptedProps = flows[18] as List<ProposedItemCandidate>
+        val intakeModePref = flows[2] as SelfMapIntakeMode
+        val sessionModeOverride = flows[3] as SelfMapIntakeMode?
+        val items = flows[4] as List<SelfItemEntity>
+        val loadPct = flows[5] as Float
+        val cores = flows[6] as Int
+        val avgImp = flows[7] as Float
+        val bioLock = flows[8] as Boolean
+        val reminderEnabled = flows[9] as Boolean
+        val reminderCadence = flows[10] as Int
+        val entries = flows[11] as List<EoEEntryEntity>
+        val chronicleMsgs = flows[12] as List<ChronicleEntry>
+        val latestMood = flows[13] as SelfMapMoodEntryEntity?
+        val showMoodSheet = flows[14] as Boolean
+        val moodEoeId = flows[15] as Long?
+        val stepIdx = flows[16] as Int
+        val isGen = flows[17] as Boolean
+        val chatMsg = flows[18] as String
+        val pendingProps = flows[19] as List<ProposedItemCandidate>
+        val acceptedProps = flows[20] as List<ProposedItemCandidate>
+        val dName = flows[21] as String
+        val dCat = flows[22] as SelfMapCategory
+        val dImp = flows[23] as Float
+        val dNotes = flows[24] as String
+        val isSuggesting = flows[25] as Boolean
 
         SelfMapUiState(
             isOnboardingSeen = onboardingSeen,
             isConversationalIntakeSeen = intakeSeen,
+            intakeModePreference = intakeModePref,
+            activeSessionIntakeMode = sessionModeOverride ?: intakeModePref,
             isLoading = false,
             activeItems = items,
             coreAttachmentLoad = loadPct,
@@ -121,7 +152,12 @@ class SelfMapViewModel @Inject constructor(
             isGeneratingIntakeResponse = isGen,
             intakeChatMessage = chatMsg,
             pendingProposals = pendingProps,
-            acceptedProposals = acceptedProps
+            acceptedProposals = acceptedProps,
+            draftName = dName,
+            draftCategory = dCat,
+            draftImportance = dImp,
+            draftNotes = dNotes,
+            isSuggestingFromMentor = isSuggesting
         )
     }.stateIn(
         scope = viewModelScope,
@@ -132,7 +168,8 @@ class SelfMapViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             repository.preseedDefaultItemsIfEmpty()
-            initializeIntakeStep(0)
+            val savedStep = repository.intakeStepIndex.first()
+            initializeIntakeStep(savedStep)
         }
     }
 
@@ -155,6 +192,7 @@ class SelfMapViewModel @Inject constructor(
     fun initializeIntakeStep(stepIndex: Int) {
         viewModelScope.launch {
             _intakeStepIndex.value = stepIndex
+            repository.setIntakeStepIndex(stepIndex)
             _isGeneratingIntake.value = true
             val (msg, proposals) = intakeUseCase.processUserTurn(stepIndex, "")
             _intakeChatMessage.value = msg
@@ -232,12 +270,87 @@ class SelfMapViewModel @Inject constructor(
     fun skipConversationalIntake() {
         viewModelScope.launch {
             repository.setConversationalIntakeSeen(true)
+            repository.setIntakeStepIndex(0)
         }
     }
 
     fun finishConversationalIntake() {
         viewModelScope.launch {
             repository.setConversationalIntakeSeen(true)
+            repository.setIntakeStepIndex(0)
+        }
+    }
+
+    /**
+     * Toggles or sets the active in-session intake mode (CHAT vs FORM).
+     * Note: In-session mode switching does NOT write the preference to DataStore
+     * unless explicitly saved via Settings.
+     */
+    fun switchSessionIntakeMode(mode: SelfMapIntakeMode) {
+        _sessionIntakeMode.value = mode
+    }
+
+    /**
+     * Updates in-memory draft form inputs so state is preserved across mode switches.
+     */
+    fun updateDraftForm(
+        name: String? = null,
+        category: SelfMapCategory? = null,
+        importance: Float? = null,
+        notes: String? = null
+    ) {
+        if (name != null) _draftName.value = name
+        if (category != null) _draftCategory.value = category
+        if (importance != null) _draftImportance.value = importance
+        if (notes != null) _draftNotes.value = notes
+    }
+
+    /**
+     * Queries the AI guide for a quick recommendation for the specified or draft category
+     * without forcing a multi-turn chat sequence.
+     */
+    fun askMentorForSuggestion(category: SelfMapCategory? = null) {
+        viewModelScope.launch {
+            _isSuggestingFromMentor.value = true
+            val targetCat = category ?: _draftCategory.value
+            val suggestion = intakeUseCase.suggestItemForCategory(targetCat)
+            _draftName.value = suggestion.name
+            _draftCategory.value = suggestion.category
+            _draftImportance.value = suggestion.suggestedImportance
+            if (!suggestion.note.isNullOrBlank()) {
+                _draftNotes.value = suggestion.note
+            }
+            _isSuggestingFromMentor.value = false
+        }
+    }
+
+    /**
+     * Saves the draft item directly into SelfMapRepository and clears draft form state.
+     */
+    fun saveDraftFormItem() {
+        val name = _draftName.value.trim()
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            repository.insertSelfItem(
+                SelfItemEntity(
+                    name = name,
+                    category = _draftCategory.value,
+                    importance = _draftImportance.value.coerceIn(0.0f, 1.0f),
+                    notes = _draftNotes.value.trim().ifEmpty { null }
+                )
+            )
+            _draftName.value = ""
+            _draftImportance.value = 0.7f
+            _draftNotes.value = ""
+        }
+    }
+
+    /**
+     * Persists the user's preferred default intake mode (CHAT vs FORM) to DataStore Settings.
+     */
+    fun setSelfMapIntakeModePreference(mode: SelfMapIntakeMode) {
+        viewModelScope.launch {
+            repository.setSelfMapIntakeMode(mode)
         }
     }
 

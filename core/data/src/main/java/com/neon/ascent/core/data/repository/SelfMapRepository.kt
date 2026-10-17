@@ -9,6 +9,7 @@ import com.neon.ascent.core.data.local.entity.SelfItemEntity
 import com.neon.ascent.core.data.local.entity.SelfMapMoodEntryEntity
 import com.neon.ascent.core.data.local.entity.SelfMapSnapshotEntity
 import com.neon.ascent.core.domain.selfmap.SelfMapCategory
+import com.neon.ascent.core.domain.selfmap.SelfMapIntakeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -39,6 +40,10 @@ class SelfMapRepository @Inject constructor(
     val biometricLockEnabled: Flow<Boolean> = preferencesDataStore.biometricLockEnabled
 
     val conversationalIntakeSeen: Flow<Boolean> = preferencesDataStore.conversationalIntakeSeen
+
+    val selfMapIntakeMode: Flow<SelfMapIntakeMode> = preferencesDataStore.selfMapIntakeMode
+
+    val intakeStepIndex: Flow<Int> = preferencesDataStore.intakeStepIndex
 
     val reviewReminderEnabled: Flow<Boolean> = preferencesDataStore.reviewReminderEnabled
 
@@ -118,6 +123,14 @@ class SelfMapRepository @Inject constructor(
 
     suspend fun setBaselineMass(mass: Float) {
         preferencesDataStore.setBaselineMass(mass)
+    }
+
+    suspend fun setSelfMapIntakeMode(mode: SelfMapIntakeMode) {
+        preferencesDataStore.setSelfMapIntakeMode(mode)
+    }
+
+    suspend fun setIntakeStepIndex(step: Int) {
+        preferencesDataStore.setIntakeStepIndex(step)
     }
 
     /**

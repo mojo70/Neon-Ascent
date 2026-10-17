@@ -86,6 +86,14 @@ class SelfMapConversationalIntakeTest {
         assertTrue(categoriesPresent.contains(acceptedItem3.category))
     }
 
+    @Test
+    fun testSuggestItemForCategory_AskMentorSuggestion() = runBlocking {
+        val suggestion = intakeUseCase.suggestItemForCategory(SelfMapCategory.PEOPLE)
+        assertNotNull(suggestion)
+        assertTrue(suggestion.name.isNotBlank())
+        assertTrue(suggestion.suggestedImportance in 0.40f..0.90f)
+    }
+
     private class FakeAiCore : AiCore {
         override suspend fun isReady(): Boolean = true
         override suspend fun warmup() {}

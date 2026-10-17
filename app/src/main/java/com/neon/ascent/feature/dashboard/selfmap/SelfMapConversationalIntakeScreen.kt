@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neon.ascent.core.common.LocalNeonTheme
 import com.neon.ascent.core.domain.selfmap.SelfMapCategory
+import com.neon.ascent.core.domain.selfmap.SelfMapIntakeMode
 import com.neon.ascent.ui.SoftGridBackground
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,7 +45,13 @@ fun SelfMapConversationalIntakeScreen(
     val danger = theme.accentDanger
     val uiState by viewModel.uiState.collectAsState()
 
-    var userTextInput by remember { mutableStateOf("") }
+    var userTextInput by remember { mutableStateOf(uiState.draftName) }
+
+    LaunchedEffect(uiState.draftName) {
+        if (uiState.draftName != userTextInput && userTextInput.isBlank()) {
+            userTextInput = uiState.draftName
+        }
+    }
 
     val currentStep = uiState.currentIntakeStepIndex
     val totalSteps = 5
@@ -90,10 +97,10 @@ fun SelfMapConversationalIntakeScreen(
                     )
                 }
 
-                // ALWAYS-VISIBLE SKIP BUTTON
+                // IN-SESSION MODE SWITCH BUTTON
                 OutlinedButton(
                     onClick = {
-                        viewModel.skipConversationalIntake()
+                        viewModel.switchSessionIntakeMode(SelfMapIntakeMode.FORM)
                         onSkipToManual()
                     },
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.LightGray),
@@ -106,7 +113,7 @@ fun SelfMapConversationalIntakeScreen(
                         modifier = Modifier.size(16.dp).padding(end = 4.dp)
                     )
                     Text(
-                        text = "Skip conversation — add manually",
+                        text = "Switch to Form",
                         fontFamily = FontFamily.Monospace,
                         fontSize = 10.sp
                     )
@@ -267,7 +274,10 @@ fun SelfMapConversationalIntakeScreen(
             ) {
                 OutlinedTextField(
                     value = userTextInput,
-                    onValueChange = { userTextInput = it },
+                    onValueChange = {
+                        userTextInput = it
+                        viewModel.updateDraftForm(name = it)
+                    },
                     placeholder = {
                         Text(
                             "Type your response to Guide...",
@@ -292,6 +302,7 @@ fun SelfMapConversationalIntakeScreen(
                         if (userTextInput.isNotBlank()) {
                             viewModel.sendConversationalTurn(userTextInput)
                             userTextInput = ""
+                            viewModel.updateDraftForm(name = "")
                         }
                     },
                     modifier = Modifier

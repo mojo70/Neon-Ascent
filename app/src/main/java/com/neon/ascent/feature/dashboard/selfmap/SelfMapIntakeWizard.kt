@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import com.neon.ascent.core.common.LocalNeonTheme
 import com.neon.ascent.core.data.local.entity.SelfItemEntity
 import com.neon.ascent.core.domain.selfmap.SelfMapCategory
+import com.neon.ascent.core.domain.selfmap.SelfMapIntakeMode
 import com.neon.ascent.ui.CyberFrame
 import com.neon.ascent.ui.SoftGridBackground
 
@@ -54,6 +55,7 @@ fun SelfMapIntakeWizardScreen(
     viewModel: SelfMapViewModel,
     onFinishWizard: () -> Unit,
     onExitWizard: () -> Unit,
+    onSwitchToChat: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val theme = LocalNeonTheme.current
@@ -65,9 +67,9 @@ fun SelfMapIntakeWizardScreen(
     val currentCategory = wizardCategories[currentStepIndex]
 
     // Form fields for adding/editing items
-    var nameInput by remember { mutableStateOf("") }
-    var importanceInput by remember { mutableFloatStateOf(0.7f) }
-    var notesInput by remember { mutableStateOf("") }
+    var nameInput by remember { mutableStateOf(uiState.draftName) }
+    var importanceInput by remember { mutableFloatStateOf(uiState.draftImportance) }
+    var notesInput by remember { mutableStateOf(uiState.draftNotes) }
     var editingItem by remember { mutableStateOf<SelfItemEntity?>(null) }
     var showForm by remember { mutableStateOf(false) }
 
@@ -75,13 +77,14 @@ fun SelfMapIntakeWizardScreen(
         uiState.activeItems.filter { it.category == currentCategory }
     }
 
-    // Reset form on category change or when entering
-    LaunchedEffect(currentCategory) {
-        nameInput = ""
-        importanceInput = 0.7f
-        notesInput = ""
-        editingItem = null
-        showForm = false
+    // Sync draft state from ViewModel if populated from Chat / Ask Mentor
+    LaunchedEffect(uiState.draftName, uiState.draftImportance, uiState.draftNotes) {
+        if (uiState.draftName.isNotBlank() && editingItem == null) {
+            nameInput = uiState.draftName
+            importanceInput = uiState.draftImportance
+            notesInput = uiState.draftNotes
+            showForm = true
+        }
     }
 
     Box(
@@ -104,7 +107,7 @@ fun SelfMapIntakeWizardScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "SELF MAP // INTAKE WIZARD",
                         style = MaterialTheme.typography.labelMedium.copy(
@@ -123,12 +126,33 @@ fun SelfMapIntakeWizardScreen(
                     )
                 }
 
-                IconButton(onClick = onExitWizard) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Exit Wizard",
-                        tint = Color.Gray
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (onSwitchToChat != null) {
+                        OutlinedButton(
+                            onClick = {
+                                viewModel.switchSessionIntakeMode(SelfMapIntakeMode.CHAT)
+                                onSwitchToChat()
+                            },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.LightGray),
+                            shape = RoundedCornerShape(4.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.DarkGray),
+                            modifier = Modifier.padding(end = 8.dp)
+                        ) {
+                            Text(
+                                text = "Switch to Chat",
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+
+                    IconButton(onClick = onExitWizard) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Exit Wizard",
+                            tint = Color.Gray
+                        )
+                    }
                 }
             }
 
@@ -192,9 +216,43 @@ fun SelfMapIntakeWizardScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
+                                // ASK MENTOR BUTTON HEADER
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "MANUAL INPUT FIELDS",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = Color.Gray,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    )
+
+                                    OutlinedButton(
+                                        onClick = { viewModel.askMentorForSuggestion(currentCategory) },
+                                        enabled = !uiState.isSuggestingFromMentor,
+                                        shape = RoundedCornerShape(4.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = cyan),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, cyan.copy(alpha = 0.6f))
+                                    ) {
+                                        if (uiState.isSuggestingFromMentor) {
+                                            CircularProgressIndicator(modifier = Modifier.size(12.dp), color = cyan, strokeWidth = 1.5.dp)
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                        }
+                                        Text("⚡ ASK MENTOR", fontFamily = FontFamily.Monospace, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+
                                 OutlinedTextField(
                                     value = nameInput,
-                                    onValueChange = { nameInput = it },
+                                    onValueChange = {
+                                        nameInput = it
+                                        viewModel.updateDraftForm(name = it, category = currentCategory)
+                                    },
                                     label = {
                                         Text(
                                             "Item Name (Required)",
@@ -240,7 +298,10 @@ fun SelfMapIntakeWizardScreen(
 
                                 Slider(
                                     value = importanceInput,
-                                    onValueChange = { importanceInput = it },
+                                    onValueChange = {
+                                        importanceInput = it
+                                        viewModel.updateDraftForm(importance = it)
+                                    },
                                     valueRange = 0.0f..1.0f,
                                     colors = SliderDefaults.colors(
                                         thumbColor = ringColor,
@@ -254,7 +315,10 @@ fun SelfMapIntakeWizardScreen(
 
                                 OutlinedTextField(
                                     value = notesInput,
-                                    onValueChange = { notesInput = it },
+                                    onValueChange = {
+                                        notesInput = it
+                                        viewModel.updateDraftForm(notes = it)
+                                    },
                                     label = {
                                         Text(
                                             "Notes / Why it matters (Optional)",
@@ -309,12 +373,13 @@ fun SelfMapIntakeWizardScreen(
                                                         notes = notesInput.trim().ifEmpty { null }
                                                     )
                                                 }
-                                                // Reset
+                                                // Reset local & viewmodel draft
                                                 nameInput = ""
                                                 importanceInput = 0.7f
                                                 notesInput = ""
                                                 editingItem = null
                                                 showForm = false
+                                                viewModel.updateDraftForm(name = "", category = currentCategory, importance = 0.7f, notes = "")
                                             }
                                         },
                                         enabled = nameInput.isNotBlank(),

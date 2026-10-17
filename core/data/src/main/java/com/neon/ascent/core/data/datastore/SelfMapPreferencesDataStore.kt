@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
+import com.neon.ascent.core.domain.selfmap.SelfMapIntakeMode
+
 private val Context.selfMapDataStore: DataStore<Preferences> by preferencesDataStore(name = "self_map_preferences")
 
 @Singleton
@@ -23,6 +25,8 @@ class SelfMapPreferencesDataStore @Inject constructor(
         val CONVERSATIONAL_INTAKE_SEEN = booleanPreferencesKey("self_map_conversational_intake_seen")
         val REVIEW_REMINDER_ENABLED = booleanPreferencesKey("self_map_review_reminder_enabled")
         val REVIEW_REMINDER_CADENCE_DAYS = intPreferencesKey("self_map_review_reminder_cadence_days")
+        val SELF_MAP_INTAKE_MODE = stringPreferencesKey("selfMapIntakeMode")
+        val INTAKE_STEP_INDEX = intPreferencesKey("self_map_intake_step_index")
     }
 
     private val dataStore = context.selfMapDataStore
@@ -49,6 +53,35 @@ class SelfMapPreferencesDataStore @Inject constructor(
 
     val reviewReminderCadenceDays: Flow<Int> = dataStore.data.map { prefs ->
         prefs[Keys.REVIEW_REMINDER_CADENCE_DAYS] ?: 14
+    }
+
+    val selfMapIntakeMode: Flow<SelfMapIntakeMode> = dataStore.data.map { prefs ->
+        val modeStr = prefs[Keys.SELF_MAP_INTAKE_MODE]
+        if (modeStr != null) {
+            try {
+                SelfMapIntakeMode.valueOf(modeStr)
+            } catch (_: IllegalArgumentException) {
+                SelfMapIntakeMode.CHAT
+            }
+        } else {
+            SelfMapIntakeMode.CHAT
+        }
+    }
+
+    val intakeStepIndex: Flow<Int> = dataStore.data.map { prefs ->
+        prefs[Keys.INTAKE_STEP_INDEX] ?: 0
+    }
+
+    suspend fun setSelfMapIntakeMode(mode: SelfMapIntakeMode) {
+        dataStore.edit { prefs ->
+            prefs[Keys.SELF_MAP_INTAKE_MODE] = mode.name
+        }
+    }
+
+    suspend fun setIntakeStepIndex(step: Int) {
+        dataStore.edit { prefs ->
+            prefs[Keys.INTAKE_STEP_INDEX] = step
+        }
     }
 
     suspend fun setOnboardingCompleted(completed: Boolean) {

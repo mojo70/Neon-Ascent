@@ -63,6 +63,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import com.neon.ascent.core.data.local.entity.SelfItemEntity
+import com.neon.ascent.core.domain.selfmap.SelfMapIntakeMode
 import com.neon.ascent.feature.dashboard.selfmap.EoELoggingSheet
 import com.neon.ascent.feature.dashboard.selfmap.SelfMapConversationalIntakeScreen
 import com.neon.ascent.feature.dashboard.selfmap.SelfMapIntakeWizardScreen
@@ -124,16 +125,28 @@ fun HolographicAvatarHub(
                     onComplete = { selfMapViewModel.completeOnboarding() }
                 )
             } else if (!selfMapUiState.isConversationalIntakeSeen) {
-                SelfMapConversationalIntakeScreen(
-                    viewModel = selfMapViewModel,
-                    onFinishIntake = { hubViewMode = AvatarHubMode.SELF_MAP },
-                    onSkipToManual = { hubViewMode = AvatarHubMode.WIZARD }
-                )
+                if (selfMapUiState.activeSessionIntakeMode == SelfMapIntakeMode.FORM) {
+                    SelfMapIntakeWizardScreen(
+                        viewModel = selfMapViewModel,
+                        onFinishWizard = { hubViewMode = AvatarHubMode.SELF_MAP },
+                        onExitWizard = { hubViewMode = AvatarHubMode.SELF_MAP },
+                        onSwitchToChat = { hubViewMode = AvatarHubMode.CONVERSATIONAL_INTAKE }
+                    )
+                } else {
+                    SelfMapConversationalIntakeScreen(
+                        viewModel = selfMapViewModel,
+                        onFinishIntake = { hubViewMode = AvatarHubMode.SELF_MAP },
+                        onSkipToManual = { hubViewMode = AvatarHubMode.WIZARD }
+                    )
+                }
             } else {
                 SelfMapRadialCanvas(
                     viewModel = selfMapViewModel,
                     onOpenWizard = { hubViewMode = AvatarHubMode.WIZARD },
-                    onOpenConversationalIntake = { hubViewMode = AvatarHubMode.CONVERSATIONAL_INTAKE },
+                    onOpenConversationalIntake = {
+                        selfMapViewModel.switchSessionIntakeMode(SelfMapIntakeMode.CHAT)
+                        hubViewMode = AvatarHubMode.CONVERSATIONAL_INTAKE
+                    },
                     onOpenEoELog = { item ->
                         eoeTargetItem = item
                         showEoELogSheet = true
@@ -167,7 +180,8 @@ fun HolographicAvatarHub(
             SelfMapIntakeWizardScreen(
                 viewModel = selfMapViewModel,
                 onFinishWizard = { hubViewMode = AvatarHubMode.SELF_MAP },
-                onExitWizard = { hubViewMode = AvatarHubMode.SELF_MAP }
+                onExitWizard = { hubViewMode = AvatarHubMode.SELF_MAP },
+                onSwitchToChat = { hubViewMode = AvatarHubMode.CONVERSATIONAL_INTAKE }
             )
         }
         return

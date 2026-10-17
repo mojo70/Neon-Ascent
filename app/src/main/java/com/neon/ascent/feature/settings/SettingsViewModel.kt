@@ -45,7 +45,9 @@ import java.util.UUID
 
 import com.neon.ascent.core.data.datastore.DirectivePreferencesDataStore
 import com.neon.ascent.core.data.datastore.BriefPreferencesDataStore
+import com.neon.ascent.core.data.datastore.SelfMapPreferencesDataStore
 import com.neon.ascent.core.domain.goals.models.DirectiveIntakeMode
+import com.neon.ascent.core.domain.selfmap.SelfMapIntakeMode
 
 data class BackupPreview(
     val sessionCount: Int,
@@ -61,6 +63,7 @@ class SettingsViewModel @Inject constructor(
     private val userPreferencesRepository: UserPreferencesRepository,
     private val directivePreferencesDataStore: DirectivePreferencesDataStore,
     private val briefPreferencesDataStore: BriefPreferencesDataStore,
+    private val selfMapPreferencesDataStore: SelfMapPreferencesDataStore,
     private val dailyPrayerDao: DailyPrayerDao,
     private val journalRepository: JournalRepository,
     private val healthRepository: HealthRepository,
@@ -119,6 +122,15 @@ class SettingsViewModel @Inject constructor(
     fun setDirectiveIntakeMode(mode: DirectiveIntakeMode) {
         viewModelScope.launch {
             directivePreferencesDataStore.setDirectiveIntakeMode(mode)
+        }
+    }
+
+    val selfMapIntakeMode: StateFlow<SelfMapIntakeMode> = selfMapPreferencesDataStore.selfMapIntakeMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SelfMapIntakeMode.CHAT)
+
+    fun setSelfMapIntakeMode(mode: SelfMapIntakeMode) {
+        viewModelScope.launch {
+            selfMapPreferencesDataStore.setSelfMapIntakeMode(mode)
         }
     }
 

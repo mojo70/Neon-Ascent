@@ -1,5 +1,6 @@
 package com.neon.ascent.feature.dashboard.selfmap
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -296,6 +297,30 @@ fun SelfMapRadialCanvas(
                         viewModel.updateItem(item.copy(importance = newImportance))
                     }
                 )
+
+                // Add with Mentor / Guided Start CTA
+                OutlinedButton(
+                    onClick = onOpenConversationalIntake,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = cyan),
+                    shape = MaterialTheme.shapes.extraSmall,
+                    border = BorderStroke(1.dp, cyan.copy(alpha = 0.8f)),
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Chat,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp).padding(end = 4.dp)
+                    )
+                    Text(
+                        text = "ADD WITH MENTOR",
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                        letterSpacing = 1.sp
+                    )
+                }
 
                 // Log Reaction Floating CTA
                 Button(
