@@ -205,6 +205,9 @@ class DashboardViewModel @Inject constructor(
     val briefStatus: StateFlow<String?> = briefPrefs.lastBriefStatus
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    val dismissedAltarNudgeDate: StateFlow<String?> = briefPrefs.dismissedAltarNudgeDate
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
     private val _dopamineEvent = MutableStateFlow<com.neon.ascent.core.common.DopamineEvent?>(null)
 
     init {
@@ -716,6 +719,13 @@ class DashboardViewModel @Inject constructor(
             userCharacter.value?.let {
                 characterRepository.saveCharacter(it.copy(chessElo = newElo))
             }
+        }
+    }
+
+    fun dismissAltarNudge() {
+        viewModelScope.launch {
+            val todayStr = LocalDate.now().toString()
+            briefPrefs.dismissAltarNudgeForDate(todayStr)
         }
     }
 }

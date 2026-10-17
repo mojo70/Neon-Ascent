@@ -23,4 +23,10 @@ object DataStoreModule {
     fun provideDirectivePreferencesDataStore(
         @ApplicationContext context: Context
     ): DirectivePreferencesDataStore = DirectivePreferencesDataStore(context)
+
+    @Provides
+    @Singleton
+    fun provideWorkoutPreferencesDataStore(
+        @ApplicationContext context: Context
+    ): WorkoutPreferencesDataStore = WorkoutPreferencesDataStore(context)
 }

@@ -19,11 +19,14 @@ import com.neon.ascent.core.domain.workout.rules.CyberCrappRules
 import com.neon.ascent.core.domain.workout.rules.ProgressionCalculator
 import com.neon.ascent.feature.workout.services.WorkoutTimerService
 import com.neon.ascent.core.data.datastore.BriefPreferencesDataStore
+import com.neon.ascent.core.data.datastore.WorkoutPreferencesDataStore
 import com.neon.ascent.core.data.notifications.BriefFactsBuilder
 import com.neon.ascent.core.domain.notifications.brief.AmTemplateWriter
 import com.neon.ascent.core.domain.notifications.brief.BriefStanceResolver
 import com.neon.ascent.core.domain.notifications.brief.PmTemplateWriter
 import com.neon.ascent.core.domain.notifications.models.BriefSlot
+import com.neon.ascent.core.domain.notifications.models.OperationalStatus
+import com.neon.ascent.core.domain.workout.models.WorkoutLayoutMode
 import com.neon.ascent.core.domain.workout.protocol.*
 import com.neon.ascent.core.domain.workout.rules.WorkoutRotationResolver
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -135,7 +138,12 @@ data class WorkoutUiState(
     val isStrategicDeconditioningActive: Boolean = false,
     val showProtocolChangeReminderDialog: WorkoutProtocol? = null,
     val allExerciseMaxes: List<ExerciseMax> = emptyList(),
-    val allRoutines: List<WorkoutRoutine> = emptyList()
+    val allRoutines: List<WorkoutRoutine> = emptyList(),
+    val layoutMode: WorkoutLayoutMode = WorkoutLayoutMode.CLASSIC,
+    val operationalStatus: OperationalStatus = OperationalStatus.NOMINAL,
+    val isStatusBannerDismissed: Boolean = false,
+    val linkedDirectiveTitle: String? = null,
+    val linkedDirectiveId: String? = null
 )
 
 @HiltViewModel
@@ -146,6 +154,7 @@ class WorkoutViewModel @Inject constructor(
     private val healthPrefs: HealthPreferencesDataStore,
     private val factsBuilder: BriefFactsBuilder,
     private val briefPrefs: BriefPreferencesDataStore,
+    private val workoutPreferencesDataStore: WorkoutPreferencesDataStore,
     private val activeSessionController: ActiveSessionController,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -298,6 +307,22 @@ class WorkoutViewModel @Inject constructor(
                 repository.getRecoveryScore().collect { score ->
                     _uiState.update { it.copy(recoveryScore = score) }
                 }
+            }
+
+            launch {
+                workoutPreferencesDataStore.workoutLayoutMode.collect { mode ->
+                    _uiState.update { it.copy(layoutMode = mode) }
+                }
+            }
+
+            launch {
+                try {
+                    val slot = if (LocalTime.now().hour < 15) BriefSlot.AM else BriefSlot.PM
+                    val freshFacts = factsBuilder.build(slot)
+                    val stance = BriefStanceResolver.resolve(freshFacts)
+                    val copy = AmTemplateWriter.write(freshFacts, stance)
+                    _uiState.update { it.copy(operationalStatus = copy.status) }
+                } catch (_: Exception) {}
             }
 
             launch {
@@ -1181,6 +1206,34 @@ class WorkoutViewModel @Inject constructor(
         viewModelScope.launch {
             val task = ascensionRepository.getTaskById(taskId).first() ?: return@launch
             
+            val parentId = task.parentId
+            if (parentId != null) {
+                val directives = ascensionRepository.getAllDirectives().first()
+                val directive = directives.find { it.id == parentId }
+                if (directive != null) {
+                    _uiState.update {
+                        it.copy(
+                            linkedDirectiveId = directive.id,
+                            linkedDirectiveTitle = directive.title.uppercase().take(20)
+                        )
+                    }
+                } else {
+                    val missions = ascensionRepository.getActiveMissions().first()
+                    val mission = missions.find { it.id == parentId }
+                    if (mission?.directiveId != null) {
+                        val mDirective = directives.find { it.id == mission.directiveId }
+                        if (mDirective != null) {
+                            _uiState.update {
+                                it.copy(
+                                    linkedDirectiveId = mDirective.id,
+                                    linkedDirectiveTitle = mDirective.title.uppercase().take(20)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // 1. Check for specific routine tag
             val routineTag = task.tags.find { it.startsWith("routine_") }
             if (routineTag != null) {
@@ -1527,6 +1580,25 @@ class WorkoutViewModel @Inject constructor(
 
     fun cancelProtocolConfiguration() {
         _uiState.update { it.copy(configuringProtocol = null, tempConfigProfile = null) }
+    }
+
+    fun dismissStatusBanner() {
+        _uiState.update { it.copy(isStatusBannerDismissed = true) }
+    }
+
+    fun toggleWorkoutLayoutMode() {
+        val newMode = if (_uiState.value.layoutMode == WorkoutLayoutMode.CLASSIC) WorkoutLayoutMode.FOCUS else WorkoutLayoutMode.CLASSIC
+        _uiState.update { it.copy(layoutMode = newMode) }
+        viewModelScope.launch {
+            workoutPreferencesDataStore.setWorkoutLayoutMode(newMode)
+        }
+    }
+
+    fun setWorkoutLayoutMode(mode: WorkoutLayoutMode) {
+        _uiState.update { it.copy(layoutMode = mode) }
+        viewModelScope.launch {
+            workoutPreferencesDataStore.setWorkoutLayoutMode(mode)
+        }
     }
 
     fun initiateDeactivateProtocol() {

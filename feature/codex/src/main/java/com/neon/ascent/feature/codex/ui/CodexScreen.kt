@@ -4080,9 +4080,10 @@ fun CodexDirectivesPanel(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                items(directives, key = { it.id }) { directive ->
+                itemsIndexed(directives, key = { _, directive -> directive.id }) { index, directive ->
                     CodexDirectiveCard(
                         directive = directive,
+                        isNext = (index == 0),
                         onClick = { onDirectiveClick(directive.id) }
                     )
                 }
@@ -4094,6 +4095,7 @@ fun CodexDirectivesPanel(
 @Composable
 fun CodexDirectiveCard(
     directive: AscensionDirective,
+    isNext: Boolean = false,
     onClick: () -> Unit
 ) {
     Surface(
@@ -4103,7 +4105,7 @@ fun CodexDirectiveCard(
             .clickable(onClick = onClick),
         color = Color(0xFF140F1D),
         shape = RoundedCornerShape(4.dp),
-        border = BorderStroke(1.dp, NeonPink.copy(alpha = 0.5f))
+        border = BorderStroke(1.dp, if (isNext) NeonCyan else NeonPink.copy(alpha = 0.5f))
     ) {
         Column(
             modifier = Modifier.padding(6.dp),
@@ -4124,23 +4126,43 @@ fun CodexDirectiveCard(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
-                val priority = directive.priorityTier
-                if (priority != null) {
-                    Spacer(modifier = Modifier.width(4.dp))
-                    val isATier = priority == PriorityTier.A
-                    Surface(
-                        color = if (isATier) NeonPink.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.08f),
-                        shape = RoundedCornerShape(2.dp),
-                        border = BorderStroke(1.dp, if (isATier) NeonPink else Color.White.copy(alpha = 0.25f))
-                    ) {
-                        Text(
-                            text = "TIER ${priority.name}",
-                            color = if (isATier) NeonPink else Color.White.copy(alpha = 0.8f),
-                            fontSize = 8.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                        )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    if (isNext) {
+                        Surface(
+                            color = NeonCyan.copy(alpha = 0.25f),
+                            shape = RoundedCornerShape(2.dp),
+                            border = BorderStroke(1.dp, NeonCyan)
+                        ) {
+                            Text(
+                                text = "NEXT",
+                                color = NeonCyan,
+                                fontSize = 8.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                            )
+                        }
+                    }
+                    val priority = directive.priorityTier
+                    if (priority != null) {
+                        val isATier = priority == PriorityTier.A
+                        Surface(
+                            color = if (isATier) NeonPink.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.08f),
+                            shape = RoundedCornerShape(2.dp),
+                            border = BorderStroke(1.dp, if (isATier) NeonPink else Color.White.copy(alpha = 0.25f))
+                        ) {
+                            Text(
+                                text = "TIER ${priority.name}",
+                                color = if (isATier) NeonPink else Color.White.copy(alpha = 0.8f),
+                                fontSize = 8.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                            )
+                        }
                     }
                 }
             }

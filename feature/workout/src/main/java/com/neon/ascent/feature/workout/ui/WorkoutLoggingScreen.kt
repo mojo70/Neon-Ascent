@@ -57,6 +57,7 @@ import android.os.Build
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.neon.ascent.core.common.*
 import com.neon.ascent.core.domain.workout.models.*
+import com.neon.ascent.core.domain.notifications.models.OperationalStatus
 import com.neon.ascent.core.domain.workout.rules.CyberCrappRules
 import com.neon.ascent.core.domain.workout.rules.RepRange
 
@@ -180,7 +181,8 @@ fun WorkoutLoggingScreen(
                             onSave = { viewModel.saveWorkoutSettings() },
                             onUpdateProfile = { viewModel.updateTempSettingsProfile(it) },
                             onResetProfile = { viewModel.resetWorkoutProfile() },
-                            onUpdateRestTimerMode = { viewModel.updateRestTimerMode(it) }
+                            onUpdateRestTimerMode = { viewModel.updateRestTimerMode(it) },
+                            onUpdateLayoutMode = { viewModel.setWorkoutLayoutMode(it) }
                         )
                     } else if (uiState.selectedProtocolForDetail != null) {
                         ProtocolDetailScreen(
@@ -321,8 +323,18 @@ fun WorkoutLoggingScreen(
                                     onDiscard = { viewModel.discardWorkout() },
                                     onViewInCodex = { onViewInCodex("") },
                                     protocol = uiState.session?.protocol,
-                                    dayType = uiState.session?.protocolDayType
+                                    dayType = uiState.session?.protocolDayType,
+                                    layoutMode = uiState.layoutMode,
+                                    onToggleLayoutMode = { viewModel.toggleWorkoutLayoutMode() }
                                 )
+
+                            if ((uiState.operationalStatus == OperationalStatus.THROTTLE || uiState.operationalStatus == OperationalStatus.GROUNDED) && !uiState.isStatusBannerDismissed) {
+                                OperationalStatusBanner(
+                                    status = uiState.operationalStatus,
+                                    onDismiss = { viewModel.dismissStatusBanner() }
+                                )
+                            }
+
                             WorkoutSummaryBar(uiState, viewModel, onToggleSomatotype = { viewModel.toggleSomatotypeInfluence() })
                             
                             if (uiState.somatotypeNudgeText != null) {
@@ -337,12 +349,21 @@ fun WorkoutLoggingScreen(
                             }
 
                             Box(modifier = Modifier.weight(1f)) {
-                                ActiveWorkoutContent(
-                                    uiState = uiState, 
-                                    viewModel = viewModel, 
-                                    onRestTimerClick = { showRestTimerAdjustment = true },
-                                    onViewInCodex = onViewInCodex
-                                )
+                                if (uiState.layoutMode == WorkoutLayoutMode.FOCUS) {
+                                    FocusWorkoutContent(
+                                        uiState = uiState,
+                                        viewModel = viewModel,
+                                        onRestTimerClick = { showRestTimerAdjustment = true },
+                                        onViewInCodex = onViewInCodex
+                                    )
+                                } else {
+                                    ActiveWorkoutContent(
+                                        uiState = uiState, 
+                                        viewModel = viewModel, 
+                                        onRestTimerClick = { showRestTimerAdjustment = true },
+                                        onViewInCodex = onViewInCodex
+                                    )
+                                }
                                 
                                 if (uiState.isPaused) {
                                     Box(
@@ -360,11 +381,12 @@ fun WorkoutLoggingScreen(
                                                 fontWeight = FontWeight.Bold
                                             )
                                             Spacer(modifier = Modifier.height(16.dp))
-                                            }
                                         }
                                     }
                                 }
                             }
+                        }
+                    }
                         }
                     }
                 }
@@ -634,12 +656,159 @@ fun WorkoutLoggingScreen(
             )
         }
     }
+
+@Composable
+fun OperationalStatusBanner(
+    status: OperationalStatus,
+    onDismiss: () -> Unit
+) {
+    val text = when (status) {
+        OperationalStatus.THROTTLE -> "THROTTLE — RHR elevated / Ease intensity"
+        OperationalStatus.GROUNDED -> "GROUNDED — High load / Rest or Zone 2 recommended"
+        else -> return
+    }
+    Surface(
+        color = Color(0xFFFF8C00).copy(alpha = 0.18f),
+        border = BorderStroke(1.dp, Color(0xFFFF8C00)),
+        shape = RoundedCornerShape(4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "⚠️ $text",
+                color = Color(0xFFFF8C00),
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Dismiss",
+                tint = Color(0xFFFF8C00),
+                modifier = Modifier
+                    .size(16.dp)
+                    .clickable { onDismiss() }
+            )
+        }
+    }
+}
+
+@Composable
+fun FocusWorkoutContent(
+    uiState: WorkoutUiState,
+    viewModel: WorkoutViewModel,
+    onRestTimerClick: () -> Unit,
+    onViewInCodex: (String) -> Unit
+) {
+    val theme = LocalNeonTheme.current
+    if (uiState.logs.isEmpty()) return
+
+    var selectedIndex by remember(uiState.logs.size) { mutableIntStateOf(0) }
+    val safeIndex = selectedIndex.coerceIn(0, uiState.logs.lastIndex)
+    val (log, sets) = uiState.logs[safeIndex]
+    var secondaryExpanded by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxSize().imePadding()) {
+        ScrollableTabRow(
+            selectedTabIndex = safeIndex,
+            edgePadding = 16.dp,
+            containerColor = theme.canvas,
+            contentColor = MaterialTheme.colorScheme.primary,
+            divider = {}
+        ) {
+            uiState.logs.forEachIndexed { index, (l, s) ->
+                val isDone = s.isNotEmpty() && s.all { it.isCompleted }
+                Tab(
+                    selected = index == safeIndex,
+                    onClick = { selectedIndex = index },
+                    text = {
+                        Text(
+                            text = "${if (isDone) "✓ " else ""}${l.exerciseName.uppercase().take(14)}",
+                            fontWeight = if (index == safeIndex) FontWeight.Bold else FontWeight.Normal,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                )
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 120.dp)
+        ) {
+            WorkoutLogCard(
+                log = log,
+                sets = sets,
+                viewModel = viewModel,
+                onActionMenuClick = {},
+                onRestTimerClick = onRestTimerClick,
+                onViewInCodex = onViewInCodex
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .border(1.dp, theme.hairline, RoundedCornerShape(8.dp))
+                    .clickable { secondaryExpanded = !secondaryExpanded }
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (secondaryExpanded) "COLLAPSE SECONDARY DETAILS ▴" else "EXPAND CUES & HISTORY ▾",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            if (secondaryExpanded) {
+                Spacer(Modifier.height(12.dp))
+                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    Text(
+                        "PROTOCOL & FORM CUES",
+                        color = theme.inkMuted,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Black,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    val ex = uiState.availableExercises.find { it.id == log.exerciseId }
+                    if (ex?.cues?.isNotEmpty() == true) {
+                        ex.cues.forEach { cue ->
+                            Text("• $cue", color = theme.ink, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                        }
+                    } else {
+                        Text("No specific cues recorded.", color = theme.inkMuted, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
 fun PostWorkoutCheckInDialog(
     onFinish: (Int, Int) -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    linkedDirectiveTitle: String? = null,
+    linkedDirectiveId: String? = null,
+    onNavigateToDirective: ((String) -> Unit)? = null
 ) {
     val theme = LocalNeonTheme.current
     var rpe by remember { mutableFloatStateOf(7f) }
@@ -712,6 +881,27 @@ fun PostWorkoutCheckInDialog(
                 ) {
                     Text("FINISH & LOG BIOMETRICS", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black)
                 }
+
+                if (linkedDirectiveTitle != null && linkedDirectiveId != null && onNavigateToDirective != null) {
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = {
+                            onFinish(rpe.toInt(), jointHealth.toInt())
+                            onNavigateToDirective(linkedDirectiveId)
+                        },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            "⚡ BACK TO [$linkedDirectiveTitle]",
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
             }
         }
     }
@@ -728,7 +918,9 @@ fun ActiveWorkoutHeader(
     onDiscard: () -> Unit,
     onViewInCodex: () -> Unit = {},
     protocol: WorkoutProtocol? = null,
-    dayType: ProtocolDayType? = null
+    dayType: ProtocolDayType? = null,
+    layoutMode: WorkoutLayoutMode = WorkoutLayoutMode.CLASSIC,
+    onToggleLayoutMode: (() -> Unit)? = null
 ) {
     val theme = LocalNeonTheme.current
     var showDiscardDialog by remember { mutableStateOf(false) }
@@ -793,6 +985,25 @@ fun ActiveWorkoutHeader(
         }
         
         Row(verticalAlignment = Alignment.CenterVertically) {
+            if (onToggleLayoutMode != null) {
+                Surface(
+                    color = theme.surfaceRaised,
+                    shape = RoundedCornerShape(4.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
+                    modifier = Modifier
+                        .clickable { onToggleLayoutMode() }
+                        .padding(end = 8.dp)
+                ) {
+                    Text(
+                        text = if (layoutMode == WorkoutLayoutMode.FOCUS) "FOCUS" else "CLASSIC",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                    )
+                }
+            }
             val iconSize = if (zoom >= 1.5f) 18.dp else 20.dp
             
             if (zoom < 1.25f) {

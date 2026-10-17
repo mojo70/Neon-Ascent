@@ -396,6 +396,25 @@ fun HolographicAvatarHub(
                             }
                         }
 
+                        val bridgeLine = when (liveStatus) {
+                            "OVERDRIVE" -> "Clear to push."
+                            "THROTTLE" -> "Ease intensity. Map shows what you’re protecting."
+                            "GROUNDED" -> "Pull back. Rest or Zone 2."
+                            else -> "Normal pace."
+                        }
+
+                        Spacer(Modifier.height(3.dp))
+
+                        Text(
+                            text = bridgeLine,
+                            color = statusColor.copy(alpha = 0.9f),
+                            fontSize = 8.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
                         Spacer(Modifier.height(3.dp))
 
                         // SELF MAP CANVAS TRIGGER

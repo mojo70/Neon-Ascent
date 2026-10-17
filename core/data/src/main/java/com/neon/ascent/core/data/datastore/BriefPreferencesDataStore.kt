@@ -25,6 +25,7 @@ class BriefPreferencesDataStore @Inject constructor(
         val LAST_BRIEF_BODY = stringPreferencesKey("last_brief_body")
         val LAST_BRIEF_CARD_BODY = stringPreferencesKey("last_brief_card_body")
         val LAST_BRIEF_STATUS = stringPreferencesKey("last_brief_status")
+        val DISMISSED_ALTAR_NUDGE_DATE = stringPreferencesKey("dismissed_altar_nudge_date")
         val ADAPTIVE_WAKE_ENABLED = booleanPreferencesKey("adaptive_wake_enabled")
         val QUIET_HOURS_END = stringPreferencesKey("quiet_hours_end")
         val SHOW_DIRECTIVES_ON_MORNING_SHADE = booleanPreferencesKey("show_directives_on_morning_shade")
@@ -47,6 +48,7 @@ class BriefPreferencesDataStore @Inject constructor(
     val lastBriefBody: Flow<String?> = dataStore.data.map { it[Keys.LAST_BRIEF_BODY] }
     val lastBriefCardBody: Flow<String?> = dataStore.data.map { it[Keys.LAST_BRIEF_CARD_BODY] }
     val lastBriefStatus: Flow<String?> = dataStore.data.map { it[Keys.LAST_BRIEF_STATUS] }
+    val dismissedAltarNudgeDate: Flow<String?> = dataStore.data.map { it[Keys.DISMISSED_ALTAR_NUDGE_DATE] }
     
     val adaptiveWakeEnabled: Flow<Boolean> = dataStore.data.map { it[Keys.ADAPTIVE_WAKE_ENABLED] ?: true }
     val quietHoursEnd: Flow<String> = dataStore.data.map { it[Keys.QUIET_HOURS_END] ?: "07:00" }
@@ -113,5 +115,9 @@ class BriefPreferencesDataStore @Inject constructor(
 
     suspend fun setShowDirectivesOnMorningShade(enabled: Boolean) {
         dataStore.edit { it[Keys.SHOW_DIRECTIVES_ON_MORNING_SHADE] = enabled }
+    }
+
+    suspend fun dismissAltarNudgeForDate(date: String) {
+        dataStore.edit { it[Keys.DISMISSED_ALTAR_NUDGE_DATE] = date }
     }
 }

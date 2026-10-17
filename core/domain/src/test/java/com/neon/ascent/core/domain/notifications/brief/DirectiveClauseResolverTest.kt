@@ -157,4 +157,39 @@ class DirectiveClauseResolverTest {
         assertEquals("OPEN OPS", action.label)
         assertEquals("ACTION_OPEN_DECK", action.actionName)
     }
+
+    @Test
+    fun `resolveDirectiveCandidate returns soonest A-tier directive when available`() {
+        val directive1 = AscensionDirective(
+            id = "d1",
+            title = "Become netrunner",
+            priorityTier = PriorityTier.A,
+            targetEndDate = today.plusDays(48),
+            description = "Desc"
+        )
+        val candidate = DirectiveClauseResolver.resolveDirectiveCandidate(
+            directives = listOf(directive1),
+            today = today
+        )
+        assertNotNull(candidate)
+        assertEquals("d1", candidate?.directive?.id)
+        assertEquals(48L, candidate?.daysLeft)
+    }
+
+    @Test
+    fun `resolveDirectiveCandidate returns null when no directive qualifies`() {
+        val directiveFar = AscensionDirective(
+            id = "dFar",
+            title = "Far Future",
+            priorityTier = PriorityTier.C,
+            targetEndDate = today.plusDays(120),
+            description = "Desc"
+        )
+        val candidate = DirectiveClauseResolver.resolveDirectiveCandidate(
+            directives = listOf(directiveFar),
+            today = today
+        )
+        assertNull(candidate)
+    }
 }
+

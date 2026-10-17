@@ -29,7 +29,8 @@ fun WorkoutSettingsScreen(
     onSave: () -> Unit,
     onUpdateProfile: (UserWorkoutProfile) -> Unit,
     onResetProfile: () -> Unit,
-    onUpdateRestTimerMode: (RestTimerMode) -> Unit
+    onUpdateRestTimerMode: (RestTimerMode) -> Unit,
+    onUpdateLayoutMode: ((WorkoutLayoutMode) -> Unit)? = null
 ) {
     val tempProfile = uiState.tempSettingsProfile ?: uiState.userProfile ?: return
     var showResetConfirmation by remember { mutableStateOf(false) }
@@ -301,6 +302,31 @@ fun WorkoutSettingsScreen(
                     checked = tempProfile.coachingHintsEnabled,
                     onCheckedChange = { onUpdateProfile(tempProfile.copy(coachingHintsEnabled = it)) }
                 )
+
+                Spacer(Modifier.height(16.dp))
+                Text("WORKOUT LAYOUT MODE", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Row(Modifier.padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    WorkoutLayoutMode.entries.forEach { mode ->
+                        val isSelected = uiState.layoutMode == mode
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { onUpdateLayoutMode?.invoke(mode) },
+                            color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color(0xFF1C1C1E),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
+                        ) {
+                            Text(
+                                mode.name,
+                                color = if (isSelected) Color.White else Color.Gray,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(vertical = 12.dp),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
             }
 
             // Category: DANGER ZONE

@@ -40,6 +40,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.core.domain.goals.models.DirectiveIntakeMode
 import com.neon.ascent.core.domain.selfmap.SelfMapIntakeMode
+import com.neon.ascent.core.domain.workout.models.WorkoutLayoutMode
 import com.neon.ascent.ui.*
 import com.neon.ascent.core.common.*
 import com.neon.ascent.core.domain.backup.models.RestoreMode
@@ -119,6 +120,7 @@ fun SettingsScreen(
     val expertWeighting by viewModel.expertWeighting.collectAsState()
     val directiveIntakeMode by viewModel.directiveIntakeMode.collectAsState()
     val selfMapIntakeMode by viewModel.selfMapIntakeMode.collectAsState()
+    val workoutLayoutMode by viewModel.workoutLayoutMode.collectAsState()
 
     // Biometrics & Sync State
     val isHealthGranted by viewModel.isHealthConnectGranted.collectAsState()
@@ -500,6 +502,18 @@ fun SettingsScreen(
                                 selected = selfMapIntakeMode == mode,
                                 onClick = { viewModel.setSelfMapIntakeMode(mode) },
                                 label = if (mode == SelfMapIntakeMode.CHAT) "CHAT (DEFAULT)" else "FORM (MANUAL)",
+                                modifier = Modifier.weight(1f),
+                                palette = theme
+                            )
+                        }
+                    }
+                    Text("Workout layout default", color = theme.ink.copy(alpha = 0.6f), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                    Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        WorkoutLayoutMode.entries.forEach { mode ->
+                            CyberTabButton(
+                                selected = workoutLayoutMode == mode,
+                                onClick = { viewModel.setWorkoutLayoutMode(mode) },
+                                label = if (mode == WorkoutLayoutMode.CLASSIC) "CLASSIC (FULL)" else "FOCUS (PROGRESSIVE)",
                                 modifier = Modifier.weight(1f),
                                 palette = theme
                             )

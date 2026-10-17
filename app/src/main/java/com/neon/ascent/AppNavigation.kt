@@ -340,6 +340,12 @@ fun AppNavigation(
                                 onNavigateToWorkout = { taskId -> 
                                     navController.navigate(Screen.WorkoutLog(taskId))
                                 },
+                                onDirectiveClick = { id ->
+                                    navController.navigate(Screen.DirectiveDetail(id))
+                                },
+                                onAltarClick = {
+                                    navController.navigate(Screen.Altar)
+                                },
                                 onNavigateToGuide = {
                                     coroutineScope.launch {
                                         pagerState.animateScrollToPage(codexIndex) // CODEX

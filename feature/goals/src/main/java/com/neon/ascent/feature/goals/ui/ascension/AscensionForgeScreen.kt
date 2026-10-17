@@ -142,17 +142,91 @@ fun AscensionForgeScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // ... (rest of the column content remains the same)
+            // When creating a new Directive, mode switch is primary and elevated directly under type row
+            val hasCreatedDirectiveInSession = uiState.deployedDirectiveId != null
+            val isDirectiveCreation = uiState.forgeType == ForgeType.DIRECTIVE
+            val areOtherTabsSecondary = isDirectiveCreation && !hasCreatedDirectiveInSession
+
             // Type Selector
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ForgeTypeTab("DIRECTIVE", uiState.forgeType == ForgeType.DIRECTIVE, Modifier.weight(1f)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ForgeTypeTab(
+                    label = "DIRECTIVE",
+                    isSelected = uiState.forgeType == ForgeType.DIRECTIVE,
+                    modifier = Modifier.weight(1.2f),
+                    isSecondary = false
+                ) {
                     viewModel.updateType(ForgeType.DIRECTIVE)
                 }
-                ForgeTypeTab("MISSION", uiState.forgeType == ForgeType.MISSION, Modifier.weight(1f)) {
+                ForgeTypeTab(
+                    label = "MISSION",
+                    isSelected = uiState.forgeType == ForgeType.MISSION,
+                    modifier = Modifier.weight(if (areOtherTabsSecondary) 0.9f else 1f),
+                    isSecondary = areOtherTabsSecondary
+                ) {
                     viewModel.updateType(ForgeType.MISSION)
                 }
-                ForgeTypeTab("PULSE", uiState.forgeType == ForgeType.TASK, Modifier.weight(1f)) {
+                ForgeTypeTab(
+                    label = "PULSE",
+                    isSelected = uiState.forgeType == ForgeType.TASK,
+                    modifier = Modifier.weight(if (areOtherTabsSecondary) 0.9f else 1f),
+                    isSecondary = areOtherTabsSecondary
+                ) {
                     viewModel.updateType(ForgeType.TASK)
+                }
+            }
+
+            // PRIMARY MODE SWITCH (Mentor / Form) when creating a Directive
+            if (uiState.forgeType == ForgeType.DIRECTIVE) {
+                Surface(
+                    color = NeonCyan.copy(alpha = 0.08f),
+                    shape = RoundedCornerShape(4.dp),
+                    border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.4f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "INTAKE_MODE // ${uiState.currentIntakeMode.name}",
+                                color = NeonCyan,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = if (uiState.currentIntakeMode == DirectiveIntakeMode.MENTOR) "Conversational Socrates AI" else "Manual Fast-Path Form",
+                                color = Color.White.copy(alpha = 0.6f),
+                                fontSize = 9.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                        Button(
+                            onClick = { viewModel.toggleInSessionIntakeMode() },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = NeonCyan.copy(alpha = 0.25f),
+                                contentColor = NeonCyan
+                            ),
+                            border = BorderStroke(1.dp, NeonCyan),
+                            shape = RoundedCornerShape(4.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = if (uiState.currentIntakeMode == DirectiveIntakeMode.MENTOR) "SWITCH TO FORM" else "SWITCH TO MENTOR",
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
             }
 
@@ -203,34 +277,6 @@ fun AscensionForgeScreen(
             }
 
             if (uiState.forgeType == ForgeType.DIRECTIVE) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "INTAKE_MODE // ${uiState.currentIntakeMode.name}",
-                        color = NeonCyan,
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold
-                    )
-                    OutlinedButton(
-                        onClick = { viewModel.toggleInSessionIntakeMode() },
-                        border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.6f)),
-                        shape = RoundedCornerShape(4.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = if (uiState.currentIntakeMode == DirectiveIntakeMode.MENTOR) "Switch to Form" else "Switch to Mentor",
-                            color = NeonCyan,
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
                 if (uiState.currentIntakeMode == DirectiveIntakeMode.MENTOR) {
                     MentorConversationalBuilder(uiState, viewModel)
                 } else {
@@ -307,20 +353,39 @@ fun AscensionForgeScreen(
 }
 
 @Composable
-fun ForgeTypeTab(label: String, isSelected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun ForgeTypeTab(
+    label: String,
+    isSelected: Boolean,
+    modifier: Modifier = Modifier,
+    isSecondary: Boolean = false,
+    onClick: () -> Unit
+) {
+    val borderColor = when {
+        isSelected -> NeonCyan
+        isSecondary -> Color.Gray.copy(alpha = 0.15f)
+        else -> Color.Gray.copy(alpha = 0.3f)
+    }
+    val textColor = when {
+        isSelected -> NeonCyan
+        isSecondary -> Color.Gray.copy(alpha = 0.45f)
+        else -> Color.Gray
+    }
+    val bgColor = if (isSelected) NeonCyan.copy(alpha = 0.1f) else Color.Transparent
+
     Box(
         modifier = modifier
-            .height(48.dp)
-            .background(if (isSelected) NeonCyan.copy(alpha = 0.1f) else Color.Transparent)
-            .border(1.dp, if (isSelected) NeonCyan else Color.Gray.copy(alpha = 0.3f))
+            .height(if (isSecondary && !isSelected) 40.dp else 48.dp)
+            .background(bgColor)
+            .border(1.dp, borderColor)
             .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
         Text(
             label,
-            color = if (isSelected) NeonCyan else Color.Gray,
+            color = textColor,
             fontFamily = FontFamily.Monospace,
-            fontSize = 12.sp
+            fontSize = if (isSecondary && !isSelected) 10.5.sp else 12.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
         )
     }
 }

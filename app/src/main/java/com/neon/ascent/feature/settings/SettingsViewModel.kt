@@ -46,8 +46,10 @@ import java.util.UUID
 import com.neon.ascent.core.data.datastore.DirectivePreferencesDataStore
 import com.neon.ascent.core.data.datastore.BriefPreferencesDataStore
 import com.neon.ascent.core.data.datastore.SelfMapPreferencesDataStore
+import com.neon.ascent.core.data.datastore.WorkoutPreferencesDataStore
 import com.neon.ascent.core.domain.goals.models.DirectiveIntakeMode
 import com.neon.ascent.core.domain.selfmap.SelfMapIntakeMode
+import com.neon.ascent.core.domain.workout.models.WorkoutLayoutMode
 
 data class BackupPreview(
     val sessionCount: Int,
@@ -64,6 +66,7 @@ class SettingsViewModel @Inject constructor(
     private val directivePreferencesDataStore: DirectivePreferencesDataStore,
     private val briefPreferencesDataStore: BriefPreferencesDataStore,
     private val selfMapPreferencesDataStore: SelfMapPreferencesDataStore,
+    private val workoutPreferencesDataStore: WorkoutPreferencesDataStore,
     private val dailyPrayerDao: DailyPrayerDao,
     private val journalRepository: JournalRepository,
     private val healthRepository: HealthRepository,
@@ -131,6 +134,15 @@ class SettingsViewModel @Inject constructor(
     fun setSelfMapIntakeMode(mode: SelfMapIntakeMode) {
         viewModelScope.launch {
             selfMapPreferencesDataStore.setSelfMapIntakeMode(mode)
+        }
+    }
+
+    val workoutLayoutMode: StateFlow<WorkoutLayoutMode> = workoutPreferencesDataStore.workoutLayoutMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), WorkoutLayoutMode.CLASSIC)
+
+    fun setWorkoutLayoutMode(mode: WorkoutLayoutMode) {
+        viewModelScope.launch {
+            workoutPreferencesDataStore.setWorkoutLayoutMode(mode)
         }
     }
 

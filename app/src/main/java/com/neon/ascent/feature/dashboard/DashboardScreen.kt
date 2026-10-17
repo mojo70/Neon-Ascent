@@ -48,6 +48,7 @@ import com.neon.ascent.core.common.*
 import com.neon.ascent.core.domain.character.models.UserCharacter
 import com.neon.ascent.feature.health.domain.uplink.LiveBiometrics
 import com.neon.ascent.core.domain.goals.models.*
+import com.neon.ascent.core.domain.notifications.brief.DirectiveClauseResolver
 import com.neon.ascent.feature.goals.ui.ascension.QuickTaskBottomSheet
 import com.neon.ascent.core.common.CelebrationOverlay
 import com.neon.ascent.ui.*
@@ -231,6 +232,12 @@ fun NeuralBriefCard(
     onWorkoutClick: (String) -> Unit,
     systemColor: Color,
     briefActive: Boolean = false,
+    namedDirective: AscensionDirective? = null,
+    namedDirectiveDaysLeft: Long? = null,
+    onDirectiveClick: ((String) -> Unit)? = null,
+    showAltarNudge: Boolean = false,
+    onAltarClick: (() -> Unit)? = null,
+    onDismissAltarNudge: (() -> Unit)? = null,
     onChargeClick: (() -> Unit)? = null
 ) {
     val theme = LocalNeonTheme.current
@@ -264,6 +271,69 @@ fun NeuralBriefCard(
                         fontStyle = FontStyle.Italic,
                         lineHeight = 18.sp
                     )
+                    if (namedDirective != null && namedDirectiveDaysLeft != null) {
+                        Spacer(Modifier.height(10.dp))
+                        Surface(
+                            color = systemColor.copy(alpha = 0.12f),
+                            shape = CyberCutShape,
+                            border = BorderStroke(1.dp, systemColor.copy(alpha = 0.4f)),
+                            modifier = Modifier.clickable {
+                                onDirectiveClick?.invoke(namedDirective.id)
+                            }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                val token = namedDirective.priorityTier?.let { "[${it.name}] " } ?: ""
+                                Text(
+                                    text = "⚡ TODAY'S DIRECTIVE // $token${namedDirective.title.uppercase().take(22)} — ${namedDirectiveDaysLeft}d left",
+                                    color = systemColor,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    if (showAltarNudge && onAltarClick != null) {
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(4.dp))
+                                .border(1.dp, systemColor.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 8.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { onAltarClick() },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "🕯 Short sit available // Altar open",
+                                    color = systemColor,
+                                    fontSize = 10.5.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            if (onDismissAltarNudge != null) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Dismiss Nudge",
+                                    tint = theme.ink.copy(alpha = 0.5f),
+                                    modifier = Modifier
+                                        .size(14.dp)
+                                        .clickable { onDismissAltarNudge() }
+                                )
+                            }
+                        }
+                    }
                 }
                 
                 Box(
@@ -525,7 +595,9 @@ fun DashboardScreen(
     onSettingsClick: () -> Unit,
     onTaskClick: (String) -> Unit,
     onNavigateToWorkout: (String?) -> Unit = {},
-    onNavigateToGuide: () -> Unit = {}
+    onNavigateToGuide: () -> Unit = {},
+    onDirectiveClick: (String) -> Unit = {},
+    onAltarClick: () -> Unit = {}
 ) {
     val theme = LocalNeonTheme.current
     val userCharacter by viewModel.userCharacter.collectAsState()
@@ -603,6 +675,23 @@ fun DashboardScreen(
 
             Spacer(Modifier.height(24.dp))
 
+            val candidate = remember(state.operationalDirectives, state.activeMissions) {
+                DirectiveClauseResolver.resolveDirectiveCandidate(state.operationalDirectives, state.activeMissions)
+            }
+
+            val briefStatusVal by viewModel.briefStatus.collectAsState()
+            val dismissedNudgeDate by viewModel.dismissedAltarNudgeDate.collectAsState()
+            val todayDateStr = remember { LocalDate.now().toString() }
+            val isNudgeDismissedToday = dismissedNudgeDate == todayDateStr
+
+            val isShortSleep = vitalsSnapshot?.sleepDurationMinutes?.let { sleepMin ->
+                val needMin = vitalsSnapshot?.sanctumResult?.needMin ?: 440L
+                (needMin - sleepMin) >= 45L
+            } ?: false
+
+            val isStatusEligible = briefStatusVal == "THROTTLE" || briefStatusVal == "GROUNDED"
+            val showNudge = !isNudgeDismissedToday && briefStatusVal != "OVERDRIVE" && (isStatusEligible || isShortSleep)
+
             NeuralBriefCard(
                 insight = briefCardBody ?: if (briefTitle != null) "$briefTitle\n$briefBody" else "Pulse sends after wake + 20m.",
                 neuralLoad = neuralLoad,
@@ -611,6 +700,12 @@ fun DashboardScreen(
                 onWorkoutClick = { id -> onNavigateToWorkout(id) },
                 systemColor = systemColor,
                 briefActive = briefTitle != null || briefCardBody != null,
+                namedDirective = candidate?.directive,
+                namedDirectiveDaysLeft = candidate?.daysLeft,
+                onDirectiveClick = onDirectiveClick,
+                showAltarNudge = showNudge,
+                onAltarClick = onAltarClick,
+                onDismissAltarNudge = { viewModel.dismissAltarNudge() },
                 onChargeClick = { showChargeSheet = true }
             )
 
