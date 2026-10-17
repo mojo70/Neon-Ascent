@@ -55,8 +55,22 @@ import com.neon.ascent.core.common.*
 import com.neon.ascent.core.common.VisualMode
 import java.time.LocalDateTime
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Locale
+
+private fun formatNotificationTime(timeWindow: String?): String {
+    if (timeWindow.isNullOrBlank()) return "AM"
+    return try {
+        val time = LocalTime.parse(timeWindow)
+        val amPm = if (time.hour >= 12) "PM" else "AM"
+        val displayHour = if (time.hour % 12 == 0) 12 else time.hour % 12
+        String.format(Locale.US, "%d:%02d %s", displayHour, time.minute, amPm)
+    } catch (_: Exception) {
+        timeWindow
+    }
+}
 
 
 @Composable
@@ -295,10 +309,12 @@ fun NeuralBriefCard(
             
             if (primaryActionTask != null) {
                 Spacer(Modifier.height(24.dp))
+                val targetTime = primaryActionTask.timeWindows.firstOrNull()
+                val notifTag = if (targetTime != null) " • NOTIF @ ${formatNotificationTime(targetTime)}" else ""
                 val buttonText = if (isWorkout) {
-                    "LOG WORKOUT // ${primaryActionTask.title.uppercase()}"
+                    "LOG WORKOUT // ${primaryActionTask.title.uppercase()}$notifTag"
                 } else {
-                    "COMPLETE PULSE // ${primaryActionTask.title.uppercase()}"
+                    "COMPLETE PULSE // ${primaryActionTask.title.uppercase()}$notifTag"
                 }
                 
                 Box(
@@ -316,10 +332,10 @@ fun NeuralBriefCard(
                     Text(
                         text = buttonText,
                         color = systemColor,
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.2.sp,
+                        letterSpacing = 1.1.sp,
                         textAlign = TextAlign.Center
                     )
                 }
@@ -356,6 +372,9 @@ fun HeroPulseRow(
     systemColor: Color
 ) {
     val theme = LocalNeonTheme.current
+    val targetTime = task.timeWindows.firstOrNull()
+    val timeLabel = if (targetTime != null) "NOTIF @ ${formatNotificationTime(targetTime)}" else "AM"
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -379,7 +398,7 @@ fun HeroPulseRow(
             modifier = Modifier.weight(1f)
         )
         Text(
-            text = "AM",
+            text = timeLabel,
             color = theme.inkMuted,
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
@@ -521,7 +540,12 @@ fun DashboardScreen(
     val neonCharge by viewModel.neonCharge.collectAsState()
     val currentTime = remember { mutableStateOf(LocalDateTime.now()) }
     
-    val chargeVal = (neonCharge?.value ?: 62) / 100f
+    val rawChargeVal = neonCharge?.let { it.value / 100f } ?: userCharacter?.neuralLoad ?: 0.62f
+    val chargeVal by animateFloatAsState(
+        targetValue = rawChargeVal,
+        animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing),
+        label = "ChargeValAnim"
+    )
     val neuralLoad = chargeVal
     
     val systemColor by animateColorAsState(
@@ -1046,11 +1070,9 @@ fun DashboardTaskItem(task: AscensionTask, onComplete: () -> Unit, onClick: () -
         }
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            val displayTitle = if (task.timeWindows.isNotEmpty()) {
-                "${task.title} (${task.timeWindows.first()})"
-            } else {
-                task.title
-            }
+            val targetTime = task.timeWindows.firstOrNull()
+            val timeTag = if (targetTime != null) " [NOTIF @ ${formatNotificationTime(targetTime)}]" else ""
+            val displayTitle = "${task.title}$timeTag"
             
             Text(
                 displayTitle,

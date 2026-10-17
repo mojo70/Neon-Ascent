@@ -185,7 +185,12 @@ fun HolographicAvatarHub(
     }
 
     val neonCharge by viewModel.neonCharge.collectAsState()
-    val chargeVal = (neonCharge?.value ?: 62) / 100f
+    val rawChargeVal = neonCharge?.let { it.value / 100f } ?: userCharacter?.neuralLoad ?: 0.62f
+    val chargeVal by animateFloatAsState(
+        targetValue = rawChargeVal,
+        animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing),
+        label = "ChargeValAnim"
+    )
     val displayLoad = (chargeVal + glitchBurstIntensity).coerceIn(0f, 1f)
 
     LaunchedEffect(userCharacter?.netrunnerName) {

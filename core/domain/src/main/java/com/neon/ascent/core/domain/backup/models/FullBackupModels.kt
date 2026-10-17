@@ -141,8 +141,13 @@ data class UserWorkoutProfileDto(
     val activeProtocol: String? = null,
     val sequencerEnabled: Boolean = false,
     val autoWeightIncrement: Boolean = false,
+    val progressionMode: String = "FIXED_INCREMENT",
     val weightIncrementCompound: Float = 5f,
-    val weightIncrementIsolation: Float = 2.5f,
+    val weightIncrementUpperCompound: Float = 5f,
+    val weightIncrementLowerCompound: Float = 10f,
+    val weightIncrementIsolation: Float = 5f,
+    val progressionPercentage: Float = 2.5f,
+    val roundingIncrement: Float = 5f,
     val rirCapturePerMiniSet: Boolean = false,
     val coachingHintsEnabled: Boolean = true
 )

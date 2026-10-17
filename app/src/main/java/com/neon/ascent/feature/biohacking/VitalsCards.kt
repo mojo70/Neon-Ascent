@@ -1,10 +1,14 @@
 package com.neon.ascent.feature.biohacking
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -141,7 +145,12 @@ fun NeonChargeCard(
             Spacer(modifier = Modifier.height(16.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                val valPct = (charge?.value ?: 62) / 100f
+                val rawValPct = (charge?.value ?: 62) / 100f
+                val valPct by animateFloatAsState(
+                    targetValue = rawValPct,
+                    animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing),
+                    label = "NeonChargeAnim"
+                )
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(contentAlignment = Alignment.Center, modifier = Modifier.size(72.dp)) {
                         Canvas(modifier = Modifier.size(72.dp)) {
@@ -161,7 +170,7 @@ fun NeonChargeCard(
                             )
                         }
                         Text(
-                            text = "${charge?.value ?: 62}%",
+                            text = "${(valPct * 100).toInt()}%",
                             color = Color.White,
                             fontSize = 18.sp,
                             fontFamily = FontFamily.Monospace,

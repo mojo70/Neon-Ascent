@@ -2817,16 +2817,30 @@ class WorkoutRepositoryImpl @Inject constructor(
         }
 
     override fun countSessionsBetween(from: java.time.Instant, to: java.time.Instant): Flow<Int> =
-        workoutDao.countSessionsBetween(from, to)
+        if (from == java.time.Instant.EPOCH || from.toEpochMilli() == 0L) {
+            workoutDao.getAllSessions().map { sessions -> sessions.count { it.date <= to } }
+        } else {
+            workoutDao.countSessionsBetween(from, to)
+        }
 
     override fun getSessionsBetween(
         from: java.time.Instant,
         to: java.time.Instant
     ): Flow<List<Pair<WorkoutSession, List<Pair<WorkoutLog, List<SetLog>>>>>> =
-        workoutDao.getSessionsWithDetailsBetween(from, to).map { sessions ->
-            sessions.map { sessionWithLogs ->
-                sessionWithLogs.session.toDomain() to sessionWithLogs.logs.map { logWithSets ->
-                    logWithSets.log.toDomain() to logWithSets.sets.map { it.toDomain() }
+        if (from == java.time.Instant.EPOCH || from.toEpochMilli() == 0L) {
+            workoutDao.getAllSessionsWithDetails().map { sessions ->
+                sessions.filter { it.session.date <= to }.map { sessionWithLogs ->
+                    sessionWithLogs.session.toDomain() to sessionWithLogs.logs.map { logWithSets ->
+                        logWithSets.log.toDomain() to logWithSets.sets.map { it.toDomain() }
+                    }
+                }
+            }
+        } else {
+            workoutDao.getSessionsWithDetailsBetween(from, to).map { sessions ->
+                sessions.map { sessionWithLogs ->
+                    sessionWithLogs.session.toDomain() to sessionWithLogs.logs.map { logWithSets ->
+                        logWithSets.log.toDomain() to logWithSets.sets.map { it.toDomain() }
+                    }
                 }
             }
         }

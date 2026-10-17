@@ -146,20 +146,104 @@ fun WorkoutSettingsScreen(
                 )
 
                 if (tempProfile.autoWeightIncrement) {
-                    Spacer(Modifier.height(16.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        IncrementInput(
-                            label = "Compound (+)",
-                            value = tempProfile.weightIncrementCompound,
-                            onUpdate = { onUpdateProfile(tempProfile.copy(weightIncrementCompound = it)) },
-                            modifier = Modifier.weight(1f)
-                        )
-                        IncrementInput(
-                            label = "Isolation (+)",
-                            value = tempProfile.weightIncrementIsolation,
-                            onUpdate = { onUpdateProfile(tempProfile.copy(weightIncrementIsolation = it)) },
-                            modifier = Modifier.weight(1f)
-                        )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "PROGRESSION ENGINE MODE",
+                        color = Color.Gray,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val isFixed = tempProfile.progressionMode == ProgressionMode.FIXED_INCREMENT
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { onUpdateProfile(tempProfile.copy(progressionMode = ProgressionMode.FIXED_INCREMENT)) },
+                            color = if (isFixed) Color(0xFF00CCFF).copy(alpha = 0.2f) else Color(0xFF1C1C1E),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, if (isFixed) Color(0xFF00CCFF) else Color.Transparent)
+                        ) {
+                            Text(
+                                "FIXED (+LBS)",
+                                color = if (isFixed) Color.White else Color.Gray,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(vertical = 10.dp),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+
+                        val isPercent = tempProfile.progressionMode == ProgressionMode.PERCENTAGE
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { onUpdateProfile(tempProfile.copy(progressionMode = ProgressionMode.PERCENTAGE)) },
+                            color = if (isPercent) Color(0xFF00CCFF).copy(alpha = 0.2f) else Color(0xFF1C1C1E),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, if (isPercent) Color(0xFF00CCFF) else Color.Transparent)
+                        ) {
+                            Text(
+                                "PERCENTAGE (%)",
+                                color = if (isPercent) Color.White else Color.Gray,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(vertical = 10.dp),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+
+                    if (tempProfile.progressionMode == ProgressionMode.FIXED_INCREMENT) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                IncrementInput(
+                                    label = "Upper Compound (+)",
+                                    value = tempProfile.weightIncrementUpperCompound,
+                                    onUpdate = { onUpdateProfile(tempProfile.copy(weightIncrementUpperCompound = it, weightIncrementCompound = it)) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                IncrementInput(
+                                    label = "Lower Compound (+)",
+                                    value = tempProfile.weightIncrementLowerCompound,
+                                    onUpdate = { onUpdateProfile(tempProfile.copy(weightIncrementLowerCompound = it)) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            IncrementInput(
+                                label = "Isolation / Accessory (+)",
+                                value = tempProfile.weightIncrementIsolation,
+                                onUpdate = { onUpdateProfile(tempProfile.copy(weightIncrementIsolation = it)) },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                StepInput(
+                                    label = "Progression Step",
+                                    valueText = "${"%.1f".format(tempProfile.progressionPercentage)}%",
+                                    onDecrement = { onUpdateProfile(tempProfile.copy(progressionPercentage = (tempProfile.progressionPercentage - 0.5f).coerceAtLeast(0.5f))) },
+                                    onIncrement = { onUpdateProfile(tempProfile.copy(progressionPercentage = tempProfile.progressionPercentage + 0.5f)) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                StepInput(
+                                    label = "Bar Load Step",
+                                    valueText = "${"%.1f".format(tempProfile.roundingIncrement)} lbs",
+                                    onDecrement = { onUpdateProfile(tempProfile.copy(roundingIncrement = if (tempProfile.roundingIncrement <= 2.5f) 2.5f else tempProfile.roundingIncrement - 2.5f)) },
+                                    onIncrement = { onUpdateProfile(tempProfile.copy(roundingIncrement = tempProfile.roundingIncrement + 2.5f)) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            Text(
+                                if (tempProfile.roundingIncrement <= 2.5f) "Micro-plates enabled (1.25 lb micro-plates required for 2.5 lb total steps)."
+                                else "Standard plate step (5.0 lb step = two 2.5 lb plates).",
+                                color = Color.Gray,
+                                fontSize = 10.sp,
+                                modifier = Modifier.padding(top = 2.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -312,6 +396,23 @@ fun SettingsToggleRow(label: String, description: String, checked: Boolean, onCh
 
 @Composable
 fun IncrementInput(label: String, value: Float, onUpdate: (Float) -> Unit, modifier: Modifier = Modifier) {
+    StepInput(
+        label = label,
+        valueText = "${value} lbs",
+        onDecrement = { onUpdate((value - 2.5f).coerceAtLeast(0f)) },
+        onIncrement = { onUpdate(value + 2.5f) },
+        modifier = modifier
+    )
+}
+
+@Composable
+fun StepInput(
+    label: String,
+    valueText: String,
+    onDecrement: () -> Unit,
+    onIncrement: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Surface(
         modifier = modifier,
         color = Color(0xFF1C1C1E),
@@ -324,13 +425,13 @@ fun IncrementInput(label: String, value: Float, onUpdate: (Float) -> Unit, modif
         ) {
             Column {
                 Text(label, color = Color.Gray, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                Text("${value} lbs", color = Color.White, fontWeight = FontWeight.Bold)
+                Text(valueText, color = Color.White, fontWeight = FontWeight.Bold)
             }
             Row {
-                IconButton(onClick = { onUpdate((value - 2.5f).coerceAtLeast(0f)) }, modifier = Modifier.size(24.dp)) {
+                IconButton(onClick = onDecrement, modifier = Modifier.size(24.dp)) {
                     Icon(Icons.Default.Remove, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
                 }
-                IconButton(onClick = { onUpdate(value + 2.5f) }, modifier = Modifier.size(24.dp)) {
+                IconButton(onClick = onIncrement, modifier = Modifier.size(24.dp)) {
                     Icon(Icons.Default.Add, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
                 }
             }

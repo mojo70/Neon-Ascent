@@ -172,14 +172,13 @@ class BiohackingViewModel @Inject constructor(
     private val _selectedTimeRange = MutableStateFlow(7)
     val selectedTimeRange: StateFlow<Int> = _selectedTimeRange.asStateFlow()
 
-    private val _vitalsSnapshot = MutableStateFlow<VitalsSnapshot?>(null)
-    val vitalsSnapshot: StateFlow<VitalsSnapshot?> = _vitalsSnapshot
+    val vitalsSnapshot: StateFlow<VitalsSnapshot?> = uplinkManager.combinedVitalsSnapshot
 
-    private val _rhrSeries = MutableStateFlow<List<Pair<LocalDate, Double>>>(emptyList())
-    val rhrSeries: StateFlow<List<Pair<LocalDate, Double>>> = _rhrSeries.asStateFlow()
+    val rhrSeries: StateFlow<List<Pair<LocalDate, Double>>> = healthRepository.series("RHR", 7)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val _hrvSeries = MutableStateFlow<List<Pair<LocalDate, Double>>>(emptyList())
-    val hrvSeries: StateFlow<List<Pair<LocalDate, Double>>> = _hrvSeries.asStateFlow()
+    val hrvSeries: StateFlow<List<Pair<LocalDate, Double>>> = healthRepository.series("HRV_RMSSD", 7)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val recoveryScore: StateFlow<RecoveryScore?> = workoutRepository.getRecoveryScore()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -195,8 +194,8 @@ class BiohackingViewModel @Inject constructor(
 
     val neonCharge: StateFlow<NeonCharge?> = combine(
         vitalsSnapshot,
-        rhrSeries,
-        hrvSeries,
+        healthRepository.series("RHR", 7),
+        healthRepository.series("HRV_RMSSD", 7),
         workoutRepository.getFullHistory(),
         ritesRepository.getSitMaskWindowsFlow()
     ) { snapshot, rhrList, hrvList, history, sitWindows ->
@@ -271,20 +270,6 @@ class BiohackingViewModel @Inject constructor(
             }
         }
         
-        // Vitals Subscription
-        viewModelScope.launch {
-            uplinkManager.combinedVitalsSnapshot.collectLatest { snapshot ->
-                _vitalsSnapshot.value = snapshot
-            }
-        }
-
-        viewModelScope.launch {
-            healthRepository.series("RHR", 7).collectLatest { _rhrSeries.value = it }
-        }
-
-        viewModelScope.launch {
-            healthRepository.series("HRV_RMSSD", 7).collectLatest { _hrvSeries.value = it }
-        }
         viewModelScope.launch {
             biohackingDao.getBiohackingData(0).collectLatest { data ->
                 _uiState.value = data ?: BiohackingData()

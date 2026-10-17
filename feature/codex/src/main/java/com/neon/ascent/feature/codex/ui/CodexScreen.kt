@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -58,6 +59,7 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import java.time.temporal.TemporalAdjusters
 import java.util.Locale
 import kotlin.math.abs
 
@@ -3163,17 +3165,37 @@ fun SessionHeatmap(summaries: List<SessionSummary>, period: CodexPeriod) {
     val emptyColor = Color.White.copy(alpha = 0.05f)
     val selectedBorderColor = Color(0xFF00CCFF)
 
-    val daysToShow = when (period) {
-        CodexPeriod.SEVEN_DAYS -> 7
-        CodexPeriod.THIRTY_DAYS -> 35
-        CodexPeriod.NINETY_DAYS -> 91
-        CodexPeriod.YTD -> 364
-        CodexPeriod.ALL -> 364
+    val today = LocalDate.now()
+    val earliestSummaryDate = summaries.minOfOrNull { it.date }
+
+    val startDate = when (period) {
+        CodexPeriod.SEVEN_DAYS -> today.minusDays(6)
+        CodexPeriod.THIRTY_DAYS -> today.minusDays(34)
+        CodexPeriod.NINETY_DAYS -> today.minusDays(90)
+        CodexPeriod.YTD -> today.with(TemporalAdjusters.firstDayOfYear())
+        CodexPeriod.ALL -> {
+            val start = earliestSummaryDate ?: today.minusDays(90)
+            if (start.isBefore(today.minusDays(90))) start else today.minusDays(90)
+        }
     }
 
-    val today = LocalDate.now()
-    val startDate = today.minusDays((daysToShow - 1).toLong())
+    val daysToShow = (ChronoUnit.DAYS.between(startDate, today).toInt() + 1).coerceAtLeast(1)
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
+    val gridState = rememberLazyGridState()
+
+    LaunchedEffect(daysToShow, period) {
+        if (daysToShow > 0) {
+            gridState.scrollToItem((daysToShow - 1).coerceAtLeast(0))
+        }
+    }
+
+    val gridTitle = when (period) {
+        CodexPeriod.SEVEN_DAYS -> "7D_ACTIVITY_GRID"
+        CodexPeriod.THIRTY_DAYS -> "30D_ACTIVITY_GRID"
+        CodexPeriod.NINETY_DAYS -> "90D_ACTIVITY_GRID"
+        CodexPeriod.YTD -> "YTD_ACTIVITY_GRID"
+        CodexPeriod.ALL -> "ALL_TIME_ACTIVITY_GRID"
+    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -3184,7 +3206,7 @@ fun SessionHeatmap(summaries: List<SessionSummary>, period: CodexPeriod) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "90D_ACTIVITY_GRID",
+                text = gridTitle,
                 color = Color.Gray,
                 fontSize = 9.sp,
                 fontFamily = FontFamily.Monospace,
@@ -3211,6 +3233,7 @@ fun SessionHeatmap(summaries: List<SessionSummary>, period: CodexPeriod) {
                 .padding(8.dp)
         ) {
             LazyHorizontalGrid(
+                state = gridState,
                 rows = GridCells.Fixed(7),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),

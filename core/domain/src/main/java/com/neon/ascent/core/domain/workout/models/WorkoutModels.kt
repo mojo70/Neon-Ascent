@@ -500,6 +500,11 @@ enum class UnitSystem {
     IMPERIAL, METRIC
 }
 
+enum class ProgressionMode {
+    FIXED_INCREMENT,
+    PERCENTAGE
+}
+
 data class UserWorkoutProfile(
     val userId: String,
     val experienceLevel: ExperienceLevel = ExperienceLevel.INTERMEDIATE,
@@ -523,8 +528,13 @@ data class UserWorkoutProfile(
 
     // Progression & Recovery Settings
     val autoWeightIncrement: Boolean = true,
+    val progressionMode: ProgressionMode = ProgressionMode.FIXED_INCREMENT,
     val weightIncrementCompound: Float = 5.0f,
-    val weightIncrementIsolation: Float = 2.5f,
+    val weightIncrementUpperCompound: Float = 5.0f,
+    val weightIncrementLowerCompound: Float = 10.0f,
+    val weightIncrementIsolation: Float = 5.0f,
+    val progressionPercentage: Float = 2.5f,
+    val roundingIncrement: Float = 5.0f,
     val rirCapturePerMiniSet: Boolean = false,
     val sequencerEnabled: Boolean = true,
     val customSequenceIds: List<String> = emptyList(),

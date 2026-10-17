@@ -16,6 +16,7 @@ import com.neon.ascent.core.data.datastore.HealthPreferencesDataStore
 import com.neon.ascent.core.domain.goals.models.AscensionTask
 import com.neon.ascent.core.domain.goals.models.AscensionTaskType
 import com.neon.ascent.core.domain.workout.rules.CyberCrappRules
+import com.neon.ascent.core.domain.workout.rules.ProgressionCalculator
 import com.neon.ascent.feature.workout.services.WorkoutTimerService
 import com.neon.ascent.core.data.datastore.BriefPreferencesDataStore
 import com.neon.ascent.core.data.notifications.BriefFactsBuilder
@@ -133,7 +134,8 @@ data class WorkoutUiState(
     val protocolIntakeNeeded: WorkoutProtocol? = null,
     val isStrategicDeconditioningActive: Boolean = false,
     val showProtocolChangeReminderDialog: WorkoutProtocol? = null,
-    val allExerciseMaxes: List<ExerciseMax> = emptyList()
+    val allExerciseMaxes: List<ExerciseMax> = emptyList(),
+    val allRoutines: List<WorkoutRoutine> = emptyList()
 )
 
 @HiltViewModel
@@ -482,7 +484,14 @@ class WorkoutViewModel @Inject constructor(
             WorkoutProtocol.WESTSIDE -> if (session.protocolDayType == ProtocolDayType.WS_ME_LOWER || session.protocolDayType == ProtocolDayType.WS_ME_UPPER) ProtocolUiMode.MAX_EFFORT else ProtocolUiMode.DYNAMIC
             else -> ProtocolUiMode.LINEAR
         }
-        _uiState.update { it.copy(session = session, isLoading = true, currentUiMode = uiMode) }
+        val currentControllerDuration = activeSessionController.state.value.workoutDurationSeconds
+        val elapsedSeconds = java.time.Duration.between(session.date, java.time.Instant.now()).seconds.coerceAtLeast(0L)
+        val initialDuration = if (currentControllerDuration > 0L) {
+            currentControllerDuration
+        } else {
+            maxOf(session.durationSeconds, elapsedSeconds)
+        }
+        _uiState.update { it.copy(session = session, isLoading = true, currentUiMode = uiMode, workoutDurationSeconds = initialDuration) }
         sessionJob?.cancel()
         sessionJob = viewModelScope.launch {
             repository.getLogsForSession(session.id).collect { logs ->
@@ -490,7 +499,7 @@ class WorkoutViewModel @Inject constructor(
                 logs.forEach { (log, _) -> loadPreviousData(log.exerciseId) }
             }
         }
-        startWorkoutTimer(session.durationSeconds)
+        startWorkoutTimer(initialDuration)
     }
 
     fun saveCustomExercise(name: String, muscleGroup: String, equipment: String, description: String) {
@@ -923,11 +932,31 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
+    private fun getProtocolRoutines(protocol: WorkoutProtocol): List<WorkoutRoutine> {
+        val state = _uiState.value
+        val sourceList = if (state.allRoutines.isNotEmpty()) state.allRoutines else state.routines
+        return sourceList
+            .filter { it.protocol == protocol }
+            .sortedWith(compareBy<WorkoutRoutine> { routine ->
+                when {
+                    routine.id.lowercase().endsWith("_a") || routine.name.contains("Push", ignoreCase = true) -> 0
+                    routine.id.lowercase().endsWith("_b") || routine.name.contains("Pull", ignoreCase = true) -> 1
+                    routine.id.lowercase().endsWith("_c") || routine.name.contains("Legs", ignoreCase = true) -> 2
+                    else -> 3
+                }
+            }.thenBy { it.id })
+    }
+
     private fun loadRoutines() {
         viewModelScope.launch {
             repository.getAllRoutines().collect { routines ->
+                val activeProtocol = _uiState.value.userProfile?.activeProtocol
+                val libraryRoutines = routines.filter { r ->
+                    r.isAddedToLibrary || (activeProtocol != null && r.protocol == activeProtocol)
+                }
                 _uiState.update { it.copy(
-                    routines = routines.filter { r -> r.isAddedToLibrary },
+                    allRoutines = routines,
+                    routines = libraryRoutines,
                     exploreRoutines = routines.filter { r -> r.isSystem }
                 ) }
                 updateSequencerState()
@@ -943,14 +972,15 @@ class WorkoutViewModel @Inject constructor(
             return
         }
 
-        val nextRoutine = if (profile.activeProtocol != null) {
-            val protocolRoutines = state.routines.filter { it.protocol == profile.activeProtocol }
+        val activeProtocol = profile.activeProtocol
+        val nextRoutine = if (activeProtocol != null) {
+            val protocolRoutines = getProtocolRoutines(activeProtocol)
             if (protocolRoutines.isNotEmpty()) {
                 protocolRoutines[profile.rotationIndex % protocolRoutines.size]
             } else null
         } else if (profile.customSequenceIds.isNotEmpty()) {
             val nextId = profile.customSequenceIds[profile.rotationIndex % profile.customSequenceIds.size]
-            state.routines.find { it.id == nextId }
+            state.allRoutines.find { it.id == nextId } ?: state.routines.find { it.id == nextId }
         } else null
 
         _uiState.update { it.copy(nextSequencedRoutine = nextRoutine) }
@@ -1117,14 +1147,16 @@ class WorkoutViewModel @Inject constructor(
                 loadPreviousData(routineExercise.exercise.id)
             }
 
+            val initialPhase = if (sessionProtocol == WorkoutProtocol.CYBER_CRAPP) RestPausePhase.MINI_SET_1 else RestPausePhase.NOT_ACTIVE
             _uiState.update { it.copy(
                 session = session,
                 workoutDurationSeconds = 0,
                 isPaused = false,
                 previousLogs = emptyMap(),
-                workoutPhase = if (sessionProtocol == WorkoutProtocol.CYBER_CRAPP) RestPausePhase.MINI_SET_1 else RestPausePhase.NOT_ACTIVE,
+                workoutPhase = initialPhase,
                 isLoading = false
             ) }
+            activeSessionController.setWorkoutPhase(initialPhase)
             startWorkoutTimer()
         }
     }
@@ -1457,7 +1489,7 @@ class WorkoutViewModel @Inject constructor(
         }
 
         // 3. Normal schedule reminders
-        val protocolRoutines = _uiState.value.routines.filter { it.protocol == protocol }
+        val protocolRoutines = getProtocolRoutines(protocol)
         profile.scheduledDays.forEachIndexed { scheduledIndex, scheduled ->
             val assignedRoutine = if (protocolRoutines.isNotEmpty()) {
                 protocolRoutines[scheduledIndex % protocolRoutines.size]
@@ -1557,14 +1589,16 @@ class WorkoutViewModel @Inject constructor(
                     protocol = protocol,
                     isDeload = isDeload
                 )
+                val initialPhase = if (protocol == WorkoutProtocol.CYBER_CRAPP && !isDeload) RestPausePhase.MINI_SET_1 else RestPausePhase.NOT_ACTIVE
                 _uiState.update { it.copy(
                     session = session, 
                     isLoading = true, 
                     workoutDurationSeconds = 0, 
                     isPaused = false,
                     previousLogs = emptyMap(),
-                    workoutPhase = if (protocol == WorkoutProtocol.CYBER_CRAPP && !isDeload) RestPausePhase.MINI_SET_1 else RestPausePhase.NOT_ACTIVE
+                    workoutPhase = initialPhase
                 ) }
+                activeSessionController.setWorkoutPhase(initialPhase)
                 
                 sessionJob?.cancel()
                 sessionJob = viewModelScope.launch {
@@ -2611,12 +2645,14 @@ class WorkoutViewModel @Inject constructor(
                 }
             }
 
+            val initialPhase = if (fullRoutine.protocol == WorkoutProtocol.CYBER_CRAPP && !isDeload) RestPausePhase.MINI_SET_1 else RestPausePhase.NOT_ACTIVE
             _uiState.update { it.copy(
                 activeRoutine = fullRoutine,
                 workoutDurationSeconds = 0,
                 isPaused = false,
-                workoutPhase = if (fullRoutine.protocol == WorkoutProtocol.CYBER_CRAPP && !isDeload) RestPausePhase.MINI_SET_1 else RestPausePhase.NOT_ACTIVE
+                workoutPhase = initialPhase
             ) }
+            activeSessionController.setWorkoutPhase(initialPhase)
 
             startWorkoutTimer()
         }
@@ -2682,6 +2718,7 @@ class WorkoutViewModel @Inject constructor(
                 previousLogs = emptyMap(),
                 workoutPhase = RestPausePhase.NOT_ACTIVE
             ) }
+            activeSessionController.setWorkoutPhase(RestPausePhase.NOT_ACTIVE)
 
             startWorkoutTimer()
         }
@@ -3372,10 +3409,11 @@ class WorkoutViewModel @Inject constructor(
         viewModelScope.launch {
             if (updateBaseline) {
                 // Find index of this routine in the sequence
-                val sequence = if (profile.activeProtocol != null) {
-                    _uiState.value.routines.filter { it.protocol == profile.activeProtocol }
+                val activeProtocol = profile.activeProtocol
+                val sequence = if (activeProtocol != null) {
+                    getProtocolRoutines(activeProtocol)
                 } else {
-                    profile.customSequenceIds.mapNotNull { id -> _uiState.value.routines.find { it.id == id } }
+                    profile.customSequenceIds.mapNotNull { id -> _uiState.value.allRoutines.find { it.id == id } ?: _uiState.value.routines.find { it.id == id } }
                 }
                 
                 val newIndex = sequence.indexOfFirst { it.id == routine.id }.takeIf { it != -1 } ?: profile.rotationIndex
@@ -3524,8 +3562,11 @@ class WorkoutViewModel @Inject constructor(
                 
                 // Advance rotation if sequencer is active and this was the expected routine
                 if (profile.sequencerEnabled) {
-                    val wasSequenced = _uiState.value.activeRoutine?.id == _uiState.value.nextSequencedRoutine?.id
-                    if (wasSequenced) {
+                    val expectedRoutine = _uiState.value.nextSequencedRoutine
+                    val currentActive = _uiState.value.activeRoutine
+                    val isProtocolSession = currentActive != null && profile.activeProtocol != null && currentActive.protocol == profile.activeProtocol
+                    val isSequencedSession = expectedRoutine != null && currentActive?.id == expectedRoutine.id
+                    if (isSequencedSession || isProtocolSession) {
                         val nextIndex = (profile.rotationIndex + 1)
                         updatedProfile = updatedProfile.copy(rotationIndex = nextIndex)
                         _uiState.update { it.copy(userProfile = updatedProfile) }
@@ -3785,6 +3826,7 @@ class WorkoutViewModel @Inject constructor(
 
         // Only progress the phase or stay if it's a rest-pause rest timer tick
         _uiState.update { it.copy(workoutPhase = nextPhase) }
+        activeSessionController.setWorkoutPhase(nextPhase)
 
         when (nextPhase) {
             RestPausePhase.MINI_SET_2, RestPausePhase.MINI_SET_3 -> {
@@ -3797,6 +3839,7 @@ class WorkoutViewModel @Inject constructor(
                     isResting = false,
                     activeCyberCrappLogId = log?.id
                 ) }
+                activeSessionController.setShowCyberFinisher(true)
                 WorkoutTimerService.stop(context)
             }
             else -> {}
@@ -3845,6 +3888,7 @@ class WorkoutViewModel @Inject constructor(
                 }
                 
                 _uiState.update { it.copy(stretchTimeRemaining = remaining) }
+                activeSessionController.setStretchTimeRemaining(remaining)
             }
             hapticService.syncSuccess()
             
@@ -3881,6 +3925,9 @@ class WorkoutViewModel @Inject constructor(
                 workoutPhase = RestPausePhase.NOT_ACTIVE,
                 activeCyberCrappLogId = null
             ) }
+            activeSessionController.setShowLoadedStretch(false)
+            activeSessionController.setWorkoutPhase(RestPausePhase.NOT_ACTIVE)
+            activeSessionController.setStretchTimeRemaining(0)
         }
     }
 
@@ -3922,6 +3969,9 @@ class WorkoutViewModel @Inject constructor(
             workoutPhase = RestPausePhase.NOT_ACTIVE,
             activeCyberCrappLogId = null
         ) }
+        activeSessionController.setShowLoadedStretch(false)
+        activeSessionController.setWorkoutPhase(RestPausePhase.NOT_ACTIVE)
+        activeSessionController.setStretchTimeRemaining(0)
     }
 
     fun startStretch(partialReps: Int) {
@@ -3960,6 +4010,11 @@ class WorkoutViewModel @Inject constructor(
                 stretchTimeRemaining = stretchDuration,
                 workoutPhase = RestPausePhase.LOADED_STRETCH
             ) }
+            activeSessionController.setShowLoadedStretch(true)
+            activeSessionController.setShowCyberFinisher(false)
+            activeSessionController.setStretchTimeRemaining(stretchDuration)
+            activeSessionController.setWorkoutPhase(RestPausePhase.LOADED_STRETCH)
+            
             startStretchTimer()
         }
     }
@@ -4205,14 +4260,12 @@ class WorkoutViewModel @Inject constructor(
         }
 
         // Auto-increment logic
-        if (profile?.autoWeightIncrement == true && repRange != null && bestReps >= repRange.max) {
-            val isCompound = exercise.movementType == MovementType.COMPOUND_UPPER || 
-                             exercise.movementType == MovementType.QUAD_DOMINANT || 
-                             exercise.movementType == MovementType.POSTERIOR_CHAIN ||
-                             exercise.movementType == MovementType.DEADLIFT
-            
-            val increment = if (isCompound) profile.weightIncrementCompound else profile.weightIncrementIsolation
-            nextWeight += increment
+        if (profile?.autoWeightIncrement == true && repRange != null && bestReps >= repRange.max && exercise != null) {
+            nextWeight = ProgressionCalculator.calculateNextWeight(
+                currentWeight = currentWeight,
+                movementType = exercise.movementType,
+                profile = profile
+            )
             // Reset best reps for the new weight
             bestReps = 0 
             bestWeight = nextWeight
