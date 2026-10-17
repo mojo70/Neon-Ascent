@@ -69,6 +69,7 @@ fun CodexScreen(
     onBack: () -> Unit,
     chronicleContent: @Composable () -> Unit,
     onDirectiveClick: ((String) -> Unit)? = null,
+    onForgeClick: (() -> Unit)? = null,
     onRequestNutritionPermission: (() -> Unit)? = null,
     viewModel: CodexViewModel = hiltViewModel()
 ) {
@@ -183,7 +184,11 @@ fun CodexScreen(
                 // Directives Panel
                 CodexDirectivesPanel(
                     directives = uiState.activeDirectives,
-                    onDirectiveClick = { directiveId -> onDirectiveClick?.invoke(directiveId) }
+                    showDensityBanner = uiState.showDensityBanner,
+                    densityNoteMessage = uiState.densityNoteMessage,
+                    onDismissDensityBanner = { viewModel.dismissDensityBanner() },
+                    onDirectiveClick = { directiveId -> onDirectiveClick?.invoke(directiveId) },
+                    onForgeClick = onForgeClick
                 )
 
                 // Wing Switcher
@@ -3942,6 +3947,10 @@ private fun ExportLogOptionRow(
 @Composable
 fun CodexDirectivesPanel(
     directives: List<AscensionDirective>,
+    showDensityBanner: Boolean = false,
+    densityNoteMessage: String? = null,
+    onDismissDensityBanner: () -> Unit = {},
+    onForgeClick: (() -> Unit)? = null,
     onDirectiveClick: (String) -> Unit
 ) {
     Column(
@@ -3952,6 +3961,55 @@ fun CodexDirectivesPanel(
             .border(1.dp, NeonCyan.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
             .padding(8.dp)
     ) {
+        if (showDensityBanner && densityNoteMessage != null) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                color = Color(0xFF1E1600),
+                shape = RoundedCornerShape(4.dp),
+                border = BorderStroke(1.dp, Color(0xFFFFB703))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = Color(0xFFFFB703),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = densityNoteMessage,
+                            color = Color(0xFFFFB703),
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            lineHeight = 13.sp
+                        )
+                    }
+                    IconButton(
+                        onClick = onDismissDensityBanner,
+                        modifier = Modifier.size(20.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Dismiss Note",
+                            tint = Color(0xFFFFB703),
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+            }
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -3964,12 +4022,34 @@ fun CodexDirectivesPanel(
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold
             )
-            Text(
-                text = "${directives.size} ACTIVE",
-                color = Color.Gray,
-                fontSize = 9.sp,
-                fontFamily = FontFamily.Monospace
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "${directives.size} ACTIVE",
+                    color = Color.Gray,
+                    fontSize = 9.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                if (onForgeClick != null) {
+                    Box(
+                        modifier = Modifier
+                            .background(NeonCyan.copy(alpha = 0.15f), RoundedCornerShape(2.dp))
+                            .border(1.dp, NeonCyan.copy(alpha = 0.5f), RoundedCornerShape(2.dp))
+                            .clickable { onForgeClick() }
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "+ FORGE",
+                            color = NeonCyan,
+                            fontSize = 9.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(6.dp))
@@ -3978,14 +4058,16 @@ fun CodexDirectivesPanel(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .then(if (onForgeClick != null) Modifier.clickable { onForgeClick() } else Modifier)
                     .padding(vertical = 12.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "No directives. Forge one in OPS.",
-                    color = Color.Gray,
+                    text = if (onForgeClick != null) "No directives. Tap to forge one." else "No directives. Forge one in OPS.",
+                    color = NeonCyan,
                     fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
                 )
             }
         } else {

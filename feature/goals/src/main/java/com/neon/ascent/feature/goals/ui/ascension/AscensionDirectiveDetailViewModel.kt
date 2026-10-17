@@ -18,6 +18,8 @@ data class DirectiveDetailUiState(
     val missions: List<AscensionMission> = emptyList(),
     val directTasks: List<AscensionTask> = emptyList(),
     val isLoading: Boolean = true,
+    val showDensityBanner: Boolean = false,
+    val densityNoteMessage: String? = null,
     
     // Mentor Mode Chat
     val chatHistory: List<ChatMessage> = emptyList(),
@@ -45,25 +47,40 @@ class AscensionDirectiveDetailViewModel @Inject constructor(
         directiveId = id
         _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
-            // Find the directive
-            val directiveFlow = repository.getAllDirectives().map { list -> list.find { it.id == id } }
+            val activeDirectivesFlow = repository.getActiveDirectives()
             val missionsFlow = repository.getMissionsForDirective(id)
             val tasksFlow = repository.getTasksForParent(id)
 
-            combine(directiveFlow, missionsFlow, tasksFlow) { dir, mis, tsk ->
+            combine(activeDirectivesFlow, missionsFlow, tasksFlow) { activeDirectives, mis, tsk ->
+                val dir = activeDirectives.find { it.id == id } ?: repository.getAllDirectives().first().find { it.id == id }
                 if (dir != null) {
+                    val today = LocalDate.now()
+                    val horizon = today.plusDays(90)
+                    val nearTermCount = activeDirectives.count { 
+                        val endDate = it.targetEndDate
+                        endDate != null && !endDate.isAfter(horizon) 
+                    }
+                    val aTierCount = activeDirectives.count { it.priorityTier == PriorityTier.A }
+                    val isDense = (nearTermCount >= 4 || aTierCount >= 3)
+
                     _uiState.update { 
                         it.copy(
                             directive = dir,
                             missions = mis,
                             directTasks = tsk,
                             selectedMentorMode = dir.aiMentorMode,
-                            isLoading = false
+                            isLoading = false,
+                            showDensityBanner = isDense,
+                            densityNoteMessage = if (isDense) "You have several near-term Directives ($nearTermCount near-term <= 90 days, $aTierCount A-tier). Want to review priority or archive one?" else null
                         ) 
                     }
                 }
             }.collect()
         }
+    }
+
+    fun dismissDensityBanner() {
+        _uiState.update { it.copy(showDensityBanner = false) }
     }
 
     fun updateNotes(notes: String) {

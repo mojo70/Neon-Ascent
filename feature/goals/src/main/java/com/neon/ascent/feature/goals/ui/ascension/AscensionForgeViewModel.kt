@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.Instant
+import com.neon.ascent.core.data.datastore.DirectivePreferencesDataStore
 import java.time.LocalDate
 import java.util.UUID
 import javax.inject.Inject
@@ -30,6 +31,9 @@ data class AscensionForgeUiState(
     val forgeType: ForgeType = ForgeType.DIRECTIVE,
     val title: String = "",
     val description: String = "",
+    // Intake mode state
+    val directiveIntakeModePreference: DirectiveIntakeMode = DirectiveIntakeMode.MENTOR,
+    val currentIntakeMode: DirectiveIntakeMode = DirectiveIntakeMode.MENTOR,
     // Directive specific
     val visionStatement: String = "",
     val isQuarterly: Boolean = false,
@@ -60,7 +64,10 @@ data class AscensionForgeUiState(
     val timeWindows: List<String> = emptyList(),
     // Mission specific
     val parentDirectiveId: String? = null,
-    val isSuccess: Boolean = false
+    val isSuccess: Boolean = false,
+    val deployedDirectiveId: String? = null,
+    val isGeneratingSuggestions: Boolean = false,
+    val availableDirectives: List<AscensionDirective> = emptyList()
 )
 
 @HiltViewModel
@@ -70,13 +77,23 @@ class AscensionForgeViewModel @Inject constructor(
     private val skillRepository: SkillRepository,
     private val dopamineCoordinator: DopamineCoordinator,
     private val neuralPingScheduler: NeuralPingScheduler,
-    private val selfMapRepository: SelfMapRepository
+    private val selfMapRepository: SelfMapRepository,
+    private val directivePreferencesDataStore: DirectivePreferencesDataStore
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AscensionForgeUiState())
     val uiState = _uiState.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            val defaultMode = directivePreferencesDataStore.directiveIntakeMode.first()
+            _uiState.update {
+                it.copy(
+                    directiveIntakeModePreference = defaultMode,
+                    currentIntakeMode = defaultMode
+                )
+            }
+        }
         viewModelScope.launch {
             // Ensure imported_quests directive exists if not already present
             val directives = repository.getAllDirectives().first()
@@ -105,9 +122,32 @@ class AscensionForgeViewModel @Inject constructor(
                 _uiState.update { it.copy(selfMapItems = sorted) }
             }
         }
+        viewModelScope.launch {
+            repository.getActiveDirectives().collect { directives ->
+                _uiState.update { it.copy(availableDirectives = directives) }
+            }
+        }
     }
 
     fun clearDopamineEvent() = _uiState.update { it.copy(dopamineEvent = null) }
+
+    fun toggleInSessionIntakeMode() {
+        _uiState.update { state ->
+            val nextMode = if (state.currentIntakeMode == DirectiveIntakeMode.MENTOR) {
+                DirectiveIntakeMode.FORM
+            } else {
+                DirectiveIntakeMode.MENTOR
+            }
+            state.copy(currentIntakeMode = nextMode)
+        }
+    }
+
+    fun saveDefaultIntakeModePreference(mode: DirectiveIntakeMode) {
+        viewModelScope.launch {
+            directivePreferencesDataStore.setDirectiveIntakeMode(mode)
+            _uiState.update { it.copy(directiveIntakeModePreference = mode) }
+        }
+    }
 
     fun updateType(type: ForgeType) = _uiState.update { it.copy(forgeType = type) }
     fun updateTitle(title: String) = _uiState.update { it.copy(title = title) }
@@ -169,6 +209,10 @@ class AscensionForgeViewModel @Inject constructor(
             val attr = attributeName?.let { 
                 try { SpecialType.valueOf(it) } catch(e: Exception) { null } 
             }
+            val matchedAnchor = state.selfMapItems.firstOrNull { item ->
+                (title != null && title.contains(item.name, ignoreCase = true)) ||
+                (description != null && description.contains(item.name, ignoreCase = true))
+            }
             state.copy(
                 title = title ?: state.title,
                 description = description ?: state.description,
@@ -176,38 +220,79 @@ class AscensionForgeViewModel @Inject constructor(
                 linkedAttributes = if (attr != null && !state.linkedAttributes.contains(attr)) state.linkedAttributes + attr else state.linkedAttributes,
                 useAiMentor = true,
                 isFromInsight = true,
-                biometricContext = biometricContext
+                biometricContext = biometricContext,
+                selectedAnchoredSelfItemId = matchedAnchor?.id ?: state.selectedAnchoredSelfItemId,
+                selectedAnchoredSelfItemName = matchedAnchor?.name ?: state.selectedAnchoredSelfItemName
             )
         }
         
         if (title != null || description != null) {
-            startInitialConversation()
+            ensureMentorConversationStarted()
         }
     }
 
-    private fun startInitialConversation() {
+    fun ensureMentorConversationStarted() {
         val state = _uiState.value
-        val context = "Insight Title: ${state.title}\nDescription: ${state.description}\nBiometrics: ${state.biometricContext ?: "None"}"
-        val initialPrompt = "OPERATOR_INIT: User is forging a directive from an external insight. Context: $context. Begin with 1-2 clarifying questions about vision and potential barriers before proposing any structure."
-        
+        if (state.chatHistory.isNotEmpty() || state.isGenerating) return
+
+        val initialPrompt = """
+[INTAKE_GENESIS_INIT]
+Context Title: ${if (state.title.isNotBlank()) state.title else "Unspecified"}
+Context Description: ${if (state.description.isNotBlank()) state.description else "Unspecified"}
+Biometric Context: ${state.biometricContext ?: "None"}
+
+Operator is initiating a new Directive intake.
+Mandate:
+1. Ask 1-2 sharp clarifying questions covering:
+   - WHAT specific outcome is targeted?
+   - BY WHEN is the target completion date or horizon?
+   - WHY it matters (suggesting anchoring to a Self Map item or linked S.P.E.C.I.A.L. stats).
+2. DO NOT output any [PROPOSAL] or [METRICS] section in this first turn. Keep it strictly conversational and dialectic.
+""".trimIndent()
+
         viewModelScope.launch {
             _uiState.update { it.copy(isGenerating = true) }
             try {
                 val response = mentorUseCase.getMentorDialogue(
-                    directive = AscensionDirective(id = "", title = state.title, description = state.description),
+                    directive = AscensionDirective(
+                        id = "",
+                        title = state.title.ifBlank { "DIRECTIVE_INTAKE" },
+                        description = state.description
+                    ),
                     missions = emptyList(),
                     tasks = emptyList(),
                     mode = MentorMode.GUIDE,
                     message = initialPrompt
                 )
-                _uiState.update { it.copy(
-                    chatHistory = it.chatHistory + response,
-                    isGenerating = false
-                ) }
+                val finalMsg = if (response.text.isBlank()) {
+                    MentorUiMessage(
+                        text = "CYBR-TES // INTAKE PROTOCOL ONLINE.\n\n1. WHAT specific outcome are you forging?\n2. BY WHEN do you target completion?\n3. WHY does this matter (Self Map anchor or S.P.E.C.I.A.L. stat link)?",
+                        isFromUser = false
+                    )
+                } else response
+
+                _uiState.update {
+                    it.copy(
+                        chatHistory = it.chatHistory + finalMsg,
+                        isGenerating = false
+                    )
+                }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isGenerating = false) }
+                _uiState.update {
+                    it.copy(
+                        chatHistory = it.chatHistory + MentorUiMessage(
+                            text = "CYBR-TES // INTAKE PROTOCOL ONLINE.\n\n1. WHAT specific outcome are you forging?\n2. BY WHEN do you target completion?\n3. WHY does this matter (Self Map anchor or S.P.E.C.I.A.L. stat link)?",
+                            isFromUser = false
+                        ),
+                        isGenerating = false
+                    )
+                }
             }
         }
+    }
+
+    private fun startInitialConversation() {
+        ensureMentorConversationStarted()
     }
 
     fun sendMentorMessage() {
@@ -222,6 +307,51 @@ class AscensionForgeViewModel @Inject constructor(
 
     fun askClarification() {
         sendMessage("CLARIFY_PROTOCOL: Ask me 2-3 specific questions to better understand my constraints and vision before proceeding.")
+    }
+
+    fun requestMentorFormSuggestions() {
+        val state = _uiState.value
+        _uiState.update { it.copy(isGeneratingSuggestions = true) }
+
+        viewModelScope.launch {
+            try {
+                val prompt = """
+[FORM_ASSIST_REQUEST]
+Directive Title: ${state.title.ifBlank { "Unspecified" }}
+Directive Description: ${state.description.ifBlank { "Unspecified" }}
+
+Task: Suggest a single quantified Outcome Statement and a single daily Affirmation for this Directive.
+Format response strictly as:
+[OUTCOME]
+Your suggested outcome statement here.
+
+[AFFIRMATION]
+Your suggested affirmation statement here.
+""".trimIndent()
+
+                val dialogue = mentorUseCase.getMentorDialogue(
+                    directive = AscensionDirective(id = "", title = state.title, description = state.description),
+                    missions = emptyList(),
+                    tasks = emptyList(),
+                    mode = MentorMode.GUIDE,
+                    message = prompt
+                )
+
+                val text = dialogue.text
+                val outcome = text.substringAfter("[OUTCOME]", "").substringBefore("[AFFIRMATION]").trim()
+                val affirmation = text.substringAfter("[AFFIRMATION]", "").trim()
+
+                _uiState.update { current ->
+                    current.copy(
+                        outcomeStatement = if (outcome.isNotBlank()) outcome else current.outcomeStatement,
+                        affirmation = if (affirmation.isNotBlank()) affirmation else current.affirmation,
+                        isGeneratingSuggestions = false
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isGeneratingSuggestions = false) }
+            }
+        }
     }
 
     private fun sendMessage(input: String) {
@@ -255,11 +385,15 @@ class AscensionForgeViewModel @Inject constructor(
         val state = _uiState.value
         viewModelScope.launch {
             try {
+                var deployedId: String? = null
                 when (state.forgeType) {
                     ForgeType.DIRECTIVE -> {
+                        val directiveId = UUID.randomUUID().toString()
+                        deployedId = directiveId
+                        val directiveTitle = state.title.ifBlank { "NEW_DIRECTIVE_${System.currentTimeMillis() % 10000}" }
                         val directive = AscensionDirective(
-                            id = UUID.randomUUID().toString(),
-                            title = state.title,
+                            id = directiveId,
+                            title = directiveTitle,
                             description = state.description,
                             visionStatement = state.visionStatement.takeIf { it.isNotBlank() },
                             isQuarterly = state.isQuarterly,
@@ -314,10 +448,10 @@ class AscensionForgeViewModel @Inject constructor(
                         repository.insertTask(task)
                     }
                 }
-                _uiState.update { it.copy(isSuccess = true) }
+                _uiState.update { it.copy(isSuccess = true, deployedDirectiveId = deployedId) }
                 dopamineCoordinator.triggerAscension(
                     title = "PROTOCOL_DEPLOYED",
-                    message = "${state.title.uppercase()} INTEGRATED",
+                    message = "${state.title.ifBlank { "NEW_DIRECTIVE" }.uppercase()} INTEGRATED",
                     xp = 50,
                     actionLabel = "View in Dashboard"
                 )
@@ -333,9 +467,12 @@ class AscensionForgeViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val directiveId = UUID.randomUUID().toString()
+                val directiveTitle = state.title.ifBlank {
+                    proposedMissions.firstOrNull()?.title?.let { "DIRECTIVE // $it" } ?: "NEW_DIRECTIVE_${System.currentTimeMillis() % 10000}"
+                }
                 val directive = AscensionDirective(
                     id = directiveId,
-                    title = state.title,
+                    title = directiveTitle,
                     description = state.description,
                     visionStatement = state.visionStatement.takeIf { it.isNotBlank() },
                     isQuarterly = state.isQuarterly,
@@ -346,7 +483,12 @@ class AscensionForgeViewModel @Inject constructor(
                     archetypeTag = state.selectedArchetype,
                     aiMentorMode = state.aiMentorMode,
                     anchoredSelfItemId = state.selectedAnchoredSelfItemId,
-                    anchoredSelfItemName = state.selectedAnchoredSelfItemName
+                    anchoredSelfItemName = state.selectedAnchoredSelfItemName,
+                    targetEndDate = state.targetEndDate,
+                    priorityTier = state.priorityTier,
+                    outcomeStatement = state.outcomeStatement.takeIf { it.isNotBlank() },
+                    affirmation = state.affirmation.takeIf { it.isNotBlank() },
+                    visualUri = state.visualUri.takeIf { it.isNotBlank() }
                 )
                 repository.insertDirective(directive)
 
@@ -383,10 +525,10 @@ class AscensionForgeViewModel @Inject constructor(
                     }
                 }
 
-                _uiState.update { it.copy(isSuccess = true) }
+                _uiState.update { it.copy(isSuccess = true, deployedDirectiveId = directiveId) }
                 dopamineCoordinator.triggerAscension(
                     title = "PROTOCOL_DEPLOYED",
-                    message = "${state.title.uppercase()} INTEGRATED",
+                    message = "${directiveTitle.uppercase()} INTEGRATED",
                     xp = 100,
                     actionLabel = "View in Dashboard"
                 )

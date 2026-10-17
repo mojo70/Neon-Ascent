@@ -137,6 +137,14 @@ fun HolographicAvatarHub(
                     onOpenEoELog = { item ->
                         eoeTargetItem = item
                         showEoELogSheet = true
+                    },
+                    onAnchorDirective = { item ->
+                        onNavigateToForge(
+                            SpecialType.INTELLIGENCE,
+                            "Directive for ${item.name}",
+                            "Anchored to Self Map item: ${item.name}",
+                            null
+                        )
                     }
                 )
             }

@@ -75,6 +75,7 @@ fun SelfMapRadialCanvas(
     onOpenWizard: () -> Unit,
     onOpenConversationalIntake: () -> Unit = {},
     onOpenEoELog: (SelfItemEntity?) -> Unit,
+    onAnchorDirective: (SelfItemEntity) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val theme = LocalNeonTheme.current
@@ -330,6 +331,10 @@ fun SelfMapRadialCanvas(
                 val current = selectedItemForDetail
                 selectedItemForDetail = null
                 onOpenEoELog(current)
+            },
+            onAnchorDirective = { item ->
+                selectedItemForDetail = null
+                onAnchorDirective(item)
             }
         )
     }
@@ -701,7 +706,8 @@ fun SelfItemDetailSheet(
     item: SelfItemEntity,
     viewModel: SelfMapViewModel,
     onDismiss: () -> Unit,
-    onLogEoEForThisItem: () -> Unit
+    onLogEoEForThisItem: () -> Unit,
+    onAnchorDirective: (SelfItemEntity) -> Unit = {}
 ) {
     val theme = LocalNeonTheme.current
     val cyan = theme.accent
@@ -999,6 +1005,22 @@ fun SelfItemDetailSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Action Buttons
+            Button(
+                onClick = {
+                    onDismiss()
+                    onAnchorDirective(item)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = cyan, contentColor = Color.Black),
+                shape = RoundedCornerShape(4.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("ANCHOR A DIRECTIVE", fontFamily = FontFamily.Monospace, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween

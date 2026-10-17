@@ -92,6 +92,7 @@ fun AscensionForgeScreen(
     onNavigateToGuide: () -> Unit = {},
     onNavigateToDashboard: () -> Unit = {},
     onBrowseProtocols: () -> Unit = {},
+    onNavigateToDirectiveDetail: (String) -> Unit = {},
     viewModel: AscensionForgeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -99,6 +100,12 @@ fun AscensionForgeScreen(
     LaunchedEffect(Unit) {
         if (prefilledAttribute != null || prefilledTitle != null || prefilledDescription != null || prefilledVision != null || prefilledBiometrics != null) {
             viewModel.prefill(prefilledAttribute, prefilledTitle, prefilledDescription, prefilledVision, prefilledBiometrics)
+        }
+    }
+
+    LaunchedEffect(uiState.currentIntakeMode, uiState.forgeType) {
+        if (uiState.currentIntakeMode == DirectiveIntakeMode.MENTOR && uiState.forgeType == ForgeType.DIRECTIVE) {
+            viewModel.ensureMentorConversationStarted()
         }
     }
 
@@ -172,33 +179,63 @@ fun AscensionForgeScreen(
                 }
             }
 
-            // Common Title/Description
-            CyberFrame(label = "CORE_DEFINITION") {
-                Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    OutlinedTextField(
-                        value = uiState.title,
-                        onValueChange = viewModel::updateTitle,
-                        label = { Text("IDENTIFIER", fontSize = 10.sp) },
-                        modifier = Modifier.fillMaxWidth(),
-                        textStyle = TextStyle(color = Color.White, fontFamily = FontFamily.Monospace)
-                    )
-                    OutlinedTextField(
-                        value = uiState.description,
-                        onValueChange = viewModel::updateDescription,
-                        label = { Text("OBJECTIVE_DATA", fontSize = 10.sp) },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 3,
-                        textStyle = TextStyle(color = Color.White, fontFamily = FontFamily.Monospace)
-                    )
+            // Common Title/Description for Mission/Task or Mentor Mode
+            if (uiState.forgeType != ForgeType.DIRECTIVE || uiState.currentIntakeMode == DirectiveIntakeMode.MENTOR) {
+                CyberFrame(label = "CORE_DEFINITION") {
+                    Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        OutlinedTextField(
+                            value = uiState.title,
+                            onValueChange = viewModel::updateTitle,
+                            label = { Text("IDENTIFIER", fontSize = 10.sp) },
+                            modifier = Modifier.fillMaxWidth(),
+                            textStyle = TextStyle(color = Color.White, fontFamily = FontFamily.Monospace)
+                        )
+                        OutlinedTextField(
+                            value = uiState.description,
+                            onValueChange = viewModel::updateDescription,
+                            label = { Text("OBJECTIVE_DATA", fontSize = 10.sp) },
+                            modifier = Modifier.fillMaxWidth(),
+                            minLines = 3,
+                            textStyle = TextStyle(color = Color.White, fontFamily = FontFamily.Monospace)
+                        )
+                    }
                 }
             }
 
-            if (uiState.useAiMentor && uiState.forgeType == ForgeType.DIRECTIVE) {
-                MentorConversationalBuilder(uiState, viewModel)
-            }
-
             if (uiState.forgeType == ForgeType.DIRECTIVE) {
-                DirectiveSpecificFields(uiState, viewModel)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "INTAKE_MODE // ${uiState.currentIntakeMode.name}",
+                        color = NeonCyan,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                    OutlinedButton(
+                        onClick = { viewModel.toggleInSessionIntakeMode() },
+                        border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.6f)),
+                        shape = RoundedCornerShape(4.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = if (uiState.currentIntakeMode == DirectiveIntakeMode.MENTOR) "Switch to Form" else "Switch to Mentor",
+                            color = NeonCyan,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                if (uiState.currentIntakeMode == DirectiveIntakeMode.MENTOR) {
+                    MentorConversationalBuilder(uiState, viewModel)
+                } else {
+                    DirectiveSpecificFields(uiState, viewModel)
+                }
             } else if (uiState.forgeType == ForgeType.MISSION) {
                 MissionSpecificFields(uiState, viewModel)
             } else {
@@ -222,7 +259,14 @@ fun AscensionForgeScreen(
                 event = event,
                 onFinished = { 
                     viewModel.clearDopamineEvent()
-                    if (uiState.isSuccess) onBack()
+                    if (uiState.isSuccess) {
+                        val deployedId = uiState.deployedDirectiveId
+                        if (deployedId != null) {
+                            onNavigateToDirectiveDetail(deployedId)
+                        } else {
+                            onBack()
+                        }
+                    }
                 },
                 onActionClick = {
                     viewModel.clearDopamineEvent()
@@ -252,21 +296,46 @@ fun ForgeTypeTab(label: String, isSelected: Boolean, modifier: Modifier = Modifi
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MissionSpecificFields(uiState: AscensionForgeUiState, viewModel: AscensionForgeViewModel) {
     CyberFrame(label = "MISSION_PARAMETERS", accentColor = NeonCyan) {
         Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text("MISSIONS are mid-level campaigns that belong to a DIRECTIVE.", color = Color.Gray, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+            Text("PARENT_DIRECTIVE_SELECTION", color = NeonCyan, fontSize = 10.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
             
-            // In a real app, we'd have a dropdown of directives here.
-            // For now, we'll just show it's a mission.
-            OutlinedTextField(
-                value = uiState.parentDirectiveId ?: "",
-                onValueChange = viewModel::updateParentDirective,
-                label = { Text("PARENT_DIRECTIVE_ID (OPTIONAL)", fontSize = 10.sp) },
-                modifier = Modifier.fillMaxWidth(),
-                textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace)
-            )
+            if (uiState.availableDirectives.isEmpty()) {
+                Text(
+                    text = "No active directives found. Mission will be created standalone.",
+                    color = Color.Gray,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            } else {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val isNoneSelected = uiState.parentDirectiveId == null
+                    FilterChip(
+                        selected = isNoneSelected,
+                        onClick = { viewModel.updateParentDirective(null) },
+                        label = { Text("NONE (STANDALONE)", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = NeonCyan.copy(alpha = 0.3f),
+                            selectedLabelColor = NeonCyan
+                        )
+                    )
+                    uiState.availableDirectives.forEach { directive ->
+                        val isSelected = uiState.parentDirectiveId == directive.id
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { viewModel.updateParentDirective(directive.id) },
+                            label = { Text(directive.title, fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = NeonCyan.copy(alpha = 0.3f),
+                                selectedLabelColor = NeonCyan
+                            )
+                        )
+                    }
+                }
+            }
 
             AnchorToSelfMapSection(uiState, viewModel)
         }
@@ -276,47 +345,100 @@ fun MissionSpecificFields(uiState: AscensionForgeUiState, viewModel: AscensionFo
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun DirectiveSpecificFields(uiState: AscensionForgeUiState, viewModel: AscensionForgeViewModel) {
-    CyberFrame(label = "DIRECTIVE_PARAMETERS", accentColor = NeonPink) {
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    CyberFrame(label = "DIRECTIVE_FORM_INTAKE", accentColor = NeonPink) {
         Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text("LINKED_S.P.E.C.I.A.L_NODES", color = NeonPink, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SpecialType.entries.forEach { type ->
-                    val isSelected = uiState.linkedAttributes.contains(type)
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { viewModel.toggleAttribute(type) },
-                        label = { Text(type.name, fontSize = 10.sp) }
-                    )
+            // 1. Title
+            OutlinedTextField(
+                value = uiState.title,
+                onValueChange = viewModel::updateTitle,
+                label = { Text("1. TITLE / IDENTIFIER", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
+                modifier = Modifier.fillMaxWidth(),
+                textStyle = TextStyle(color = Color.White, fontFamily = FontFamily.Monospace)
+            )
+
+            // 2. Description / Objective
+            OutlinedTextField(
+                value = uiState.description,
+                onValueChange = viewModel::updateDescription,
+                label = { Text("2. DESCRIPTION / OBJECTIVE_DATA", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 3,
+                textStyle = TextStyle(color = Color.White, fontFamily = FontFamily.Monospace)
+            )
+
+            // 3. Target Date (DatePicker)
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = uiState.targetEndDate?.toString() ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("3. TARGET_DATE (OPTIONAL)", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
+                    modifier = Modifier.fillMaxWidth(),
+                    trailingIcon = {
+                        IconButton(onClick = { showDatePicker = true }) {
+                            Icon(Icons.Default.DateRange, contentDescription = "Select Target Date", tint = NeonCyan)
+                        }
+                    },
+                    textStyle = TextStyle(color = Color.White, fontFamily = FontFamily.Monospace),
+                    placeholder = { Text("SELECT_DATE...", color = Color.Gray, fontSize = 11.sp, fontFamily = FontFamily.Monospace) }
+                )
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable { showDatePicker = true }
+                )
+            }
+
+            if (showDatePicker) {
+                val datePickerState = rememberDatePickerState(
+                    initialSelectedDateMillis = uiState.targetEndDate
+                        ?.atStartOfDay(java.time.ZoneOffset.UTC)
+                        ?.toInstant()
+                        ?.toEpochMilli()
+                        ?: System.currentTimeMillis()
+                )
+                DatePickerDialog(
+                    onDismissRequest = { showDatePicker = false },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            datePickerState.selectedDateMillis?.let { millis ->
+                                val selectedDate = java.time.Instant.ofEpochMilli(millis)
+                                    .atZone(java.time.ZoneId.of("UTC"))
+                                    .toLocalDate()
+                                viewModel.updateTargetEndDate(selectedDate)
+                            }
+                            showDatePicker = false
+                        }) {
+                            Text("SELECT", color = NeonCyan, fontFamily = FontFamily.Monospace)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = {
+                            viewModel.updateTargetEndDate(null)
+                            showDatePicker = false
+                        }) {
+                            Text("CLEAR", color = Color.Gray, fontFamily = FontFamily.Monospace)
+                        }
+                    }
+                ) {
+                    DatePicker(state = datePickerState)
                 }
             }
-            
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(checked = uiState.useAiMentor, onCheckedChange = viewModel::updateUseAiMentor)
-                Text("ACTIVATE_NEON_MENTOR_GENESIS", fontSize = 12.sp, fontFamily = FontFamily.Monospace)
-            }
-            if (uiState.useAiMentor) {
-                Text(
-                    "AI will procedurally generate Missions and Tasks based on this Directive objective.",
-                    color = Color.Gray,
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.padding(start = 12.dp)
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("NEURAL_EXPERT_MATRIX", color = NeonPink, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val skills = listOf("AUTO_SELECT", "BIOHACKING", "MEDITATION", "REMOTE_VIEWING", "BUSINESS_BUILDING", "TRADING")
-                    skills.forEach { skill ->
-                        val isSelected = (uiState.selectedSkill == skill) || (uiState.selectedSkill == null && skill == "AUTO_SELECT")
+
+            // 4. Priority Tier Chips (A / B / C, default B)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("4. PRIORITY_TIER", color = NeonPink, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PriorityTier.entries.forEach { tier ->
+                        val isSelected = uiState.priorityTier == tier
                         FilterChip(
                             selected = isSelected,
-                            onClick = { 
-                                viewModel.updateSelectedSkill(if (skill == "AUTO_SELECT") null else skill) 
-                            },
-                            label = { Text(skill, fontSize = 9.sp) },
+                            onClick = { viewModel.updatePriorityTier(tier) },
+                            label = { Text("TIER ${tier.name}", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = NeonPink.copy(alpha = 0.2f),
+                                selectedContainerColor = NeonPink.copy(alpha = 0.3f),
                                 selectedLabelColor = NeonPink
                             )
                         )
@@ -324,61 +446,74 @@ fun DirectiveSpecificFields(uiState: AscensionForgeUiState, viewModel: Ascension
                 }
             }
 
-            Text("PRIORITY_TIER", color = NeonPink, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PriorityTier.entries.forEach { tier ->
-                    val isSelected = uiState.priorityTier == tier
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { viewModel.updatePriorityTier(tier) },
-                        label = { Text("TIER ${tier.name}", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = NeonPink.copy(alpha = 0.3f),
-                            selectedLabelColor = NeonPink
-                        )
-                    )
-                }
-            }
-
-            OutlinedTextField(
-                value = uiState.targetEndDate?.toString() ?: "",
-                onValueChange = { input ->
-                    val date = try { LocalDate.parse(input.trim()) } catch (e: Exception) { null }
-                    viewModel.updateTargetEndDate(date)
-                },
-                label = { Text("TARGET_DATE (YYYY-MM-DD, OPTIONAL)", fontSize = 10.sp) },
-                modifier = Modifier.fillMaxWidth(),
-                textStyle = TextStyle(color = Color.White, fontFamily = FontFamily.Monospace)
-            )
-
+            // 5. Outcome Statement
             OutlinedTextField(
                 value = uiState.outcomeStatement,
                 onValueChange = viewModel::updateOutcomeStatement,
-                label = { Text("QUANTIFIED_OUTCOME (OPTIONAL)", fontSize = 10.sp) },
+                label = { Text("5. QUANTIFIED_OUTCOME (OPTIONAL)", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 2,
                 textStyle = TextStyle(color = Color.White, fontFamily = FontFamily.Monospace)
             )
 
+            // 6. Affirmation
             OutlinedTextField(
                 value = uiState.affirmation,
                 onValueChange = viewModel::updateAffirmation,
-                label = { Text("DAILY_AFFIRMATION (OPTIONAL)", fontSize = 10.sp) },
+                label = { Text("6. DAILY_AFFIRMATION (OPTIONAL)", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 textStyle = TextStyle(color = Color.White, fontFamily = FontFamily.Monospace)
             )
 
+            // Ask Mentor Assist Button
+            OutlinedButton(
+                onClick = { viewModel.requestMentorFormSuggestions() },
+                border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.6f)),
+                shape = RoundedCornerShape(4.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (uiState.isGeneratingSuggestions) {
+                    CircularProgressIndicator(modifier = Modifier.size(14.dp), color = NeonCyan, strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text("SYNTHESIZING_SUGGESTIONS...", color = NeonCyan, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                } else {
+                    Icon(Icons.Default.Psychology, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("ASK MENTOR // SUGGEST OUTCOME & AFFIRMATION", color = NeonCyan, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                }
+            }
+
+            // 7. Visual Pick / URI
             OutlinedTextField(
                 value = uiState.visualUri,
                 onValueChange = viewModel::updateVisualUri,
-                label = { Text("VISUAL_URI / IMAGE_REF (OPTIONAL)", fontSize = 10.sp) },
+                label = { Text("7. VISUAL_URI / IMAGE_REF (OPTIONAL)", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 textStyle = TextStyle(color = Color.White, fontFamily = FontFamily.Monospace)
             )
 
-            AnchorToSelfMapSection(uiState, viewModel)
+            // 8. Self Map Anchor Picker
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("8. SELF_MAP_ANCHOR", color = NeonPink, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                AnchorToSelfMapSection(uiState, viewModel)
+            }
+
+            // 9. Linked Attributes (S.P.E.C.I.A.L. Chips)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("9. LINKED_S.P.E.C.I.A.L_NODES", color = NeonPink, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SpecialType.entries.forEach { type ->
+                        val isSelected = uiState.linkedAttributes.contains(type)
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { viewModel.toggleAttribute(type) },
+                            label = { Text(type.name, fontSize = 10.sp) }
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -441,6 +576,34 @@ fun AnchorToSelfMapSection(
 fun TaskSpecificFields(uiState: AscensionForgeUiState, viewModel: AscensionForgeViewModel) {
     CyberFrame(label = "PULSE_EXECUTION_LOGIC", accentColor = NeonCyan) {
         Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            if (uiState.availableDirectives.isNotEmpty()) {
+                Text("PARENT_DIRECTIVE_SELECTION", color = NeonCyan, fontSize = 10.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val isNoneSelected = uiState.parentDirectiveId == null
+                    FilterChip(
+                        selected = isNoneSelected,
+                        onClick = { viewModel.updateParentDirective(null) },
+                        label = { Text("NONE", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = NeonCyan.copy(alpha = 0.3f),
+                            selectedLabelColor = NeonCyan
+                        )
+                    )
+                    uiState.availableDirectives.forEach { directive ->
+                        val isSelected = uiState.parentDirectiveId == directive.id
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { viewModel.updateParentDirective(directive.id) },
+                            label = { Text(directive.title, fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = NeonCyan.copy(alpha = 0.3f),
+                                selectedLabelColor = NeonCyan
+                            )
+                        )
+                    }
+                }
+            }
+
             Text("LINKED_S.P.E.C.I.A.L_CALIBRATION", color = NeonCyan, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 SpecialType.entries.forEach { type ->

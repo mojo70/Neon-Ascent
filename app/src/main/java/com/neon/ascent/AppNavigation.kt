@@ -291,6 +291,7 @@ fun AppNavigation(
                                     LoreScreenContent(viewModel = loreViewModel)
                                 },
                                 onDirectiveClick = { id -> navController.navigate(Screen.DirectiveDetail(id)) },
+                                onForgeClick = { navController.navigate(Screen.AscensionForge()) },
                                 onRequestNutritionPermission = {
                                     biohackingViewModel.relink(UplinkProvider.HEALTH_CONNECT)
                                 }
@@ -403,7 +404,7 @@ fun AppNavigation(
                             },
                             onDirectiveClick = { id -> navController.navigate(Screen.DirectiveDetail(id)) },
                             onTaskClick = { id -> navController.navigate(Screen.TaskDetail(id)) },
-                            onForgeClick = { navController.navigate(Screen.Forge) },
+                            onForgeClick = { navController.navigate(Screen.AscensionForge()) },
                             onReviewClick = { id -> navController.navigate(Screen.AscensionReview(id)) },
                             onRitualClick = { navController.navigate(Screen.TerminalRitual) },
                             onBrowseProtocols = { navController.navigate(Screen.ProtocolLibrary) }
@@ -823,7 +824,8 @@ fun AppNavigation(
                         popUpTo(0) { inclusive = true }
                     }
                 },
-                onBrowseProtocols = { navController.navigate(Screen.ProtocolLibrary) }
+                onBrowseProtocols = { navController.navigate(Screen.ProtocolLibrary) },
+                onNavigateToDirectiveDetail = { id -> navController.navigate(Screen.DirectiveDetail(id)) }
             )
         }
 
@@ -1114,6 +1116,7 @@ fun AppNavigation(
                     LoreScreenContent(viewModel = loreViewModel)
                 },
                 onDirectiveClick = { id -> navController.navigate(Screen.DirectiveDetail(id)) },
+                onForgeClick = { navController.navigate(Screen.AscensionForge()) },
                 onRequestNutritionPermission = {
                     biohackingViewModel.relink(UplinkProvider.HEALTH_CONNECT)
                 },

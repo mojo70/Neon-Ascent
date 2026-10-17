@@ -33,6 +33,7 @@ import com.neon.ascent.core.domain.workout.models.ProtocolDayType
 import com.neon.ascent.core.domain.workout.models.UnitSystem
 import com.neon.ascent.core.domain.goals.models.AscensionDirective
 import com.neon.ascent.core.domain.goals.models.AscensionDirectiveComparator
+import com.neon.ascent.core.domain.goals.models.PriorityTier
 import com.neon.ascent.core.domain.repository.AscensionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -118,7 +119,9 @@ data class CodexUiState(
     val availableExercises: List<Exercise> = emptyList(),
     val periodExerciseIds: Set<String> = emptySet(),
     val userProfile: UserWorkoutProfile? = null,
-    val activeDirectives: List<AscensionDirective> = emptyList()
+    val activeDirectives: List<AscensionDirective> = emptyList(),
+    val showDensityBanner: Boolean = false,
+    val densityNoteMessage: String? = null
 )
 
 enum class VitalsGroup(val label: String) {
@@ -311,7 +314,30 @@ class CodexViewModel @Inject constructor(
         viewModelScope.launch {
             ascensionRepository.getActiveDirectives().collect { directives ->
                 val sorted = directives.sortedWith(AscensionDirectiveComparator)
-                _uiState.update { it.copy(activeDirectives = sorted) }
+                val today = java.time.LocalDate.now()
+                val horizon = today.plusDays(90)
+                val nearTermCount = directives.count { 
+                    val endDate = it.targetEndDate
+                    endDate != null && !endDate.isAfter(horizon) 
+                }
+                val aTierCount = directives.count { it.priorityTier == PriorityTier.A }
+                val isDense = (nearTermCount >= 4 || aTierCount >= 3)
+                
+                val domainSummary = directives.mapNotNull { it.anchoredSelfItemName }.takeIf { it.isNotEmpty() }
+                    ?.groupingBy { it }?.eachCount()?.entries?.joinToString(", ") { "${it.key}: ${it.value}" }
+                
+                val noteMsg = if (isDense) {
+                    val base = "You have several near-term Directives ($nearTermCount near-term <= 90 days, $aTierCount A-tier). Want to review priority or archive one?"
+                    if (domainSummary.isNullOrBlank()) base else "$base\nAnchors: $domainSummary"
+                } else null
+
+                _uiState.update { 
+                    it.copy(
+                        activeDirectives = sorted,
+                        showDensityBanner = isDense,
+                        densityNoteMessage = noteMsg
+                    ) 
+                }
             }
         }
         viewModelScope.launch {
@@ -350,6 +376,10 @@ class CodexViewModel @Inject constructor(
         loadLatestInsight()
         loadRecoveryScore()
         loadSerumData()
+    }
+
+    fun dismissDensityBanner() {
+        _uiState.update { it.copy(showDensityBanner = false) }
     }
 
     private fun loadSerumData() {

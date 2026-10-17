@@ -17,4 +17,10 @@ object DataStoreModule {
     fun provideHealthPreferencesDataStore(
         @ApplicationContext context: Context
     ): HealthPreferencesDataStore = HealthPreferencesDataStore(context)
+
+    @Provides
+    @Singleton
+    fun provideDirectivePreferencesDataStore(
+        @ApplicationContext context: Context
+    ): DirectivePreferencesDataStore = DirectivePreferencesDataStore(context)
 }

@@ -7,6 +7,8 @@ import java.time.LocalDate
 
 enum class PriorityTier { A, B, C }
 
+enum class DirectiveIntakeMode { MENTOR, FORM }
+
 data class AscensionDirective(
     val id: String,
     val title: String,
