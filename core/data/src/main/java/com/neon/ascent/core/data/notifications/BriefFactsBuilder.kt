@@ -13,6 +13,8 @@ import com.neon.ascent.core.domain.repository.WorkoutRepository
 import com.neon.ascent.core.domain.workout.models.SetType
 import com.neon.ascent.core.domain.workout.rules.RecoveryEngine
 import com.neon.ascent.core.data.datastore.BriefPreferencesDataStore
+import com.neon.ascent.core.domain.notifications.brief.DirectiveClauseResolver
+import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.core.domain.workout.rules.WorkoutRotationResolver
 import kotlinx.coroutines.flow.first
 import java.time.DayOfWeek
@@ -33,7 +35,8 @@ class BriefFactsBuilder @Inject constructor(
     private val insightDao: InsightDao,
     private val dailyVitalRollupDao: DailyVitalRollupDao,
     private val healthManager: HealthManager,
-    private val briefPrefs: BriefPreferencesDataStore
+    private val briefPrefs: BriefPreferencesDataStore,
+    private val ascensionRepository: AscensionRepository
 ) {
     suspend fun build(slot: BriefSlot = BriefSlot.AM): BriefFacts {
         val now = Instant.now()
@@ -252,6 +255,17 @@ class BriefFactsBuilder @Inject constructor(
         val leadMetric = if (sleepMinutes != null) "SLEEP" else if (sessionDetails != null) "SESSION" else "NONE"
         val leadValue = if (sleepMinutes != null) "$sleepMinutes" else sessionDetails?.id ?: "none"
 
+        val activeDirectives = try { ascensionRepository.getActiveDirectives().first() } catch (_: Exception) { emptyList() }
+        val activeMissions = try { ascensionRepository.getActiveMissions().first() } catch (_: Exception) { emptyList() }
+        val showDirectives = try { briefPrefs.showDirectivesOnMorningShade.first() } catch (_: Exception) { true }
+
+        val directiveClause = DirectiveClauseResolver.resolve(
+            directives = activeDirectives,
+            missions = activeMissions,
+            showDirectives = showDirectives,
+            today = LocalDate.now(zone)
+        )
+
         return BriefFacts(
             slot = slot,
             generatedAt = now,
@@ -263,7 +277,8 @@ class BriefFactsBuilder @Inject constructor(
             dataQuality = dataQuality,
             leadMetric = leadMetric,
             leadValue = leadValue,
-            isWeekShort = false
+            isWeekShort = false,
+            directiveClause = directiveClause
         )
     }
 }

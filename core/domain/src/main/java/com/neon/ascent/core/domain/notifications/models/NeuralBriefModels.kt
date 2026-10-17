@@ -9,6 +9,13 @@ enum class BriefSlot {
     AM, PM
 }
 
+enum class OperationalStatus {
+    OVERDRIVE,
+    NOMINAL,
+    THROTTLE,
+    GROUNDED
+}
+
 enum class BriefStance {
     DELOAD,
     HOLD,
@@ -82,6 +89,13 @@ data class BriefDataQuality(
     val sources: List<String> = emptyList()
 )
 
+data class BriefDirectiveClause(
+    val clauseText: String,
+    val namedDirectiveId: String? = null,
+    val isCountOnly: Boolean = false,
+    val count: Int = 0
+)
+
 data class BriefFacts(
     val slot: BriefSlot,
     val generatedAt: Instant = Instant.now(),
@@ -93,16 +107,18 @@ data class BriefFacts(
     val dataQuality: BriefDataQuality = BriefDataQuality(),
     val leadMetric: String? = null,
     val leadValue: String? = null,
-    val isWeekShort: Boolean = false
+    val isWeekShort: Boolean = false,
+    val directiveClause: BriefDirectiveClause? = null
 ) {
     val factsHash: String
-        get() = "${slot.name}_${leadMetric ?: "none"}_${leadValue ?: "none"}_${lastSession?.id}_${vitals.sanctumScore}_${vitals.seed}_${vitals.chargeNow}"
+        get() = "${slot.name}_${leadMetric ?: "none"}_${leadValue ?: "none"}_${lastSession?.id}_${vitals.sanctumScore}_${vitals.seed}_${vitals.chargeNow}_${directiveClause?.clauseText}"
 }
 
 data class BriefAction(
     val label: String,
     val actionName: String,
-    val type: String = "DASHBOARD"
+    val type: String = "DASHBOARD",
+    val extraId: String? = null
 )
 
 data class BriefCopy(
@@ -111,7 +127,8 @@ data class BriefCopy(
     val cardBody: String,
     val actions: List<BriefAction>,
     val stance: BriefStance,
-    val shadeAllowed: Boolean = true
+    val shadeAllowed: Boolean = true,
+    val status: OperationalStatus = OperationalStatus.NOMINAL
 ) {
     // Compatibility accessors for existing consumers
     val headline: String get() = shadeHeadline

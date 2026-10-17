@@ -193,6 +193,7 @@ fun HolographicAvatarHub(
     }
 
     val neonCharge by viewModel.neonCharge.collectAsState()
+    val briefStatus by viewModel.briefStatus.collectAsState()
     val rawChargeVal = neonCharge?.let { it.value / 100f } ?: userCharacter?.neuralLoad ?: 0.62f
     val chargeVal by animateFloatAsState(
         targetValue = rawChargeVal,
@@ -200,6 +201,21 @@ fun HolographicAvatarHub(
         label = "ChargeValAnim"
     )
     val displayLoad = (chargeVal + glitchBurstIntensity).coerceIn(0f, 1f)
+
+    val liveStatus = remember(briefStatus, rawChargeVal) {
+        briefStatus ?: when {
+            rawChargeVal >= 0.80f -> "OVERDRIVE"
+            rawChargeVal < 0.50f -> "GROUNDED"
+            rawChargeVal < 0.65f -> "THROTTLE"
+            else -> "NOMINAL"
+        }
+    }
+    val statusColor = when (liveStatus) {
+        "OVERDRIVE" -> Color(0xFF00CCFF)
+        "THROTTLE" -> Color(0xFFFFB000)
+        "GROUNDED" -> Color(0xFFFF0055)
+        else -> Color(0xFF00FF9C)
+    }
 
     LaunchedEffect(userCharacter?.netrunnerName) {
         editedName = userCharacter?.netrunnerName ?: "RUNNER_UNKNOWN"
@@ -339,15 +355,35 @@ fun HolographicAvatarHub(
                         horizontalAlignment = Alignment.End,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Text(
-                            text = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss")),
-                            color = Color(0xFF00FF9C),
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1
-                        )
+                        // Persistent Operational Status Badge
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(statusColor.copy(alpha = 0.15f))
+                                .border(1.dp, statusColor.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(5.dp)
+                                        .clip(CircleShape)
+                                        .background(statusColor)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    text = liveStatus,
+                                    color = statusColor,
+                                    fontSize = 8.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
+                                    letterSpacing = 0.8.sp
+                                )
+                            }
+                        }
+
                         Spacer(Modifier.height(3.dp))
+
                         // SELF MAP CANVAS TRIGGER
                         Box(
                             modifier = Modifier

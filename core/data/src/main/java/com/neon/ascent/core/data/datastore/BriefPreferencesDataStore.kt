@@ -24,8 +24,10 @@ class BriefPreferencesDataStore @Inject constructor(
         val LAST_BRIEF_TITLE = stringPreferencesKey("last_brief_title")
         val LAST_BRIEF_BODY = stringPreferencesKey("last_brief_body")
         val LAST_BRIEF_CARD_BODY = stringPreferencesKey("last_brief_card_body")
+        val LAST_BRIEF_STATUS = stringPreferencesKey("last_brief_status")
         val ADAPTIVE_WAKE_ENABLED = booleanPreferencesKey("adaptive_wake_enabled")
         val QUIET_HOURS_END = stringPreferencesKey("quiet_hours_end")
+        val SHOW_DIRECTIVES_ON_MORNING_SHADE = booleanPreferencesKey("show_directives_on_morning_shade")
 
         // Slots / Target Wake / PM Preferences
         val TARGET_WAKE_WD = stringPreferencesKey("target_wake_wd")
@@ -44,9 +46,11 @@ class BriefPreferencesDataStore @Inject constructor(
     val lastBriefTitle: Flow<String?> = dataStore.data.map { it[Keys.LAST_BRIEF_TITLE] }
     val lastBriefBody: Flow<String?> = dataStore.data.map { it[Keys.LAST_BRIEF_BODY] }
     val lastBriefCardBody: Flow<String?> = dataStore.data.map { it[Keys.LAST_BRIEF_CARD_BODY] }
+    val lastBriefStatus: Flow<String?> = dataStore.data.map { it[Keys.LAST_BRIEF_STATUS] }
     
     val adaptiveWakeEnabled: Flow<Boolean> = dataStore.data.map { it[Keys.ADAPTIVE_WAKE_ENABLED] ?: true }
     val quietHoursEnd: Flow<String> = dataStore.data.map { it[Keys.QUIET_HOURS_END] ?: "07:00" }
+    val showDirectivesOnMorningShade: Flow<Boolean> = dataStore.data.map { it[Keys.SHOW_DIRECTIVES_ON_MORNING_SHADE] ?: true }
 
     val targetWakeWd: Flow<String?> = dataStore.data.map { it[Keys.TARGET_WAKE_WD] }
     val targetWakeWe: Flow<String?> = dataStore.data.map { it[Keys.TARGET_WAKE_WE] }
@@ -61,7 +65,8 @@ class BriefPreferencesDataStore @Inject constructor(
         title: String,
         body: String,
         cardBody: String? = null,
-        leadSessionId: String? = null
+        leadSessionId: String? = null,
+        status: String? = null
     ) {
         dataStore.edit { prefs ->
             prefs[Keys.LAST_BRIEF_DATE] = date
@@ -71,6 +76,7 @@ class BriefPreferencesDataStore @Inject constructor(
             prefs[Keys.LAST_BRIEF_BODY] = body
             if (cardBody != null) prefs[Keys.LAST_BRIEF_CARD_BODY] = cardBody
             if (leadSessionId != null) prefs[Keys.LAST_LEAD_SESSION_ID] = leadSessionId
+            if (status != null) prefs[Keys.LAST_BRIEF_STATUS] = status
         }
     }
 
@@ -103,5 +109,9 @@ class BriefPreferencesDataStore @Inject constructor(
 
     suspend fun setQuietHoursEnd(time: String) {
         dataStore.edit { it[Keys.QUIET_HOURS_END] = time }
+    }
+
+    suspend fun setShowDirectivesOnMorningShade(enabled: Boolean) {
+        dataStore.edit { it[Keys.SHOW_DIRECTIVES_ON_MORNING_SHADE] = enabled }
     }
 }

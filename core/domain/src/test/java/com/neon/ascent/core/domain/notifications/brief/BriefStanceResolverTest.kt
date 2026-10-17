@@ -1,7 +1,6 @@
 package com.neon.ascent.core.domain.notifications.brief
 
 import com.neon.ascent.core.domain.notifications.models.*
-import com.neon.ascent.core.domain.workout.models.RecoveryStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -41,7 +40,8 @@ class BriefStanceResolverTest {
         val copy = AmTemplateWriter.write(facts, stance)
         assertEquals(BriefStance.HOLD, copy.stance)
         assertEquals("Short night — 6h12 of 7h20", copy.shadeHeadline)
-        assertEquals("320 squat is in the book. Legs today — keep it easy.", copy.shadeBody)
+        assertEquals("320 squat is in the book. GROUNDED — Morning tank low — hold the heavy work", copy.shadeBody)
+        assertEquals(OperationalStatus.GROUNDED, copy.status)
     }
 
     @Test
@@ -66,7 +66,8 @@ class BriefStanceResolverTest {
         assertEquals(BriefStance.PICKUP, stance)
 
         val copy = AmTemplateWriter.write(facts, stance)
-        assertEquals("You still have Pull open.", copy.shadeBody)
+        assertEquals("NOMINAL — You still have Pull open.", copy.shadeBody)
+        assertEquals(OperationalStatus.NOMINAL, copy.status)
     }
 
     @Test
@@ -108,6 +109,7 @@ class BriefStanceResolverTest {
 
         val copy = AmTemplateWriter.write(facts, stance)
         assertEquals("NEURAL BRIEF", copy.shadeHeadline)
-        assertEquals("No overnight telemetry.", copy.shadeBody)
+        assertEquals("NOMINAL — No overnight telemetry.", copy.shadeBody)
+        assertEquals(OperationalStatus.NOMINAL, copy.status)
     }
 }

@@ -120,7 +120,8 @@ class NeuralBriefWorker @AssistedInject constructor(
                 title = copy.shadeHeadline,
                 body = copy.shadeBody,
                 cardBody = copy.cardBody,
-                leadSessionId = facts.lastSession?.id
+                leadSessionId = facts.lastSession?.id,
+                status = copy.status.name
             )
 
             // 7. Schedule Next Day (P1)

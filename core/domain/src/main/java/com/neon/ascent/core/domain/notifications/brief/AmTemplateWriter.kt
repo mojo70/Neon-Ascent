@@ -3,13 +3,21 @@ package com.neon.ascent.core.domain.notifications.brief
 import com.neon.ascent.core.domain.notifications.models.BriefAction
 import com.neon.ascent.core.domain.notifications.models.BriefCopy
 import com.neon.ascent.core.domain.notifications.models.BriefFacts
-import com.neon.ascent.core.domain.notifications.models.BriefNextSession
 import com.neon.ascent.core.domain.notifications.models.BriefSessionDetails
 import com.neon.ascent.core.domain.notifications.models.BriefStance
+import com.neon.ascent.core.domain.notifications.models.OperationalStatus
+import com.neon.ascent.core.domain.workout.models.RecoveryStatus
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 object AmTemplateWriter {
+
+    private data class DriverResult(
+        val status: OperationalStatus,
+        val copy: String
+    )
+
     fun write(facts: BriefFacts, stance: BriefStance): BriefCopy {
         val nextSession = facts.nextSession
         val lastSession = facts.lastSession
@@ -22,18 +30,22 @@ object AmTemplateWriter {
         val cardSleepPhrase = buildCardSleepPhrase(sleepMin, needMin)
         val shadeSleepPhrase = buildShadeSleepPhrase(sleepMin, needMin)
 
-        // 2. Week or Day Phrase
+        // 2. Driver Phrase & Status Token
         val dayTypeStr = formatDayType(nextSession.dayType)
-        val cardWeekOrDay = buildCardWeekOrDayPhrase(nextSession, stance, dayTypeStr)
-        val shadeWeekOrDay = buildShadeWeekOrDayPhrase(nextSession, stance, dayTypeStr)
+        val driverResult = resolveDriverOrDayPhrase(facts, stance, dayTypeStr)
+        val driverLine = "${driverResult.status.name} — ${driverResult.copy}"
 
-        // 3. Lift Phrase (if top set present)
+        // 3. Directive Clause (optional)
+        val directiveClauseText = facts.directiveClause?.clauseText
+
+        // 4. Lift Phrase (if top set present)
         val liftPhrase = buildLiftPhrase(lastSession)
 
         // Card Body
         val cardLines = listOfNotNull(
             cardSleepPhrase?.let { "$it." },
-            "$cardWeekOrDay.",
+            driverLine,
+            directiveClauseText,
             liftPhrase
         )
         val cardBody = cardLines.joinToString("\n")
@@ -42,19 +54,27 @@ object AmTemplateWriter {
         val headline = (shadeSleepPhrase ?: "NEURAL BRIEF").take(48)
 
         // Shade Body
-        val shadeBody = if (nextSession.isWeeklyTargetMet) {
-            "$headline\n$shadeWeekOrDay"
-        } else if (liftPhrase != null) {
-            "$liftPhrase $shadeWeekOrDay"
+        val baseDriverText = if (liftPhrase != null) {
+            "$liftPhrase $driverLine"
         } else {
-            shadeWeekOrDay
+            driverLine
         }
+        val shadeBody = listOfNotNull(baseDriverText, directiveClauseText).joinToString("\n")
 
-        // Actions: omitted if week is complete, else OPEN OPS
-        val actions = if (nextSession.isWeeklyTargetMet) {
-            emptyList()
-        } else {
+        // Actions: OPEN OPS if session due; else OPEN DIRECTIVE if named Directive shown; else omit
+        val actions = if (!nextSession.isWeeklyTargetMet) {
             listOf(BriefAction("OPEN OPS", "ACTION_OPEN_DECK", "DASHBOARD"))
+        } else if (facts.directiveClause?.namedDirectiveId != null) {
+            listOf(
+                BriefAction(
+                    label = "OPEN DIRECTIVE",
+                    actionName = "ACTION_OPEN_DIRECTIVE",
+                    type = "DIRECTIVE_DETAIL",
+                    extraId = facts.directiveClause.namedDirectiveId
+                )
+            )
+        } else {
+            emptyList()
         }
 
         return BriefCopy(
@@ -63,7 +83,97 @@ object AmTemplateWriter {
             cardBody = cardBody,
             actions = actions,
             stance = stance,
-            shadeAllowed = true
+            shadeAllowed = true,
+            status = driverResult.status
+        )
+    }
+
+    private fun resolveDriverOrDayPhrase(
+        facts: BriefFacts,
+        stance: BriefStance,
+        dayTypeStr: String
+    ): DriverResult {
+        val vitals = facts.vitals
+        val nextSession = facts.nextSession
+        val recoveryStatus = facts.recoveryScore?.status
+
+        // 1. RHR last >= +8 bpm vs 7-day mean -> THROTTLE
+        val rhrLast = vitals.rhrLast
+        val rhrMean = vitals.rhrBaseline7d
+        if (rhrLast != null && rhrMean != null && (rhrLast - rhrMean) >= 8.0) {
+            val last = rhrLast.roundToInt()
+            val mean = rhrMean.roundToInt()
+            return DriverResult(
+                status = OperationalStatus.THROTTLE,
+                copy = "RHR $last (usual $mean) — keep intensity easy"
+            )
+        }
+
+        // 2. HRV night <= 70 % of 7-day mean -> THROTTLE
+        val hrvNight = vitals.hrvNight
+        val hrvMean = vitals.hrvBaseline7d
+        if (hrvNight != null && hrvMean != null && hrvMean > 0 && hrvNight <= 0.70 * hrvMean) {
+            val night = hrvNight.roundToInt()
+            val mean = hrvMean.roundToInt()
+            return DriverResult(
+                status = OperationalStatus.THROTTLE,
+                copy = "HRV $night vs $mean — recovery day"
+            )
+        }
+
+        // 3. SEED band GROUND or HOLD and heavy/C/ME scheduled -> GROUNDED
+        val isSeedGroundOrHold = vitals.seedBand in listOf("GROUND", "HOLD") || (vitals.seed != null && vitals.seed < 65)
+        if (isSeedGroundOrHold && nextSession.isHeavyOrC) {
+            return DriverResult(
+                status = OperationalStatus.GROUNDED,
+                copy = "Morning tank low — hold the heavy work"
+            )
+        }
+
+        // 4. Recovery CRITICAL or DELOAD -> GROUNDED
+        if (recoveryStatus == RecoveryStatus.CRITICAL || recoveryStatus == RecoveryStatus.DELOAD) {
+            return DriverResult(
+                status = OperationalStatus.GROUNDED,
+                copy = "Recovery says deload"
+            )
+        }
+
+        // 5. Week hit rate complete -> NOMINAL
+        if (nextSession.isWeeklyTargetMet) {
+            val done = nextSession.completedThisWeek
+            val total = nextSession.scheduledThisWeek.coerceAtLeast(done)
+            return DriverResult(
+                status = OperationalStatus.NOMINAL,
+                copy = "Week is already $done/$total. Easy day."
+            )
+        }
+
+        // 6. PICKUP open -> NOMINAL
+        if (stance == BriefStance.PICKUP) {
+            return DriverResult(
+                status = OperationalStatus.NOMINAL,
+                copy = "You still have $dayTypeStr open."
+            )
+        }
+
+        // 7. PUSH + scheduled + no prior driver -> OVERDRIVE
+        if (stance == BriefStance.PUSH && nextSession.scheduled) {
+            return DriverResult(
+                status = OperationalStatus.OVERDRIVE,
+                copy = "$dayTypeStr is up."
+            )
+        }
+
+        // 8. Else -> NOMINAL
+        val fallbackCopy = when (stance) {
+            BriefStance.DELOAD -> "Soft deload on the log. Keep it light."
+            BriefStance.LIGHT_DAY -> "Scheduled recovery day."
+            BriefStance.MISSING_DATA -> "No overnight telemetry."
+            else -> "$dayTypeStr today."
+        }
+        return DriverResult(
+            status = OperationalStatus.NOMINAL,
+            copy = fallbackCopy
         )
     }
 
@@ -92,48 +202,6 @@ object AmTemplateWriter {
             diffMin >= 45 -> "Long night — $gotStr"
             abs(diffMin) <= 20 -> "Slept $gotStr (need $needStr)"
             else -> "Short night — $gotStr of $needStr"
-        }
-    }
-
-    private fun buildCardWeekOrDayPhrase(
-        nextSession: BriefNextSession,
-        stance: BriefStance,
-        dayTypeStr: String
-    ): String {
-        if (nextSession.isWeeklyTargetMet) {
-            val done = nextSession.completedThisWeek
-            val total = nextSession.scheduledThisWeek.coerceAtLeast(done)
-            return "Week is already $done/$total. Easy day"
-        }
-
-        return when (stance) {
-            BriefStance.PICKUP -> "You still have $dayTypeStr open"
-            BriefStance.HOLD -> "$dayTypeStr today — keep it easy"
-            BriefStance.PUSH -> "$dayTypeStr is up"
-            BriefStance.RECOVER -> "$dayTypeStr today — keep it easy"
-            BriefStance.DELOAD -> "Soft deload on the log. Keep it light"
-            BriefStance.LIGHT_DAY -> "Scheduled recovery day"
-            BriefStance.MISSING_DATA -> "No overnight telemetry"
-        }
-    }
-
-    private fun buildShadeWeekOrDayPhrase(
-        nextSession: BriefNextSession,
-        stance: BriefStance,
-        dayTypeStr: String
-    ): String {
-        if (nextSession.isWeeklyTargetMet) {
-            return "Week is done. Easy day."
-        }
-
-        return when (stance) {
-            BriefStance.PICKUP -> "You still have $dayTypeStr open."
-            BriefStance.HOLD -> "$dayTypeStr today — keep it easy."
-            BriefStance.PUSH -> "$dayTypeStr is up."
-            BriefStance.RECOVER -> "$dayTypeStr today — keep it easy."
-            BriefStance.DELOAD -> "Soft deload on the log. Keep it light."
-            BriefStance.LIGHT_DAY -> "Scheduled recovery day."
-            BriefStance.MISSING_DATA -> "No overnight telemetry."
         }
     }
 
