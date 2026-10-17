@@ -52,6 +52,9 @@ import com.neon.ascent.core.domain.codex.models.BiomarkerSample
 import com.neon.ascent.core.domain.codex.models.BiomarkerStatus
 import com.neon.ascent.core.domain.workout.models.UnitSystem
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import kotlin.math.abs
 import com.neon.ascent.core.common.NeonCyan
 import com.neon.ascent.core.common.NeonPink
 import com.neon.ascent.core.domain.goals.models.AscensionDirective
@@ -4095,15 +4098,16 @@ fun CodexDirectiveCard(
 ) {
     Surface(
         modifier = Modifier
-            .width(220.dp)
+            .width(170.dp)
+            .height(100.dp)
             .clickable(onClick = onClick),
         color = Color(0xFF140F1D),
         shape = RoundedCornerShape(4.dp),
         border = BorderStroke(1.dp, NeonPink.copy(alpha = 0.5f))
     ) {
         Column(
-            modifier = Modifier.padding(8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            modifier = Modifier.padding(6.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -4113,7 +4117,7 @@ fun CodexDirectiveCard(
                 Text(
                     text = directive.title.uppercase(),
                     color = Color.White,
-                    fontSize = 12.sp,
+                    fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
@@ -4123,14 +4127,15 @@ fun CodexDirectiveCard(
                 val priority = directive.priorityTier
                 if (priority != null) {
                     Spacer(modifier = Modifier.width(4.dp))
+                    val isATier = priority == PriorityTier.A
                     Surface(
-                        color = NeonPink.copy(alpha = 0.2f),
+                        color = if (isATier) NeonPink.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.08f),
                         shape = RoundedCornerShape(2.dp),
-                        border = BorderStroke(1.dp, NeonPink)
+                        border = BorderStroke(1.dp, if (isATier) NeonPink else Color.White.copy(alpha = 0.25f))
                     ) {
                         Text(
                             text = "TIER ${priority.name}",
-                            color = NeonPink,
+                            color = if (isATier) NeonPink else Color.White.copy(alpha = 0.8f),
                             fontSize = 8.sp,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
@@ -4140,13 +4145,13 @@ fun CodexDirectiveCard(
                 }
             }
 
-            // Target Date + Days Remaining or "NO DATE"
+            // Target Date + Days Remaining or "NO DATE" (Short Format)
             val targetDateText = if (directive.targetEndDate != null) {
                 val days = ChronoUnit.DAYS.between(LocalDate.now(), directive.targetEndDate)
                 when {
-                    days > 0 -> "${directive.targetEndDate} ($days DAYS REMAINING)"
-                    days == 0L -> "${directive.targetEndDate} (DUE TODAY)"
-                    else -> "${directive.targetEndDate} (${abs(days)} DAYS OVERDUE)"
+                    days > 0 -> "${days}d"
+                    days == 0L -> "DUE TODAY"
+                    else -> "${abs(days)}d OVER"
                 }
             } else {
                 "NO DATE"
@@ -4178,18 +4183,32 @@ fun CodexDirectiveCard(
 
             // Optional Thumbnail if visualUri is set
             if (!directive.visualUri.isNullOrBlank()) {
+                var isImageError by remember(directive.visualUri) { mutableStateOf(false) }
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Image,
-                        contentDescription = "Visual Reference",
-                        tint = NeonCyan,
-                        modifier = Modifier.size(12.dp)
-                    )
+                    if (!isImageError) {
+                        AsyncImage(
+                            model = directive.visualUri,
+                            contentDescription = "Directive Visual",
+                            contentScale = ContentScale.Crop,
+                            onError = { isImageError = true },
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .border(1.dp, NeonCyan.copy(alpha = 0.4f), RoundedCornerShape(2.dp))
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Image,
+                            contentDescription = "Visual Reference",
+                            tint = NeonCyan,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
                     Text(
-                        text = "VISUAL ATTACHED",
+                        text = "VISUAL",
                         color = NeonCyan,
                         fontSize = 8.sp,
                         fontFamily = FontFamily.Monospace

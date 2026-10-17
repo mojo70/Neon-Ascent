@@ -71,7 +71,7 @@ class AscensionDirectiveDetailViewModel @Inject constructor(
                             selectedMentorMode = dir.aiMentorMode,
                             isLoading = false,
                             showDensityBanner = isDense,
-                            densityNoteMessage = if (isDense) "You have several near-term Directives ($nearTermCount near-term <= 90 days, $aTierCount A-tier). Want to review priority or archive one?" else null
+                            densityNoteMessage = if (isDense) "$nearTermCount near-term · $aTierCount A-tier. Review priority?" else null
                         ) 
                     }
                 }

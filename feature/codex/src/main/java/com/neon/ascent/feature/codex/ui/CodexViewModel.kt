@@ -323,12 +323,8 @@ class CodexViewModel @Inject constructor(
                 val aTierCount = directives.count { it.priorityTier == PriorityTier.A }
                 val isDense = (nearTermCount >= 4 || aTierCount >= 3)
                 
-                val domainSummary = directives.mapNotNull { it.anchoredSelfItemName }.takeIf { it.isNotEmpty() }
-                    ?.groupingBy { it }?.eachCount()?.entries?.joinToString(", ") { "${it.key}: ${it.value}" }
-                
                 val noteMsg = if (isDense) {
-                    val base = "You have several near-term Directives ($nearTermCount near-term <= 90 days, $aTierCount A-tier). Want to review priority or archive one?"
-                    if (domainSummary.isNullOrBlank()) base else "$base\nAnchors: $domainSummary"
+                    "$nearTermCount near-term · $aTierCount A-tier. Review priority?"
                 } else null
 
                 _uiState.update { 
