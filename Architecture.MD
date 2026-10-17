@@ -71,6 +71,12 @@ To prevent data loss during sequential input flows (like the "Identity Forge"), 
 *   **Schema Versioning & Export**: Room schema export is enabled in `:core:data` via `androidx.room` plugin, writing schemas to `core/data/schemas/` with automated JSON schema verification across schema revisions.
 *   **AI**: Hybrid approach using Gemini Nano / LiteRT (Local) and Gemini Flash (Cloud), orchestrated by `AiProvider`.
 
+### 5. Dual Visual Mode Standards (CYBER & STEVE)
+All new and existing UI components, screens, custom modifiers, and visual effects MUST support both available Visual Modes (`VisualMode.CYBER` and `VisualMode.STEVE`):
+*   **Theme & Canvas Adaptation**: Screens and components MUST derive canvas, surface, and ink colors dynamically from `LocalNeonTheme.current` (`theme.canvas`, `theme.surface`, `theme.ink`, `theme.hairline`) or `MaterialTheme.colorScheme` rather than hardcoding dark background colors (`Color(0xFF020202)`, `Color.Black`, etc.) or hardcoded white surface tints.
+*   **Visual Effects Scoping**: Graphical effects designed strictly for dark HUD aesthetics (e.g., scanlines, heavy vignette gradients, noise pixels, and high-gain glow/bloom) MUST inspect `LocalVisualMode.current` or `theme.glowEnabled` and gracefully suppress or adapt when in `STEVE` ("Day HUD - Ink on Paper") mode.
+*   **Surface & Border Contrast**: Cards, containers, overlays, and badges must maintain legibility, contrast, and clear outer boundaries across both dark void (`CYBER`) and light paper (`STEVE`) canvases.
+
 ---
 
 ## Data Pipeline, Synchronization & Workers

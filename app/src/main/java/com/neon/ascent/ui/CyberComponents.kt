@@ -198,11 +198,6 @@ fun CyberHelmetIcon(
     primaryColor: Color = LocalNeonTheme.current.accent
 ) {
     val theme = LocalNeonTheme.current
-    if (theme.mode == VisualMode.STEVE) {
-        // Simplified icon for Steve mode? Or just follow rules.
-        // Rule: No glow/bloom.
-    }
-    
     val infiniteTransition = rememberInfiniteTransition(label = "HelmetAnim")
     val pulse by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -681,6 +676,7 @@ fun CyberActionButton(
 
 @Composable
 fun TerminalFeedSection(feed: List<TerminalEvent>, cyan: Color, magenta: Color) {
+    val theme = LocalNeonTheme.current
     var isExpanded by remember { mutableStateOf(false) }
     
     CyberFrame(
@@ -688,7 +684,7 @@ fun TerminalFeedSection(feed: List<TerminalEvent>, cyan: Color, magenta: Color) 
         borderColor = cyan.copy(alpha = 0.8f),
         accentColor = magenta
     ) {
-        Column(modifier = Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.2f))) {
+        Column(modifier = Modifier.fillMaxWidth().background(if (theme.mode == VisualMode.STEVE) theme.surfaceRaised else Color.Black.copy(alpha = 0.2f))) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

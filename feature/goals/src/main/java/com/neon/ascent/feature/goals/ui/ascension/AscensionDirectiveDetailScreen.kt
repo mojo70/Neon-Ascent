@@ -32,6 +32,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.neon.ascent.core.common.LocalNeonTheme
+import com.neon.ascent.core.common.VisualMode
 import com.neon.ascent.core.common.NeonCyan
 import com.neon.ascent.core.common.NeonPink
 import com.neon.ascent.core.common.neonBorder
@@ -49,6 +51,7 @@ fun AscensionDirectiveDetailScreen(
     onMissionClick: (String) -> Unit = {},
     viewModel: AscensionDirectiveDetailViewModel = hiltViewModel()
 ) {
+    val theme = LocalNeonTheme.current
     val uiState by viewModel.uiState.collectAsState()
     val haptic = LocalHapticFeedback.current
 
@@ -128,12 +131,12 @@ fun AscensionDirectiveDetailScreen(
                             expanded = showOverflowMenu,
                             onDismissRequest = { showOverflowMenu = false },
                             modifier = Modifier
-                                .background(Color(0xFF090306))
+                                .background(if (theme.mode == VisualMode.STEVE) theme.surface else Color(0xFF090306))
                                 .border(1.dp, NeonPink.copy(alpha = 0.5f))
                         ) {
                             DropdownMenuItem(
                                 leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = NeonPink) },
-                                text = { Text("EDIT_DIRECTIVE", fontFamily = FontFamily.Monospace, color = Color.White) },
+                                text = { Text("EDIT_DIRECTIVE", fontFamily = FontFamily.Monospace, color = theme.ink) },
                                 onClick = {
                                     showOverflowMenu = false
                                     showEditDirectiveDialog = true
@@ -152,7 +155,7 @@ fun AscensionDirectiveDetailScreen(
                                     Text(
                                         text = if (isPaused) "RESUME_GRID" else "PAUSE_GRID",
                                         fontFamily = FontFamily.Monospace,
-                                        color = Color.White
+                                        color = theme.ink
                                     )
                                 },
                                 onClick = {
@@ -165,7 +168,7 @@ fun AscensionDirectiveDetailScreen(
                             )
                             DropdownMenuItem(
                                 leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null, tint = NeonPink) },
-                                text = { Text("DUPLICATE", fontFamily = FontFamily.Monospace, color = Color.White) },
+                                text = { Text("DUPLICATE", fontFamily = FontFamily.Monospace, color = theme.ink) },
                                 onClick = {
                                     showOverflowMenu = false
                                     viewModel.duplicateDirective()
@@ -186,7 +189,7 @@ fun AscensionDirectiveDetailScreen(
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color(0xFF050104),
+                    containerColor = if (theme.mode == VisualMode.STEVE) theme.canvas else Color(0xFF050104),
                     titleContentColor = NeonPink
                 )
             )
@@ -196,7 +199,7 @@ fun AscensionDirectiveDetailScreen(
                 // Secondary Add Mission FAB
                 FloatingActionButton(
                     onClick = { showAddMissionDialog = true },
-                    containerColor = Color.Black,
+                    containerColor = if (theme.mode == VisualMode.STEVE) theme.surface else Color.Black,
                     contentColor = NeonCyan,
                     modifier = Modifier.neonBorder(color = NeonCyan, width = 1.dp, cornerRadius = 16.dp)
                 ) {
@@ -207,14 +210,14 @@ fun AscensionDirectiveDetailScreen(
                 FloatingActionButton(
                     onClick = { showQuickTaskBottomSheet = true },
                     containerColor = NeonPink,
-                    contentColor = Color.Black,
+                    contentColor = if (theme.mode == VisualMode.STEVE) theme.canvas else Color.Black,
                     modifier = Modifier.neonBorder(color = NeonPink, width = 2.dp, cornerRadius = 16.dp)
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "Add Standalone Pulse")
                 }
             }
         },
-        containerColor = Color(0xFF050104)
+        containerColor = if (theme.mode == VisualMode.STEVE) theme.canvas else Color(0xFF050104)
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
             if (uiState.isLoading) {
@@ -433,8 +436,8 @@ fun AscensionDirectiveDetailScreen(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .background(Color.White.copy(alpha = 0.02f))
-                                        .border(1.dp, Color.White.copy(alpha = 0.05f))
+                                        .background(if (theme.mode == VisualMode.STEVE) theme.surface else Color.White.copy(alpha = 0.02f))
+                                        .border(1.dp, if (theme.mode == VisualMode.STEVE) theme.hairline else Color.White.copy(alpha = 0.05f))
                                         .padding(24.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -467,7 +470,7 @@ fun AscensionDirectiveDetailScreen(
                                                 .width(220.dp)
                                                 .height(130.dp)
                                                 .neonBorder(color = NeonCyan.copy(alpha = 0.3f), cornerRadius = 8.dp),
-                                            colors = CardDefaults.cardColors(containerColor = Color(0xFF02070D))
+                                            colors = CardDefaults.cardColors(containerColor = if (theme.mode == VisualMode.STEVE) theme.surface else Color(0xFF02070D))
                                         ) {
                                             Column(
                                                 modifier = Modifier
@@ -536,8 +539,8 @@ fun AscensionDirectiveDetailScreen(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .background(Color.White.copy(alpha = 0.02f))
-                                        .border(1.dp, Color.White.copy(alpha = 0.05f))
+                                        .background(if (theme.mode == VisualMode.STEVE) theme.surface else Color.White.copy(alpha = 0.02f))
+                                        .border(1.dp, if (theme.mode == VisualMode.STEVE) theme.hairline else Color.White.copy(alpha = 0.05f))
                                         .padding(16.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -555,8 +558,8 @@ fun AscensionDirectiveDetailScreen(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .background(Color(0xFF0D0306))
-                                        .border(1.dp, Color.White.copy(alpha = 0.02f))
+                                        .background(if (theme.mode == VisualMode.STEVE) theme.surface else Color(0xFF0D0306))
+                                        .border(1.dp, if (theme.mode == VisualMode.STEVE) theme.hairline else Color.White.copy(alpha = 0.02f))
                                         .padding(12.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween

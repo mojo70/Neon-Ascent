@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import com.neon.ascent.core.common.LocalNeonTheme
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -135,6 +136,7 @@ fun SelectionMenu(
         }
     }
 }
+
 @Composable
 fun EReaderScreen(
     viewModel: EReaderViewModel = hiltViewModel(),
@@ -142,6 +144,7 @@ fun EReaderScreen(
     bookId: String,
     onBack: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
     val book by viewModel.currentBook.collectAsState()
     val bookPages by viewModel.bookPages.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -161,7 +164,7 @@ fun EReaderScreen(
     val scope = rememberCoroutineScope()
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize().background(Color(0xFF020202))) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize().background(theme.canvas)) {
         val maxWidth = maxWidth
         val maxHeight = maxHeight
 

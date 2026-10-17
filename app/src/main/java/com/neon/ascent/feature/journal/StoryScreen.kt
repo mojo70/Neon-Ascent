@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
+import com.neon.ascent.core.common.LocalNeonTheme
 
 @HiltViewModel
 class StoryViewModel @Inject constructor(
@@ -45,10 +46,11 @@ fun StoryScreen(
     viewModel: StoryViewModel = hiltViewModel(),
     journalViewModel: JournalViewModel = hiltViewModel()
 ) {
+    val theme = LocalNeonTheme.current
     val story by viewModel.userStory.collectAsState()
     val isHacked by journalViewModel.isSystemDatabaseHacked.collectAsState()
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF020508))) {
+    Box(modifier = Modifier.fillMaxSize().background(theme.canvas)) {
         Scanlines()
         
         Scaffold(

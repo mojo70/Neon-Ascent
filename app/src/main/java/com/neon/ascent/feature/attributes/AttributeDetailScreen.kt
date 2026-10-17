@@ -26,6 +26,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.core.common.PerspectiveGrid
 import com.neon.ascent.core.common.Scanlines
 import com.neon.ascent.core.common.StaticNoise
+import com.neon.ascent.core.common.LocalNeonTheme
 import com.neon.ascent.ui.*
 
 @Composable
@@ -42,8 +43,9 @@ fun AttributeDetailScreen(
     val isChatLoading by viewModel.isChatLoading.collectAsState()
     
     val systemOverride by viewModel.systemOverrideMessage.collectAsState()
+    val theme = LocalNeonTheme.current
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF020202))) {
+    Box(modifier = Modifier.fillMaxSize().background(theme.canvas)) {
         PerspectiveGrid()
         Scanlines(intensity = 0.1f)
         StaticNoise(intensity = 0.05f)

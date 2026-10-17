@@ -852,6 +852,8 @@ fun Modifier.cyberGlitch(
 
 @Composable
 fun PerspectiveGrid(modifier: Modifier = Modifier) {
+    if (LocalVisualMode.current == VisualMode.STEVE) return
+
     val infiniteTransition = rememberInfiniteTransition(label = "GridAnim")
     val offset by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -898,6 +900,8 @@ fun PerspectiveGrid(modifier: Modifier = Modifier) {
 
 @Composable
 fun StaticNoise(intensity: Float = 0.1f) {
+    if (LocalVisualMode.current == VisualMode.STEVE) return
+
     var tick by remember { mutableLongStateOf(0L) }
     LaunchedEffect(intensity) {
         while (true) {
@@ -939,6 +943,8 @@ fun StaticNoise(intensity: Float = 0.1f) {
 
 @Composable
 fun Vignette(modifier: Modifier = Modifier) {
+    if (LocalVisualMode.current == VisualMode.STEVE) return
+
     Canvas(modifier = modifier.fillMaxSize()) {
         drawRect(
             brush = Brush.radialGradient(
@@ -952,6 +958,8 @@ fun Vignette(modifier: Modifier = Modifier) {
 
 @Composable
 fun Scanlines(modifier: Modifier = Modifier, intensity: Float = 0.1f) {
+    if (LocalVisualMode.current == VisualMode.STEVE) return
+
     val infiniteTransition = rememberInfiniteTransition(label = "Scanlines")
     val scrollY by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -989,18 +997,25 @@ fun Scanlines(modifier: Modifier = Modifier, intensity: Float = 0.1f) {
 
 @Composable
 fun CyberGridBackground(color: Color = Color(0xFF00FF9C).copy(alpha = 0.03f)) {
+    val visualMode = LocalVisualMode.current
+    val gridColor = if (visualMode == VisualMode.STEVE) {
+        LocalNeonTheme.current.hairline.copy(alpha = 0.5f)
+    } else {
+        color
+    }
+
     Canvas(modifier = Modifier.fillMaxSize()) {
         val gridSpacing = 40.dp.toPx()
         
         var x = 0f
         while (x < size.width) {
-            drawLine(color, Offset(x, 0f), Offset(x, size.height), strokeWidth = 1f)
+            drawLine(gridColor, Offset(x, 0f), Offset(x, size.height), strokeWidth = 1f)
             x += gridSpacing
         }
         
         var y = 0f
         while (y < size.height) {
-            drawLine(color, Offset(0f, y), Offset(size.width, y), strokeWidth = 1f)
+            drawLine(gridColor, Offset(0f, y), Offset(size.width, y), strokeWidth = 1f)
             y += gridSpacing
         }
     }
@@ -1008,6 +1023,8 @@ fun CyberGridBackground(color: Color = Color(0xFF00FF9C).copy(alpha = 0.03f)) {
 
 @Composable
 fun GlitchOverlay(intensity: Float = 0.05f) {
+    if (LocalVisualMode.current == VisualMode.STEVE) return
+
     var glitchTrigger by remember { mutableIntStateOf(0) }
     
     LaunchedEffect(intensity) {
@@ -1054,6 +1071,8 @@ fun GlitchOverlay(intensity: Float = 0.05f) {
 
 @Composable
 fun FloatingParticles(intensity: Float = 0.2f) {
+    if (LocalVisualMode.current == VisualMode.STEVE) return
+
     val infiniteTransition = rememberInfiniteTransition(label = "Particles")
     val time by infiniteTransition.animateFloat(
         initialValue = 0f,

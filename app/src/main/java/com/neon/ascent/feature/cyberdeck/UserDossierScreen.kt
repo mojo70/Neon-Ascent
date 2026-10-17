@@ -27,10 +27,11 @@ fun UserDossierScreen(
     onBack: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
+    val theme = LocalNeonTheme.current
     val userCharacter by viewModel.userCharacter.collectAsState()
     val state by viewModel.uiState.collectAsState()
     
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF020508))) {
+    Box(modifier = Modifier.fillMaxSize().background(theme.canvas)) {
         PerspectiveGrid()
         Scanlines(intensity = 0.1f)
         

@@ -18,6 +18,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.neon.ascent.core.common.LocalNeonTheme
+import com.neon.ascent.core.common.VisualMode
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -805,7 +807,7 @@ fun VitalsWing(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(180.dp)
-                                .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp)),
+                                .background(cardSurfaceColor(), RoundedCornerShape(4.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Text("NOT_LOGGED", color = Color.Gray, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
@@ -829,7 +831,7 @@ fun VitalsWing(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(180.dp)
-                                .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp)),
+                                .background(cardSurfaceColor(), RoundedCornerShape(4.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Text("NOT_LOGGED", color = Color.Gray, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
@@ -846,7 +848,7 @@ fun VitalsWing(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(180.dp)
-                                .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp)),
+                                .background(cardSurfaceColor(), RoundedCornerShape(4.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Text("NOT_LOGGED", color = Color.Gray, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
@@ -867,7 +869,7 @@ fun VitalsWing(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(180.dp)
-                            .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+                            .background(cardSurfaceColor(), RoundedCornerShape(4.dp))
                             .clickable { onRequestNutritionPermission() },
                         contentAlignment = Alignment.Center
                     ) {
@@ -882,7 +884,7 @@ fun VitalsWing(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(180.dp)
-                            .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp)),
+                            .background(cardSurfaceColor(), RoundedCornerShape(4.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
@@ -1023,7 +1025,7 @@ fun SerumWing(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
-                    .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp)),
+                    .background(cardSurfaceColor(), RoundedCornerShape(4.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -1188,7 +1190,7 @@ fun MarkerChart(history: List<BiomarkerSample>) {
         modifier = Modifier
             .fillMaxWidth()
             .height(200.dp)
-            .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+            .background(cardSurfaceColor(), RoundedCornerShape(4.dp))
             .padding(16.dp)
     ) {
         val width = size.width
@@ -1516,7 +1518,7 @@ fun RecoverySparklineRow(uiState: CodexUiState) {
 fun RecoveryMetric(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
-            .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(2.dp))
+            .background(cardSurfaceColor03(), RoundedCornerShape(2.dp))
             .border(1.dp, color.copy(alpha = 0.1f), RoundedCornerShape(2.dp))
             .padding(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -1635,7 +1637,7 @@ fun RiteCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+            .background(cardSurfaceColor(), RoundedCornerShape(4.dp))
             .border(1.dp, accentColor.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
             .padding(16.dp)
     ) {
@@ -1740,7 +1742,7 @@ fun SleepDualChart(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(180.dp)
-                .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+                .background(cardSurfaceColor(), RoundedCornerShape(4.dp))
                 .padding(16.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -1781,7 +1783,7 @@ fun SleepDualChart(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+            .background(cardSurfaceColor(), RoundedCornerShape(4.dp))
             .padding(12.dp)
     ) {
         Row(
@@ -1989,7 +1991,7 @@ fun BloodPressureDualChart(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(180.dp)
-                .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+                .background(cardSurfaceColor(), RoundedCornerShape(4.dp))
                 .padding(16.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -2042,7 +2044,7 @@ fun BloodPressureDualChart(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+            .background(cardSurfaceColor(), RoundedCornerShape(4.dp))
             .padding(12.dp)
     ) {
         // Header row: Section title + Last value + Legend
@@ -2561,7 +2563,7 @@ fun VitalsChart(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(180.dp)
-                .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+                .background(cardSurfaceColor(), RoundedCornerShape(4.dp))
                 .padding(16.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -2624,7 +2626,7 @@ fun VitalsChart(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+            .background(cardSurfaceColor(), RoundedCornerShape(4.dp))
             .padding(12.dp)
     ) {
         // Header row: Section title + Last value with unit
@@ -2857,7 +2859,7 @@ fun FuelEmptyState() {
         modifier = Modifier
             .fillMaxWidth()
             .height(200.dp)
-            .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp)),
+            .background(cardSurfaceColor(), RoundedCornerShape(4.dp)),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -2886,7 +2888,7 @@ fun FuelChart(history: List<com.neon.ascent.core.domain.workout.models.FuelSnaps
             modifier = Modifier
                 .fillMaxWidth()
                 .height(220.dp)
-                .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+                .background(cardSurfaceColor(), RoundedCornerShape(4.dp))
                 .padding(16.dp)
         ) {
             val width = size.width
@@ -2952,7 +2954,7 @@ fun FuelChart(history: List<com.neon.ascent.core.domain.workout.models.FuelSnaps
 fun FuelMetric(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
-            .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(2.dp))
+            .background(cardSurfaceColor03(), RoundedCornerShape(2.dp))
             .border(1.dp, color.copy(alpha = 0.1f), RoundedCornerShape(2.dp))
             .padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -3050,7 +3052,7 @@ fun DossierChart(dossier: ExerciseDossier) {
         modifier = Modifier
             .fillMaxWidth()
             .height(200.dp)
-            .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+            .background(cardSurfaceColor(), RoundedCornerShape(4.dp))
             .padding(16.dp)
     ) {
         val data = dossier.weightSeries
@@ -3134,7 +3136,7 @@ fun SectionHeader(text: String) {
 fun ProtocolMetric(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
-            .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(2.dp))
+            .background(cardSurfaceColor03(), RoundedCornerShape(2.dp))
             .border(1.dp, color.copy(alpha = 0.1f), RoundedCornerShape(2.dp))
             .padding(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -3233,7 +3235,7 @@ fun SessionHeatmap(summaries: List<SessionSummary>, period: CodexPeriod) {
             modifier = Modifier
                 .fillMaxWidth()
                 .height(110.dp)
-                .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+                .background(cardSurfaceColor(), RoundedCornerShape(4.dp))
                 .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(4.dp))
                 .padding(8.dp)
         ) {
@@ -3368,7 +3370,7 @@ fun StrengthBoardCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+            .background(cardSurfaceColor(), RoundedCornerShape(4.dp))
             .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
             .padding(16.dp)
     ) {
@@ -3418,7 +3420,7 @@ fun StrengthPillarRowItem(row: StrengthPillarRow) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+            .background(cardSurfaceColor(), RoundedCornerShape(4.dp))
             .border(1.dp, if (isExpanded) tierColor else Color.White.copy(alpha = 0.05f), RoundedCornerShape(4.dp))
             .clickable { isExpanded = !isExpanded }
             .padding(12.dp)
@@ -3525,7 +3527,7 @@ fun StallCardsSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(4.dp))
+            .background(cardSurfaceColor(), RoundedCornerShape(4.dp))
             .border(
                 1.dp,
                 if (stallItems.isNotEmpty()) Color(0xFFFF8C00).copy(alpha = 0.5f) else Color.White.copy(alpha = 0.05f),
@@ -3673,7 +3675,7 @@ fun StatBox(label: String, value: String, subValue: String, icon: ImageVector, c
 fun CalendarStat(label: String, count: Int, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
-            .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(2.dp))
+            .background(cardSurfaceColor03(), RoundedCornerShape(2.dp))
             .padding(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -4197,3 +4199,12 @@ fun CodexDirectiveCard(
         }
     }
 }
+
+@Composable
+private fun cardSurfaceColor(): Color = if (LocalNeonTheme.current.mode == VisualMode.STEVE) LocalNeonTheme.current.surface else Color.White.copy(alpha = 0.02f)
+
+@Composable
+private fun cardSurfaceColor03(): Color = if (LocalNeonTheme.current.mode == VisualMode.STEVE) LocalNeonTheme.current.surface else Color.White.copy(alpha = 0.03f)
+
+@Composable
+private fun cardBorderColor(): Color = if (LocalNeonTheme.current.mode == VisualMode.STEVE) LocalNeonTheme.current.hairline else Color.White.copy(alpha = 0.05f)

@@ -347,6 +347,7 @@ class FullDataBackupRepositoryImplTest {
         override fun vaultDao(): VaultDao = throw NotImplementedError()
         override fun riteSessionDao(): RiteSessionDao = throw NotImplementedError()
         override fun selfMapDao(): com.neon.ascent.core.data.local.dao.SelfMapDao = throw NotImplementedError()
+        override fun reconstitutionDao(): ReconstitutionDao = throw NotImplementedError()
     }
 
     private class TestAppDatabase : AppDatabase() {
