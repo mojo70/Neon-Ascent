@@ -64,10 +64,13 @@ data class AscensionForgeUiState(
     val timeWindows: List<String> = emptyList(),
     // Mission specific
     val parentDirectiveId: String? = null,
+    val parentMissionId: String? = null,
     val isSuccess: Boolean = false,
     val deployedDirectiveId: String? = null,
     val isGeneratingSuggestions: Boolean = false,
-    val availableDirectives: List<AscensionDirective> = emptyList()
+    val errorMessage: String? = null,
+    val availableDirectives: List<AscensionDirective> = emptyList(),
+    val availableMissions: List<AscensionMission> = emptyList()
 )
 
 @HiltViewModel
@@ -127,9 +130,15 @@ class AscensionForgeViewModel @Inject constructor(
                 _uiState.update { it.copy(availableDirectives = directives) }
             }
         }
+        viewModelScope.launch {
+            repository.getActiveMissions().collect { missions ->
+                _uiState.update { it.copy(availableMissions = missions) }
+            }
+        }
     }
 
     fun clearDopamineEvent() = _uiState.update { it.copy(dopamineEvent = null) }
+    fun clearErrorMessage() = _uiState.update { it.copy(errorMessage = null) }
 
     fun toggleInSessionIntakeMode() {
         _uiState.update { state ->
@@ -193,7 +202,17 @@ class AscensionForgeViewModel @Inject constructor(
 
     fun addTimeWindow(window: String) = _uiState.update { it.copy(timeWindows = it.timeWindows + window) }
     fun removeTimeWindow(window: String) = _uiState.update { it.copy(timeWindows = it.timeWindows - window) }
-    fun updateParentDirective(id: String?) = _uiState.update { it.copy(parentDirectiveId = id) }
+    fun updateParentDirective(id: String?) = _uiState.update { state ->
+        val currentMissionStillValid = state.parentMissionId?.let { mId ->
+            state.availableMissions.find { it.id == mId }?.directiveId == id
+        } ?: true
+        state.copy(
+            parentDirectiveId = id,
+            parentMissionId = if (currentMissionStillValid) state.parentMissionId else null
+        )
+    }
+
+    fun updateParentMission(id: String?) = _uiState.update { it.copy(parentMissionId = id) }
 
     fun toggleMissionExpansion(missionTitle: String) = _uiState.update { state ->
         val newExpanded = if (state.expandedMissions.contains(missionTitle)) {
@@ -427,9 +446,10 @@ Your suggested affirmation statement here.
                         repository.insertMission(mission)
                     }
                     ForgeType.TASK -> {
+                        val effectiveParentId = state.parentMissionId ?: state.parentDirectiveId
                         val task = AscensionTask(
                             id = UUID.randomUUID().toString(),
-                            parentId = state.parentDirectiveId,
+                            parentId = effectiveParentId,
                             title = state.title,
                             description = state.description,
                             type = state.taskType,
@@ -448,7 +468,7 @@ Your suggested affirmation statement here.
                         repository.insertTask(task)
                     }
                 }
-                _uiState.update { it.copy(isSuccess = true, deployedDirectiveId = deployedId) }
+                _uiState.update { it.copy(isSuccess = true, deployedDirectiveId = deployedId, errorMessage = null) }
                 dopamineCoordinator.triggerAscension(
                     title = "PROTOCOL_DEPLOYED",
                     message = "${state.title.ifBlank { "NEW_DIRECTIVE" }.uppercase()} INTEGRATED",
@@ -457,7 +477,12 @@ Your suggested affirmation statement here.
                 )
                 neuralPingScheduler.scheduleSmartPings()
             } catch (e: Exception) {
-                // Handle error
+                _uiState.update { 
+                    it.copy(
+                        isSuccess = false, 
+                        errorMessage = "DEPLOYMENT_FAILED: ${e.message ?: "Unknown database error"}"
+                    ) 
+                }
             }
         }
     }
@@ -525,7 +550,9 @@ Your suggested affirmation statement here.
                     }
                 }
 
-                _uiState.update { it.copy(isSuccess = true, deployedDirectiveId = directiveId) }
+                runSoftDensityCheck()
+
+                _uiState.update { it.copy(isSuccess = true, deployedDirectiveId = directiveId, errorMessage = null) }
                 dopamineCoordinator.triggerAscension(
                     title = "PROTOCOL_DEPLOYED",
                     message = "${directiveTitle.uppercase()} INTEGRATED",
@@ -534,8 +561,22 @@ Your suggested affirmation statement here.
                 )
                 neuralPingScheduler.scheduleSmartPings()
             } catch (e: Exception) {
-                // Handle error
+                _uiState.update { 
+                    it.copy(
+                        isSuccess = false, 
+                        deployedDirectiveId = null,
+                        errorMessage = "CASCADE_DEPLOY_FAILED: ${e.message ?: "Unknown database error"}"
+                    ) 
+                }
             }
+        }
+    }
+
+    private suspend fun runSoftDensityCheck() {
+        try {
+            repository.getActiveDirectives().first()
+        } catch (_: Exception) {
+            // Non-blocking
         }
     }
 }

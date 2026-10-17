@@ -11,27 +11,29 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class HapticService @Inject constructor(
+open class HapticService @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
-    private val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
-        vibratorManager?.defaultVibrator ?: (context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator)
-    } else {
-        @Suppress("DEPRECATION")
-        context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+    private val vibrator by lazy {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+            vibratorManager?.defaultVibrator ?: (context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator)
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        }
     }
 
     /** Subtle double-tap pulse */
     @SuppressLint("MissingPermission")
-    fun heartbeat() {
+    open fun heartbeat() {
         val effect = VibrationEffect.createWaveform(longArrayOf(0, 50, 100, 50), -1)
         vibrator.vibrate(effect)
     }
 
     /** Rhythmic sync pulse */
     @SuppressLint("MissingPermission")
-    fun syncSuccess() {
+    open fun syncSuccess() {
         val effect = VibrationEffect.createWaveform(
             longArrayOf(0, 100, 50, 100, 50, 200),
             intArrayOf(0, 150, 0, 200, 0, 255),
@@ -42,7 +44,7 @@ class HapticService @Inject constructor(
 
     /** Distinct triple-buzz alert pulse for rest pause cluster timer completion */
     @SuppressLint("MissingPermission")
-    fun clusterTimerBuzz() {
+    open fun clusterTimerBuzz() {
         val effect = VibrationEffect.createWaveform(
             longArrayOf(0, 200, 80, 200, 80, 350),
             intArrayOf(0, 255, 0, 255, 0, 255),
@@ -53,7 +55,7 @@ class HapticService @Inject constructor(
 
     /** Intense alert pulse for rest timer completion */
     @SuppressLint("MissingPermission")
-    fun alertRestOver() {
+    open fun alertRestOver() {
         val effect = VibrationEffect.createWaveform(
             longArrayOf(0, 300, 100, 300, 100, 300),
             intArrayOf(0, 255, 0, 255, 0, 255),
@@ -64,7 +66,7 @@ class HapticService @Inject constructor(
 
     /** Heavy, glitchy burst for Ascension */
     @SuppressLint("MissingPermission")
-    fun ascensionBurst() {
+    open fun ascensionBurst() {
         val effect = VibrationEffect.createWaveform(
             longArrayOf(0, 30, 30, 30, 30, 30, 200, 50, 50, 50, 400),
             intArrayOf(0, 255, 0, 255, 0, 255, 255, 0, 100, 0, 255),
@@ -75,8 +77,7 @@ class HapticService @Inject constructor(
 
     /** Gentle pulse for breathing guidance */
     @SuppressLint("MissingPermission")
-    fun breathingPulse() {
-        // Soft swell (ramp up)
+    open fun breathingPulse() {
         val effect = VibrationEffect.createWaveform(
             longArrayOf(0, 100, 200, 300),
             intArrayOf(0, 50, 100, 150),
@@ -87,7 +88,7 @@ class HapticService @Inject constructor(
 
     /** Continuous hold vibration for duration in milliseconds */
     @SuppressLint("MissingPermission")
-    fun holdVibration(durationMillis: Long = 4000L) {
+    open fun holdVibration(durationMillis: Long = 4000L) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val effect = VibrationEffect.createOneShot(durationMillis, VibrationEffect.DEFAULT_AMPLITUDE)
             vibrator.vibrate(effect)
@@ -99,7 +100,7 @@ class HapticService @Inject constructor(
 
     /** Cancel any ongoing vibration */
     @SuppressLint("MissingPermission")
-    fun cancelVibration() {
+    open fun cancelVibration() {
         vibrator.cancel()
     }
 }

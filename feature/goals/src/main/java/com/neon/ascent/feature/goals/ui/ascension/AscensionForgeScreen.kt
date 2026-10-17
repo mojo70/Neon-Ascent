@@ -242,6 +242,35 @@ fun AscensionForgeScreen(
                 TaskSpecificFields(uiState, viewModel)
             }
 
+            uiState.errorMessage?.let { error ->
+                Surface(
+                    color = Color.Red.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(4.dp),
+                    border = BorderStroke(1.dp, Color.Red.copy(alpha = 0.6f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = error,
+                            color = Color.Red,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(
+                            onClick = { viewModel.clearErrorMessage() },
+                            modifier = Modifier.size(20.dp)
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = "Dismiss error", tint = Color.Red)
+                        }
+                    }
+                }
+            }
+
             Button(
                 onClick = { 
                     viewModel.save()
@@ -305,7 +334,7 @@ fun MissionSpecificFields(uiState: AscensionForgeUiState, viewModel: AscensionFo
             
             if (uiState.availableDirectives.isEmpty()) {
                 Text(
-                    text = "No active directives found. Mission will be created standalone.",
+                    text = "No active directives. Mission will be standalone.",
                     color = Color.Gray,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace
@@ -595,6 +624,48 @@ fun TaskSpecificFields(uiState: AscensionForgeUiState, viewModel: AscensionForge
                             selected = isSelected,
                             onClick = { viewModel.updateParentDirective(directive.id) },
                             label = { Text(directive.title, fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = NeonCyan.copy(alpha = 0.3f),
+                                selectedLabelColor = NeonCyan
+                            )
+                        )
+                    }
+                }
+            }
+
+            // Parent Mission Selection
+            val relevantMissions = if (uiState.parentDirectiveId != null) {
+                uiState.availableMissions.filter { it.directiveId == uiState.parentDirectiveId }
+            } else {
+                uiState.availableMissions
+            }
+
+            Text("PARENT_MISSION_SELECTION (PREFERRED)", color = NeonCyan, fontSize = 10.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+            if (relevantMissions.isEmpty()) {
+                Text(
+                    text = if (uiState.parentDirectiveId != null) "No active missions under selected directive." else "No active missions found.",
+                    color = Color.Gray,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            } else {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val isNoneSelected = uiState.parentMissionId == null
+                    FilterChip(
+                        selected = isNoneSelected,
+                        onClick = { viewModel.updateParentMission(null) },
+                        label = { Text("NONE", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = NeonCyan.copy(alpha = 0.3f),
+                            selectedLabelColor = NeonCyan
+                        )
+                    )
+                    relevantMissions.forEach { mission ->
+                        val isSelected = uiState.parentMissionId == mission.id
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { viewModel.updateParentMission(mission.id) },
+                            label = { Text(mission.title, fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = NeonCyan.copy(alpha = 0.3f),
                                 selectedLabelColor = NeonCyan
