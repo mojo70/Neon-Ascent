@@ -44,6 +44,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import java.util.UUID
 
 import com.neon.ascent.core.data.datastore.DirectivePreferencesDataStore
+import com.neon.ascent.core.data.datastore.BriefPreferencesDataStore
 import com.neon.ascent.core.domain.goals.models.DirectiveIntakeMode
 
 data class BackupPreview(
@@ -59,6 +60,7 @@ class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val directivePreferencesDataStore: DirectivePreferencesDataStore,
+    private val briefPreferencesDataStore: BriefPreferencesDataStore,
     private val dailyPrayerDao: DailyPrayerDao,
     private val journalRepository: JournalRepository,
     private val healthRepository: HealthRepository,
@@ -316,6 +318,9 @@ class SettingsViewModel @Inject constructor(
     val briefFrequency = settingsRepository.briefFrequency
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "DAILY")
 
+    val showDirectivesOnMorningShade = briefPreferencesDataStore.showDirectivesOnMorningShade
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
     val insightDepth = settingsRepository.insightDepth
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "DETAILED")
 
@@ -368,6 +373,12 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.setBriefFrequency(frequency)
             notificationScheduler.scheduleSmartPings()
+        }
+    }
+
+    fun setShowDirectivesOnMorningShade(enabled: Boolean) {
+        viewModelScope.launch {
+            briefPreferencesDataStore.setShowDirectivesOnMorningShade(enabled)
         }
     }
 

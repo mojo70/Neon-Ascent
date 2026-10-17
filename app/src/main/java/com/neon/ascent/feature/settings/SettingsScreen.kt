@@ -110,6 +110,7 @@ fun SettingsScreen(
     val quietHoursStart by viewModel.quietHoursStart.collectAsState()
     val quietHoursEnd by viewModel.quietHoursEnd.collectAsState()
     val briefFrequency by viewModel.briefFrequency.collectAsState()
+    val showDirectivesOnMorningShade by viewModel.showDirectivesOnMorningShade.collectAsState()
 
     // Neon Guide State
     val guideVerbosity by viewModel.guideVerbosity.collectAsState()
@@ -281,6 +282,10 @@ fun SettingsScreen(
                                     modifier = Modifier.weight(1f)
                                 )
                             }
+                        }
+
+                        ToggleSetting("Directives on Morning Shade", showDirectivesOnMorningShade) {
+                            viewModel.setShowDirectivesOnMorningShade(it)
                         }
                         
                         Button(
