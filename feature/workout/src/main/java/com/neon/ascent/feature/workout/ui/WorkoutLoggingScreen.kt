@@ -960,39 +960,49 @@ fun ActiveWorkoutHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { onBack() }) {
-            Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
-            if (zoom < 1.25f) {
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    if (zoom <= 0.8f) "ASCENT NEURAL LINK" else if (protocol != null) {
-                        if (protocol == WorkoutProtocol.DUP) "UNDULATION" else protocol.displayName
-                    } else "Log Workout", 
-                    color = MaterialTheme.colorScheme.onSurface, 
-                    fontSize = 18.sp, 
-                    fontWeight = FontWeight.Black
-                )
-                if (dayType != null && zoom < 1.0f) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f, fill = false)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .clickable { onBack() }
+            ) {
+                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
+                if (zoom < 1.25f) {
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        dayType.name,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(start = 8.dp)
+                        if (zoom <= 0.8f) "ASCENT NEURAL LINK" else if (protocol != null) {
+                            if (protocol == WorkoutProtocol.DUP) "UNDULATION" else protocol.displayName
+                        } else "Log Workout", 
+                        color = MaterialTheme.colorScheme.onSurface, 
+                        fontSize = 16.sp, 
+                        fontWeight = FontWeight.Black,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
+                    if (dayType != null && zoom < 1.0f) {
+                        Text(
+                            dayType.name,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(start = 6.dp),
+                            maxLines = 1
+                        )
+                    }
                 }
             }
-        }
-        
-        Row(verticalAlignment = Alignment.CenterVertically) {
             if (onToggleLayoutMode != null) {
                 Surface(
                     color = theme.surfaceRaised,
                     shape = RoundedCornerShape(4.dp),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
                     modifier = Modifier
+                        .padding(start = 6.dp)
                         .clickable { onToggleLayoutMode() }
-                        .padding(end = 8.dp)
                 ) {
                     Text(
                         text = if (layoutMode == WorkoutLayoutMode.FOCUS) "FOCUS" else "CLASSIC",
@@ -1004,6 +1014,9 @@ fun ActiveWorkoutHeader(
                     )
                 }
             }
+        }
+        
+        Row(verticalAlignment = Alignment.CenterVertically) {
             val iconSize = if (zoom >= 1.5f) 18.dp else 20.dp
             
             if (zoom < 1.25f) {
@@ -1038,18 +1051,28 @@ fun ActiveWorkoutHeader(
                 softWrap = false
             )
             
-            val buttonWidth = if (zoom >= 1.75f) 56.dp else 80.dp
+            val buttonWidth = if (zoom >= 1.75f) 56.dp else 72.dp
             val buttonText = if (zoom >= 1.75f) "OK" else "Finish"
             
-            Spacer(modifier = Modifier.width(if (zoom >= 1.5f) 6.dp else 12.dp))
+            Spacer(modifier = Modifier.width(if (zoom >= 1.5f) 4.dp else 8.dp))
             Button(
                 onClick = onFinish,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF)),
                 shape = RoundedCornerShape(6.dp),
-                contentPadding = PaddingValues(horizontal = if (zoom >= 1.5f) 4.dp else 8.dp, vertical = 0.dp),
-                modifier = Modifier.height(30.dp).widthIn(min = buttonWidth)
+                contentPadding = PaddingValues(horizontal = if (zoom >= 1.5f) 6.dp else 10.dp, vertical = 0.dp),
+                modifier = Modifier
+                    .height(30.dp)
+                    .defaultMinSize(minWidth = 1.dp, minHeight = 1.dp)
+                    .widthIn(min = buttonWidth)
             ) {
-                Text(buttonText, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = if (zoom >= 1.5f) 12.sp else 14.sp)
+                Text(
+                    buttonText,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = if (zoom >= 1.5f) 12.sp else 13.sp,
+                    maxLines = 1,
+                    softWrap = false
+                )
             }
         }
     }
