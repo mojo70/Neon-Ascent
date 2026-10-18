@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -182,7 +182,8 @@ fun WorkoutLoggingScreen(
                             onUpdateProfile = { viewModel.updateTempSettingsProfile(it) },
                             onResetProfile = { viewModel.resetWorkoutProfile() },
                             onUpdateRestTimerMode = { viewModel.updateRestTimerMode(it) },
-                            onUpdateLayoutMode = { viewModel.setWorkoutLayoutMode(it) }
+                            onUpdateLayoutMode = { viewModel.setWorkoutLayoutMode(it) },
+                            onUpdateCustomNumpad = { viewModel.setUseCustomNumpadInFocusMode(it) }
                         )
                     } else if (uiState.selectedProtocolForDetail != null) {
                         ProtocolDetailScreen(
@@ -335,17 +336,21 @@ fun WorkoutLoggingScreen(
                                 )
                             }
 
-                            WorkoutSummaryBar(uiState, viewModel, onToggleSomatotype = { viewModel.toggleSomatotypeInfluence() })
-                            
-                            if (uiState.somatotypeNudgeText != null) {
-                                SomatotypeBadge(uiState.somatotypeNudgeText!!, uiState.userProfile?.somatotype)
-                            }
+                            if (uiState.layoutMode == WorkoutLayoutMode.FOCUS) {
+                                FocusStatusChip(uiState, viewModel)
+                            } else {
+                                WorkoutSummaryBar(uiState, viewModel, onToggleSomatotype = { viewModel.toggleSomatotypeInfluence() })
+                                
+                                if (uiState.somatotypeNudgeText != null) {
+                                    SomatotypeBadge(uiState.somatotypeNudgeText!!, uiState.userProfile?.somatotype)
+                                }
 
-                            if (uiState.stagnantExerciseId != null) {
-                                StagnationBadge(
-                                    exerciseName = uiState.logs.find { it.first.exerciseId == uiState.stagnantExerciseId }?.first?.exerciseName ?: "Exercise",
-                                    onRotate = { viewModel.forceRotateStagnant(uiState.stagnantExerciseId!!) }
-                                )
+                                if (uiState.stagnantExerciseId != null) {
+                                    StagnationBadge(
+                                        exerciseName = uiState.logs.find { it.first.exerciseId == uiState.stagnantExerciseId }?.first?.exerciseName ?: "Exercise",
+                                        onRotate = { viewModel.forceRotateStagnant(uiState.stagnantExerciseId!!) }
+                                    )
+                                }
                             }
 
                             Box(modifier = Modifier.weight(1f)) {
@@ -700,6 +705,7 @@ fun OperationalStatusBanner(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FocusWorkoutContent(
     uiState: WorkoutUiState,
@@ -713,63 +719,261 @@ fun FocusWorkoutContent(
     var selectedIndex by remember(uiState.logs.size) { mutableIntStateOf(0) }
     val safeIndex = selectedIndex.coerceIn(0, uiState.logs.lastIndex)
     val (log, sets) = uiState.logs[safeIndex]
-    var secondaryExpanded by remember { mutableStateOf(false) }
 
-    Column(modifier = Modifier.fillMaxSize().imePadding()) {
-        ScrollableTabRow(
-            selectedTabIndex = safeIndex,
-            edgePadding = 16.dp,
-            containerColor = theme.canvas,
-            contentColor = MaterialTheme.colorScheme.primary,
-            divider = {}
-        ) {
-            uiState.logs.forEachIndexed { index, (l, s) ->
-                val isDone = s.isNotEmpty() && s.all { it.isCompleted }
-                Tab(
-                    selected = index == safeIndex,
-                    onClick = { selectedIndex = index },
-                    text = {
-                        Text(
-                            text = "${if (isDone) "✓ " else ""}${l.exerciseName.uppercase().take(14)}",
-                            fontWeight = if (index == safeIndex) FontWeight.Bold else FontWeight.Normal,
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
+    val previousLogs = uiState.previousLogs
+    val previousSets = previousLogs[log.exerciseId] ?: emptyList()
+    var secondaryExpanded by remember { mutableStateOf(false) }
+    var showExerciseSelectSheet by remember { mutableStateOf(false) }
+    var showSetTypeSelector by remember { mutableStateOf<SetLog?>(null) }
+    var showClusterDialogFor by remember { mutableStateOf<List<SetLog>?>(null) }
+    var showExercisePicker by remember { mutableStateOf(false) }
+    var exerciseToReplace by remember { mutableStateOf<WorkoutLog?>(null) }
+    var showActionMenuForLog by remember { mutableStateOf<WorkoutLog?>(null) }
+    var showSupersetMenuForLog by remember { mutableStateOf<WorkoutLog?>(null) }
+    val exerciseFamilies by viewModel.exerciseFamilies.collectAsState()
+
+    val exercise = remember(uiState.availableExercises, log.exerciseId) {
+        uiState.availableExercises.find { it.id == log.exerciseId }
+    }
+
+    val variantTitle = remember(exercise) {
+        if (exercise != null && !exercise.isPrimaryVariant) {
+            buildString {
+                if (exercise.stance != Stance.STANDARD) append(exercise.stance.name.replace("_", " "))
+                if ((exercise.implement != Implement.BARBELL && exercise.implement != Implement.OTHER) || exercise.specialtyBar != null) {
+                    if (isNotEmpty()) append(" · ")
+                    append(exercise.specialtyBar ?: exercise.implement.name.replace("_", " "))
+                }
+            }
+        } else ""
+    }
+
+    // Active set for quick adjustments
+    val activeUncompletedSet = sets.find { !it.isCompleted } ?: sets.lastOrNull()
+
+    // Grouping sets for display (so Rest-Pause / Cluster mini-sets are grouped into 1 set row)
+    val displayItems = remember(sets, uiState.currentUiMode) {
+        val items = mutableListOf<Any>()
+        var handledCluster = false
+        val isCCMode = uiState.currentUiMode == ProtocolUiMode.CLUSTER
+        
+        sets.forEach { set ->
+            if ((isCCMode || set.clusterMiniSetIndex != null) && (set.clusterMiniSetIndex != null || set.type == SetType.PARTIAL || set.type == SetType.STRETCH || set.type == SetType.REST_PAUSE)) {
+                if (!handledCluster) {
+                    val clusterGroup = sets.filter { it.clusterMiniSetIndex != null || it.type == SetType.PARTIAL || it.type == SetType.STRETCH || it.type == SetType.REST_PAUSE }
+                    if (clusterGroup.isNotEmpty()) {
+                        items.add(clusterGroup)
+                        handledCluster = true
                     }
-                )
+                }
+            } else {
+                items.add(set)
             }
         }
+        items
+    }
 
-        Spacer(Modifier.height(8.dp))
+    Column(modifier = Modifier.fillMaxSize().imePadding()) {
+        // High-Visibility Exercise Header
+        FocusExerciseHeader(
+            exerciseName = exercise?.name ?: log.exerciseName,
+            currentIndex = safeIndex,
+            totalExercises = uiState.logs.size,
+            equipmentTag = exercise?.equipment?.firstOrNull(),
+            variantTitle = variantTitle,
+            onPreviousExercise = { if (safeIndex > 0) selectedIndex = safeIndex - 1 },
+            onNextExercise = { if (safeIndex < uiState.logs.lastIndex) selectedIndex = safeIndex + 1 },
+            onSelectExerciseClick = { showExerciseSelectSheet = true },
+            onActionMenuClick = { showActionMenuForLog = log },
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+        )
 
+        // Main Scrollable Area
         Column(
             modifier = Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 120.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            WorkoutLogCard(
-                log = log,
-                sets = sets,
-                viewModel = viewModel,
-                onActionMenuClick = {},
-                onRestTimerClick = onRestTimerClick,
-                onViewInCodex = onViewInCodex
+            // Timer & Codex Banner Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val timerText = if (uiState.isResting) {
+                    val minutes = uiState.restTimeRemaining / 60
+                    val seconds = uiState.restTimeRemaining % 60
+                    "RESTING: %d:%02d".format(minutes, seconds)
+                } else {
+                    val minutes = uiState.defaultRestTime / 60
+                    val seconds = uiState.defaultRestTime % 60
+                    "REST TIMER: %d:%02d".format(minutes, seconds)
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .background(theme.surfaceRaised, RoundedCornerShape(16.dp))
+                        .clickable { onRestTimerClick() }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Timer,
+                        contentDescription = null,
+                        tint = if (uiState.isResting) MaterialTheme.colorScheme.primary else Color(0xFF007AFF),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        timerText,
+                        color = if (uiState.isResting) MaterialTheme.colorScheme.primary else Color(0xFF007AFF),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+
+                Text(
+                    "VIEW IN CODEX ↗",
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.clickable { onViewInCodex(log.exerciseId) }
+                )
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            // Quick-Increment Toolbar
+            FocusIncrementToolbar(
+                onAdjustWeight = { delta ->
+                    activeUncompletedSet?.let { s ->
+                        val newW = (s.weight + delta).coerceAtLeast(0f)
+                        viewModel.updateSet(s, weight = newW)
+                    }
+                },
+                onAdjustReps = { delta ->
+                    activeUncompletedSet?.let { s ->
+                        val newR = (s.reps + delta).coerceAtLeast(0)
+                        viewModel.updateSet(s, reps = newR)
+                    }
+                },
+                modifier = Modifier.padding(bottom = 12.dp)
             )
 
-            Spacer(Modifier.height(16.dp))
+            // High-Visibility Set Cards List
+            displayItems.forEachIndexed { index, item ->
+                if (item is List<*>) {
+                    @Suppress("UNCHECKED_CAST")
+                    val clusterSets = item as List<SetLog>
+                    val clusterKey = clusterSets.firstOrNull()?.workoutLogId ?: "cluster_$index"
+                    key(clusterKey) {
+                        val prevClusterSets = previousSets.filter { it.clusterMiniSetIndex != null }
+                        val prevW = prevClusterSets.firstOrNull()?.weight
+                        FocusClusterSetRow(
+                            sets = clusterSets,
+                            previousSets = prevClusterSets,
+                            previousWeight = if (prevW != null && prevW > 0) prevW else null,
+                            onUpdateWeight = { weight -> clusterSets.forEach { viewModel.updateSet(it, weight = weight) } },
+                            onClick = { showClusterDialogFor = clusterSets },
+                            onSetLabelClick = { showSetTypeSelector = clusterSets.first() },
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+                } else if (item is SetLog) {
+                    val s = item
+                    key(s.id) {
+                        val prevTypeSets = previousSets.filter { it.type == s.type && it.clusterMiniSetIndex == null }
+                        val workSetsOfType = sets.filter { it.type == s.type && it.clusterMiniSetIndex == null }
+                        val setTypeIndex = workSetsOfType.indexOfFirst { it.id == s.id }
+                        val prevWork = if (setTypeIndex >= 0) prevTypeSets.getOrNull(setTypeIndex) else null
+                        val workPrevText = if (prevWork != null && prevWork.weight > 0) {
+                            if (prevWork.reps > 0) "${prevWork.weight.toInt()} × ${prevWork.reps}" else "${prevWork.weight.toInt()}lbs"
+                        } else "-"
 
+                        val goalText = s.goalReps ?: s.prescribedReps?.let { "${it}r @ ${s.prescribedWeight?.toInt() ?: 0}lb" }
+
+                        FocusSetLogRow(
+                            setNumber = index + 1,
+                            set = s,
+                            previousData = workPrevText,
+                            goalData = goalText,
+                            previousWeight = prevWork?.weight,
+                            previousReps = prevWork?.reps,
+                            onUpdateWeight = { viewModel.updateSet(s, weight = it) },
+                            onUpdateReps = { viewModel.updateSet(s, reps = it) },
+                            onCompleteToggle = { viewModel.updateSet(s, isCompleted = !s.isCompleted) },
+                            onSetLabelClick = { showSetTypeSelector = s },
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+
+            // Add Set & Add Exercise Buttons Row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        val lastWeight = sets.lastOrNull()?.weight ?: 0f
+                        val lastReps = sets.lastOrNull()?.reps ?: 0
+                        viewModel.logSet(log, lastWeight, lastReps)
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+                ) {
+                    Text(
+                        "+ ADD SET",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Black,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 12.sp
+                    )
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        exerciseToReplace = null
+                        showExercisePicker = true
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+                ) {
+                    Text(
+                        "+ ADD EXERCISE",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Black,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            // Expand Cues & History Section
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
                     .border(1.dp, theme.hairline, RoundedCornerShape(8.dp))
                     .clickable { secondaryExpanded = !secondaryExpanded }
-                    .padding(vertical = 12.dp),
+                    .padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = if (secondaryExpanded) "COLLAPSE SECONDARY DETAILS ▴" else "EXPAND CUES & HISTORY ▾",
+                    text = if (secondaryExpanded) "COLLAPSE CUES ▴" else "EXPAND CUES & NOTES ▾",
                     color = MaterialTheme.colorScheme.primary,
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace,
@@ -779,7 +983,7 @@ fun FocusWorkoutContent(
 
             if (secondaryExpanded) {
                 Spacer(Modifier.height(12.dp))
-                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                Column(modifier = Modifier.padding(horizontal = 8.dp)) {
                     Text(
                         "PROTOCOL & FORM CUES",
                         color = theme.inkMuted,
@@ -788,15 +992,236 @@ fun FocusWorkoutContent(
                         fontFamily = FontFamily.Monospace
                     )
                     Spacer(Modifier.height(6.dp))
-                    val ex = uiState.availableExercises.find { it.id == log.exerciseId }
-                    if (ex?.cues?.isNotEmpty() == true) {
-                        ex.cues.forEach { cue ->
+                    if (exercise?.cues?.isNotEmpty() == true) {
+                        exercise.cues.forEach { cue ->
                             Text("• $cue", color = theme.ink, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
                         }
                     } else {
                         Text("No specific cues recorded.", color = theme.inkMuted, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
                     }
                 }
+            }
+
+            Spacer(Modifier.height(80.dp))
+        }
+
+        // Custom Oversized Keypad (If Enabled)
+        if (uiState.useCustomNumpadInFocusMode) {
+            FocusCustomKeypad(
+                onKeyPress = { digit ->
+                    activeUncompletedSet?.let { s ->
+                        val currentStr = if (s.weight % 1 == 0f) s.weight.toInt().toString() else s.weight.toString()
+                        val newStr = (if (currentStr == "0") "" else currentStr) + digit
+                        newStr.toFloatOrNull()?.let { w -> viewModel.updateSet(s, weight = w) }
+                    }
+                },
+                onBackspace = {
+                    activeUncompletedSet?.let { s ->
+                        val currentStr = if (s.weight % 1 == 0f) s.weight.toInt().toString() else s.weight.toString()
+                        if (currentStr.length > 1) {
+                            currentStr.dropLast(1).toFloatOrNull()?.let { w -> viewModel.updateSet(s, weight = w) }
+                        } else {
+                            viewModel.updateSet(s, weight = 0f)
+                        }
+                    }
+                },
+                onNext = {
+                    val nextIdx = sets.indexOfFirst { !it.isCompleted }
+                    if (nextIdx >= 0 && nextIdx < sets.lastIndex) {
+                        // Shifts attention
+                    }
+                },
+                onCompleteSet = {
+                    activeUncompletedSet?.let { s ->
+                        viewModel.updateSet(s, isCompleted = true)
+                    }
+                }
+            )
+        }
+    }
+
+    // Exercise Selection Sheet
+    if (showExerciseSelectSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showExerciseSelectSheet = false },
+            containerColor = theme.canvas
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Text(
+                    "WORKOUT EXERCISES",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 2.sp,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                uiState.logs.forEachIndexed { idx, (l, s) ->
+                    val isDone = s.isNotEmpty() && s.all { it.isCompleted }
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .clickable {
+                                selectedIndex = idx
+                                showExerciseSelectSheet = false
+                            },
+                        color = if (idx == safeIndex) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else theme.surfaceRaised,
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, if (idx == safeIndex) MaterialTheme.colorScheme.primary else theme.hairline)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "${idx + 1}. ${l.exerciseName.uppercase()}",
+                                color = if (idx == safeIndex) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                            if (isDone) {
+                                Text("✓ COMPLETE", color = Color(0xFF00FF9C), fontSize = 11.sp, fontWeight = FontWeight.Black)
+                            } else {
+                                Text("${s.count { it.isCompleted }}/${s.size} SETS", color = theme.inkMuted, fontSize = 11.sp)
+                            }
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            showExerciseSelectSheet = false
+                            exerciseToReplace = null
+                            showExercisePicker = true
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("+ ADD EXERCISE", color = Color.Black, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            showExerciseSelectSheet = false
+                            viewModel.startReordering()
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("⇅ REORDER", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+    }
+
+    if (showClusterDialogFor != null) {
+        val currentSets = uiState.logs.find { it.first.id == log.id }?.second ?: showClusterDialogFor!!
+        val clusterSetsInLog = currentSets.filter { it.clusterMiniSetIndex != null }
+        ClusterLoggingDialog(
+            sets = if (clusterSetsInLog.isNotEmpty()) clusterSetsInLog else showClusterDialogFor!!,
+            previousSets = previousSets.filter { it.clusterMiniSetIndex != null },
+            uiState = uiState,
+            viewModel = viewModel,
+            onDismiss = { showClusterDialogFor = null }
+        )
+    }
+
+    if (showSetTypeSelector != null) {
+        SetTypeSelectorBottomSheet(
+            onTypeSelected = { type ->
+                viewModel.updateSet(showSetTypeSelector!!, type = type)
+                showSetTypeSelector = null
+            },
+            onRemoveSet = {
+                viewModel.removeSet(showSetTypeSelector!!)
+                showSetTypeSelector = null
+            },
+            onDismiss = { showSetTypeSelector = null }
+        )
+    }
+
+    if (showActionMenuForLog != null) {
+        val isMandatoryGoal = uiState.session?.protocol == WorkoutProtocol.CYBER_CRAPP
+        WorkoutExerciseActionMenu(
+            workoutLog = showActionMenuForLog!!,
+            isMandatoryGoal = isMandatoryGoal,
+            onReorder = {
+                viewModel.startReordering()
+                showActionMenuForLog = null
+            },
+            onReplace = {
+                exerciseToReplace = showActionMenuForLog
+                showExercisePicker = true
+                showActionMenuForLog = null
+            },
+            onSubstitute = {
+                viewModel.startSubstitution(showActionMenuForLog!!.exerciseId)
+                showActionMenuForLog = null
+            },
+            onAddSuperset = {
+                showSupersetMenuForLog = showActionMenuForLog
+                showActionMenuForLog = null
+            },
+            onToggleGoalReps = {
+                viewModel.toggleGoalReps(showActionMenuForLog!!)
+                showActionMenuForLog = null
+            },
+            onRemove = {
+                viewModel.removeWorkoutLog(showActionMenuForLog!!)
+                showActionMenuForLog = null
+            },
+            onDismiss = { showActionMenuForLog = null }
+        )
+    }
+
+    if (showExercisePicker) {
+        Dialog(onDismissRequest = { showExercisePicker = false }) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.onPrimary
+            ) {
+                ExercisePicker(
+                    uiState = uiState,
+                    families = exerciseFamilies,
+                    onSearchChange = { viewModel.updateExerciseSearch(it) },
+                    onDetailClick = { viewModel.showExerciseDetail(it) },
+                    onSelect = { selectedExercise ->
+                        if (exerciseToReplace != null) {
+                            viewModel.replaceWorkoutLog(exerciseToReplace!!, selectedExercise)
+                            exerciseToReplace = null
+                        } else {
+                            viewModel.selectExercise(selectedExercise)
+                            selectedIndex = (uiState.logs.size - 1).coerceAtLeast(0)
+                        }
+                        showExercisePicker = false
+                    },
+                    onSelectFamily = { viewModel.selectFamilyInPicker(it) },
+                    onToggleShowAll = { viewModel.toggleShowAllVariants(it) },
+                    onSaveCustomExercise = { name, muscle, equip, desc ->
+                        viewModel.saveCustomExercise(name, muscle, equip, desc)
+                    },
+                    onDismiss = {
+                        showExercisePicker = false
+                        exerciseToReplace = null
+                    }
+                )
             }
         }
     }
@@ -1074,6 +1499,57 @@ fun ActiveWorkoutHeader(
                     softWrap = false
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun FocusStatusChip(uiState: WorkoutUiState, viewModel: WorkoutViewModel) {
+    val theme = LocalNeonTheme.current
+    var expanded by remember { mutableStateOf(false) }
+    val durationMinutes = uiState.workoutDurationSeconds / 60
+    val totalVolume = remember(uiState.logs) {
+        uiState.logs.sumOf { (_, sets) -> sets.sumOf { (it.weight * it.reps).toDouble() } }.toInt()
+    }
+    val completedSets = remember(uiState.logs) {
+        uiState.logs.sumOf { (_, sets) -> sets.count { it.isCompleted } }
+    }
+    val totalSets = remember(uiState.logs) {
+        uiState.logs.sumOf { it.second.size }
+    }
+
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp)) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = !expanded },
+            color = theme.surfaceRaised,
+            shape = RoundedCornerShape(20.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "⏱ $durationMinutes MIN   •   ⚡ %,d LBS   •   ✓ $completedSets/$totalSets SETS".format(totalVolume),
+                    color = MaterialTheme.colorScheme.primary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+                Text(
+                    text = if (expanded) "▲" else "▼",
+                    color = theme.inkMuted,
+                    fontSize = 10.sp
+                )
+            }
+        }
+
+        if (expanded) {
+            Spacer(Modifier.height(4.dp))
+            WorkoutSummaryBar(uiState, viewModel)
         }
     }
 }
@@ -3651,11 +4127,11 @@ fun ReorderExerciseItem(
                 modifier = Modifier
                     .size(40.dp)
                     .pointerInput(Unit) {
-                        detectDragGesturesAfterLongPress(
+                        detectVerticalDragGestures(
                             onDragStart = { onDragStart() },
-                            onDrag = { change, dragAmount ->
+                            onVerticalDrag = { change, dragAmount ->
                                 change.consume()
-                                onDrag(dragAmount.y)
+                                onDrag(dragAmount)
                             },
                             onDragEnd = { onDragEnd() },
                             onDragCancel = { onDragEnd() }

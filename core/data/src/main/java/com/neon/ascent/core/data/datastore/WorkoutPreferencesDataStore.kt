@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
+import androidx.datastore.preferences.core.booleanPreferencesKey
+
 private val Context.workoutDataStore: DataStore<Preferences> by preferencesDataStore(name = "workout_preferences")
 
 @Singleton
@@ -21,6 +23,7 @@ class WorkoutPreferencesDataStore @Inject constructor(
 ) {
     private object Keys {
         val WORKOUT_LAYOUT_MODE = stringPreferencesKey("workoutLayoutMode")
+        val USE_CUSTOM_NUMPAD_FOCUS_MODE = booleanPreferencesKey("useCustomNumpadFocusMode")
     }
 
     private val dataStore = context.workoutDataStore
@@ -38,9 +41,19 @@ class WorkoutPreferencesDataStore @Inject constructor(
         }
     }
 
+    val useCustomNumpadInFocusMode: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.USE_CUSTOM_NUMPAD_FOCUS_MODE] ?: false
+    }
+
     suspend fun setWorkoutLayoutMode(mode: WorkoutLayoutMode) {
         dataStore.edit { prefs ->
             prefs[Keys.WORKOUT_LAYOUT_MODE] = mode.name
+        }
+    }
+
+    suspend fun setUseCustomNumpadInFocusMode(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.USE_CUSTOM_NUMPAD_FOCUS_MODE] = enabled
         }
     }
 }

@@ -140,6 +140,7 @@ data class WorkoutUiState(
     val allExerciseMaxes: List<ExerciseMax> = emptyList(),
     val allRoutines: List<WorkoutRoutine> = emptyList(),
     val layoutMode: WorkoutLayoutMode = WorkoutLayoutMode.CLASSIC,
+    val useCustomNumpadInFocusMode: Boolean = false,
     val operationalStatus: OperationalStatus = OperationalStatus.NOMINAL,
     val isStatusBannerDismissed: Boolean = false,
     val linkedDirectiveTitle: String? = null,
@@ -312,6 +313,12 @@ class WorkoutViewModel @Inject constructor(
             launch {
                 workoutPreferencesDataStore.workoutLayoutMode.collect { mode ->
                     _uiState.update { it.copy(layoutMode = mode) }
+                }
+            }
+
+            launch {
+                workoutPreferencesDataStore.useCustomNumpadInFocusMode.collect { enabled ->
+                    _uiState.update { it.copy(useCustomNumpadInFocusMode = enabled) }
                 }
             }
 
@@ -1598,6 +1605,13 @@ class WorkoutViewModel @Inject constructor(
         _uiState.update { it.copy(layoutMode = mode) }
         viewModelScope.launch {
             workoutPreferencesDataStore.setWorkoutLayoutMode(mode)
+        }
+    }
+
+    fun setUseCustomNumpadInFocusMode(enabled: Boolean) {
+        _uiState.update { it.copy(useCustomNumpadInFocusMode = enabled) }
+        viewModelScope.launch {
+            workoutPreferencesDataStore.setUseCustomNumpadInFocusMode(enabled)
         }
     }
 

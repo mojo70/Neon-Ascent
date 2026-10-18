@@ -30,7 +30,8 @@ fun WorkoutSettingsScreen(
     onUpdateProfile: (UserWorkoutProfile) -> Unit,
     onResetProfile: () -> Unit,
     onUpdateRestTimerMode: (RestTimerMode) -> Unit,
-    onUpdateLayoutMode: ((WorkoutLayoutMode) -> Unit)? = null
+    onUpdateLayoutMode: ((WorkoutLayoutMode) -> Unit)? = null,
+    onUpdateCustomNumpad: ((Boolean) -> Unit)? = null
 ) {
     val tempProfile = uiState.tempSettingsProfile ?: uiState.userProfile ?: return
     var showResetConfirmation by remember { mutableStateOf(false) }
@@ -327,6 +328,13 @@ fun WorkoutSettingsScreen(
                         }
                     }
                 }
+
+                SettingsToggleRow(
+                    label = "Focus Mode Custom Keypad",
+                    description = "Display an oversized custom numeric pad at the bottom in Focus Mode instead of the system soft keyboard.",
+                    checked = uiState.useCustomNumpadInFocusMode,
+                    onCheckedChange = { onUpdateCustomNumpad?.invoke(it) }
+                )
             }
 
             // Category: DANGER ZONE
