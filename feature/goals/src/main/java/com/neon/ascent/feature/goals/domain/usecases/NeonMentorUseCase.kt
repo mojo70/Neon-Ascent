@@ -2,6 +2,7 @@ package com.neon.ascent.feature.goals.domain.usecases
 
 import com.neon.ascent.core.ai.GemmaClient
 import com.neon.ascent.core.ai.AiPersona
+import com.neon.ascent.core.ai.AiMode
 import com.neon.ascent.core.domain.goals.models.*
 import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.core.domain.repository.AscensionRepository
@@ -31,21 +32,22 @@ class NeonMentorUseCase @Inject constructor(
 ) {
     suspend fun generateMissionsForDirective(directive: AscensionDirective, manualSkillPrompt: String? = null) {
         val skillPrompt = manualSkillPrompt ?: autoSelectSkills(directive)
-        
+        val basePersona = AiPersona.promptFor(AiMode.OPERATOR, "")
+
         val prompt = """
-            ${AiPersona.CYBER_SOCRATES_PROMPT}
+            $basePersona
             ${skillPrompt ?: ""}
             [PROTOCOL: ARCHITECT_GENESIS]
             [OBJECTIVE: DECONSTRUCT_DIRECTIVE]
-            
+
             Directive Title: ${directive.title}
             Directive Description: ${directive.description}
-            
+
             Task: Generate 2 specific, actionable MISSIONS to fulfill this DIRECTIVE.
             For each MISSION, generate 3-4 granular PULSES (daily or weekly tasks).
             Ensure these PULSES are "atomic" and "sticky".
             Map each PULSE to relevant S.P.E.C.I.A.L. stats (STRENGTH, PERCEPTION, ENDURANCE, CHARISMA, INTELLIGENCE, AGILITY, LUCK).
-            
+
             Format your response as a JSON-like structured list:
             MISSION: [Title] | [Description]
               PULSE: [Title] | [Description] | [Type: ONE_TIME/RECURRING] | [Frequency: DAILY/WEEKDAYS] | [STATS: COMMA_SEP_LIST]
@@ -133,31 +135,31 @@ class NeonMentorUseCase @Inject constructor(
 
     suspend fun getReview(directive: AscensionDirective, missions: List<AscensionMission>, tasks: List<AscensionTask>): String {
         val context = "Analyze progress for '${directive.title}'. Missions: ${missions.joinToString { it.title }}. Tasks: ${tasks.joinToString { it.title }}."
-        val prompt = AiPersona.getSocratesPrompt(context) + "\nQuestion the operator's current path and suggest optimizations."
+        val prompt = AiPersona.promptFor(AiMode.OPERATOR, context) + "\nProvide a concise status report analyzing patterns and suggesting optimizations."
         return gemmaClient.generateContent(prompt)
     }
 
     suspend fun getGuide(task: AscensionTask): String {
         val context = "Deconstruct task: '${task.title}'."
-        val prompt = AiPersona.getSocratesPrompt(context) + "\nProvide a step-by-step dialectic breakdown. What is the essential nature of this task? Provide actionable steps for the operator."
+        val prompt = AiPersona.promptFor(AiMode.OPERATOR, context) + "\nProvide a step-by-step breakdown with actionable steps for the operator."
         return gemmaClient.generateContent(prompt)
     }
 
     suspend fun getReflection(task: AscensionTask, notes: String?): String {
         val context = "The operator completed '${task.title}'. User Notes: ${notes ?: "None"}."
-        val prompt = AiPersona.getSocratesPrompt(context) + "\nPose 2-3 short, piercing questions to help them uncover the 'why' behind their performance or resistance."
+        val prompt = AiPersona.promptFor(AiMode.SOCRATES, context) + "\nPose 2-3 short, piercing questions to help them uncover the 'why' behind their performance or resistance."
         return gemmaClient.generateContent(prompt)
     }
 
     suspend fun getTerminalRitualAnalysis(history: List<AscensionTaskCompletion>): String {
         val context = "Quarterly analysis protocol initiated. Reviewing ${history.size} total completions. Analyze patterns in mood, consistency, and notes."
-        val prompt = AiPersona.getSocratesPrompt(context) + "\nProvide a deep, philosophical synthesis of this period. Recommend 3 new high-level Directives for the next cycle."
+        val prompt = AiPersona.promptFor(AiMode.OPERATOR, context) + "\nProvide an operational synthesis of this period. Recommend 3 new high-level Directives for the next cycle."
         return gemmaClient.generateContent(prompt)
     }
 
     suspend fun generateRecoveryMission(task: AscensionTask): AscensionMission {
         val context = "The operator missed execution of '${task.title}'. Status: Streak at risk. Buffer active."
-        val prompt = AiPersona.getSocratesPrompt(context) + "\nGenerate a short, high-energy 'Plot Twist' recovery mission to restore momentum. Format: Title | Description"
+        val prompt = AiPersona.promptFor(AiMode.OPERATOR, context) + "\nGenerate a short, high-energy recovery mission to restore momentum. Format: Title | Description"
         val response = gemmaClient.generateContent(prompt)
         val parts = response.split("|")
         return AscensionMission(
@@ -171,19 +173,22 @@ class NeonMentorUseCase @Inject constructor(
 
     suspend fun askMentor(task: AscensionTask, parentName: String?, parentType: String?, question: String): String {
         val parentContext = if (parentName != null) " (Parent $parentType: $parentName)" else ""
-        val prompt = """
-            ${AiPersona.CYBER_SOCRATES_PROMPT}
-            The operator is asking a question about the task: '${task.title}'$parentContext.
-            Description of the task: '${task.description}'.
-            
-            Operator's question: "$question"
-            
-            Provide a piercing, dialectic guidance in response. Focus on deconstructing their resistance or helping them start immediately. Keep the response substantial but focused.
-        """.trimIndent()
+        val context = "Task: '${task.title}'$parentContext. Description: '${task.description}'. Question: \"$question\""
+        val prompt = AiPersona.promptFor(AiMode.OPERATOR, context) + "\nProvide concise, practical guidance to assist execution or overcome resistance."
         return gemmaClient.generateContent(prompt)
     }
 
-    suspend fun getMentorDialogue(directive: AscensionDirective, missions: List<AscensionMission>, tasks: List<AscensionTask>, mode: MentorMode, message: String): MentorUiMessage {
+    suspend fun getMentorDialogue(
+        directive: AscensionDirective,
+        missions: List<AscensionMission>,
+        tasks: List<AscensionTask>,
+        mode: MentorMode,
+        message: String,
+        isReflectMode: Boolean = false,
+        overrideAiMode: AiMode? = null
+    ): MentorUiMessage {
+        val targetAiMode = overrideAiMode ?: if (isReflectMode) AiMode.SOCRATES else AiMode.OPERATOR
+
         // 1. Memory Palace Loading
         val recentMemories = try {
             neuralMemoryDao.searchMemories(directive.title, 5)
@@ -261,26 +266,25 @@ class NeonMentorUseCase @Inject constructor(
             MentorMode.REVIEW -> "Provide a concise status report analyzing their patterns, consistency, and progress. List 1-2 pattern detections."
             MentorMode.SOUNDING_BOARD -> "Act as a thoughtful, deconstructive mirror. Pose 1-2 open-ended reflective questions about their blockers."
             MentorMode.GUIDE -> """
-                Act as a SYSTEMS_ARCHITECT. 
-                1. Begin with 1-2 clarifying questions using the WOOP (Wish, Outcome, Obstacle, Plan) framework.
-                2. Only propose structure after understanding vision and barriers or if the operator explicitly says "generate".
-                3. Directives must be structured as OKRs (Objective + Key Results).
-                4. Missions must follow Atomic Habits principles (Cue, Craving, Response, Reward).
-                5. Pulses must be SMART tasks (Specific, Measurable, Achievable, Relevant, Time-bound).
-                6. PROPOSALS MUST BE REALISTIC: Tie them to the operator's profile (Special Stats, Dopamine Preferences, History). 
-                7. AVOID GENERIC SUGGESTIONS: If the operator is high INTELLIGENCE, use technical/analytical tasks. If low ENDURANCE, don't suggest 10km runs.
-                8. Incorporate the Faith Lens: ground the effort in Sonship (Identity) rather than achievement, frame discipline as 'Dying to Self', and invoke the 'I Am' presence.
-                9. Link to S.P.E.C.I.A.L. stats only where applicable.
-                10. Ensure Missions have a 'contributionWeight' (0.0 to 1.0) toward the Directive.
-                11. Ensure Pulses (recurring tasks) have an 'impactWeight'.
+                Act as an OPERATOR / SYSTEMS ARCHITECT. 
+                1. Assist with intake or refinement. Keep tone operational, direct, and concise.
+                2. Do not moralize, lecture, or question the value of the user's goal.
+                3. Ask at most 1-2 concrete clarifying questions if measurable outcomes or dates are missing.
+                4. Directives must be structured as OKRs (Objective + Key Results).
+                5. Missions must follow Atomic Habits principles (Cue, Craving, Response, Reward).
+                6. Pulses must be SMART tasks (Specific, Measurable, Achievable, Relevant, Time-bound).
+                7. PROPOSALS MUST BE REALISTIC: Tie them to the operator's profile (Special Stats, Dopamine Preferences, History). 
+                8. Link to S.P.E.C.I.A.L. stats only where applicable.
+                9. Ensure Missions have a 'contributionWeight' (0.0 to 1.0) toward the Directive.
+                10. Ensure Pulses (recurring tasks) have an 'impactWeight'.
             """.trimIndent()
         }
 
+        val basePersona = AiPersona.promptFor(targetAiMode, context)
         val prompt = """
-            ${AiPersona.CYBER_SOCRATES_PROMPT}
-            Context: $context
+            $basePersona
             
-            Action Required: Respond to the operator's query using Socratic questioning and the active experts.
+            Action Required: Respond to the operator's query using the active operational guidelines.
             Guideline: $modePrompt
             
             If providing a plan, format your response as:
@@ -397,8 +401,9 @@ class NeonMentorUseCase @Inject constructor(
     }
 
     suspend fun generateTasksForMission(mission: AscensionMission) {
+        val basePersona = AiPersona.promptFor(AiMode.OPERATOR, "")
         val prompt = """
-            ${AiPersona.CYBER_SOCRATES_PROMPT}
+            $basePersona
             [PROTOCOL: TASK_EXPANSION]
             [MISSION: ${mission.title}]
             Mission Description: ${mission.description}

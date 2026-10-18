@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.neon.ascent.core.data.local.entity.SelfItemEntity
 import com.neon.ascent.core.data.repository.SelfMapRepository
+import com.neon.ascent.core.ai.AiMode
 import com.neon.ascent.core.domain.goals.models.*
 import com.neon.ascent.core.domain.model.SpecialType
 import com.neon.ascent.core.domain.repository.AscensionRepository
@@ -254,59 +255,30 @@ class AscensionForgeViewModel @Inject constructor(
         val state = _uiState.value
         if (state.chatHistory.isNotEmpty() || state.isGenerating) return
 
-        val initialPrompt = """
-[INTAKE_GENESIS_INIT]
-Context Title: ${if (state.title.isNotBlank()) state.title else "Unspecified"}
-Context Description: ${if (state.description.isNotBlank()) state.description else "Unspecified"}
-Biometric Context: ${state.biometricContext ?: "None"}
+        val titleText = state.title.ifBlank { "Unspecified" }
+        val objText = state.description.ifBlank { "Unspecified" }
 
-Operator is initiating a new Directive intake.
-Mandate:
-1. Ask 1-2 sharp clarifying questions covering:
-   - WHAT specific outcome is targeted?
-   - BY WHEN is the target completion date or horizon?
-   - WHY it matters (suggesting anchoring to a Self Map item or linked S.P.E.C.I.A.L. stats).
-2. DO NOT output any [PROPOSAL] or [METRICS] section in this first turn. Keep it strictly conversational and dialectic.
-""".trimIndent()
+        val firstTurnMessage = MentorUiMessage(
+            text = """
+CYBR-TES // INTAKE
 
-        viewModelScope.launch {
-            _uiState.update { it.copy(isGenerating = true) }
-            try {
-                val response = mentorUseCase.getMentorDialogue(
-                    directive = AscensionDirective(
-                        id = "",
-                        title = state.title.ifBlank { "DIRECTIVE_INTAKE" },
-                        description = state.description
-                    ),
-                    missions = emptyList(),
-                    tasks = emptyList(),
-                    mode = MentorMode.GUIDE,
-                    message = initialPrompt
-                )
-                val finalMsg = if (response.text.isBlank()) {
-                    MentorUiMessage(
-                        text = "CYBR-TES // INTAKE PROTOCOL ONLINE.\n\n1. WHAT specific outcome are you forging?\n2. BY WHEN do you target completion?\n3. WHY does this matter (Self Map anchor or S.P.E.C.I.A.L. stat link)?",
-                        isFromUser = false
-                    )
-                } else response
+Locked: $titleText
+Objective: $objText
 
-                _uiState.update {
-                    it.copy(
-                        chatHistory = it.chatHistory + finalMsg,
-                        isGenerating = false
-                    )
-                }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        chatHistory = it.chatHistory + MentorUiMessage(
-                            text = "CYBR-TES // INTAKE PROTOCOL ONLINE.\n\n1. WHAT specific outcome are you forging?\n2. BY WHEN do you target completion?\n3. WHY does this matter (Self Map anchor or S.P.E.C.I.A.L. stat link)?",
-                            isFromUser = false
-                        ),
-                        isGenerating = false
-                    )
-                }
-            }
+Clarify:
+1. What is the specific measurable outcome (number, amount, or clear end state)?
+2. By when (date or horizon)?
+
+Optional: anchor this to a Self Map item.
+            """.trimIndent(),
+            isFromUser = false
+        )
+
+        _uiState.update {
+            it.copy(
+                chatHistory = it.chatHistory + firstTurnMessage,
+                isGenerating = false
+            )
         }
     }
 
@@ -326,6 +298,39 @@ Mandate:
 
     fun askClarification() {
         sendMessage("CLARIFY_PROTOCOL: Ask me 2-3 specific questions to better understand my constraints and vision before proceeding.")
+    }
+
+    fun requestSocraticReflection() {
+        val input = _uiState.value.mentorInput.ifBlank {
+            "REFLECT_PROTOCOL: Help me deconstruct my underlying motivation and potential inner barriers for this directive."
+        }
+
+        val state = _uiState.value
+        _uiState.update { it.copy(
+            chatHistory = it.chatHistory + MentorUiMessage(input, isFromUser = true),
+            mentorInput = "",
+            isGenerating = true
+        ) }
+
+        viewModelScope.launch {
+            try {
+                val response = mentorUseCase.getMentorDialogue(
+                    directive = AscensionDirective(id = "", title = state.title, description = state.description),
+                    missions = emptyList(),
+                    tasks = emptyList(),
+                    mode = MentorMode.SOUNDING_BOARD,
+                    message = input,
+                    isReflectMode = true,
+                    overrideAiMode = AiMode.SOCRATES
+                )
+                _uiState.update { it.copy(
+                    chatHistory = it.chatHistory + response,
+                    isGenerating = false
+                ) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isGenerating = false) }
+            }
+        }
     }
 
     fun requestMentorFormSuggestions() {

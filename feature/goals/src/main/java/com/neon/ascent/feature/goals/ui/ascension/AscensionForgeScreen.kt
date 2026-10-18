@@ -902,7 +902,23 @@ fun MentorConversationalBuilder(uiState: AscensionForgeUiState, viewModel: Ascen
                 }
             }
 
-            // Chat Input
+            // Reflect Affordance & Chat Input
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedButton(
+                    onClick = { viewModel.requestSocraticReflection() },
+                    modifier = Modifier.height(24.dp),
+                    shape = RoundedCornerShape(2.dp),
+                    border = BorderStroke(1.dp, NeonPink.copy(alpha = 0.6f)),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                ) {
+                    Text("REFLECT (SOCRATES)", color = NeonPink, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                }
+            }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
