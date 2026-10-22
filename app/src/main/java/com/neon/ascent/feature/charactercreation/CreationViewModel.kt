@@ -11,6 +11,11 @@ import com.neon.ascent.core.domain.character.repository.CharacterRepository
 import com.neon.ascent.data.repository.UserPreferencesRepository
 import com.neon.ascent.domain.onboarding.OnboardingCompletionUseCase
 import com.neon.ascent.core.domain.character.models.UserCharacter
+import com.neon.ascent.core.domain.backup.models.RestoreMode
+import com.neon.ascent.core.domain.repository.FullDataBackupRepository
+import com.neon.ascent.data.backup.p2p.P2pClientState
+import com.neon.ascent.data.backup.p2p.P2pMigrationClient
+import com.neon.ascent.data.backup.p2p.P2pServerInfo
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -28,8 +33,12 @@ class CreationViewModel @Inject constructor(
     private val characterRepository: CharacterRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val onboardingCompletionUseCase: OnboardingCompletionUseCase,
+    private val fullDataBackupRepository: FullDataBackupRepository,
+    private val p2pMigrationClient: P2pMigrationClient,
     application: Application
 ) : AndroidViewModel(application) {
+
+    val p2pClientState: StateFlow<P2pClientState> = p2pMigrationClient.clientState
 
     private val _uiState = MutableStateFlow<CreationUiState>(CreationUiState.Initial)
     val uiState = _uiState.asStateFlow()
@@ -63,6 +72,71 @@ class CreationViewModel @Inject constructor(
         viewModelScope.launch {
             characterRepository.saveCharacter(draftCharacter)
             onComplete()
+        }
+    }
+
+    fun restoreFromFile(
+        jsonContent: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _uiState.value = CreationUiState.Loading
+            val result = fullDataBackupRepository.restoreBackupJson(jsonContent, RestoreMode.REPLACE)
+            if (result.success) {
+                userPreferencesRepository.setOnboardingComplete(true)
+                _uiState.value = CreationUiState.Success
+                onSuccess()
+            } else {
+                _uiState.value = CreationUiState.Error(result.message)
+                onError(result.message)
+            }
+        }
+    }
+
+    fun restoreFromP2p(
+        serverInfo: P2pServerInfo,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _uiState.value = CreationUiState.Loading
+            val result = p2pMigrationClient.downloadAndRestore(serverInfo)
+            if (result.success) {
+                userPreferencesRepository.setOnboardingComplete(true)
+                _uiState.value = CreationUiState.Success
+                onSuccess()
+            } else {
+                _uiState.value = CreationUiState.Error(result.message)
+                onError(result.message)
+            }
+        }
+    }
+
+    fun resetP2pClientState() {
+        p2pMigrationClient.resetState()
+    }
+
+    fun bypassOnboarding(onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            _uiState.value = CreationUiState.Loading
+            try {
+                val minimalChar = UserCharacter(
+                    name = "OPERATIVE",
+                    sex = "UNSPECIFIED",
+                    dob = "2000-01-01",
+                    units = "metric",
+                    weight = "70",
+                    somatotype = 0.5f,
+                    isCreationComplete = true
+                )
+                characterRepository.saveCharacter(minimalChar)
+                userPreferencesRepository.setOnboardingComplete(true)
+                _uiState.value = CreationUiState.Success
+                onSuccess()
+            } catch (e: Exception) {
+                _uiState.value = CreationUiState.Error(e.message ?: "Failed to bypass onboarding")
+            }
         }
     }
 

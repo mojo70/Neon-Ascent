@@ -8,19 +8,37 @@ import com.neon.ascent.core.domain.workout.models.*
 
 private val gson = Gson()
 
+private inline fun <reified T : Enum<T>> safeEnumValueOf(value: String?, default: T): T {
+    if (value.isNullOrBlank()) return default
+    return try {
+        enumValueOf<T>(value.trim().uppercase())
+    } catch (_: Exception) {
+        default
+    }
+}
+
+private inline fun <reified T : Enum<T>> safeNullableEnumValueOf(value: String?): T? {
+    if (value.isNullOrBlank()) return null
+    return try {
+        enumValueOf<T>(value.trim().uppercase())
+    } catch (_: Exception) {
+        null
+    }
+}
+
 fun WorkoutSessionEntity.toDomain() = WorkoutSession(
     id = id,
     date = date,
-    protocol = WorkoutProtocol.valueOf(protocol),
+    protocol = safeEnumValueOf(protocol, WorkoutProtocol.GENERAL),
     durationSeconds = durationSeconds,
     notes = notes,
-    experienceLevel = ExperienceLevel.valueOf(experienceLevel),
-    somatotype = Somatotype.valueOf(somatotype),
+    experienceLevel = safeEnumValueOf(experienceLevel, ExperienceLevel.INTERMEDIATE),
+    somatotype = safeEnumValueOf(somatotype, Somatotype.MESOMORPH),
     sessionRpe = sessionRpe,
     jointHealth = jointHealth,
     isDeload = isDeload,
     cycleId = cycleId,
-    protocolDayType = protocolDayType?.let { ProtocolDayType.valueOf(it) },
+    protocolDayType = safeNullableEnumValueOf(protocolDayType),
     primaryAugmentId = primaryAugmentId
 )
 
@@ -43,10 +61,10 @@ fun WorkoutSession.toEntity() = WorkoutSessionEntity(
 fun ProtocolCycleEntity.toDomain() = ProtocolCycle(
     id = id,
     userId = userId,
-    protocol = WorkoutProtocol.valueOf(protocol),
+    protocol = safeEnumValueOf(protocol, WorkoutProtocol.GENERAL),
     startedAt = startedAt,
     endedAt = endedAt,
-    status = CycleStatus.valueOf(status),
+    status = safeEnumValueOf(status, CycleStatus.ACTIVE),
     currentWeek = currentWeek,
     currentDayIndex = currentDayIndex,
     configJson = configJson
@@ -72,7 +90,7 @@ fun ExerciseMaxEntity.toDomain() = ExerciseMax(
     rm10 = rm10,
     rm5 = rm5,
     trainingMax = trainingMax,
-    source = MaxSource.valueOf(source)
+    source = safeEnumValueOf(source, MaxSource.ESTIMATED)
 )
 
 fun ExerciseMax.toEntity() = ExerciseMaxEntity(
@@ -97,12 +115,12 @@ fun ExerciseDefinitionEntity.toDomain() = Exercise(
     isLockedClassic = isLockedClassic,
     injurySubstitutions = injurySubstitutions,
     dangerousFor = dangerousFor,
-    movementType = MovementType.valueOf(movementType),
+    movementType = safeEnumValueOf(movementType, MovementType.UNDEFINED),
     notes = notes,
     familyId = familyId,
     familyName = familyName,
-    implement = Implement.valueOf(implement),
-    stance = Stance.valueOf(stance),
+    implement = safeEnumValueOf(implement, Implement.BARBELL),
+    stance = safeEnumValueOf(stance, Stance.STANDARD),
     specialtyBar = specialtyBar,
     rangeOverrideMin = rangeOverrideMin,
     rangeOverrideMax = rangeOverrideMax,
@@ -138,15 +156,15 @@ fun AugmentActivationEntity.toDomain() = AugmentActivation(
     id = id,
     augmentId = augmentId,
     userId = userId,
-    mode = AugmentRunMode.valueOf(mode),
-    status = AugmentActivationStatus.valueOf(status),
-    loggingStyle = AugmentLoggingStyle.valueOf(loggingStyle),
+    mode = safeEnumValueOf(mode, AugmentRunMode.INDEPENDENT),
+    status = safeEnumValueOf(status, AugmentActivationStatus.ACTIVE),
+    loggingStyle = safeEnumValueOf(loggingStyle, AugmentLoggingStyle.INHERIT),
     scheduledDays = gson.fromJson(scheduledDays, object : TypeToken<List<ScheduledDay>>() {}.type),
     createdAt = createdAt,
     windowStart = windowStart,
     windowEnd = windowEnd,
-    hostProtocolFilter = hostProtocolFilter?.let { WorkoutProtocol.valueOf(it) },
-    dayTypeFilter = dayTypeFilter?.let { ProtocolDayType.valueOf(it) },
+    hostProtocolFilter = safeNullableEnumValueOf(hostProtocolFilter),
+    dayTypeFilter = safeNullableEnumValueOf(dayTypeFilter),
     reminderEnabled = reminderEnabled
 )
 
@@ -172,7 +190,7 @@ fun WorkoutLogEntity.toDomain() = WorkoutLog(
     exerciseId = exerciseId,
     order = order,
     exerciseName = exerciseName,
-    protocolOverride = protocolOverride?.let { WorkoutProtocol.valueOf(it) },
+    protocolOverride = safeNullableEnumValueOf(protocolOverride),
     supersetId = supersetId,
     augmentId = augmentId,
     augmentName = augmentName,
@@ -236,7 +254,7 @@ fun SetLogEntity.toDomain() = SetLog(
     workoutLogId = workoutLogId,
     weight = weight,
     reps = reps,
-    type = SetType.valueOf(setType),
+    type = safeEnumValueOf(setType, SetType.NORMAL),
     goalReps = goalReps,
     isCompleted = isCompleted,
     rir = rir,
@@ -277,22 +295,22 @@ fun SetLog.toEntity() = SetLogEntity(
 
 fun UserWorkoutProfileEntity.toDomain() = UserWorkoutProfile(
     userId = userId,
-    experienceLevel = ExperienceLevel.valueOf(experienceLevel),
-    somatotype = Somatotype.valueOf(somatotype),
+    experienceLevel = safeEnumValueOf(experienceLevel, ExperienceLevel.INTERMEDIATE),
+    somatotype = safeEnumValueOf(somatotype, Somatotype.MESOMORPH),
     injuries = injuries,
     timePerSessionMinutes = timePerSessionMinutes,
     age = age,
     heightCm = heightCm,
     weightKg = weightKg,
-    gender = Gender.valueOf(gender),
+    gender = safeEnumValueOf(gender, Gender.OTHER),
     activityFactor = activityFactor,
-    unitSystem = UnitSystem.valueOf(unitSystem),
-    activeProtocol = activeProtocol?.let { WorkoutProtocol.valueOf(it) },
+    unitSystem = safeEnumValueOf(unitSystem, UnitSystem.IMPERIAL),
+    activeProtocol = safeNullableEnumValueOf(activeProtocol),
     rotationIndex = rotationIndex,
-    scheduledDays = gson.fromJson(scheduledDays, object : TypeToken<List<ScheduledDay>>() {}.type),
+    scheduledDays = runCatching { gson.fromJson<List<ScheduledDay>>(scheduledDays, object : TypeToken<List<ScheduledDay>>() {}.type) }.getOrNull() ?: emptyList(),
     deepLinkToRoutine = deepLinkToRoutine,
     autoWeightIncrement = autoWeightIncrement,
-    progressionMode = runCatching { ProgressionMode.valueOf(progressionMode) }.getOrDefault(ProgressionMode.FIXED_INCREMENT),
+    progressionMode = safeEnumValueOf(progressionMode, ProgressionMode.FIXED_INCREMENT),
     weightIncrementCompound = weightIncrementUpperCompound,
     weightIncrementUpperCompound = weightIncrementUpperCompound,
     weightIncrementLowerCompound = weightIncrementLowerCompound,
@@ -301,7 +319,7 @@ fun UserWorkoutProfileEntity.toDomain() = UserWorkoutProfile(
     roundingIncrement = roundingIncrement,
     rirCapturePerMiniSet = rirCapturePerMiniSet,
     sequencerEnabled = sequencerEnabled,
-    customSequenceIds = gson.fromJson(customSequenceIds, object : TypeToken<List<String>>() {}.type),
+    customSequenceIds = runCatching { gson.fromJson<List<String>>(customSequenceIds, object : TypeToken<List<String>>() {}.type) }.getOrNull() ?: emptyList(),
     coachingHintsEnabled = coachingHintsEnabled,
     lastBlastStartDate = lastBlastStartDate
 )
@@ -356,14 +374,14 @@ fun ProgressionState.toEntity() = ProgressionStateEntity(
 )
 
 fun RoutineSetEntity.toDomain() = RoutineSet(
-    type = SetType.valueOf(type),
+    type = safeEnumValueOf(type, SetType.NORMAL),
     weight = weight,
     reps = reps,
     goalReps = goalReps
 )
 
 fun AugmentSetEntity.toDomain() = RoutineSet(
-    type = SetType.valueOf(type),
+    type = safeEnumValueOf(type, SetType.NORMAL),
     weight = weight,
     reps = reps,
     goalReps = goalReps
@@ -414,7 +432,7 @@ fun FuelSnapshotEntity.toDomain() = FuelSnapshot(
     carb = carb,
     fat = fat,
     activityFactor = activityFactor,
-    somatotype = Somatotype.valueOf(somatotype)
+    somatotype = safeEnumValueOf(somatotype, Somatotype.MESOMORPH)
 )
 
 fun FuelSnapshot.toEntity() = FuelSnapshotEntity(
@@ -431,9 +449,9 @@ fun FuelSnapshot.toEntity() = FuelSnapshotEntity(
 
 fun ProtocolRepTargetEntity.toDomain() = ProtocolRepTarget(
     id = id,
-    protocol = WorkoutProtocol.valueOf(protocol),
-    movementType = MovementType.valueOf(movementType),
-    setType = SetType.valueOf(setType),
+    protocol = safeEnumValueOf(protocol, WorkoutProtocol.GENERAL),
+    movementType = safeEnumValueOf(movementType, MovementType.UNDEFINED),
+    setType = safeEnumValueOf(setType, SetType.NORMAL),
     familyId = familyId,
     minReps = minReps,
     maxReps = maxReps,
@@ -451,7 +469,6 @@ fun ProtocolRepTarget.toEntity() = ProtocolRepTargetEntity(
     unit = unit
 )
 
-
 fun WorkoutRoutineEntity.toDomain(
     exercisesWithOrder: List<RoutineExerciseWithOrder> = emptyList(),
     sets: List<RoutineSetEntity> = emptyList(),
@@ -464,10 +481,6 @@ fun WorkoutRoutineEntity.toDomain(
                 .sortedBy { it.order }
                 .map { it.toDomain() }
         )
-    }
-    
-    if (routineExercises.isEmpty() && exercisesWithOrder.isNotEmpty()) {
-        android.util.Log.e("WorkoutMapper", "ERROR: exercisesWithOrder was not empty (${exercisesWithOrder.size}) but routineExercises IS EMPTY for routine $name")
     }
 
     return WorkoutRoutine(
@@ -482,7 +495,7 @@ fun WorkoutRoutineEntity.toDomain(
                 item.augmentDetails.augmentSets
             )
         },
-        protocol = WorkoutProtocol.valueOf(protocol),
+        protocol = safeEnumValueOf(protocol, WorkoutProtocol.GENERAL),
         createdAt = createdAt,
         isSystem = isSystem,
         isAddedToLibrary = isAddedToLibrary

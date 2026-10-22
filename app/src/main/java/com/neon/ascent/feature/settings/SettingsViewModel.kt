@@ -34,6 +34,9 @@ import com.neon.ascent.core.domain.backup.models.*
 import com.neon.ascent.core.domain.repository.FullDataBackupRepository
 import com.neon.ascent.data.backup.GoogleDriveBackupManager
 import com.neon.ascent.data.backup.FullBackupWorker
+import com.neon.ascent.data.backup.p2p.P2pMigrationServer
+import com.neon.ascent.data.backup.p2p.P2pServerInfo
+import com.neon.ascent.data.backup.p2p.P2pServerState
 import android.content.Context
 import com.google.gson.Gson
 import com.neon.ascent.core.data.repository.RitesRepository
@@ -591,6 +594,31 @@ class SettingsViewModel @Inject constructor(
                 enabled
             )
         }
+    }
+
+    val p2pMigrationServer = P2pMigrationServer()
+    val p2pServerState: StateFlow<P2pServerState> = p2pMigrationServer.serverState
+    val p2pStatusMessage: StateFlow<String> = p2pMigrationServer.statusMessage
+
+    private val _p2pServerInfo = MutableStateFlow<P2pServerInfo?>(null)
+    val p2pServerInfo: StateFlow<P2pServerInfo?> = _p2pServerInfo.asStateFlow()
+
+    fun startP2pMigrationServer() {
+        viewModelScope.launch {
+            val json = fullDataBackupRepository.exportBackupJson(BackupScope())
+            val info = p2pMigrationServer.startServer(json)
+            _p2pServerInfo.value = info
+        }
+    }
+
+    fun stopP2pMigrationServer() {
+        p2pMigrationServer.stopServer()
+        _p2pServerInfo.value = null
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        p2pMigrationServer.stopServer()
     }
 
     fun triggerManualBackup() {

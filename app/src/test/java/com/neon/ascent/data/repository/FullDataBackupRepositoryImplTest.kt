@@ -34,6 +34,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
 import java.time.Instant
+import java.time.LocalDate
 
 class FullDataBackupRepositoryImplTest {
 
@@ -448,12 +449,157 @@ class FullDataBackupRepositoryImplTest {
 
     private class FakeSettingsRepository(context: Context) : SettingsRepository(context)
 
+    private class FakeAscensionDao : AscensionDao {
+        val directives = mutableMapOf<String, AscensionDirectiveEntity>()
+        val missions = mutableMapOf<String, AscensionMissionEntity>()
+        val tasks = mutableMapOf<String, AscensionTaskEntity>()
+        val completions = mutableListOf<AscensionTaskCompletionEntity>()
+        val neuralLogs = mutableListOf<NeuralLogEntity>()
+
+        override fun getAllDirectives(): Flow<List<AscensionDirectiveEntity>> = flowOf(directives.values.toList())
+        override fun getActiveDirectives(): Flow<List<AscensionDirectiveEntity>> = flowOf(directives.values.filter { it.status == "ACTIVE" })
+        override suspend fun insertDirective(directive: AscensionDirectiveEntity) { directives[directive.id] = directive }
+        override suspend fun updateDirective(directive: AscensionDirectiveEntity) { directives[directive.id] = directive }
+        override suspend fun deleteDirective(id: String) { directives.remove(id) }
+        override suspend fun getDirectiveById(id: String): AscensionDirectiveEntity? = directives[id]
+
+        override fun getMissionsForDirective(directiveId: String): Flow<List<AscensionMissionEntity>> = flowOf(missions.values.filter { it.directiveId == directiveId })
+        override suspend fun getMissionsForDirectiveSync(directiveId: String): List<AscensionMissionEntity> = missions.values.filter { it.directiveId == directiveId }
+        override suspend fun getMissionById(id: String): AscensionMissionEntity? = missions[id]
+        override fun getActiveMissions(): Flow<List<AscensionMissionEntity>> = flowOf(missions.values.filter { it.status == "ACTIVE" })
+        override suspend fun insertMission(mission: AscensionMissionEntity) { missions[mission.id] = mission }
+        override suspend fun updateMission(mission: AscensionMissionEntity) { missions[mission.id] = mission }
+
+        override fun getTasksForParent(parentId: String): Flow<List<AscensionTaskEntity>> = flowOf(tasks.values.filter { it.parentId == parentId })
+        override suspend fun getTasksForParentSync(parentId: String): List<AscensionTaskEntity> = tasks.values.filter { it.parentId == parentId }
+        override fun getAllRecurringTasks(): Flow<List<AscensionTaskEntity>> = flowOf(tasks.values.filter { it.type == "RECURRING" })
+        override suspend fun insertTask(task: AscensionTaskEntity) { tasks[task.id] = task }
+        override suspend fun updateTask(task: AscensionTaskEntity) { tasks[task.id] = task }
+        override suspend fun deleteTask(id: String) { tasks.remove(id) }
+        override fun getTaskById(id: String): Flow<AscensionTaskEntity?> = flowOf(tasks[id])
+        override suspend fun updateDirectiveNotes(id: String, notes: String) { directives[id]?.let { directives[id] = it.copy(notes = notes) } }
+
+        override suspend fun insertCompletion(completion: AscensionTaskCompletionEntity) { completions.add(completion) }
+        override fun getCompletionsForTask(taskId: String): Flow<List<AscensionTaskCompletionEntity>> = flowOf(completions.filter { it.taskId == taskId })
+        override fun getCompletionsInRange(startTime: java.time.Instant): Flow<List<AscensionTaskCompletionEntity>> = flowOf(completions.filter { it.timestamp >= startTime })
+
+        override suspend fun insertNeuralLog(log: NeuralLogEntity) { neuralLogs.add(log) }
+        override fun getAllNeuralLogs(): Flow<List<NeuralLogEntity>> = flowOf(neuralLogs)
+    }
+
+    private class FakeVaultDao : VaultDao {
+        val accounts = mutableMapOf<String, VaultAccountEntity>()
+        val snapshots = mutableListOf<VaultSnapshotEntity>()
+        val watchlist = mutableMapOf<String, VaultWatchlistItemEntity>()
+
+        override fun getAllAccounts(): Flow<List<VaultAccountEntity>> = flowOf(accounts.values.toList())
+        override suspend fun getAllAccountsOnce(): List<VaultAccountEntity> = accounts.values.toList()
+        override suspend fun insertAccount(account: VaultAccountEntity) { accounts[account.id] = account }
+        override suspend fun deleteAccount(account: VaultAccountEntity) { accounts.remove(account.id) }
+
+        override fun getRecentSnapshots(): Flow<List<VaultSnapshotEntity>> = flowOf(snapshots)
+        override suspend fun insertSnapshot(snapshot: VaultSnapshotEntity) { snapshots.add(snapshot) }
+
+        override fun getWatchlist(): Flow<List<VaultWatchlistItemEntity>> = flowOf(watchlist.values.toList())
+        override suspend fun getWatchlistOnce(): List<VaultWatchlistItemEntity> = watchlist.values.toList()
+        override suspend fun addToWatchlist(item: VaultWatchlistItemEntity) { watchlist[item.symbol] = item }
+        override suspend fun removeFromWatchlist(item: VaultWatchlistItemEntity) { watchlist.remove(item.symbol) }
+        override suspend fun isFollowing(symbol: String): Boolean = watchlist.containsKey(symbol)
+    }
+
+    private class FakeSelfMapDao : com.neon.ascent.core.data.local.dao.SelfMapDao {
+        val items = mutableMapOf<Long, SelfItemEntity>()
+        val snapshots = mutableListOf<SelfMapSnapshotEntity>()
+        val moodEntries = mutableListOf<SelfMapMoodEntryEntity>()
+        val eoeEntries = mutableListOf<EoEEntryEntity>()
+
+        override fun getAllActiveItems(): Flow<List<SelfItemEntity>> = flowOf(items.values.filter { !it.isArchived })
+        override suspend fun getAllActiveItemsOnce(): List<SelfItemEntity> = items.values.filter { !it.isArchived }
+        override suspend fun getAllItemsOnce(): List<SelfItemEntity> = items.values.toList()
+        override fun getItemsByCategory(category: com.neon.ascent.core.domain.selfmap.SelfMapCategory): Flow<List<SelfItemEntity>> = flowOf(items.values.filter { it.category == category })
+        override fun getItemById(id: Long): Flow<SelfItemEntity?> = flowOf(items[id])
+        override suspend fun getItemByIdOnce(id: Long): SelfItemEntity? = items[id]
+        override fun getAverageImportance(): Flow<Float> = flowOf(items.values.map { it.importance }.average().toFloat())
+        override fun getCoreCount(): Flow<Int> = flowOf(items.values.count { it.importance >= 0.7f })
+        override fun getTotalItemCount(): Flow<Int> = flowOf(items.size)
+        override suspend fun insertSelfItem(item: SelfItemEntity): Long { items[item.id] = item; return item.id }
+        override suspend fun insertSelfItems(items: List<SelfItemEntity>): List<Long> { items.forEach { this.items[it.id] = it }; return items.map { it.id } }
+        override suspend fun updateSelfItem(item: SelfItemEntity) { items[item.id] = item }
+        override suspend fun archiveSelfItem(id: Long, updatedAt: Instant) { items[id]?.let { items[id] = it.copy(isArchived = true, updatedAt = updatedAt) } }
+        override suspend fun unarchiveSelfItem(id: Long, updatedAt: Instant) { items[id]?.let { items[id] = it.copy(isArchived = false, updatedAt = updatedAt) } }
+        override suspend fun deleteSelfItem(id: Long) { items.remove(id) }
+        override suspend fun deleteAllSelfItems() { items.clear() }
+
+        override suspend fun insertEoEEntry(entry: EoEEntryEntity): Long { eoeEntries.add(entry); return entry.id }
+        override fun getAllEoEEntries(): Flow<List<EoEEntryEntity>> = flowOf(eoeEntries)
+        override suspend fun getAllEoEEntriesOnce(): List<EoEEntryEntity> = eoeEntries
+        override fun getEoEEntriesForSelfItem(selfItemId: Long): Flow<List<EoEEntryEntity>> = flowOf(eoeEntries.filter { it.selfItemId == selfItemId })
+        override suspend fun deleteEoEEntry(id: Long) { eoeEntries.removeAll { it.id == id } }
+        override suspend fun deleteAllEoEEntries() { eoeEntries.clear() }
+
+        override suspend fun insertSnapshot(snapshot: SelfMapSnapshotEntity): Long { snapshots.add(snapshot); return snapshot.id }
+        override fun getAllSnapshots(): Flow<List<SelfMapSnapshotEntity>> = flowOf(snapshots)
+        override suspend fun getAllSnapshotsOnce(): List<SelfMapSnapshotEntity> = snapshots
+        override fun getLatestSnapshot(): Flow<SelfMapSnapshotEntity?> = flowOf(snapshots.lastOrNull())
+        override suspend fun deleteAllSnapshots() { snapshots.clear() }
+
+        override suspend fun insertMoodEntry(entry: SelfMapMoodEntryEntity): Long { moodEntries.add(entry); return entry.id }
+        override fun getAllMoodEntries(): Flow<List<SelfMapMoodEntryEntity>> = flowOf(moodEntries)
+        override suspend fun getAllMoodEntriesOnce(): List<SelfMapMoodEntryEntity> = moodEntries
+        override fun getRecentMoodEntries(limit: Int): Flow<List<SelfMapMoodEntryEntity>> = flowOf(moodEntries.takeLast(limit))
+        override fun getLatestMoodEntry(): Flow<SelfMapMoodEntryEntity?> = flowOf(moodEntries.lastOrNull())
+        override suspend fun getLatestMoodEntryOnce(): SelfMapMoodEntryEntity? = moodEntries.lastOrNull()
+        override suspend fun deleteMoodEntry(id: Long) { moodEntries.removeAll { it.id == id } }
+        override suspend fun deleteAllMoodEntries() { moodEntries.clear() }
+    }
+
+    private class FakeReconstitutionDao : ReconstitutionDao {
+        val mixes = mutableMapOf<String, SavedReconstitutionEntity>()
+        override fun getAllSavedMixes(): Flow<List<SavedReconstitutionEntity>> = flowOf(mixes.values.toList())
+        override suspend fun getSavedMixById(id: String): SavedReconstitutionEntity? = mixes[id]
+        override suspend fun insertSavedMix(mix: SavedReconstitutionEntity) { mixes[mix.id] = mix }
+        override suspend fun deleteSavedMix(id: String) { mixes.remove(id) }
+    }
+
+    private class FakeNeuralMemoryDao : NeuralMemoryDao {
+        val memories = mutableListOf<NeuralMemory>()
+        override suspend fun insertMemory(memory: NeuralMemory) { memories.add(memory) }
+        override fun getAllMemories(): Flow<List<NeuralMemory>> = flowOf(memories)
+        override fun getMemoriesByWing(wing: String): Flow<List<NeuralMemory>> = flowOf(memories.filter { it.wing == wing })
+        override fun getMemoriesByRoom(wing: String, room: String): Flow<List<NeuralMemory>> = flowOf(memories.filter { it.wing == wing && it.room == room })
+        override suspend fun searchMemories(query: String, limit: Int): List<NeuralMemory> = memories.filter { it.content.contains(query) }.take(limit)
+        override suspend fun pruneOldMemories(threshold: Long) { memories.removeAll { it.timestamp < threshold } }
+    }
+
+    private class FakeChatDao : ChatDao {
+        val sessions = mutableMapOf<String, ChatSession>()
+        val messages = mutableListOf<ChatMessage>()
+
+        override fun getChatSessions(): Flow<List<ChatSession>> = flowOf(sessions.values.toList())
+        override suspend fun insertChatSession(session: ChatSession) { sessions[session.sessionId] = session }
+        override suspend fun updateChatSession(session: ChatSession) { sessions[session.sessionId] = session }
+        override fun getMessagesForSession(sessionId: String): Flow<List<ChatMessage>> = flowOf(messages.filter { it.sessionId == sessionId })
+        override fun getMessagesForContact(contactName: String): Flow<List<ChatMessage>> = flowOf(messages.filter { it.contactName == contactName })
+        override fun getSessionsForContact(contactName: String): Flow<List<ChatSession>> = flowOf(sessions.values.filter { it.contactName == contactName })
+        override suspend fun getLatestSessionForContact(contactName: String): ChatSession? = sessions.values.firstOrNull { it.contactName == contactName }
+        override suspend fun getSessionById(sessionId: String): ChatSession? = sessions[sessionId]
+        override suspend fun insertMessage(message: ChatMessage) { messages.add(message) }
+        override suspend fun markAsRead(sessionId: String) { sessions[sessionId]?.let { sessions[sessionId] = it.copy(isUnread = false) } }
+        override suspend fun markAllAsReadForContact(contactName: String) {}
+    }
+
     private lateinit var workoutDao: FakeWorkoutDao
     private lateinit var journalDao: FakeJournalDao
     private lateinit var chronicleRepository: FakeChronicleRepository
     private lateinit var operativeProfileDao: FakeOperativeProfileDao
     private lateinit var bodySampleDao: FakeBodySampleDao
     private lateinit var dailyVitalRollupDao: FakeDailyVitalRollupDao
+    private lateinit var ascensionDao: FakeAscensionDao
+    private lateinit var vaultDao: FakeVaultDao
+    private lateinit var selfMapDao: FakeSelfMapDao
+    private lateinit var reconstitutionDao: FakeReconstitutionDao
+    private lateinit var neuralMemoryDao: FakeNeuralMemoryDao
+    private lateinit var chatDao: FakeChatDao
     private lateinit var coreDatabase: TestNeonAscentDatabase
     private lateinit var appDatabase: TestAppDatabase
     private lateinit var repository: FullDataBackupRepositoryImpl
@@ -466,6 +612,12 @@ class FullDataBackupRepositoryImplTest {
         operativeProfileDao = FakeOperativeProfileDao()
         bodySampleDao = FakeBodySampleDao()
         dailyVitalRollupDao = FakeDailyVitalRollupDao()
+        ascensionDao = FakeAscensionDao()
+        vaultDao = FakeVaultDao()
+        selfMapDao = FakeSelfMapDao()
+        reconstitutionDao = FakeReconstitutionDao()
+        neuralMemoryDao = FakeNeuralMemoryDao()
+        chatDao = FakeChatDao()
         coreDatabase = TestNeonAscentDatabase()
         appDatabase = TestAppDatabase()
         val context = TestContext(tempFolder.root)
@@ -492,6 +644,12 @@ class FullDataBackupRepositoryImplTest {
             settingsRepository = FakeSettingsRepository(context),
             coreDatabase = coreDatabase,
             appDatabase = appDatabase,
+            ascensionDao = ascensionDao,
+            vaultDao = vaultDao,
+            selfMapDao = selfMapDao,
+            reconstitutionDao = reconstitutionDao,
+            neuralMemoryDao = neuralMemoryDao,
+            chatDao = chatDao,
             context = context
         )
     }
@@ -662,7 +820,7 @@ class FullDataBackupRepositoryImplTest {
 
         // Export payload
         val exportedJson = repository.exportBackupJson(BackupScope())
-        assertTrue(exportedJson.contains("\"version\": 2"))
+        assertTrue(exportedJson.contains("\"version\": 3"))
         assertTrue(exportedJson.contains("\"settingsPayload\""))
         assertTrue(exportedJson.contains("\"operativeProfile\""))
         assertTrue(exportedJson.contains("V_Test"))
@@ -683,5 +841,146 @@ class FullDataBackupRepositoryImplTest {
         assertEquals("V_Test", restoredOp!!.name)
         assertEquals(1, bodySampleDao.samples.size)
         assertEquals(1, chronicleRepository.entries.size)
+    }
+
+    @Test
+    fun `export and restore v3 round trip preserves directives, self map, and operative profile`() = runBlocking {
+        // Arrange - populate source data
+        val testDirective = AscensionDirectiveEntity(
+            id = "dir_1",
+            title = "Master Cybernetics",
+            description = "Upgrade neural wiring",
+            visionStatement = "Become top netrunner",
+            status = "ACTIVE",
+            successMetrics = emptyList(),
+            targetEndDate = LocalDate.now().plusDays(30),
+            isQuarterly = true,
+            createdAt = Instant.now(),
+            archivedAt = null,
+            currentProgress = 0.5f,
+            totalXPContributed = 500L,
+            xpTarget = 1000L,
+            archetypeTag = "NETRUNNER",
+            tags = listOf("TECH", "NEURAL"),
+            linkedAttributes = listOf("INTELLECT"),
+            aiMentorMode = "DEFAULT",
+            aiGenerated = false,
+            notes = "Test notes",
+            completionHistorySummary = null,
+            lastReviewDate = LocalDate.now(),
+            priorityTier = "HIGH"
+        )
+        ascensionDao.insertDirective(testDirective)
+
+        val testSelfItem = SelfItemEntity(
+            id = 42L,
+            name = "Cyberdeck Rig",
+            category = com.neon.ascent.core.domain.selfmap.SelfMapCategory.STUFF,
+            importance = 0.9f,
+            notes = "Primary deck",
+            isArchived = false,
+            createdAt = Instant.now(),
+            updatedAt = Instant.now()
+        )
+        selfMapDao.insertSelfItem(testSelfItem)
+
+        val testOperative = OperativeProfileEntity(
+            id = "default_user",
+            name = "Vance Calder",
+            netrunnerName = "ZeroCool",
+            sex = "MALE",
+            dob = "1995-05-05",
+            units = "METRIC",
+            weight = "80",
+            somatotype = 0.6f,
+            isCreationComplete = true
+        )
+        operativeProfileDao.upsertOperativeProfile(testOperative)
+
+        // Act - export backup
+        val json = repository.exportBackupJson(BackupScope())
+        assertTrue("JSON should contain goalsPayload", json.contains("goalsPayload"))
+        assertTrue("JSON should contain selfMapPayload", json.contains("selfMapPayload"))
+        assertTrue("JSON should contain version 3", json.contains("\"version\": 3"))
+
+        // Reset fake DAOs to test restore
+        ascensionDao.directives.clear()
+        selfMapDao.items.clear()
+        operativeProfileDao.profile = null
+
+        // Act - restore backup
+        val result = repository.restoreBackupJson(json, RestoreMode.MERGE)
+        assertTrue("Restore should succeed", result.success)
+
+        // Assert - verify restored values
+        val restoredDirective = ascensionDao.getDirectiveById("dir_1")
+        assertNotNull("Restored directive should exist", restoredDirective)
+        assertEquals("Master Cybernetics", restoredDirective?.title)
+
+        val restoredSelfItem = selfMapDao.getItemByIdOnce(42L)
+        assertNotNull("Restored self item should exist", restoredSelfItem)
+        assertEquals("Cyberdeck Rig", restoredSelfItem?.name)
+
+        val restoredProfile = operativeProfileDao.getOperativeProfileOnce("default_user")
+        assertNotNull("Restored operative profile should exist", restoredProfile)
+        assertEquals("Vance Calder", restoredProfile?.name)
+        assertTrue("Restored profile should be complete", restoredProfile?.isCreationComplete == true)
+    }
+
+    @Test
+    fun `export and restore v3 preserves vault, biohacking, and chat payloads`() = runBlocking {
+        // Arrange
+        val testAccount = VaultAccountEntity(
+            id = "v_1",
+            name = "Eurodollar Vault",
+            institution = "Arasaka Bank",
+            type = com.neon.ascent.core.domain.vault.models.VaultAssetType.CASH,
+            balance = 50000.0,
+            currency = "USD",
+            isLinked = true,
+            lastUpdated = System.currentTimeMillis()
+        )
+        vaultDao.insertAccount(testAccount)
+
+        val testMix = SavedReconstitutionEntity(
+            id = "mix_1",
+            name = "BPC-157 Solution",
+            vialMg = "5",
+            waterMl = "2",
+            concentrationMgPerMl = "2.5"
+        )
+        reconstitutionDao.insertSavedMix(testMix)
+
+        val testChat = ChatSession(
+            sessionId = "sess_rogue",
+            contactName = "ROGUE",
+            lastMessage = "Meet at Afterlife",
+            lastTimestamp = System.currentTimeMillis(),
+            isUnread = true
+        )
+        chatDao.insertChatSession(testChat)
+
+        // Act
+        val json = repository.exportBackupJson(BackupScope())
+        assertTrue("JSON should contain vaultPayload", json.contains("vaultPayload"))
+        assertTrue("JSON should contain biohackingPayload", json.contains("biohackingPayload"))
+        assertTrue("JSON should contain chatPayload", json.contains("chatPayload"))
+
+        // Reset fake DAOs
+        vaultDao.accounts.clear()
+        reconstitutionDao.mixes.clear()
+        chatDao.sessions.clear()
+
+        // Restore
+        val result = repository.restoreBackupJson(json, RestoreMode.MERGE)
+        assertTrue("Restore should succeed", result.success)
+
+        // Assert
+        assertEquals(1, vaultDao.accounts.size)
+        assertEquals("Eurodollar Vault", vaultDao.accounts["v_1"]?.name)
+        assertEquals(1, reconstitutionDao.mixes.size)
+        assertEquals("BPC-157 Solution", reconstitutionDao.mixes["mix_1"]?.name)
+        assertEquals(1, chatDao.sessions.size)
+        assertEquals("ROGUE", chatDao.sessions["sess_rogue"]?.contactName)
     }
 }

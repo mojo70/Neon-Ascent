@@ -1,5 +1,8 @@
 package com.neon.ascent.feature.charactercreation
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -12,6 +15,10 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,13 +28,20 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import com.neon.ascent.core.common.LocalNeonTheme
+import com.neon.ascent.core.common.LocalVisualMode
+import com.neon.ascent.data.backup.p2p.*
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.ui.CyberButtonShape
 import com.neon.ascent.ui.CyberFrame
@@ -85,8 +99,13 @@ fun MorphologyIcon(value: Float, modifier: Modifier = Modifier) {
 fun CharacterCreationScreen(
     viewModel: CreationViewModel = hiltViewModel(),
     onAbort: () -> Unit,
+    onNavigateToMainHub: () -> Unit = {},
     onCreationFinished: (String, String, String, String, String, Float, String?, String?, String?) -> Unit
 ) {
+    val theme = LocalNeonTheme.current
+    val visualMode = LocalVisualMode.current
+    val context = LocalContext.current
+
     var name by remember { mutableStateOf("") }
     var sex by remember { mutableStateOf("") }
     var dobValue by remember { mutableStateOf(TextFieldValue("")) }
@@ -98,6 +117,27 @@ fun CharacterCreationScreen(
     
     var weight by remember { mutableStateOf("") }
     var somatotype by remember { mutableStateOf(5f) }
+
+    var showAbortModal by remember { mutableStateOf(false) }
+    var showQrScannerDialog by remember { mutableStateOf(false) }
+    var restoreErrorMessage by remember { mutableStateOf<String?>(null) }
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { selectedUri ->
+            val jsonContent = context.contentResolver.openInputStream(selectedUri)?.use { stream ->
+                stream.bufferedReader().use { it.readText() }
+            }
+            if (!jsonContent.isNullOrBlank()) {
+                viewModel.restoreFromFile(
+                    jsonContent = jsonContent,
+                    onSuccess = { onNavigateToMainHub() },
+                    onError = { msg -> restoreErrorMessage = msg }
+                )
+            }
+        }
+    }
 
     val userCharacter by viewModel.userCharacter.collectAsState()
 
@@ -131,7 +171,7 @@ fun CharacterCreationScreen(
 
     val scrollState = rememberScrollState()
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF020202))) {
+    Box(modifier = Modifier.fillMaxSize().background(theme.canvas)) {
         CyberGridBackground()
         GlitchOverlay()
         
@@ -164,16 +204,17 @@ fun CharacterCreationScreen(
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Abort Button at top right-ish
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            // Action Header Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Surface(
-                    onClick = { 
-                        viewModel.updateBasicInfo(name, sex, dobValue.text, units, weight, somatotype, heightFeet, heightInches, heightCm)
-                        onAbort()
-                    },
+                    onClick = { showAbortModal = true },
                     color = Color.Transparent,
                     shape = RoundedCornerShape(4.dp),
-                    border = BorderStroke(1.dp, Color(0xFFFF006E).copy(alpha = 0.5f)),
+                    border = BorderStroke(1.dp, Color(0xFFFF2A2A)),
                     modifier = Modifier.height(32.dp)
                 ) {
                     Box(
@@ -182,10 +223,10 @@ fun CharacterCreationScreen(
                     ) {
                         Text(
                             "ABORT",
-                            color = Color(0xFFFF006E),
+                            color = Color(0xFFFF2A2A),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                            fontFamily = FontFamily.Monospace
                         )
                     }
                 }
@@ -397,6 +438,195 @@ fun CharacterCreationScreen(
             )
             
             Spacer(modifier = Modifier.height(48.dp))
+        }
+
+        if (showAbortModal) {
+            AlertDialog(
+                onDismissRequest = { showAbortModal = false },
+                containerColor = theme.surface,
+                titleContentColor = theme.ink,
+                textContentColor = theme.ink,
+                title = {
+                    Text(
+                        text = ">>> ABORT IDENTITY FORGE <<<",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            color = Color(0xFFFF2A2A),
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    )
+                },
+                text = {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Select bypass protocol or uplink restore channel:",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                color = theme.ink.copy(alpha = 0.8f),
+                                fontFamily = FontFamily.Monospace
+                            )
+                        )
+
+                        // Option 1: RESTORE FROM BACKUP / VAULT
+                        OutlinedButton(
+                            onClick = {
+                                showAbortModal = false
+                                filePickerLauncher.launch("application/json")
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = theme.primary),
+                            border = BorderStroke(1.dp, theme.primary.copy(alpha = 0.7f))
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Text(
+                                    "RESTORE FROM BACKUP / VAULT",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+
+                        // Option 2: MIGRATE FROM NEARBY DEVICE (QR)
+                        OutlinedButton(
+                            onClick = {
+                                showAbortModal = false
+                                showQrScannerDialog = true
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = theme.primary),
+                            border = BorderStroke(1.dp, theme.primary.copy(alpha = 0.7f))
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Text(
+                                    "MIGRATE FROM NEARBY DEVICE (QR)",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+
+                        // Option 3: BYPASS ONBOARDING (SKIP)
+                        OutlinedButton(
+                            onClick = {
+                                showAbortModal = false
+                                viewModel.bypassOnboarding {
+                                    onNavigateToMainHub()
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = theme.accent),
+                            border = BorderStroke(1.dp, theme.accent.copy(alpha = 0.7f))
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.FastForward, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Text(
+                                    "BYPASS ONBOARDING (SKIP)",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showAbortModal = false }) {
+                        Text(
+                            "CANCEL",
+                            color = theme.ink.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+            )
+        }
+
+        restoreErrorMessage?.let { errorMsg ->
+            AlertDialog(
+                onDismissRequest = { restoreErrorMessage = null },
+                containerColor = theme.surface,
+                titleContentColor = theme.accentDanger,
+                textContentColor = theme.ink,
+                title = { Text("RESTORE FAILED", fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace) },
+                text = { Text(errorMsg, fontFamily = FontFamily.Monospace) },
+                confirmButton = {
+                    TextButton(onClick = { restoreErrorMessage = null }) {
+                        Text("OK", color = theme.primary)
+                    }
+                }
+            )
+        }
+
+        if (showQrScannerDialog) {
+            QrCodeScannerDialog(
+                onDismissRequest = { showQrScannerDialog = false },
+                onQrScanned = { serverInfo ->
+                    showQrScannerDialog = false
+                    viewModel.restoreFromP2p(
+                        serverInfo = serverInfo,
+                        onSuccess = { onNavigateToMainHub() },
+                        onError = { msg -> restoreErrorMessage = msg }
+                    )
+                }
+            )
+        }
+
+        val p2pClientState by viewModel.p2pClientState.collectAsState()
+        when (val state = p2pClientState) {
+            is P2pClientState.Downloading, P2pClientState.Decrypting, P2pClientState.Restoring -> {
+                val statusText = when (state) {
+                    is P2pClientState.Downloading -> if (state.progressPercent >= 0) "DOWNLOADING BACKUP PAYLOAD... ${state.progressPercent}%" else "DOWNLOADING BACKUP PAYLOAD..."
+                    P2pClientState.Decrypting -> "DECRYPTING AES-256-GCM PAYLOAD..."
+                    P2pClientState.Restoring -> "RESTORING DATABASE & PROFILES..."
+                    else -> "PROCESSING MIGRATION..."
+                }
+
+                Dialog(onDismissRequest = {}) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = theme.surface),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, theme.primary)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            CircularProgressIndicator(color = theme.primary)
+                            Text(
+                                text = statusText,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    color = theme.primary,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
+                                    textAlign = TextAlign.Center
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+            else -> {}
         }
     }
 }

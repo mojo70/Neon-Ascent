@@ -583,6 +583,11 @@ fun AppNavigation(
             CharacterCreationScreen(
                 viewModel = creationViewModel,
                 onAbort = { navController.popBackStack() },
+                onNavigateToMainHub = {
+                    navController.navigate(Screen.MainHub) {
+                        popUpTo(Screen.Creation) { inclusive = true }
+                    }
+                },
                 onCreationFinished = { name, sex, dob, units, weight, somatotype, hFeet, hInches, hCm ->
                     creationViewModel.updateBasicInfo(name, sex, dob, units, weight, somatotype, hFeet, hInches, hCm)
                     navController.navigate(Screen.PersonalityIntake)

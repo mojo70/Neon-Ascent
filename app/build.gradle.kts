@@ -29,7 +29,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        
+
         fun sanitizeKey(key: String): String = if (key.isBlank() || key.startsWith("YOUR_")) "" else key
 
         val weatherKey = sanitizeKey(localProperties.getProperty("openweather.api.key") ?: "")
@@ -39,6 +39,10 @@ android {
         buildConfigField("String", "OPENWEATHER_API_KEY", "\"$weatherKey\"")
         buildConfigField("String", "GEMINI_API_KEY", "\"$geminiKey\"")
         buildConfigField("String", "FINNHUB_API_KEY", "\"$finnhubKey\"")
+    }
+
+    testOptions {
+        unitTests.isReturnDefaultValues = true
     }
 
     buildTypes {
@@ -123,8 +127,9 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
-    // Coil
+    // Coil & QR Code
     implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("com.google.zxing:core:3.5.3")
 
     // Health Connect
     implementation(libs.androidx.health.connect.client)
@@ -142,6 +147,10 @@ dependencies {
 
     // Testing
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    testImplementation("androidx.work:work-testing:2.9.1")
+    testImplementation("org.mockito:mockito-core:5.12.0")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
     androidTestImplementation(platform(libs.androidx.compose.bom))
@@ -181,8 +190,9 @@ dependencies {
     // Google AI SDK (Cloud-based Gemini)
     implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
 
-    // Text Recognition
+    // Text Recognition & Barcode Scanning
     implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
 
     // ObjectBox (Vector DB)
     implementation(libs.objectbox)

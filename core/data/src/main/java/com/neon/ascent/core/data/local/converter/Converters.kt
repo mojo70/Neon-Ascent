@@ -85,34 +85,36 @@ class StringMapConverter {
 
 class SpecialTypeListConverter {
     @TypeConverter
-    fun fromList(list: List<SpecialType>): String = list.joinToString(",") { it.name }
+    fun fromList(list: List<SpecialType>?): String = list?.joinToString(",") { it.name } ?: ""
 
     @TypeConverter
-    fun toList(data: String): List<SpecialType> = if (data.isBlank()) emptyList() else data.split(",").map { SpecialType.valueOf(it) }
+    fun toList(data: String?): List<SpecialType> = if (data.isNullOrBlank()) emptyList() else data.split(",").mapNotNull {
+        try { SpecialType.valueOf(it) } catch (_: Exception) { null }
+    }
 }
 
 class StringListConverter {
     @TypeConverter
-    fun fromList(list: List<String>?): String? = list?.joinToString(",")
+    fun fromList(list: List<String>?): String = list?.joinToString(",") ?: ""
 
     @TypeConverter
-    fun toList(data: String?): List<String>? = data?.split(",")?.filter { it.isNotBlank() }
+    fun toList(data: String?): List<String> = if (data.isNullOrBlank()) emptyList() else data.split(",").filter { it.isNotBlank() }
 }
 
 class LongListConverter {
     @TypeConverter
-    fun fromList(list: List<Long>?): String? = list?.joinToString(",")
+    fun fromList(list: List<Long>?): String = list?.joinToString(",") ?: ""
 
     @TypeConverter
-    fun toList(data: String?): List<Long>? = data?.split(",")?.filter { it.isNotBlank() }?.map { it.toLong() }
+    fun toList(data: String?): List<Long> = if (data.isNullOrBlank()) emptyList() else data.split(",").filter { it.isNotBlank() }.mapNotNull { it.toLongOrNull() }
 }
 
 class IntListConverter {
     @TypeConverter
-    fun fromList(list: List<Int>?): String? = list?.joinToString(",")
+    fun fromList(list: List<Int>?): String = list?.joinToString(",") ?: ""
 
     @TypeConverter
-    fun toList(data: String?): List<Int>? = data?.split(",")?.filter { it.isNotBlank() }?.map { it.toInt() }
+    fun toList(data: String?): List<Int> = if (data.isNullOrBlank()) emptyList() else data.split(",").filter { it.isNotBlank() }.mapNotNull { it.toIntOrNull() }
 }
 
 class ScheduledDayListConverter {

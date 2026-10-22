@@ -6,9 +6,12 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -44,6 +47,7 @@ import com.neon.ascent.core.domain.workout.models.WorkoutLayoutMode
 import com.neon.ascent.ui.*
 import com.neon.ascent.core.common.*
 import com.neon.ascent.core.domain.backup.models.RestoreMode
+import com.neon.ascent.data.backup.p2p.*
 import com.neon.ascent.util.BiometricAuthManager
 import com.neon.ascent.util.findFragmentActivity
 import kotlinx.coroutines.delay
@@ -150,6 +154,9 @@ fun SettingsScreen(
     val backupToastMessage by viewModel.backupToastMessage.collectAsState()
     val pendingRestoreJson by viewModel.pendingRestoreJson.collectAsState()
     val pendingRestorePreview by viewModel.pendingRestorePreview.collectAsState()
+    val p2pServerInfo by viewModel.p2pServerInfo.collectAsState()
+    val p2pServerState by viewModel.p2pServerState.collectAsState()
+    val p2pStatusMessage by viewModel.p2pStatusMessage.collectAsState()
 
     val biometricAuthManager = remember { BiometricAuthManager(context) }
     val healthPermissionsLauncher = rememberLauncherForActivityResult(
@@ -467,6 +474,20 @@ fun SettingsScreen(
                             colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
                         ) {
                             Text("RESTORE (.JSON)", color = theme.ink, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Button(
+                        onClick = { viewModel.startP2pMigrationServer() },
+                        modifier = Modifier.fillMaxWidth().height(44.dp).border(1.dp, theme.primary, CyberButtonShape),
+                        colors = ButtonDefaults.buttonColors(containerColor = theme.primary.copy(alpha = 0.12f))
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.QrCodeScanner, contentDescription = null, tint = theme.primary, modifier = Modifier.size(18.dp))
+                            Text("MIGRATE TO NEW DEVICE (QR)", color = theme.primary, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                         }
                     }
                 }
@@ -838,6 +859,99 @@ fun SettingsScreen(
 
                         TextButton(onClick = { viewModel.dismissRestoreDialog() }) {
                             Text("CANCEL", color = theme.inkMuted)
+                        }
+                    }
+                }
+            }
+        }
+
+        if (p2pServerInfo != null) {
+            val info = p2pServerInfo!!
+            val qrBitmap = remember(info) {
+                QrCodeUtils.generateQrCodeBitmap(
+                    content = info.toQrJson(),
+                    widthPx = 512,
+                    heightPx = 512,
+                    fgColor = theme.ink,
+                    bgColor = theme.surface
+                )
+            }
+
+            Dialog(onDismissRequest = { viewModel.stopP2pMigrationServer() }) {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = theme.surface),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, theme.primary)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text(
+                            "MIGRATE TO NEW DEVICE",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                color = theme.primary,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        )
+
+                        Text(
+                            "Scan this QR code from the Identity Forge on your new device:",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = theme.ink.copy(alpha = 0.8f),
+                                textAlign = TextAlign.Center,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        )
+
+                        if (qrBitmap != null) {
+                            Image(
+                                bitmap = qrBitmap.asImageBitmap(),
+                                contentDescription = "P2P Migration QR Code",
+                                modifier = Modifier.size(220.dp).border(1.dp, theme.hairline)
+                            )
+                        }
+
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                "IP: ${info.ip}:${info.port}",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = theme.inkMuted,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            )
+                            Text(
+                                "STATUS: $p2pStatusMessage",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = when (p2pServerState) {
+                                        P2pServerState.SUCCESS -> theme.primary
+                                        P2pServerState.ERROR -> theme.accentDanger
+                                        else -> theme.ink
+                                    },
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            )
+                        }
+
+                        Button(
+                            onClick = { viewModel.stopP2pMigrationServer() },
+                            colors = ButtonDefaults.buttonColors(containerColor = theme.surfaceRaised),
+                            border = BorderStroke(1.dp, theme.hairline),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                if (p2pServerState == P2pServerState.SUCCESS) "DONE" else "CANCEL SERVER",
+                                color = theme.ink,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
                         }
                     }
                 }

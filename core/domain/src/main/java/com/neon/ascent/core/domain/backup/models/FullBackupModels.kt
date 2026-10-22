@@ -20,7 +20,12 @@ data class BackupScope(
     val includeBiometrics: Boolean = true,
     val includeCodex: Boolean = true,
     val includeJournal: Boolean = true,
-    val includeCharacter: Boolean = true
+    val includeCharacter: Boolean = true,
+    val includeGoals: Boolean = true,
+    val includeVault: Boolean = true,
+    val includeSelfMap: Boolean = true,
+    val includeBiohacking: Boolean = true,
+    val includeChat: Boolean = true
 )
 
 enum class RestoreMode {
@@ -39,7 +44,7 @@ data class RestoreResult(
 )
 
 data class NeonAscentBackupPayload(
-    val version: Int = 2,
+    val version: Int = 3,
     val exportedAt: String,
     val appVersion: String = "1.0",
     val workoutPayload: WorkoutBackupSection? = null,
@@ -47,7 +52,12 @@ data class NeonAscentBackupPayload(
     val codexPayload: CodexBackupSection? = null,
     val journalPayload: JournalBackupSection? = null,
     val characterPayload: CharacterBackupSection? = null,
-    val settingsPayload: SettingsBackupSection? = null
+    val settingsPayload: SettingsBackupSection? = null,
+    val goalsPayload: GoalsBackupSection? = null,
+    val vaultPayload: VaultBackupSection? = null,
+    val selfMapPayload: SelfMapBackupSection? = null,
+    val biohackingPayload: BiohackingBackupSection? = null,
+    val chatPayload: ChatBackupSection? = null
 )
 
 data class WorkoutBackupSection(
@@ -138,6 +148,7 @@ data class UserWorkoutProfileDto(
     val userId: String,
     val experienceLevel: String,
     val somatotype: String,
+    val gender: String = "OTHER",
     val activeProtocol: String? = null,
     val sequencerEnabled: Boolean = false,
     val autoWeightIncrement: Boolean = false,
@@ -289,7 +300,8 @@ data class OperativeProfileDto(
     val prayerStreak: Int = 0,
     val lastPrayerDateEpochMs: Long = 0L,
     val isCreationComplete: Boolean = false,
-    val avatarPath: String? = null
+    val avatarPath: String? = null,
+    val avatarBase64: String? = null
 )
 
 data class DopamineMenuItemDto(
@@ -313,3 +325,316 @@ data class SettingsBackupSection(
     val quietHoursEnd: String = "07:00",
     val backupFrequency: String = "DAILY"
 )
+
+// 1. Goals (Ascension V3 & Legacy Goals)
+data class GoalsBackupSection(
+    val directives: List<AscensionDirectiveDto> = emptyList(),
+    val missions: List<AscensionMissionDto> = emptyList(),
+    val tasks: List<AscensionTaskDto> = emptyList(),
+    val taskCompletions: List<AscensionTaskCompletionDto> = emptyList(),
+    val legacyGoals: List<GoalDto> = emptyList()
+)
+
+data class AscensionDirectiveDto(
+    val id: String,
+    val title: String,
+    val description: String,
+    val visionStatement: String? = null,
+    val status: String,
+    val successMetricsJson: String? = null,
+    val targetEndDate: String? = null,
+    val isQuarterly: Boolean = false,
+    val createdAtEpochMs: Long,
+    val archivedAtEpochMs: Long? = null,
+    val currentProgress: Float = 0f,
+    val totalXPContributed: Long = 0L,
+    val xpTarget: Long? = null,
+    val archetypeTag: String? = null,
+    val tags: List<String> = emptyList(),
+    val linkedAttributes: List<String> = emptyList(),
+    val aiMentorMode: String = "DEFAULT",
+    val aiGenerated: Boolean = false,
+    val notes: String? = null,
+    val completionHistorySummary: String? = null,
+    val lastReviewDate: String? = null,
+    val anchoredSelfItemId: Long? = null,
+    val anchoredSelfItemName: String? = null,
+    val priorityTier: String? = null,
+    val outcomeStatement: String? = null,
+    val affirmation: String? = null,
+    val visualUri: String? = null
+)
+
+data class AscensionMissionDto(
+    val id: String,
+    val directiveId: String? = null,
+    val title: String,
+    val description: String,
+    val objective: String? = null,
+    val status: String,
+    val startDate: String,
+    val targetEndDate: String? = null,
+    val createdAtEpochMs: Long,
+    val completedAtEpochMs: Long? = null,
+    val archivedAtEpochMs: Long? = null,
+    val progress: Float = 0f,
+    val contributionWeight: Float = 1f,
+    val totalXPContributed: Long = 0L,
+    val xpTarget: Long? = null,
+    val aiMentorMode: String = "DEFAULT",
+    val aiGenerated: Boolean = false,
+    val notes: String? = null,
+    val successCriteria: String? = null,
+    val completionHistorySummary: String? = null,
+    val tags: List<String> = emptyList(),
+    val linkedAttributes: List<String> = emptyList(),
+    val linkedArchetype: String? = null,
+    val anchoredSelfItemId: Long? = null,
+    val anchoredSelfItemName: String? = null
+)
+
+data class AscensionTaskDto(
+    val id: String,
+    val parentId: String? = null,
+    val title: String,
+    val description: String,
+    val type: String,
+    val isPulse: Boolean = false,
+    val recurrenceType: String? = null,
+    val recurrenceCron: String? = null,
+    val recurrenceIntervalDays: Int? = null,
+    val recurrenceDaysOfWeek: String? = null,
+    val timeWindows: String? = null,
+    val adaptiveWakeEnabled: Boolean = false,
+    val reminderEnabled: Boolean = false,
+    val xpValue: Int = 10,
+    val impactWeight: Float = 1f,
+    val currentStreak: Int = 0,
+    val longestStreak: Int = 0,
+    val graceBufferDays: Int = 0,
+    val lastCompletedEpochMs: Long? = null,
+    val tags: List<String> = emptyList(),
+    val linkedAttributes: List<String> = emptyList(),
+    val userNotesTemplate: String? = null
+)
+
+data class AscensionTaskCompletionDto(
+    val id: Long = 0,
+    val taskId: String,
+    val timestampEpochMs: Long,
+    val notes: String? = null,
+    val mood: Int? = null,
+    val linkedHealthSnapshot: String? = null
+)
+
+data class GoalDto(
+    val id: String,
+    val type: String,
+    val title: String,
+    val description: String,
+    val linkedAttributes: List<String> = emptyList(),
+    val progressCurrent: Double = 0.0,
+    val progressTarget: Double = 1.0,
+    val xpContributed: Int = 0,
+    val targetDateMillis: Long? = null,
+    val status: String? = "ACTIVE",
+    val expiresAtMillis: Long? = null,
+    val parentAspirationId: String? = null,
+    val recurrenceType: String? = null,
+    val recurrenceDays: List<String>? = null,
+    val streak: Int = 0,
+    val lastCompletedMillis: Long? = null,
+    val parentGoalId: String? = null
+)
+
+// 2. Vault
+data class VaultBackupSection(
+    val accounts: List<VaultAccountDto> = emptyList(),
+    val snapshots: List<VaultSnapshotDto> = emptyList(),
+    val watchlist: List<VaultWatchlistItemDto> = emptyList()
+)
+
+data class VaultAccountDto(
+    val id: String,
+    val name: String,
+    val institution: String,
+    val type: String,
+    val balance: Double,
+    val currency: String = "USD",
+    val isLinked: Boolean = false,
+    val lastUpdatedEpochMs: Long
+)
+
+data class VaultSnapshotDto(
+    val id: Int = 0,
+    val timestampEpochMs: Long,
+    val totalAssets: Double,
+    val totalDebt: Double,
+    val netWorth: Double
+)
+
+data class VaultWatchlistItemDto(
+    val symbol: String,
+    val name: String,
+    val isCrypto: Boolean = false
+)
+
+// 3. SelfMap
+data class SelfMapBackupSection(
+    val items: List<SelfItemDto> = emptyList(),
+    val snapshots: List<SelfMapSnapshotDto> = emptyList(),
+    val moodEntries: List<SelfMapMoodEntryDto> = emptyList(),
+    val eoeEntries: List<EoEEntryDto> = emptyList()
+)
+
+data class SelfItemDto(
+    val id: Long = 0,
+    val name: String,
+    val category: String,
+    val importance: Float,
+    val notes: String? = null,
+    val isArchived: Boolean = false,
+    val createdAtEpochMs: Long,
+    val updatedAtEpochMs: Long,
+    val baselineMassContributor: Boolean? = null
+)
+
+data class SelfMapSnapshotDto(
+    val id: Long = 0,
+    val timestampEpochMs: Long,
+    val mass: Float,
+    val itemCount: Int,
+    val avgImportance: Float,
+    val coreCount: Int
+)
+
+data class SelfMapMoodEntryDto(
+    val id: Long = 0,
+    val timestampEpochMs: Long,
+    val score: Int,
+    val note: String? = null,
+    val eoeId: Long? = null,
+    val snapshotId: Long? = null
+)
+
+data class EoEEntryDto(
+    val id: Long = 0,
+    val timestampEpochMs: Long,
+    val emotionLabel: String,
+    val selfItemId: Long,
+    val epText: String,
+    val perceptionText: String,
+    val appraisal: String? = null,
+    val intensity: Int? = null,
+    val canChangeNotes: String? = null,
+    val linkedSnapshotId: Long? = null
+)
+
+// 4. Biohacking
+data class BiohackingBackupSection(
+    val reconstitutions: List<SavedReconstitutionDto> = emptyList(),
+    val bioData: BiohackingDataDto? = null,
+    val protocolLogs: List<BioProtocolLogDto> = emptyList()
+)
+
+data class SavedReconstitutionDto(
+    val id: String,
+    val name: String,
+    val vialMg: String,
+    val waterMl: String,
+    val concentrationMgPerMl: String,
+    val mixedDate: String? = null,
+    val notes: String? = null,
+    val componentsJson: String? = null,
+    val createdAtEpochMs: Long
+)
+
+data class BiohackingDataDto(
+    val userId: Int = 0,
+    val bodyFatPercentage: Float? = null,
+    val energyScore: Int = 5,
+    val moodScore: Int = 5,
+    val focusScore: Int = 5,
+    val sleepHours: Float? = null,
+    val sleepQuality: Int = 5,
+    val exerciseFrequency: String? = null,
+    val exerciseType: String? = null,
+    val supplements: String? = null,
+    val dietType: String? = null,
+    val caffeineIntake: String? = null,
+    val alcoholIntake: String? = null,
+    val stressLevel: Int = 5,
+    val primaryObjective: String? = null,
+    val contraindications: String? = null,
+    val pregnancyFlag: Boolean = false,
+    val isWearableSynced: Boolean = false,
+    val lastSyncTimestampEpochMs: Long? = null,
+    val currentHeartRate: Int? = null,
+    val currentSteps: Long? = null,
+    val labResultsPath: String? = null,
+    val geneticDataPath: String? = null,
+    val hasConsentedToDataProcessing: Boolean = false,
+    val consentAnonymizedUpload: Boolean = false,
+    val consentWearableSync: Boolean = false,
+    val consentGeneticData: Boolean = false,
+    val hasCompletedPrivacyOnboarding: Boolean = false,
+    val enableOnDeviceNeuralCore: Boolean = false,
+    val latestReportJson: String? = null,
+    val reportTimestampEpochMs: Long? = null,
+    val calculatedBioAge: Float? = null,
+    val calendarAgeAtCalculation: Int? = null,
+    val extractedBiomarkersJson: String? = null
+)
+
+data class BioProtocolLogDto(
+    val id: Int = 0,
+    val userId: Int = 0,
+    val timestampEpochMs: Long,
+    val energyScore: Int,
+    val sleepQuality: Int,
+    val moodScore: Int,
+    val focusScore: Int,
+    val sideEffects: String? = null,
+    val notes: String? = null,
+    val protocolId: String,
+    val isWorking: Boolean? = null
+)
+
+// 5. Chat / Neural Memory
+data class ChatBackupSection(
+    val memories: List<NeuralMemoryDto> = emptyList(),
+    val sessions: List<ChatSessionDto> = emptyList(),
+    val messages: List<ChatMessageDto> = emptyList()
+)
+
+data class NeuralMemoryDto(
+    val id: Long = 0,
+    val wing: String,
+    val room: String,
+    val content: String,
+    val importance: Float = 0.5f,
+    val timestampEpochMs: Long,
+    val metadata: String? = null
+)
+
+data class ChatSessionDto(
+    val sessionId: String,
+    val contactName: String,
+    val lastMessage: String,
+    val lastTimestampEpochMs: Long,
+    val isUnread: Boolean = false,
+    val isFixer: Boolean = true,
+    val personalityPrompt: String? = null
+)
+
+data class ChatMessageDto(
+    val id: Long = 0,
+    val sessionId: String,
+    val contactName: String,
+    val senderName: String,
+    val text: String,
+    val timestampEpochMs: Long,
+    val isFromUser: Boolean,
+    val suggestedActionsJson: String? = null
+)
+

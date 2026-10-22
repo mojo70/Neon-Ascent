@@ -165,7 +165,7 @@ open class UserPreferencesRepository @Inject constructor(
         }
     }
 
-    suspend fun setOnboardingComplete(complete: Boolean = true) {
+    open suspend fun setOnboardingComplete(complete: Boolean = true) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.ONBOARDING_COMPLETE] = complete
         }
