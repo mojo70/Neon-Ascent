@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.google.gson.GsonBuilder
 import com.neon.ascent.core.data.NeonAscentDatabase
+import com.neon.ascent.core.data.datastore.SelfMapPreferencesDataStore
 import com.neon.ascent.core.data.local.dao.AscensionDao
 import com.neon.ascent.core.data.local.dao.BiomarkerDao
 import com.neon.ascent.core.data.local.dao.BodySampleDao
@@ -86,6 +87,7 @@ class FullDataBackupRepositoryImpl @Inject constructor(
     private val reconstitutionDao: ReconstitutionDao,
     private val neuralMemoryDao: NeuralMemoryDao,
     private val chatDao: ChatDao,
+    private val selfMapPreferencesDataStore: SelfMapPreferencesDataStore,
     @ApplicationContext private val context: Context
 ) : FullDataBackupRepository {
 
@@ -617,7 +619,16 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                     linkedSnapshotId = e.linkedSnapshotId
                 )
             }
-            SelfMapBackupSection(items, snapshots, moods, eoe)
+            val bMass = selfMapPreferencesDataStore.baselineMass.first()
+            val onbComplete = selfMapPreferencesDataStore.onboardingCompleted.first()
+            SelfMapBackupSection(
+                items = items,
+                snapshots = snapshots,
+                moodEntries = moods,
+                eoeEntries = eoe,
+                baselineMass = bMass,
+                onboardingCompleted = onbComplete
+            )
         } else null
 
         val biohackingSection = if (scope.includeBiohacking) {
@@ -1431,6 +1442,14 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                             linkedSnapshotId = e.linkedSnapshotId
                         )
                     )
+                }
+
+                if (s.items.isNotEmpty() || s.onboardingCompleted) {
+                    selfMapPreferencesDataStore.setOnboardingCompleted(true)
+                    selfMapPreferencesDataStore.setConversationalIntakeSeen(true)
+                }
+                s.baselineMass?.let { bMass ->
+                    selfMapPreferencesDataStore.setBaselineMass(bMass)
                 }
             }
 

@@ -650,6 +650,7 @@ class FullDataBackupRepositoryImplTest {
             reconstitutionDao = reconstitutionDao,
             neuralMemoryDao = neuralMemoryDao,
             chatDao = chatDao,
+            selfMapPreferencesDataStore = com.neon.ascent.core.data.datastore.SelfMapPreferencesDataStore(context),
             context = context
         )
     }

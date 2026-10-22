@@ -484,7 +484,9 @@ data class SelfMapBackupSection(
     val items: List<SelfItemDto> = emptyList(),
     val snapshots: List<SelfMapSnapshotDto> = emptyList(),
     val moodEntries: List<SelfMapMoodEntryDto> = emptyList(),
-    val eoeEntries: List<EoEEntryDto> = emptyList()
+    val eoeEntries: List<EoEEntryDto> = emptyList(),
+    val baselineMass: Float? = null,
+    val onboardingCompleted: Boolean = true
 )
 
 data class SelfItemDto(
