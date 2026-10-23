@@ -25,6 +25,8 @@ import com.neon.ascent.data.local.entity.GoalEntity
 import com.neon.ascent.data.local.entity.TaskEntity
 import com.neon.ascent.model.*
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
@@ -48,6 +50,18 @@ class FullDataBackupRepositoryImplTest {
         val exercises = mutableMapOf<String, ExerciseDefinitionEntity>()
         val maxes = mutableMapOf<String, ExerciseMaxEntity>()
         val profiles = mutableMapOf<String, UserWorkoutProfileEntity>()
+        val protocolCycles = mutableMapOf<String, ProtocolCycleEntity>()
+        val progressionStates = mutableMapOf<String, ProgressionStateEntity>()
+        val routineExerciseCrossRefs = mutableListOf<RoutineExerciseCrossRef>()
+        val routineSets = mutableListOf<RoutineSetEntity>()
+        val routineAugmentCrossRefs = mutableListOf<RoutineAugmentCrossRef>()
+        val augments = mutableMapOf<String, WorkoutAugmentEntity>()
+        val augmentExerciseCrossRefs = mutableListOf<AugmentExerciseCrossRef>()
+        val augmentSets = mutableListOf<AugmentSetEntity>()
+        val augmentActivations = mutableMapOf<String, AugmentActivationEntity>()
+        val routines = mutableMapOf<String, WorkoutRoutineEntity>()
+        val accomplishments = mutableMapOf<String, ExerciseAccomplishmentsEntity>()
+        val repTargets = mutableMapOf<String, ProtocolRepTargetEntity>()
 
         override suspend fun upsertSession(session: WorkoutSessionEntity) {
             sessions[session.id] = session
@@ -89,39 +103,63 @@ class FullDataBackupRepositoryImplTest {
         override fun getUserProfile(userId: String): Flow<UserWorkoutProfileEntity?> = flowOf(profiles[userId])
         override suspend fun deleteUserProfile(userId: String) { profiles.remove(userId) }
 
-        override suspend fun insertProgressionState(state: ProgressionStateEntity) {}
-        override fun getProgressionState(exerciseId: String): Flow<ProgressionStateEntity?> = flowOf(null)
+        override suspend fun insertProgressionState(state: ProgressionStateEntity) {
+            progressionStates[state.exerciseId] = state
+        }
+        override fun getProgressionState(exerciseId: String): Flow<ProgressionStateEntity?> = flowOf(progressionStates[exerciseId])
 
-        override suspend fun insertAccomplishments(entity: ExerciseAccomplishmentsEntity) {}
-        override fun getAccomplishments(exerciseId: String): Flow<ExerciseAccomplishmentsEntity?> = flowOf(null)
-        override fun getAllAccomplishments(): Flow<List<ExerciseAccomplishmentsEntity>> = flowOf(emptyList())
+        override suspend fun insertAccomplishments(entity: ExerciseAccomplishmentsEntity) {
+            accomplishments[entity.exerciseId] = entity
+        }
+        override fun getAccomplishments(exerciseId: String): Flow<ExerciseAccomplishmentsEntity?> = flowOf(accomplishments[exerciseId])
+        override fun getAllAccomplishments(): Flow<List<ExerciseAccomplishmentsEntity>> = flowOf(accomplishments.values.toList())
 
-        override fun getAllRoutines(): Flow<List<WorkoutRoutineWithDetails>> = flowOf(emptyList())
-        override suspend fun getRoutineLibraryStatus(id: String): Boolean? = null
-        override suspend fun getAugmentLibraryStatus(id: String): Boolean? = null
-        override suspend fun getRoutineById(id: String): WorkoutRoutineEntity? = null
-        override suspend fun getAugmentById(id: String): WorkoutAugmentEntity? = null
+        override fun getAllRoutines(): Flow<List<WorkoutRoutineWithDetails>> = flowOf(routines.values.map { r ->
+            WorkoutRoutineWithDetails(r, emptyList(), emptyList(), emptyList())
+        })
+        override suspend fun getRoutineLibraryStatus(id: String): Boolean? = routines[id]?.isAddedToLibrary
+        override suspend fun getAugmentLibraryStatus(id: String): Boolean? = augments[id]?.isAddedToLibrary
+        override suspend fun getRoutineById(id: String): WorkoutRoutineEntity? = routines[id]
+        override suspend fun getAugmentById(id: String): WorkoutAugmentEntity? = augments[id]
         override suspend fun updateRoutineLibraryStatus(id: String, status: Boolean) {}
         override suspend fun updateAugmentLibraryStatus(id: String, status: Boolean) {}
-        override suspend fun insertRoutine(routine: WorkoutRoutineEntity) {}
-        override suspend fun insertRoutineExerciseCrossRef(crossRef: RoutineExerciseCrossRef) {}
-        override suspend fun insertRoutineAugmentCrossRef(crossRef: RoutineAugmentCrossRef) {}
-        override suspend fun insertRoutineSet(set: RoutineSetEntity) {}
-        override suspend fun deleteRoutineSets(routineId: String) {}
-        override suspend fun deleteRoutineExerciseCrossRefs(routineId: String) {}
-        override suspend fun deleteRoutineAugmentCrossRefs(routineId: String) {}
-        override suspend fun insertAugment(augment: WorkoutAugmentEntity) {}
-        override suspend fun insertAugmentExerciseCrossRef(crossRef: AugmentExerciseCrossRef) {}
-        override suspend fun deleteAugmentExerciseCrossRefs(augmentId: String) {}
-        override suspend fun insertAugmentSet(set: AugmentSetEntity) {}
-        override suspend fun deleteAugmentSets(augmentId: String) {}
-        override fun getAllAugments(): Flow<List<WorkoutAugmentWithExercises>> = flowOf(emptyList())
-        override suspend fun deleteAugment(augmentId: String) {}
-        override suspend fun upsertAugmentActivation(activation: AugmentActivationEntity) {}
-        override fun getActivationsByUserId(userId: String): Flow<List<AugmentActivationEntity>> = flowOf(emptyList())
-        override fun getActiveActivations(): Flow<List<AugmentActivationEntity>> = flowOf(emptyList())
+        override suspend fun insertRoutine(routine: WorkoutRoutineEntity) {
+            routines[routine.id] = routine
+        }
+        override suspend fun insertRoutineExerciseCrossRef(crossRef: RoutineExerciseCrossRef) {
+            routineExerciseCrossRefs.add(crossRef)
+        }
+        override suspend fun insertRoutineAugmentCrossRef(crossRef: RoutineAugmentCrossRef) {
+            routineAugmentCrossRefs.add(crossRef)
+        }
+        override suspend fun insertRoutineSet(set: RoutineSetEntity) {
+            routineSets.add(set)
+        }
+        override suspend fun deleteRoutineSets(routineId: String) { routineSets.removeAll { it.routineId == routineId } }
+        override suspend fun deleteRoutineExerciseCrossRefs(routineId: String) { routineExerciseCrossRefs.removeAll { it.routineId == routineId } }
+        override suspend fun deleteRoutineAugmentCrossRefs(routineId: String) { routineAugmentCrossRefs.removeAll { it.routineId == routineId } }
+        override suspend fun insertAugment(augment: WorkoutAugmentEntity) {
+            augments[augment.id] = augment
+        }
+        override suspend fun insertAugmentExerciseCrossRef(crossRef: AugmentExerciseCrossRef) {
+            augmentExerciseCrossRefs.add(crossRef)
+        }
+        override suspend fun deleteAugmentExerciseCrossRefs(augmentId: String) { augmentExerciseCrossRefs.removeAll { it.augmentId == augmentId } }
+        override suspend fun insertAugmentSet(set: AugmentSetEntity) {
+            augmentSets.add(set)
+        }
+        override suspend fun deleteAugmentSets(augmentId: String) { augmentSets.removeAll { it.augmentId == augmentId } }
+        override fun getAllAugments(): Flow<List<WorkoutAugmentWithExercises>> = flowOf(augments.values.map { a ->
+            WorkoutAugmentWithExercises(a, emptyList(), emptyList(), emptyList())
+        })
+        override suspend fun deleteAugment(augmentId: String) { augments.remove(augmentId) }
+        override suspend fun upsertAugmentActivation(activation: AugmentActivationEntity) {
+            augmentActivations[activation.id] = activation
+        }
+        override fun getActivationsByUserId(userId: String): Flow<List<AugmentActivationEntity>> = flowOf(augmentActivations.values.filter { it.userId == userId })
+        override fun getActiveActivations(): Flow<List<AugmentActivationEntity>> = flowOf(augmentActivations.values.filter { it.status == "ACTIVE" })
         override suspend fun endActivation(id: String) {}
-        override suspend fun deleteRoutine(routineId: String) {}
+        override suspend fun deleteRoutine(routineId: String) { routines.remove(routineId) }
         override suspend fun deleteSession(sessionId: String) { sessions.remove(sessionId) }
         override fun getLatestLogForExercise(exerciseId: String, excludedSessionId: String): Flow<WorkoutLogWithSets?> = flowOf(null)
         override suspend fun deleteSetLog(setLogId: String) { sets.remove(setLogId) }
@@ -148,11 +186,15 @@ class FullDataBackupRepositoryImplTest {
         override fun getLogsForExerciseBetween(exerciseId: String, from: Instant, to: Instant): Flow<List<WorkoutLogWithSets>> = flowOf(emptyList())
         override suspend fun upsertFuelSnapshot(snapshot: FuelSnapshotEntity) {}
         override fun getFuelHistory(from: Instant, to: Instant): Flow<List<FuelSnapshotEntity>> = flowOf(emptyList())
-        override suspend fun upsertProtocolRepTarget(target: ProtocolRepTargetEntity) {}
-        override fun getAllProtocolRepTargets(): Flow<List<ProtocolRepTargetEntity>> = flowOf(emptyList())
-        override suspend fun upsertProtocolCycle(cycle: ProtocolCycleEntity) {}
-        override fun getActiveCycle(userId: String): Flow<ProtocolCycleEntity?> = flowOf(null)
-        override suspend fun getProtocolCycleById(id: String): ProtocolCycleEntity? = null
+        override suspend fun upsertProtocolRepTarget(target: ProtocolRepTargetEntity) {
+            repTargets[target.id] = target
+        }
+        override fun getAllProtocolRepTargets(): Flow<List<ProtocolRepTargetEntity>> = flowOf(repTargets.values.toList())
+        override suspend fun upsertProtocolCycle(cycle: ProtocolCycleEntity) {
+            protocolCycles[cycle.id] = cycle
+        }
+        override fun getActiveCycle(userId: String): Flow<ProtocolCycleEntity?> = flowOf(protocolCycles.values.firstOrNull { it.userId == userId && it.status == "ACTIVE" })
+        override suspend fun getProtocolCycleById(id: String): ProtocolCycleEntity? = protocolCycles[id]
 
         override suspend fun upsertExerciseMax(max: ExerciseMaxEntity) {
             maxes[max.familyId] = max
@@ -161,6 +203,15 @@ class FullDataBackupRepositoryImplTest {
         override fun getExerciseMax(familyId: String): Flow<ExerciseMaxEntity?> = flowOf(maxes[familyId])
         override fun getAllExerciseMaxes(): Flow<List<ExerciseMaxEntity>> = flowOf(maxes.values.toList())
         override fun getAllUserProfiles(): Flow<List<UserWorkoutProfileEntity>> = flowOf(profiles.values.toList())
+
+        override fun getAllProtocolCycles(): Flow<List<ProtocolCycleEntity>> = flowOf(protocolCycles.values.toList())
+        override fun getAllProgressionStates(): Flow<List<ProgressionStateEntity>> = flowOf(progressionStates.values.toList())
+        override fun getAllRoutineExerciseCrossRefs(): Flow<List<RoutineExerciseCrossRef>> = flowOf(routineExerciseCrossRefs.toList())
+        override fun getAllRoutineSets(): Flow<List<RoutineSetEntity>> = flowOf(routineSets.toList())
+        override fun getAllRoutineAugmentCrossRefs(): Flow<List<RoutineAugmentCrossRef>> = flowOf(routineAugmentCrossRefs.toList())
+        override fun getAllAugmentExerciseCrossRefs(): Flow<List<AugmentExerciseCrossRef>> = flowOf(augmentExerciseCrossRefs.toList())
+        override fun getAllAugmentSets(): Flow<List<AugmentSetEntity>> = flowOf(augmentSets.toList())
+        override fun getAllAugmentActivations(): Flow<List<AugmentActivationEntity>> = flowOf(augmentActivations.values.toList())
     }
 
     private class FakeBiomarkerDao : BiomarkerDao {
@@ -603,6 +654,7 @@ class FullDataBackupRepositoryImplTest {
     private lateinit var coreDatabase: TestNeonAscentDatabase
     private lateinit var appDatabase: TestAppDatabase
     private lateinit var repository: FullDataBackupRepositoryImpl
+    private lateinit var testContext: TestContext
 
     @Before
     fun setUp() {
@@ -620,7 +672,7 @@ class FullDataBackupRepositoryImplTest {
         chatDao = FakeChatDao()
         coreDatabase = TestNeonAscentDatabase()
         appDatabase = TestAppDatabase()
-        val context = TestContext(tempFolder.root)
+        testContext = TestContext(tempFolder.root)
 
         repository = FullDataBackupRepositoryImpl(
             workoutDao = workoutDao,
@@ -640,8 +692,8 @@ class FullDataBackupRepositoryImplTest {
             chronicleRepository = chronicleRepository,
             operativeProfileDao = operativeProfileDao,
             bodySampleDao = bodySampleDao,
-            userPreferencesRepository = FakeUserPreferencesRepository(context),
-            settingsRepository = FakeSettingsRepository(context),
+            userPreferencesRepository = FakeUserPreferencesRepository(testContext),
+            settingsRepository = FakeSettingsRepository(testContext),
             coreDatabase = coreDatabase,
             appDatabase = appDatabase,
             ascensionDao = ascensionDao,
@@ -650,8 +702,10 @@ class FullDataBackupRepositoryImplTest {
             reconstitutionDao = reconstitutionDao,
             neuralMemoryDao = neuralMemoryDao,
             chatDao = chatDao,
-            selfMapPreferencesDataStore = com.neon.ascent.core.data.datastore.SelfMapPreferencesDataStore(context),
-            context = context
+            selfMapPreferencesDataStore = com.neon.ascent.core.data.datastore.SelfMapPreferencesDataStore(testContext),
+            healthPreferencesDataStore = com.neon.ascent.core.data.datastore.HealthPreferencesDataStore(testContext),
+            workoutPreferencesDataStore = com.neon.ascent.core.data.datastore.WorkoutPreferencesDataStore(testContext),
+            context = testContext
         )
     }
 
@@ -821,7 +875,7 @@ class FullDataBackupRepositoryImplTest {
 
         // Export payload
         val exportedJson = repository.exportBackupJson(BackupScope())
-        assertTrue(exportedJson.contains("\"version\": 3"))
+        assertTrue(exportedJson.contains("\"version\": 4"))
         assertTrue(exportedJson.contains("\"settingsPayload\""))
         assertTrue(exportedJson.contains("\"operativeProfile\""))
         assertTrue(exportedJson.contains("V_Test"))
@@ -902,7 +956,7 @@ class FullDataBackupRepositoryImplTest {
         val json = repository.exportBackupJson(BackupScope())
         assertTrue("JSON should contain goalsPayload", json.contains("goalsPayload"))
         assertTrue("JSON should contain selfMapPayload", json.contains("selfMapPayload"))
-        assertTrue("JSON should contain version 3", json.contains("\"version\": 3"))
+        assertTrue("JSON should contain version 4", json.contains("\"version\": 4"))
 
         // Reset fake DAOs to test restore
         ascensionDao.directives.clear()
@@ -984,4 +1038,236 @@ class FullDataBackupRepositoryImplTest {
         assertEquals(1, chatDao.sessions.size)
         assertEquals("ROGUE", chatDao.sessions["sess_rogue"]?.contactName)
     }
+
+    @Test
+    fun `export and restore user workout profile with scheduledDays and rotationIndex`() = runBlocking {
+        val originalProfile = UserWorkoutProfileEntity(
+            userId = "default_user",
+            experienceLevel = "INTERMEDIATE",
+            somatotype = "MESOMORPH",
+            injuries = listOf("SHOULDER"),
+            timePerSessionMinutes = 75,
+            age = 32,
+            heightCm = 180f,
+            weightKg = 82f,
+            gender = "MALE",
+            activityFactor = 1.4f,
+            unitSystem = "METRIC",
+            activeProtocol = "UPPER_LOWER",
+            rotationIndex = 3,
+            scheduledDays = "[\"MONDAY\",\"WEDNESDAY\",\"FRIDAY\"]",
+            deepLinkToRoutine = true,
+            autoWeightIncrement = true,
+            progressionMode = "WAVE_PERIODIZATION",
+            weightIncrementCompound = 2.5f,
+            weightIncrementUpperCompound = 2.5f,
+            weightIncrementLowerCompound = 5.0f,
+            weightIncrementIsolation = 1.25f,
+            progressionPercentage = 3.0f,
+            roundingIncrement = 2.5f,
+            rirCapturePerMiniSet = true,
+            sequencerEnabled = true,
+            customSequenceIds = "[\"seq1\"]",
+            coachingHintsEnabled = true,
+            lastBlastStartDate = Instant.ofEpochMilli(1726132800000L)
+        )
+        workoutDao.insertUserProfile(originalProfile)
+
+        val json = repository.exportBackupJson(BackupScope())
+        workoutDao.profiles.clear()
+
+        val restoreResult = repository.restoreBackupJson(json, RestoreMode.MERGE)
+        assertTrue(restoreResult.success)
+
+        val restoredProfile = workoutDao.getUserProfile("default_user").first()
+        assertNotNull(restoredProfile)
+        assertEquals("[\"MONDAY\",\"WEDNESDAY\",\"FRIDAY\"]", restoredProfile?.scheduledDays)
+        assertEquals(3, restoredProfile?.rotationIndex)
+        assertEquals("UPPER_LOWER", restoredProfile?.activeProtocol)
+        assertEquals(listOf("SHOULDER"), restoredProfile?.injuries)
+        assertEquals(75, restoredProfile?.timePerSessionMinutes)
+        assertEquals(32, restoredProfile?.age)
+        assertEquals(180f, restoredProfile?.heightCm)
+        assertEquals(82f, restoredProfile?.weightKg)
+        assertEquals("MALE", restoredProfile?.gender)
+        assertEquals(true, restoredProfile?.deepLinkToRoutine)
+        assertEquals("[\"seq1\"]", restoredProfile?.customSequenceIds)
+        assertEquals(1726132800000L, restoredProfile?.lastBlastStartDate?.toEpochMilli())
+    }
+
+    @Test
+    fun `export and restore workout graph entities protocol cycle routine with exercises and augment activation`() = runBlocking {
+        val cycle = ProtocolCycleEntity(
+            id = "cycle_1",
+            userId = "default_user",
+            protocol = "UPPER_LOWER",
+            startedAt = Instant.ofEpochMilli(1726000000000L),
+            endedAt = null,
+            status = "ACTIVE",
+            currentWeek = 2,
+            currentDayIndex = 1,
+            configJson = "{\"type\":\"test\"}"
+        )
+        workoutDao.upsertProtocolCycle(cycle)
+
+        val routine = WorkoutRoutineEntity(
+            id = "routine_1",
+            name = "Upper Hypertrophy",
+            description = "Chest and back focus",
+            protocol = "UPPER_LOWER",
+            createdAt = Instant.ofEpochMilli(1726000000000L),
+            isSystem = false,
+            isAddedToLibrary = true
+        )
+        workoutDao.insertRoutine(routine)
+
+        val exercise = ExerciseDefinitionEntity(
+            id = "ex_bench",
+            name = "Bench Press",
+            description = "Barbell bench press",
+            cues = listOf("Drive feet"),
+            muscleGroups = listOf("CHEST", "TRICEPS"),
+            equipment = listOf("BARBELL"),
+            gifAssetPath = null,
+            isLockedClassic = false,
+            injurySubstitutions = emptyList()
+        )
+        workoutDao.insertExerciseDefinition(exercise)
+
+        val crossRef = RoutineExerciseCrossRef(
+            routineId = "routine_1",
+            exerciseId = "ex_bench",
+            order = 0
+        )
+        workoutDao.insertRoutineExerciseCrossRef(crossRef)
+
+        val activation = AugmentActivationEntity(
+            id = "activation_1",
+            augmentId = "aug_biceps",
+            userId = "default_user",
+            mode = "ADDITIVE",
+            status = "ACTIVE",
+            loggingStyle = "CLUSTER",
+            scheduledDays = "[\"TUESDAY\"]",
+            createdAt = Instant.ofEpochMilli(1726000000000L),
+            windowStart = null,
+            windowEnd = null,
+            hostProtocolFilter = null,
+            dayTypeFilter = null,
+            reminderEnabled = true
+        )
+        workoutDao.upsertAugmentActivation(activation)
+
+        val json = repository.exportBackupJson(BackupScope())
+
+        // Clear DAOs
+        workoutDao.protocolCycles.clear()
+        workoutDao.routines.clear()
+        workoutDao.exercises.clear()
+        workoutDao.routineExerciseCrossRefs.clear()
+        workoutDao.augmentActivations.clear()
+
+        val result = repository.restoreBackupJson(json, RestoreMode.MERGE)
+        assertTrue(result.success)
+
+        val restoredCycle = workoutDao.getProtocolCycleById("cycle_1")
+        assertNotNull(restoredCycle)
+        assertEquals("UPPER_LOWER", restoredCycle?.protocol)
+        assertEquals(2, restoredCycle?.currentWeek)
+
+        val restoredRoutine = workoutDao.getRoutineById("routine_1")
+        assertNotNull(restoredRoutine)
+        assertEquals("Upper Hypertrophy", restoredRoutine?.name)
+
+        assertEquals(1, workoutDao.routineExerciseCrossRefs.size)
+        assertEquals("ex_bench", workoutDao.routineExerciseCrossRefs.first().exerciseId)
+
+        val restoredActivations = workoutDao.getActivationsByUserId("default_user").first()
+        assertEquals(1, restoredActivations.size)
+        assertEquals("aug_biceps", restoredActivations.first().augmentId)
+        assertEquals("ACTIVE", restoredActivations.first().status)
+    }
+
+    @Test
+    fun `export and restore preferences rest timers and focus layout mode`() = runBlocking {
+        val healthPrefs = com.neon.ascent.core.data.datastore.HealthPreferencesDataStore(testContext)
+        val workoutPrefs = com.neon.ascent.core.data.datastore.WorkoutPreferencesDataStore(testContext)
+
+        healthPrefs.setDefaultRestTime(90)
+        healthPrefs.setWorkSetRestTime(180)
+        healthPrefs.setWarmupSetRestTime(45)
+        healthPrefs.setDropSetRestTime(20)
+        healthPrefs.setAutoStartRestTimer(false)
+        healthPrefs.setRestTimerMode(com.neon.ascent.core.domain.workout.models.RestTimerMode.POPUP)
+        healthPrefs.setWorkoutZoomLevel(1.25f)
+        healthPrefs.setCodexPeriod("NINETY_DAYS")
+        healthPrefs.setCodexWing("DECK")
+        healthPrefs.setCodexLastExerciseId("ex_bench")
+
+        workoutPrefs.setWorkoutLayoutMode(com.neon.ascent.core.domain.workout.models.WorkoutLayoutMode.FOCUS)
+        workoutPrefs.setUseCustomNumpadInFocusMode(true)
+
+        val json = repository.exportBackupJson(BackupScope())
+
+        // Reset preferences to default
+        healthPrefs.setDefaultRestTime(60)
+        healthPrefs.setWorkSetRestTime(120)
+        healthPrefs.setAutoStartRestTimer(true)
+        workoutPrefs.setWorkoutLayoutMode(com.neon.ascent.core.domain.workout.models.WorkoutLayoutMode.CLASSIC)
+        workoutPrefs.setUseCustomNumpadInFocusMode(false)
+
+        val result = repository.restoreBackupJson(json, RestoreMode.MERGE)
+        assertTrue(result.success)
+
+        assertEquals(90, healthPrefs.defaultRestTime.first())
+        assertEquals(180, healthPrefs.workSetRestTime.first())
+        assertEquals(45, healthPrefs.warmupSetRestTime.first())
+        assertEquals(20, healthPrefs.dropSetRestTime.first())
+        assertEquals(false, healthPrefs.autoStartRestTimer.first())
+        assertEquals(com.neon.ascent.core.domain.workout.models.RestTimerMode.POPUP, healthPrefs.restTimerMode.first())
+        assertEquals(1.25f, healthPrefs.workoutZoomLevel.first())
+        assertEquals("NINETY_DAYS", healthPrefs.codexPeriod.first())
+        assertEquals("DECK", healthPrefs.codexWing.first())
+        assertEquals("ex_bench", healthPrefs.codexLastExerciseId.first())
+
+        assertEquals(com.neon.ascent.core.domain.workout.models.WorkoutLayoutMode.FOCUS, workoutPrefs.workoutLayoutMode.first())
+        assertEquals(true, workoutPrefs.useCustomNumpadInFocusMode.first())
+    }
+
+    @Test
+    fun `restore v3 payload without preferences or workout graph sections succeeds without crashing`() = runBlocking {
+        val v3Json = """
+        {
+          "version": 3,
+          "exportedAt": "2026-10-21T12:00:00Z",
+          "appVersion": "1.0",
+          "workoutPayload": {
+            "sessions": [],
+            "logs": [],
+            "sets": [],
+            "userProfile": {
+              "userId": "default_user",
+              "experienceLevel": "ADVANCED",
+              "somatotype": "ECTOMORPH",
+              "activeProtocol": "PUSH_PULL_LEGS"
+            }
+          },
+          "settingsPayload": {
+            "themeMode": "CYBER",
+            "measurementUnit": "Metric"
+          }
+        }
+        """.trimIndent()
+
+        val result = repository.restoreBackupJson(v3Json, RestoreMode.MERGE)
+        assertTrue(result.success)
+
+        val restoredProfile = workoutDao.getUserProfile("default_user").first()
+        assertNotNull(restoredProfile)
+        assertEquals("ADVANCED", restoredProfile?.experienceLevel)
+        assertEquals("PUSH_PULL_LEGS", restoredProfile?.activeProtocol)
+        assertEquals("[]", restoredProfile?.scheduledDays)
+        assertEquals(0, restoredProfile?.rotationIndex)
+    }
 }
+

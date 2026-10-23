@@ -274,6 +274,30 @@ interface WorkoutDao {
 
     @Query("SELECT * FROM exercise_maxes")
     fun getAllExerciseMaxes(): Flow<List<ExerciseMaxEntity>>
+
+    @Query("SELECT * FROM protocol_cycles")
+    fun getAllProtocolCycles(): Flow<List<ProtocolCycleEntity>>
+
+    @Query("SELECT * FROM progression_states")
+    fun getAllProgressionStates(): Flow<List<ProgressionStateEntity>>
+
+    @Query("SELECT * FROM routine_exercise_cross_ref")
+    fun getAllRoutineExerciseCrossRefs(): Flow<List<RoutineExerciseCrossRef>>
+
+    @Query("SELECT * FROM routine_sets")
+    fun getAllRoutineSets(): Flow<List<RoutineSetEntity>>
+
+    @Query("SELECT * FROM routine_augment_cross_ref")
+    fun getAllRoutineAugmentCrossRefs(): Flow<List<RoutineAugmentCrossRef>>
+
+    @Query("SELECT * FROM augment_exercise_cross_ref")
+    fun getAllAugmentExerciseCrossRefs(): Flow<List<AugmentExerciseCrossRef>>
+
+    @Query("SELECT * FROM augment_sets")
+    fun getAllAugmentSets(): Flow<List<AugmentSetEntity>>
+
+    @Query("SELECT * FROM augment_activations")
+    fun getAllAugmentActivations(): Flow<List<AugmentActivationEntity>>
 }
 
 data class SessionDateAndDeload(

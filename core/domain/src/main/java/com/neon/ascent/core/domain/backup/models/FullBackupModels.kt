@@ -44,7 +44,7 @@ data class RestoreResult(
 )
 
 data class NeonAscentBackupPayload(
-    val version: Int = 3,
+    val version: Int = 4,
     val exportedAt: String,
     val appVersion: String = "1.0",
     val workoutPayload: WorkoutBackupSection? = null,
@@ -57,7 +57,8 @@ data class NeonAscentBackupPayload(
     val vaultPayload: VaultBackupSection? = null,
     val selfMapPayload: SelfMapBackupSection? = null,
     val biohackingPayload: BiohackingBackupSection? = null,
-    val chatPayload: ChatBackupSection? = null
+    val chatPayload: ChatBackupSection? = null,
+    val preferencesPayload: PreferencesBackupSection? = null
 )
 
 data class WorkoutBackupSection(
@@ -67,7 +68,19 @@ data class WorkoutBackupSection(
     val customExercises: List<ExerciseDefinitionDto> = emptyList(),
     val exerciseMaxes: List<ExerciseMaxDto> = emptyList(),
     val userProfile: UserWorkoutProfileDto? = null,
-    val userProfiles: List<UserWorkoutProfileDto> = emptyList()
+    val userProfiles: List<UserWorkoutProfileDto> = emptyList(),
+    val protocolCycles: List<ProtocolCycleDto> = emptyList(),
+    val progressionStates: List<ProgressionStateDto> = emptyList(),
+    val exerciseAccomplishments: List<ExerciseAccomplishmentDto> = emptyList(),
+    val routines: List<WorkoutRoutineDto> = emptyList(),
+    val routineExerciseCrossRefs: List<RoutineExerciseCrossRefDto> = emptyList(),
+    val routineSets: List<RoutineSetDto> = emptyList(),
+    val augments: List<WorkoutAugmentDto> = emptyList(),
+    val augmentExerciseCrossRefs: List<AugmentExerciseCrossRefDto> = emptyList(),
+    val augmentSets: List<AugmentSetDto> = emptyList(),
+    val augmentActivations: List<AugmentActivationDto> = emptyList(),
+    val routineAugmentCrossRefs: List<RoutineAugmentCrossRefDto> = emptyList(),
+    val protocolRepTargets: List<ProtocolRepTargetDto> = emptyList()
 )
 
 data class WorkoutSessionDto(
@@ -148,7 +161,7 @@ data class UserWorkoutProfileDto(
     val userId: String,
     val experienceLevel: String,
     val somatotype: String,
-    val gender: String = "OTHER",
+    val gender: String? = "OTHER",
     val activeProtocol: String? = null,
     val sequencerEnabled: Boolean = false,
     val autoWeightIncrement: Boolean = false,
@@ -160,7 +173,161 @@ data class UserWorkoutProfileDto(
     val progressionPercentage: Float = 2.5f,
     val roundingIncrement: Float = 5f,
     val rirCapturePerMiniSet: Boolean = false,
-    val coachingHintsEnabled: Boolean = true
+    val coachingHintsEnabled: Boolean = true,
+    val injuries: List<String>? = emptyList(),
+    val timePerSessionMinutes: Int = 60,
+    val age: Int = 30,
+    val heightCm: Float = 175f,
+    val weightKg: Float = 75f,
+    val activityFactor: Float = 1.2f,
+    val unitSystem: String? = "METRIC",
+    val rotationIndex: Int = 0,
+    val scheduledDays: String? = "[]",
+    val deepLinkToRoutine: Boolean = false,
+    val customSequenceIds: String? = "[]",
+    val lastBlastStartDateEpochMs: Long? = null
+)
+
+data class ProtocolCycleDto(
+    val id: String,
+    val userId: String,
+    val protocol: String,
+    val startedAtEpochMs: Long,
+    val endedAtEpochMs: Long? = null,
+    val status: String,
+    val currentWeek: Int,
+    val currentDayIndex: Int,
+    val configJson: String? = null
+)
+
+data class ProgressionStateDto(
+    val exerciseId: String,
+    val bestClusterReps: Int,
+    val weightAtBest: Float,
+    val consecutiveMisses: Int,
+    val currentWeight: Float,
+    val lastRotationDateEpochMs: Long? = null
+)
+
+data class ExerciseAccomplishmentDto(
+    val exerciseId: String,
+    val heaviestWeight: Float,
+    val heaviestWeightReps: Int,
+    val heaviestWeightDateEpochMs: Long? = null,
+    val maxEstimatedOneRepMax: Float,
+    val maxOneRepMaxWeight: Float,
+    val maxOneRepMaxReps: Int,
+    val maxOneRepMaxDateEpochMs: Long? = null,
+    val maxSessionVolume: Float,
+    val maxSessionVolumeDateEpochMs: Long? = null,
+    val maxRepsAtTopWeight: Int,
+    val topWeightForReps: Float,
+    val bestClusterReps: Int,
+    val bestClusterWeight: Float,
+    val bestClusterDateEpochMs: Long? = null
+)
+
+data class WorkoutRoutineDto(
+    val id: String,
+    val name: String,
+    val description: String? = null,
+    val protocol: String,
+    val createdAtEpochMs: Long,
+    val isSystem: Boolean = false,
+    val isAddedToLibrary: Boolean = true
+)
+
+data class RoutineExerciseCrossRefDto(
+    val routineId: String,
+    val exerciseId: String,
+    val order: Int
+)
+
+data class RoutineSetDto(
+    val id: String,
+    val routineId: String,
+    val exerciseId: String,
+    val order: Int,
+    val type: String,
+    val weight: Float,
+    val reps: Int,
+    val goalReps: String? = null
+)
+
+data class WorkoutAugmentDto(
+    val id: String,
+    val name: String,
+    val description: String? = null,
+    val focusBodyPart: String,
+    val colorHex: String,
+    val isSystem: Boolean = false,
+    val isAddedToLibrary: Boolean = true,
+    val scheduledDays: String = "[]"
+)
+
+data class AugmentExerciseCrossRefDto(
+    val augmentId: String,
+    val exerciseId: String,
+    val order: Int
+)
+
+data class AugmentSetDto(
+    val id: String,
+    val augmentId: String,
+    val exerciseId: String,
+    val order: Int,
+    val type: String,
+    val weight: Float,
+    val reps: Int,
+    val goalReps: String? = null
+)
+
+data class AugmentActivationDto(
+    val id: String,
+    val augmentId: String,
+    val userId: String,
+    val mode: String,
+    val status: String,
+    val loggingStyle: String,
+    val scheduledDays: String = "[]",
+    val createdAtEpochMs: Long,
+    val windowStartEpochMs: Long? = null,
+    val windowEndEpochMs: Long? = null,
+    val hostProtocolFilter: String? = null,
+    val dayTypeFilter: String? = null,
+    val reminderEnabled: Boolean = false
+)
+
+data class RoutineAugmentCrossRefDto(
+    val routineId: String,
+    val augmentId: String,
+    val order: Int
+)
+
+data class ProtocolRepTargetDto(
+    val id: String,
+    val protocol: String,
+    val movementType: String,
+    val setType: String,
+    val familyId: String? = null,
+    val minReps: Int,
+    val maxReps: Int,
+    val unit: String = "REPS"
+)
+
+data class PreferencesBackupSection(
+    val defaultRestTimeSeconds: Int = 60,
+    val autoStartRestTimer: Boolean = true,
+    val workSetRestTimeSeconds: Int = 120,
+    val warmupSetRestTimeSeconds: Int = 60,
+    val dropSetRestTimeSeconds: Int = 30,
+    val restTimerMode: String = "BOTH",
+    val workoutZoomLevel: Float = 1.0f,
+    val workoutLayoutMode: String = "CLASSIC",
+    val useCustomNumpadInFocusMode: Boolean = false,
+    val codexPeriod: String = "THIRTY_DAYS",
+    val codexWing: String = "OPS_LOG",
+    val codexLastExerciseId: String? = null
 )
 
 data class BiometricsBackupSection(

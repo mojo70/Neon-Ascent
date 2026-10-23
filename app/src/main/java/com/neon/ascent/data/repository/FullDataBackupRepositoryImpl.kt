@@ -52,6 +52,8 @@ import com.neon.ascent.model.UserCharacter
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
+import com.neon.ascent.core.data.datastore.HealthPreferencesDataStore
+import com.neon.ascent.core.data.datastore.WorkoutPreferencesDataStore
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
@@ -88,6 +90,8 @@ class FullDataBackupRepositoryImpl @Inject constructor(
     private val neuralMemoryDao: NeuralMemoryDao,
     private val chatDao: ChatDao,
     private val selfMapPreferencesDataStore: SelfMapPreferencesDataStore,
+    private val healthPreferencesDataStore: HealthPreferencesDataStore,
+    private val workoutPreferencesDataStore: WorkoutPreferencesDataStore,
     @ApplicationContext private val context: Context
 ) : FullDataBackupRepository {
 
@@ -199,17 +203,182 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                     sequencerEnabled = p.sequencerEnabled,
                     autoWeightIncrement = p.autoWeightIncrement,
                     progressionMode = p.progressionMode,
-                    weightIncrementCompound = p.weightIncrementUpperCompound,
+                    weightIncrementCompound = p.weightIncrementCompound,
                     weightIncrementUpperCompound = p.weightIncrementUpperCompound,
                     weightIncrementLowerCompound = p.weightIncrementLowerCompound,
                     weightIncrementIsolation = p.weightIncrementIsolation,
                     progressionPercentage = p.progressionPercentage,
                     roundingIncrement = p.roundingIncrement,
                     rirCapturePerMiniSet = p.rirCapturePerMiniSet,
-                    coachingHintsEnabled = p.coachingHintsEnabled
+                    coachingHintsEnabled = p.coachingHintsEnabled,
+                    injuries = p.injuries,
+                    timePerSessionMinutes = p.timePerSessionMinutes,
+                    age = p.age,
+                    heightCm = p.heightCm,
+                    weightKg = p.weightKg,
+                    activityFactor = p.activityFactor,
+                    unitSystem = p.unitSystem,
+                    rotationIndex = p.rotationIndex,
+                    scheduledDays = p.scheduledDays,
+                    deepLinkToRoutine = p.deepLinkToRoutine,
+                    customSequenceIds = p.customSequenceIds,
+                    lastBlastStartDateEpochMs = p.lastBlastStartDate?.toEpochMilli()
                 )
             }
             val primaryProfileDto = profilesDto.firstOrNull { it.userId == "default_user" } ?: profilesDto.firstOrNull()
+
+            val cyclesDto = workoutDao.getAllProtocolCycles().first().map { c ->
+                ProtocolCycleDto(
+                    id = c.id,
+                    userId = c.userId,
+                    protocol = c.protocol,
+                    startedAtEpochMs = c.startedAt.toEpochMilli(),
+                    endedAtEpochMs = c.endedAt?.toEpochMilli(),
+                    status = c.status,
+                    currentWeek = c.currentWeek,
+                    currentDayIndex = c.currentDayIndex,
+                    configJson = c.configJson
+                )
+            }
+
+            val progressionStatesDto = workoutDao.getAllProgressionStates().first().map { ps ->
+                ProgressionStateDto(
+                    exerciseId = ps.exerciseId,
+                    bestClusterReps = ps.bestClusterReps,
+                    weightAtBest = ps.weightAtBest,
+                    consecutiveMisses = ps.consecutiveMisses,
+                    currentWeight = ps.currentWeight,
+                    lastRotationDateEpochMs = ps.lastRotationDate?.toEpochMilli()
+                )
+            }
+
+            val accomplishmentsDto = workoutDao.getAllAccomplishments().first().map { acc ->
+                ExerciseAccomplishmentDto(
+                    exerciseId = acc.exerciseId,
+                    heaviestWeight = acc.heaviestWeight,
+                    heaviestWeightReps = acc.heaviestWeightReps,
+                    heaviestWeightDateEpochMs = acc.heaviestWeightDate?.toEpochMilli(),
+                    maxEstimatedOneRepMax = acc.maxEstimatedOneRepMax,
+                    maxOneRepMaxWeight = acc.maxOneRepMaxWeight,
+                    maxOneRepMaxReps = acc.maxOneRepMaxReps,
+                    maxOneRepMaxDateEpochMs = acc.maxOneRepMaxDate?.toEpochMilli(),
+                    maxSessionVolume = acc.maxSessionVolume,
+                    maxSessionVolumeDateEpochMs = acc.maxSessionVolumeDate?.toEpochMilli(),
+                    maxRepsAtTopWeight = acc.maxRepsAtTopWeight,
+                    topWeightForReps = acc.topWeightForReps,
+                    bestClusterReps = acc.bestClusterReps,
+                    bestClusterWeight = acc.bestClusterWeight,
+                    bestClusterDateEpochMs = acc.bestClusterDate?.toEpochMilli()
+                )
+            }
+
+            val routinesWithDetails = workoutDao.getAllRoutines().first()
+            val routinesDto = routinesWithDetails.map { r ->
+                WorkoutRoutineDto(
+                    id = r.routine.id,
+                    name = r.routine.name,
+                    description = r.routine.description,
+                    protocol = r.routine.protocol,
+                    createdAtEpochMs = r.routine.createdAt.toEpochMilli(),
+                    isSystem = r.routine.isSystem,
+                    isAddedToLibrary = r.routine.isAddedToLibrary
+                )
+            }
+
+            val routineExerciseCrossRefsDto = workoutDao.getAllRoutineExerciseCrossRefs().first().map { ref ->
+                RoutineExerciseCrossRefDto(
+                    routineId = ref.routineId,
+                    exerciseId = ref.exerciseId,
+                    order = ref.order
+                )
+            }
+
+            val routineSetsDto = workoutDao.getAllRoutineSets().first().map { s ->
+                RoutineSetDto(
+                    id = s.id,
+                    routineId = s.routineId,
+                    exerciseId = s.exerciseId,
+                    order = s.order,
+                    type = s.type,
+                    weight = s.weight,
+                    reps = s.reps,
+                    goalReps = s.goalReps
+                )
+            }
+
+            val routineAugmentCrossRefsDto = workoutDao.getAllRoutineAugmentCrossRefs().first().map { ref ->
+                RoutineAugmentCrossRefDto(
+                    routineId = ref.routineId,
+                    augmentId = ref.augmentId,
+                    order = ref.order
+                )
+            }
+
+            val augmentsWithDetails = workoutDao.getAllAugments().first()
+            val augmentsDto = augmentsWithDetails.map { a ->
+                WorkoutAugmentDto(
+                    id = a.augment.id,
+                    name = a.augment.name,
+                    description = a.augment.description,
+                    focusBodyPart = a.augment.focusBodyPart,
+                    colorHex = a.augment.colorHex,
+                    isSystem = a.augment.isSystem,
+                    isAddedToLibrary = a.augment.isAddedToLibrary,
+                    scheduledDays = a.augment.scheduledDays
+                )
+            }
+
+            val augmentExerciseCrossRefsDto = workoutDao.getAllAugmentExerciseCrossRefs().first().map { ref ->
+                AugmentExerciseCrossRefDto(
+                    augmentId = ref.augmentId,
+                    exerciseId = ref.exerciseId,
+                    order = ref.order
+                )
+            }
+
+            val augmentSetsDto = workoutDao.getAllAugmentSets().first().map { s ->
+                AugmentSetDto(
+                    id = s.id,
+                    augmentId = s.augmentId,
+                    exerciseId = s.exerciseId,
+                    order = s.order,
+                    type = s.type,
+                    weight = s.weight,
+                    reps = s.reps,
+                    goalReps = s.goalReps
+                )
+            }
+
+            val augmentActivationsDto = workoutDao.getAllAugmentActivations().first().map { act ->
+                AugmentActivationDto(
+                    id = act.id,
+                    augmentId = act.augmentId,
+                    userId = act.userId,
+                    mode = act.mode,
+                    status = act.status,
+                    loggingStyle = act.loggingStyle,
+                    scheduledDays = act.scheduledDays,
+                    createdAtEpochMs = act.createdAt.toEpochMilli(),
+                    windowStartEpochMs = act.windowStart?.toEpochMilli(),
+                    windowEndEpochMs = act.windowEnd?.toEpochMilli(),
+                    hostProtocolFilter = act.hostProtocolFilter,
+                    dayTypeFilter = act.dayTypeFilter,
+                    reminderEnabled = act.reminderEnabled
+                )
+            }
+
+            val repTargetsDto = workoutDao.getAllProtocolRepTargets().first().map { t ->
+                ProtocolRepTargetDto(
+                    id = t.id,
+                    protocol = t.protocol,
+                    movementType = t.movementType,
+                    setType = t.setType,
+                    familyId = t.familyId,
+                    minReps = t.minReps,
+                    maxReps = t.maxReps,
+                    unit = t.unit
+                )
+            }
 
             WorkoutBackupSection(
                 sessions = sessionsDto,
@@ -218,7 +387,19 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                 customExercises = exercisesDto,
                 exerciseMaxes = maxesDto,
                 userProfile = primaryProfileDto,
-                userProfiles = profilesDto
+                userProfiles = profilesDto,
+                protocolCycles = cyclesDto,
+                progressionStates = progressionStatesDto,
+                exerciseAccomplishments = accomplishmentsDto,
+                routines = routinesDto,
+                routineExerciseCrossRefs = routineExerciseCrossRefsDto,
+                routineSets = routineSetsDto,
+                augments = augmentsDto,
+                augmentExerciseCrossRefs = augmentExerciseCrossRefsDto,
+                augmentSets = augmentSetsDto,
+                augmentActivations = augmentActivationsDto,
+                routineAugmentCrossRefs = routineAugmentCrossRefsDto,
+                protocolRepTargets = repTargetsDto
             )
         } else null
 
@@ -756,8 +937,23 @@ class FullDataBackupRepositoryImpl @Inject constructor(
             backupFrequency = userPreferencesRepository.backupFrequency.first()
         )
 
+        val preferencesSection = PreferencesBackupSection(
+            defaultRestTimeSeconds = healthPreferencesDataStore.defaultRestTime.first(),
+            autoStartRestTimer = healthPreferencesDataStore.autoStartRestTimer.first(),
+            workSetRestTimeSeconds = healthPreferencesDataStore.workSetRestTime.first(),
+            warmupSetRestTimeSeconds = healthPreferencesDataStore.warmupSetRestTime.first(),
+            dropSetRestTimeSeconds = healthPreferencesDataStore.dropSetRestTime.first(),
+            restTimerMode = healthPreferencesDataStore.restTimerMode.first().name,
+            workoutZoomLevel = healthPreferencesDataStore.workoutZoomLevel.first(),
+            workoutLayoutMode = workoutPreferencesDataStore.workoutLayoutMode.first().name,
+            useCustomNumpadInFocusMode = workoutPreferencesDataStore.useCustomNumpadInFocusMode.first(),
+            codexPeriod = healthPreferencesDataStore.codexPeriod.first(),
+            codexWing = healthPreferencesDataStore.codexWing.first(),
+            codexLastExerciseId = healthPreferencesDataStore.codexLastExerciseId.firstOrNull()
+        )
+
         val payload = NeonAscentBackupPayload(
-            version = 3,
+            version = 4,
             exportedAt = now,
             appVersion = "1.0",
             workoutPayload = workoutSection,
@@ -770,7 +966,8 @@ class FullDataBackupRepositoryImpl @Inject constructor(
             vaultPayload = vaultSection,
             selfMapPayload = selfMapSection,
             biohackingPayload = biohackingSection,
-            chatPayload = chatSection
+            chatPayload = chatSection,
+            preferencesPayload = preferencesSection
         )
 
         return gson.toJson(payload)
@@ -811,12 +1008,15 @@ class FullDataBackupRepositoryImpl @Inject constructor(
             }
 
             var sessionsRestored = 0
+            var setsRestored = 0
+            var cyclesRestored = 0
             var biomarkersRestored = 0
             var codexRestored = 0
             var journalRestored = 0
 
             // 1. Restore Workouts
             payload.workoutPayload?.let { w ->
+                // Step 1: Exercise definitions
                 w.customExercises.forEach { e ->
                     workoutDao.insertExerciseDefinition(
                         ExerciseDefinitionEntity(
@@ -845,7 +1045,119 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                     )
                 }
 
-                w.sessions.forEach { s ->
+                // Step 2: Routines and augments
+                w.routines.orEmpty().forEach { r ->
+                    workoutDao.insertRoutine(
+                        WorkoutRoutineEntity(
+                            id = r.id,
+                            name = r.name,
+                            description = r.description,
+                            protocol = r.protocol,
+                            createdAt = Instant.ofEpochMilli(r.createdAtEpochMs),
+                            isSystem = r.isSystem,
+                            isAddedToLibrary = r.isAddedToLibrary
+                        )
+                    )
+                }
+
+                w.augments.orEmpty().forEach { a ->
+                    workoutDao.insertAugment(
+                        WorkoutAugmentEntity(
+                            id = a.id,
+                            name = a.name,
+                            description = a.description,
+                            focusBodyPart = a.focusBodyPart,
+                            colorHex = a.colorHex,
+                            isSystem = a.isSystem,
+                            isAddedToLibrary = a.isAddedToLibrary,
+                            scheduledDays = a.scheduledDays
+                        )
+                    )
+                }
+
+                // Step 3: Cross-refs and sets
+                w.routineExerciseCrossRefs.orEmpty().forEach { ref ->
+                    workoutDao.insertRoutineExerciseCrossRef(
+                        RoutineExerciseCrossRef(
+                            routineId = ref.routineId,
+                            exerciseId = ref.exerciseId,
+                            order = ref.order
+                        )
+                    )
+                }
+
+                w.routineAugmentCrossRefs.orEmpty().forEach { ref ->
+                    workoutDao.insertRoutineAugmentCrossRef(
+                        RoutineAugmentCrossRef(
+                            routineId = ref.routineId,
+                            augmentId = ref.augmentId,
+                            order = ref.order
+                        )
+                    )
+                }
+
+                w.routineSets.orEmpty().forEach { s ->
+                    workoutDao.insertRoutineSet(
+                        RoutineSetEntity(
+                            id = s.id,
+                            routineId = s.routineId,
+                            exerciseId = s.exerciseId,
+                            order = s.order,
+                            type = s.type,
+                            weight = s.weight,
+                            reps = s.reps,
+                            goalReps = s.goalReps
+                        )
+                    )
+                }
+
+                w.augmentExerciseCrossRefs.orEmpty().forEach { ref ->
+                    workoutDao.insertAugmentExerciseCrossRef(
+                        AugmentExerciseCrossRef(
+                            augmentId = ref.augmentId,
+                            exerciseId = ref.exerciseId,
+                            order = ref.order
+                        )
+                    )
+                }
+
+                w.augmentSets.orEmpty().forEach { s ->
+                    workoutDao.insertAugmentSet(
+                        AugmentSetEntity(
+                            id = s.id,
+                            augmentId = s.augmentId,
+                            exerciseId = s.exerciseId,
+                            order = s.order,
+                            type = s.type,
+                            weight = s.weight,
+                            reps = s.reps,
+                            goalReps = s.goalReps
+                        )
+                    )
+                }
+
+                w.augmentActivations.orEmpty().forEach { act ->
+                    workoutDao.upsertAugmentActivation(
+                        AugmentActivationEntity(
+                            id = act.id,
+                            augmentId = act.augmentId,
+                            userId = act.userId,
+                            mode = act.mode,
+                            status = act.status,
+                            loggingStyle = act.loggingStyle,
+                            scheduledDays = act.scheduledDays,
+                            createdAt = Instant.ofEpochMilli(act.createdAtEpochMs),
+                            windowStart = act.windowStartEpochMs?.let { Instant.ofEpochMilli(it) },
+                            windowEnd = act.windowEndEpochMs?.let { Instant.ofEpochMilli(it) },
+                            hostProtocolFilter = act.hostProtocolFilter,
+                            dayTypeFilter = act.dayTypeFilter,
+                            reminderEnabled = act.reminderEnabled
+                        )
+                    )
+                }
+
+                // Step 4: Sessions -> logs -> set logs
+                w.sessions.orEmpty().forEach { s ->
                     workoutDao.upsertSession(
                         WorkoutSessionEntity(
                             id = s.id,
@@ -866,7 +1178,7 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                     sessionsRestored++
                 }
 
-                w.logs.forEach { l ->
+                w.logs.orEmpty().forEach { l ->
                     workoutDao.upsertWorkoutLog(
                         WorkoutLogEntity(
                             id = l.id,
@@ -881,7 +1193,7 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                     )
                 }
 
-                w.sets.forEach { st ->
+                w.sets.orEmpty().forEach { st ->
                     workoutDao.upsertSetLog(
                         SetLogEntity(
                             id = st.id,
@@ -900,9 +1212,10 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                             stretchDurationSeconds = null
                         )
                     )
+                    setsRestored++
                 }
 
-                w.exerciseMaxes.forEach { m ->
+                w.exerciseMaxes.orEmpty().forEach { m ->
                     workoutDao.upsertExerciseMax(
                         ExerciseMaxEntity(
                             familyId = m.familyId,
@@ -917,36 +1230,109 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                     )
                 }
 
-                val profilesToRestore = if (w.userProfiles.isNotEmpty()) w.userProfiles else listOfNotNull(w.userProfile)
+                // Step 5: Protocol cycles
+                w.protocolCycles.orEmpty().forEach { c ->
+                    workoutDao.upsertProtocolCycle(
+                        ProtocolCycleEntity(
+                            id = c.id,
+                            userId = c.userId,
+                            protocol = c.protocol,
+                            startedAt = Instant.ofEpochMilli(c.startedAtEpochMs),
+                            endedAt = c.endedAtEpochMs?.let { Instant.ofEpochMilli(it) },
+                            status = c.status,
+                            currentWeek = c.currentWeek,
+                            currentDayIndex = c.currentDayIndex,
+                            configJson = c.configJson
+                        )
+                    )
+                    cyclesRestored++
+                }
+
+                // Step 6: Progression states and accomplishments
+                w.progressionStates.orEmpty().forEach { ps ->
+                    workoutDao.insertProgressionState(
+                        ProgressionStateEntity(
+                            exerciseId = ps.exerciseId,
+                            bestClusterReps = ps.bestClusterReps,
+                            weightAtBest = ps.weightAtBest,
+                            consecutiveMisses = ps.consecutiveMisses,
+                            currentWeight = ps.currentWeight,
+                            lastRotationDate = ps.lastRotationDateEpochMs?.let { Instant.ofEpochMilli(it) }
+                        )
+                    )
+                }
+
+                w.exerciseAccomplishments.orEmpty().forEach { acc ->
+                    workoutDao.insertAccomplishments(
+                        ExerciseAccomplishmentsEntity(
+                            exerciseId = acc.exerciseId,
+                            heaviestWeight = acc.heaviestWeight,
+                            heaviestWeightReps = acc.heaviestWeightReps,
+                            heaviestWeightDate = acc.heaviestWeightDateEpochMs?.let { Instant.ofEpochMilli(it) },
+                            maxEstimatedOneRepMax = acc.maxEstimatedOneRepMax,
+                            maxOneRepMaxWeight = acc.maxOneRepMaxWeight,
+                            maxOneRepMaxReps = acc.maxOneRepMaxReps,
+                            maxOneRepMaxDate = acc.maxOneRepMaxDateEpochMs?.let { Instant.ofEpochMilli(it) },
+                            maxSessionVolume = acc.maxSessionVolume,
+                            maxSessionVolumeDate = acc.maxSessionVolumeDateEpochMs?.let { Instant.ofEpochMilli(it) },
+                            maxRepsAtTopWeight = acc.maxRepsAtTopWeight,
+                            topWeightForReps = acc.topWeightForReps,
+                            bestClusterReps = acc.bestClusterReps,
+                            bestClusterWeight = acc.bestClusterWeight,
+                            bestClusterDate = acc.bestClusterDateEpochMs?.let { Instant.ofEpochMilli(it) }
+                        )
+                    )
+                }
+
+                // Step 7: Protocol rep targets
+                w.protocolRepTargets.orEmpty().forEach { t ->
+                    workoutDao.upsertProtocolRepTarget(
+                        ProtocolRepTargetEntity(
+                            id = t.id,
+                            protocol = t.protocol,
+                            movementType = t.movementType,
+                            setType = t.setType,
+                            familyId = t.familyId,
+                            minReps = t.minReps,
+                            maxReps = t.maxReps,
+                            unit = t.unit
+                        )
+                    )
+                }
+
+                // Step 8: User profile (last)
+                val profilesToRestore = if (w.userProfiles.orEmpty().isNotEmpty()) w.userProfiles.orEmpty() else listOfNotNull(w.userProfile)
                 profilesToRestore.forEach { p ->
                     workoutDao.insertUserProfile(
                         UserWorkoutProfileEntity(
                             userId = p.userId,
-                            experienceLevel = p.experienceLevel,
-                            somatotype = p.somatotype,
-                            injuries = emptyList(),
-                            timePerSessionMinutes = 60,
-                            age = 25,
-                            heightCm = 175f,
-                            weightKg = 75f,
+                            experienceLevel = p.experienceLevel ?: "INTERMEDIATE",
+                            somatotype = p.somatotype ?: "MESOMORPH",
+                            injuries = p.injuries ?: emptyList(),
+                            timePerSessionMinutes = if (p.timePerSessionMinutes != 0) p.timePerSessionMinutes else 60,
+                            age = if (p.age != 0) p.age else 30,
+                            heightCm = if (p.heightCm != 0f) p.heightCm else 175f,
+                            weightKg = if (p.weightKg != 0f) p.weightKg else 75f,
                             gender = p.gender ?: "OTHER",
-                            activityFactor = 1.2f,
-                            unitSystem = "METRIC",
+                            activityFactor = if (p.activityFactor != 0f) p.activityFactor else 1.2f,
+                            unitSystem = p.unitSystem ?: "METRIC",
                             activeProtocol = p.activeProtocol,
-                            rotationIndex = 0,
-                            scheduledDays = "[]",
-                            deepLinkToRoutine = false,
+                            rotationIndex = p.rotationIndex,
+                            scheduledDays = p.scheduledDays ?: "[]",
+                            deepLinkToRoutine = p.deepLinkToRoutine,
                             sequencerEnabled = p.sequencerEnabled,
                             autoWeightIncrement = p.autoWeightIncrement,
-                            progressionMode = p.progressionMode,
-                            weightIncrementCompound = p.weightIncrementUpperCompound,
+                            progressionMode = p.progressionMode ?: "FIXED_INCREMENT",
+                            weightIncrementCompound = p.weightIncrementCompound,
                             weightIncrementUpperCompound = p.weightIncrementUpperCompound,
                             weightIncrementLowerCompound = p.weightIncrementLowerCompound,
                             weightIncrementIsolation = p.weightIncrementIsolation,
                             progressionPercentage = p.progressionPercentage,
                             roundingIncrement = p.roundingIncrement,
                             rirCapturePerMiniSet = p.rirCapturePerMiniSet,
-                            coachingHintsEnabled = p.coachingHintsEnabled
+                            customSequenceIds = p.customSequenceIds ?: "[]",
+                            coachingHintsEnabled = p.coachingHintsEnabled,
+                            lastBlastStartDate = p.lastBlastStartDateEpochMs?.let { Instant.ofEpochMilli(it) }
                         )
                     )
                 }
@@ -1602,9 +1988,46 @@ class FullDataBackupRepositoryImpl @Inject constructor(
 
             userPreferencesRepository.setOnboardingComplete(true)
 
+            payload.preferencesPayload?.let { prefs ->
+                healthPreferencesDataStore.setDefaultRestTime(prefs.defaultRestTimeSeconds)
+                healthPreferencesDataStore.setAutoStartRestTimer(prefs.autoStartRestTimer)
+                healthPreferencesDataStore.setWorkSetRestTime(prefs.workSetRestTimeSeconds)
+                healthPreferencesDataStore.setWarmupSetRestTime(prefs.warmupSetRestTimeSeconds)
+                healthPreferencesDataStore.setDropSetRestTime(prefs.dropSetRestTimeSeconds)
+                runCatching {
+                    healthPreferencesDataStore.setRestTimerMode(
+                        com.neon.ascent.core.domain.workout.models.RestTimerMode.valueOf(prefs.restTimerMode)
+                    )
+                }
+                healthPreferencesDataStore.setWorkoutZoomLevel(prefs.workoutZoomLevel)
+                runCatching {
+                    workoutPreferencesDataStore.setWorkoutLayoutMode(
+                        com.neon.ascent.core.domain.workout.models.WorkoutLayoutMode.valueOf(prefs.workoutLayoutMode)
+                    )
+                }
+                workoutPreferencesDataStore.setUseCustomNumpadInFocusMode(prefs.useCustomNumpadInFocusMode)
+                healthPreferencesDataStore.setCodexPeriod(prefs.codexPeriod)
+                healthPreferencesDataStore.setCodexWing(prefs.codexWing)
+                healthPreferencesDataStore.setCodexLastExerciseId(prefs.codexLastExerciseId)
+            }
+
+            val restoredProfile = workoutDao.getUserProfile("default_user").firstOrNull()
+            val restoredLayoutMode = workoutPreferencesDataStore.workoutLayoutMode.firstOrNull()?.name ?: "CLASSIC"
+            val restoredWorkRest = healthPreferencesDataStore.workSetRestTime.firstOrNull() ?: 120
+
+            Log.d("FullDataBackupRepo", """
+                === Migration Restore Smoke-Test Summary ===
+                Restored Sessions: $sessionsRestored, Sets: $setsRestored, Cycles: $cyclesRestored
+                Scheduled Days: ${restoredProfile?.scheduledDays ?: "[]"}
+                Active Protocol: ${restoredProfile?.activeProtocol ?: "NONE"}
+                Layout Mode: $restoredLayoutMode
+                Work-Set Rest Time: ${restoredWorkRest}s
+                ==========================================
+            """.trimIndent())
+
             RestoreResult(
                 success = true,
-                message = "Uplink restore complete",
+                message = "Uplink restore complete ($sessionsRestored sessions, $setsRestored sets, $cyclesRestored cycles)",
                 restoredSessionsCount = sessionsRestored,
                 restoredBiomarkersCount = biomarkersRestored,
                 restoredCodexCount = codexRestored,
