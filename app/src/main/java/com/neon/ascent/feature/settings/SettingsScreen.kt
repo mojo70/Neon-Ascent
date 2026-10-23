@@ -150,6 +150,7 @@ fun SettingsScreen(
     val backupWifiOnly by viewModel.backupWifiOnly.collectAsState()
     val backupRequireCharging by viewModel.backupRequireCharging.collectAsState()
     val lastBackupTimestamp by viewModel.lastBackupTimestamp.collectAsState()
+    val lastBackupVersion by viewModel.lastBackupVersion.collectAsState()
     val lastVaultTimestamp by viewModel.lastVaultTimestamp.collectAsState(initial = null)
     val backupToastMessage by viewModel.backupToastMessage.collectAsState()
     val pendingRestoreJson by viewModel.pendingRestoreJson.collectAsState()
@@ -157,6 +158,7 @@ fun SettingsScreen(
     val p2pServerInfo by viewModel.p2pServerInfo.collectAsState()
     val p2pServerState by viewModel.p2pServerState.collectAsState()
     val p2pStatusMessage by viewModel.p2pStatusMessage.collectAsState()
+    val restoreProgress by viewModel.restoreProgress.collectAsState()
 
     val biometricAuthManager = remember { BiometricAuthManager(context) }
     val healthPermissionsLauncher = rememberLauncherForActivityResult(
@@ -400,8 +402,27 @@ fun SettingsScreen(
                                 SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(
                                     Date(lastBackupTimestamp)
                                 )
-                            } else "AUTOMATIC (OVERNIGHT ON WI-FI)"
-                            Text("LAST MANUAL EXPORT: $lastBackupDateStr", color = theme.ink.copy(alpha = 0.5f), fontSize = 9.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.padding(top = 2.dp))
+                            } else "NONE"
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "LAST SUCCESSFUL BACKUP: $lastBackupDateStr",
+                                    color = theme.ink.copy(alpha = 0.8f),
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    "PAYLOAD V$lastBackupVersion",
+                                    color = if (theme.mode == VisualMode.STEVE) theme.ink.copy(alpha = 0.7f) else Color(0xFF00E5FF),
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
 
                             val lastVaultDateStr = if (lastVaultTimestamp != null && lastVaultTimestamp!! > 0L) {
                                 SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(
@@ -863,6 +884,15 @@ fun SettingsScreen(
                     }
                 }
             }
+        }
+
+        if (restoreProgress != null) {
+            com.neon.ascent.ui.backup.TransferTerminalOverlay(
+                progress = restoreProgress,
+                onDismiss = {
+                    viewModel.dismissRestoreTerminal()
+                }
+            )
         }
 
         if (p2pServerInfo != null) {

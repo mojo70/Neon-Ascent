@@ -122,6 +122,9 @@ class SettingsViewModel @Inject constructor(
     val lastBackupTimestamp = userPreferencesRepository.lastBackupTimestamp
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
 
+    val lastBackupVersion = userPreferencesRepository.lastBackupVersion
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 5)
+
     val directiveIntakeMode: StateFlow<DirectiveIntakeMode> = directivePreferencesDataStore.directiveIntakeMode
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DirectiveIntakeMode.MENTOR)
 
@@ -163,6 +166,9 @@ class SettingsViewModel @Inject constructor(
 
     private val _pendingRestoreJson = MutableStateFlow<String?>(null)
     val pendingRestoreJson = _pendingRestoreJson.asStateFlow()
+
+    private val _restoreProgress = MutableStateFlow<com.neon.ascent.core.domain.backup.models.RestoreProgress?>(null)
+    val restoreProgress = _restoreProgress.asStateFlow()
 
     private val _backupExportEvent = MutableSharedFlow<String>(
         replay = 1,
@@ -656,16 +662,23 @@ class SettingsViewModel @Inject constructor(
     fun dismissRestoreDialog() {
         _pendingRestorePreview.value = null
         _pendingRestoreJson.value = null
+        _restoreProgress.value = null
+    }
+
+    fun dismissRestoreTerminal() {
+        _restoreProgress.value = null
+        _pendingRestorePreview.value = null
+        _pendingRestoreJson.value = null
     }
 
     fun confirmRestore(mode: RestoreMode) {
         val preview = _pendingRestorePreview.value
         val json = preview?.rawJson ?: _pendingRestoreJson.value ?: return
         viewModelScope.launch {
-            val result = fullDataBackupRepository.restoreBackupJson(json, mode)
+            val result = fullDataBackupRepository.restoreBackupJson(json, mode) { progress ->
+                _restoreProgress.value = progress
+            }
             _backupToastMessage.value = result.message
-            _pendingRestorePreview.value = null
-            _pendingRestoreJson.value = null
         }
     }
 

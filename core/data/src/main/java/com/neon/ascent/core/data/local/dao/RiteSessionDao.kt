@@ -24,6 +24,12 @@ interface RiteSessionDao {
     @Query("SELECT * FROM rite_sessions ORDER BY startedAt DESC")
     fun getAllSessions(): Flow<List<RiteSessionEntity>>
 
+    @Query("SELECT * FROM rite_sessions ORDER BY startedAt DESC")
+    suspend fun getAllSessionsList(): List<RiteSessionEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSessions(sessions: List<RiteSessionEntity>)
+
     @Query("SELECT * FROM rite_sessions WHERE localDate >= :fromDate ORDER BY startedAt DESC")
     fun getSessionsFromDate(fromDate: String): Flow<List<RiteSessionEntity>>
 

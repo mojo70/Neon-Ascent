@@ -52,8 +52,13 @@ import com.neon.ascent.model.UserCharacter
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
+import com.neon.ascent.core.data.datastore.BriefPreferencesDataStore
+import com.neon.ascent.core.data.datastore.DirectivePreferencesDataStore
 import com.neon.ascent.core.data.datastore.HealthPreferencesDataStore
 import com.neon.ascent.core.data.datastore.WorkoutPreferencesDataStore
+import com.neon.ascent.core.data.local.dao.LibraryDao
+import com.neon.ascent.core.data.local.dao.RiteSessionDao
+import com.neon.ascent.core.domain.goals.models.DirectiveIntakeMode
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
@@ -92,6 +97,10 @@ class FullDataBackupRepositoryImpl @Inject constructor(
     private val selfMapPreferencesDataStore: SelfMapPreferencesDataStore,
     private val healthPreferencesDataStore: HealthPreferencesDataStore,
     private val workoutPreferencesDataStore: WorkoutPreferencesDataStore,
+    private val briefPreferencesDataStore: BriefPreferencesDataStore,
+    private val directivePreferencesDataStore: DirectivePreferencesDataStore,
+    private val riteSessionDao: RiteSessionDao,
+    private val libraryDao: LibraryDao,
     @ApplicationContext private val context: Context
 ) : FullDataBackupRepository {
 
@@ -949,11 +958,65 @@ class FullDataBackupRepositoryImpl @Inject constructor(
             useCustomNumpadInFocusMode = workoutPreferencesDataStore.useCustomNumpadInFocusMode.first(),
             codexPeriod = healthPreferencesDataStore.codexPeriod.first(),
             codexWing = healthPreferencesDataStore.codexWing.first(),
-            codexLastExerciseId = healthPreferencesDataStore.codexLastExerciseId.firstOrNull()
+            codexLastExerciseId = healthPreferencesDataStore.codexLastExerciseId.firstOrNull(),
+            targetWakeWd = briefPreferencesDataStore.targetWakeWd.firstOrNull(),
+            targetWakeWe = briefPreferencesDataStore.targetWakeWe.firstOrNull(),
+            pulsePmMode = briefPreferencesDataStore.pulsePmMode.first(),
+            pulsePmCustomDays = briefPreferencesDataStore.pulsePmCustomDays.first(),
+            pulsePmCustomTime = briefPreferencesDataStore.pulsePmCustomTime.first(),
+            adaptiveWakeEnabled = briefPreferencesDataStore.adaptiveWakeEnabled.first(),
+            quietHoursEnd = briefPreferencesDataStore.quietHoursEnd.first(),
+            showDirectivesOnMorningShade = briefPreferencesDataStore.showDirectivesOnMorningShade.first(),
+            directiveIntakeMode = directivePreferencesDataStore.directiveIntakeMode.first().name,
+            autoSyncEnabled = healthPreferencesDataStore.autoSyncEnabled.first(),
+            syncIntervalHours = healthPreferencesDataStore.syncIntervalHours.first(),
+            enabledAttributes = healthPreferencesDataStore.enabledAttributes.first().map { it.name },
+            liveMonitoringEnabled = healthPreferencesDataStore.liveMonitoringEnabled.first(),
+            showSyncNotification = healthPreferencesDataStore.showSyncNotification.first(),
+            isNetrunnerMode = settingsRepository.isNetrunnerMode.value,
+            isAltarTrueTextMode = settingsRepository.isAltarTrueTextMode.value,
+            biometricLockEnabled = settingsRepository.isBiometricLockEnabled.value,
+            biometricLockTimeout = when (settingsRepository.biometricLockTimeout.value) {
+                "1_MIN" -> 60
+                "5_MIN" -> 300
+                "15_MIN" -> 900
+                else -> 0
+            }
+        )
+
+        val riteSessions = riteSessionDao.getAllSessionsList()
+        val ritesSection = RitesBackupSection(
+            sessions = riteSessions.map { s ->
+                RiteSessionDto(
+                    id = s.id,
+                    kind = s.kind,
+                    startedAtEpochMs = s.startedAt.toEpochMilli(),
+                    endedAtEpochMs = s.endedAt?.toEpochMilli(),
+                    durationMin = s.durationMin,
+                    source = s.source,
+                    notes = s.notes,
+                    localDate = s.localDate
+                )
+            }
+        )
+
+        val highlights = libraryDao.getAllHighlightsList()
+        val librarySection = LibraryBackupSection(
+            highlights = highlights.map { h ->
+                LibraryHighlightDto(
+                    id = h.id,
+                    bookId = h.bookId,
+                    chapterIndex = h.chapterIndex,
+                    startOffset = h.startOffset,
+                    endOffset = h.endOffset,
+                    color = h.color,
+                    timestampEpochMs = h.timestamp
+                )
+            }
         )
 
         val payload = NeonAscentBackupPayload(
-            version = 4,
+            version = 5,
             exportedAt = now,
             appVersion = "1.0",
             workoutPayload = workoutSection,
@@ -967,24 +1030,46 @@ class FullDataBackupRepositoryImpl @Inject constructor(
             selfMapPayload = selfMapSection,
             biohackingPayload = biohackingSection,
             chatPayload = chatSection,
-            preferencesPayload = preferencesSection
+            preferencesPayload = preferencesSection,
+            ritesPayload = ritesSection,
+            libraryPayload = librarySection
         )
+
+        healthPreferencesDataStore.updateLastSyncTime()
+        userPreferencesRepository.setLastBackupTimestamp(System.currentTimeMillis())
+        userPreferencesRepository.setLastBackupVersion(5)
 
         return gson.toJson(payload)
     }
 
-    override suspend fun restoreBackupJson(jsonString: String, mode: RestoreMode): RestoreResult {
+    override suspend fun restoreBackupJson(
+        jsonString: String,
+        mode: RestoreMode,
+        onProgress: ((RestoreProgress) -> Unit)?
+    ): RestoreResult {
+        onProgress?.invoke(RestoreProgress(stage = RestoreStage.READING, message = "READING PAYLOAD..."))
+
         return try {
             val sanitizedJson = jsonString.trim().removePrefix("\uFEFF")
             if (sanitizedJson.isBlank()) {
-                return RestoreResult(success = false, message = "Invalid JSON payload structure: File is empty")
+                val failure = RestoreResult(success = false, message = "Invalid JSON payload structure: File is empty")
+                onProgress?.invoke(RestoreProgress(stage = RestoreStage.FAIL, message = failure.message, error = failure.message))
+                return failure
             }
+
+            onProgress?.invoke(RestoreProgress(stage = RestoreStage.PARSE, message = "PARSING JSON PAYLOAD..."))
 
             val payload = try {
                 gson.fromJson(sanitizedJson, NeonAscentBackupPayload::class.java)
             } catch (e: Exception) {
-                return RestoreResult(success = false, message = "Invalid JSON payload structure")
-            } ?: return RestoreResult(success = false, message = "Invalid JSON payload structure")
+                val failure = RestoreResult(success = false, message = "Invalid JSON payload structure")
+                onProgress?.invoke(RestoreProgress(stage = RestoreStage.FAIL, message = failure.message, error = e.localizedMessage))
+                return failure
+            } ?: run {
+                val failure = RestoreResult(success = false, message = "Invalid JSON payload structure")
+                onProgress?.invoke(RestoreProgress(stage = RestoreStage.FAIL, message = failure.message, error = failure.message))
+                return failure
+            }
 
             if (payload.workoutPayload == null &&
                 payload.biometricsPayload == null &&
@@ -996,10 +1081,30 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                 payload.vaultPayload == null &&
                 payload.selfMapPayload == null &&
                 payload.biohackingPayload == null &&
-                payload.chatPayload == null
+                payload.chatPayload == null &&
+                payload.preferencesPayload == null &&
+                payload.ritesPayload == null &&
+                payload.libraryPayload == null
             ) {
-                return RestoreResult(success = false, message = "Invalid JSON payload structure: No backup sections found")
+                val failure = RestoreResult(success = false, message = "Invalid JSON payload structure: No backup sections found")
+                onProgress?.invoke(RestoreProgress(stage = RestoreStage.FAIL, message = failure.message, error = failure.message))
+                return failure
             }
+
+            // Calculate SHA-256 checksum
+            val checksumHex = try {
+                val md = java.security.MessageDigest.getInstance("SHA-256")
+                val digest = md.digest(sanitizedJson.toByteArray(Charsets.UTF_8))
+                digest.joinToString("") { "%02x".format(it) }
+            } catch (_: Exception) {
+                "00000000"
+            }
+
+            onProgress?.invoke(RestoreProgress(
+                stage = RestoreStage.CHECKSUM,
+                message = "CHECKSUM VERIFIED",
+                checksumHex = checksumHex.take(16)
+            ))
 
             if (mode == RestoreMode.REPLACE) {
                 snapshotDatabasesBeforeReplace()
@@ -1015,6 +1120,12 @@ class FullDataBackupRepositoryImpl @Inject constructor(
             var journalRestored = 0
 
             // 1. Restore Workouts
+            onProgress?.invoke(RestoreProgress(
+                stage = RestoreStage.RESTORE_WORKOUT,
+                message = "RESTORING WORKOUT GRAPH...",
+                checksumHex = checksumHex.take(16)
+            ))
+
             payload.workoutPayload?.let { w ->
                 // Step 1: Exercise definitions
                 w.customExercises.forEach { e ->
@@ -1337,6 +1448,13 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                     )
                 }
             }
+
+            // 2. Restore Domains
+            onProgress?.invoke(RestoreProgress(
+                stage = RestoreStage.RESTORE_DOMAINS,
+                message = "RESTORING DOMAINS (GOALS, VAULT, SELFMAP, BIO, CHAT, RITES, LIBRARY)...",
+                checksumHex = checksumHex.take(16)
+            ))
 
             // 2. Restore Biometrics
             payload.biometricsPayload?.let { b ->
@@ -1959,6 +2077,126 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                 }
             }
 
+            // Stage: RESTORE_PREFS
+            onProgress?.invoke(RestoreProgress(
+                stage = RestoreStage.RESTORE_PREFS,
+                message = "RESTORING PREFERENCES & SYSTEM CONFIG...",
+                checksumHex = checksumHex.take(16)
+            ))
+
+            payload.preferencesPayload?.let { prefs ->
+                healthPreferencesDataStore.setDefaultRestTime(prefs.defaultRestTimeSeconds)
+                healthPreferencesDataStore.setAutoStartRestTimer(prefs.autoStartRestTimer)
+                healthPreferencesDataStore.setWorkSetRestTime(prefs.workSetRestTimeSeconds)
+                healthPreferencesDataStore.setWarmupSetRestTime(prefs.warmupSetRestTimeSeconds)
+                healthPreferencesDataStore.setDropSetRestTime(prefs.dropSetRestTimeSeconds)
+                runCatching {
+                    healthPreferencesDataStore.setRestTimerMode(
+                        com.neon.ascent.core.domain.workout.models.RestTimerMode.valueOf(prefs.restTimerMode)
+                    )
+                }
+                healthPreferencesDataStore.setWorkoutZoomLevel(prefs.workoutZoomLevel)
+                runCatching {
+                    workoutPreferencesDataStore.setWorkoutLayoutMode(
+                        com.neon.ascent.core.domain.workout.models.WorkoutLayoutMode.valueOf(prefs.workoutLayoutMode)
+                    )
+                }
+                workoutPreferencesDataStore.setUseCustomNumpadInFocusMode(prefs.useCustomNumpadInFocusMode)
+                healthPreferencesDataStore.setCodexPeriod(prefs.codexPeriod)
+                healthPreferencesDataStore.setCodexWing(prefs.codexWing)
+                healthPreferencesDataStore.setCodexLastExerciseId(prefs.codexLastExerciseId)
+
+                prefs.targetWakeWd?.let { briefPreferencesDataStore.setTargetWakeWd(it) }
+                prefs.targetWakeWe?.let { briefPreferencesDataStore.setTargetWakeWe(it) }
+                prefs.pulsePmMode?.let { briefPreferencesDataStore.setPulsePmMode(it) }
+                val customDays = prefs.pulsePmCustomDays
+                val customTime = prefs.pulsePmCustomTime
+                if (customDays != null && customTime != null) {
+                    briefPreferencesDataStore.setPulsePmCustomSchedule(customDays, customTime)
+                }
+                briefPreferencesDataStore.setAdaptiveWakeEnabled(prefs.adaptiveWakeEnabled)
+                prefs.quietHoursEnd?.let { briefPreferencesDataStore.setQuietHoursEnd(it) }
+                briefPreferencesDataStore.setShowDirectivesOnMorningShade(prefs.showDirectivesOnMorningShade)
+
+                prefs.directiveIntakeMode?.let { modeStr ->
+                    runCatching { DirectiveIntakeMode.valueOf(modeStr) }.getOrNull()?.let { mode ->
+                        directivePreferencesDataStore.setDirectiveIntakeMode(mode)
+                    }
+                }
+
+                healthPreferencesDataStore.setAutoSyncEnabled(prefs.autoSyncEnabled)
+                prefs.syncIntervalHours?.let { healthPreferencesDataStore.setSyncIntervalHours(it) }
+                if (prefs.enabledAttributes.isNotEmpty()) {
+                    val attrs = prefs.enabledAttributes.mapNotNull { name ->
+                        runCatching { SpecialType.valueOf(name) }.getOrNull()
+                    }.toSet()
+                    if (attrs.isNotEmpty()) {
+                        healthPreferencesDataStore.setEnabledAttributes(attrs)
+                    }
+                }
+                healthPreferencesDataStore.setLiveMonitoringEnabled(prefs.liveMonitoringEnabled)
+                healthPreferencesDataStore.setShowSyncNotification(prefs.showSyncNotification)
+
+                settingsRepository.setNetrunnerMode(prefs.isNetrunnerMode)
+                settingsRepository.setAltarTrueTextMode(prefs.isAltarTrueTextMode)
+                settingsRepository.setBiometricLockEnabled(prefs.biometricLockEnabled)
+                prefs.biometricLockTimeout?.let { timeoutSec ->
+                    val timeoutStr = when (timeoutSec) {
+                        60 -> "1_MIN"
+                        300 -> "5_MIN"
+                        900 -> "15_MIN"
+                        else -> "IMMEDIATE"
+                    }
+                    settingsRepository.setBiometricLockTimeout(timeoutStr)
+                }
+            }
+
+            var ritesRestored = 0
+            payload.ritesPayload?.let { ritesSection ->
+                val entities = ritesSection.sessions.map { dto ->
+                    RiteSessionEntity(
+                        id = dto.id,
+                        kind = dto.kind,
+                        startedAt = Instant.ofEpochMilli(dto.startedAtEpochMs),
+                        endedAt = dto.endedAtEpochMs?.let { Instant.ofEpochMilli(it) },
+                        durationMin = dto.durationMin,
+                        source = dto.source,
+                        notes = dto.notes,
+                        localDate = dto.localDate
+                    )
+                }
+                if (entities.isNotEmpty()) {
+                    riteSessionDao.insertSessions(entities)
+                    ritesRestored = entities.size
+                }
+            }
+
+            var highlightsRestored = 0
+            payload.libraryPayload?.let { librarySection ->
+                val entities = librarySection.highlights.map { dto ->
+                    LibraryHighlightEntity(
+                        id = dto.id,
+                        bookId = dto.bookId,
+                        chapterIndex = dto.chapterIndex,
+                        startOffset = dto.startOffset,
+                        endOffset = dto.endOffset,
+                        color = dto.color,
+                        timestamp = dto.timestampEpochMs
+                    )
+                }
+                if (entities.isNotEmpty()) {
+                    libraryDao.insertHighlights(entities)
+                    highlightsRestored = entities.size
+                }
+            }
+
+            // Stage: INTEGRITY
+            onProgress?.invoke(RestoreProgress(
+                stage = RestoreStage.INTEGRITY,
+                message = "VERIFYING DATA INTEGRITY...",
+                checksumHex = checksumHex.take(16)
+            ))
+
             val existingOp = operativeProfileDao.getOperativeProfileOnce("default_user")
             if (existingOp == null) {
                 val fallbackOp = OperativeProfileEntity(
@@ -1987,29 +2225,9 @@ class FullDataBackupRepositoryImpl @Inject constructor(
             }
 
             userPreferencesRepository.setOnboardingComplete(true)
-
-            payload.preferencesPayload?.let { prefs ->
-                healthPreferencesDataStore.setDefaultRestTime(prefs.defaultRestTimeSeconds)
-                healthPreferencesDataStore.setAutoStartRestTimer(prefs.autoStartRestTimer)
-                healthPreferencesDataStore.setWorkSetRestTime(prefs.workSetRestTimeSeconds)
-                healthPreferencesDataStore.setWarmupSetRestTime(prefs.warmupSetRestTimeSeconds)
-                healthPreferencesDataStore.setDropSetRestTime(prefs.dropSetRestTimeSeconds)
-                runCatching {
-                    healthPreferencesDataStore.setRestTimerMode(
-                        com.neon.ascent.core.domain.workout.models.RestTimerMode.valueOf(prefs.restTimerMode)
-                    )
-                }
-                healthPreferencesDataStore.setWorkoutZoomLevel(prefs.workoutZoomLevel)
-                runCatching {
-                    workoutPreferencesDataStore.setWorkoutLayoutMode(
-                        com.neon.ascent.core.domain.workout.models.WorkoutLayoutMode.valueOf(prefs.workoutLayoutMode)
-                    )
-                }
-                workoutPreferencesDataStore.setUseCustomNumpadInFocusMode(prefs.useCustomNumpadInFocusMode)
-                healthPreferencesDataStore.setCodexPeriod(prefs.codexPeriod)
-                healthPreferencesDataStore.setCodexWing(prefs.codexWing)
-                healthPreferencesDataStore.setCodexLastExerciseId(prefs.codexLastExerciseId)
-            }
+            healthPreferencesDataStore.updateLastSyncTime()
+            userPreferencesRepository.setLastBackupTimestamp(System.currentTimeMillis())
+            userPreferencesRepository.setLastBackupVersion(payload.version)
 
             val restoredProfile = workoutDao.getUserProfile("default_user").firstOrNull()
             val restoredLayoutMode = workoutPreferencesDataStore.workoutLayoutMode.firstOrNull()?.name ?: "CLASSIC"
@@ -2017,7 +2235,7 @@ class FullDataBackupRepositoryImpl @Inject constructor(
 
             Log.d("FullDataBackupRepo", """
                 === Migration Restore Smoke-Test Summary ===
-                Restored Sessions: $sessionsRestored, Sets: $setsRestored, Cycles: $cyclesRestored
+                Restored Sessions: $sessionsRestored, Sets: $setsRestored, Cycles: $cyclesRestored, Rites: $ritesRestored, Highlights: $highlightsRestored
                 Scheduled Days: ${restoredProfile?.scheduledDays ?: "[]"}
                 Active Protocol: ${restoredProfile?.activeProtocol ?: "NONE"}
                 Layout Mode: $restoredLayoutMode
@@ -2025,19 +2243,36 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                 ==========================================
             """.trimIndent())
 
-            RestoreResult(
+            val result = RestoreResult(
                 success = true,
-                message = "Uplink restore complete ($sessionsRestored sessions, $setsRestored sets, $cyclesRestored cycles)",
+                message = "Uplink restore complete ($sessionsRestored sessions, $setsRestored sets, $cyclesRestored cycles, $ritesRestored rites, $highlightsRestored highlights)",
                 restoredSessionsCount = sessionsRestored,
                 restoredBiomarkersCount = biomarkersRestored,
                 restoredCodexCount = codexRestored,
-                restoredJournalCount = journalRestored
+                restoredJournalCount = journalRestored,
+                restoredRitesCount = ritesRestored,
+                restoredHighlightsCount = highlightsRestored
             )
+
+            onProgress?.invoke(RestoreProgress(
+                stage = RestoreStage.READY,
+                message = "RESTORE READY",
+                checksumHex = checksumHex.take(16),
+                result = result
+            ))
+
+            result
         } catch (e: Exception) {
-            RestoreResult(
+            val failure = RestoreResult(
                 success = false,
                 message = "Restore failed: ${e.localizedMessage}"
             )
+            onProgress?.invoke(RestoreProgress(
+                stage = RestoreStage.FAIL,
+                message = failure.message,
+                error = e.localizedMessage
+            ))
+            failure
         }
     }
 

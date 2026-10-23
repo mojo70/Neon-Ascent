@@ -67,7 +67,11 @@ class CreationViewModelTest {
         var lastRestoredJson: String? = null
 
         override suspend fun exportBackupJson(scope: BackupScope): String = "{}"
-        override suspend fun restoreBackupJson(jsonString: String, mode: RestoreMode): RestoreResult {
+        override suspend fun restoreBackupJson(
+            jsonString: String,
+            mode: RestoreMode,
+            onProgress: ((com.neon.ascent.core.domain.backup.models.RestoreProgress) -> Unit)?
+        ): RestoreResult {
             lastRestoredJson = jsonString
             return RestoreResult(success = restoreSuccess, message = if (restoreSuccess) "Success" else "Error")
         }

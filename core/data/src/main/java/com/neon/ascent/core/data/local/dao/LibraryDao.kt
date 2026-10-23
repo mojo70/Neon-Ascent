@@ -35,8 +35,14 @@ interface LibraryDao {
     @Query("SELECT * FROM library_highlights WHERE bookId = :bookId")
     fun getHighlightsForBook(bookId: String): Flow<List<LibraryHighlightEntity>>
 
+    @Query("SELECT * FROM library_highlights")
+    suspend fun getAllHighlightsList(): List<LibraryHighlightEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertHighlight(highlight: LibraryHighlightEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertHighlights(highlights: List<LibraryHighlightEntity>)
 
     @Delete
     suspend fun deleteHighlight(highlight: LibraryHighlightEntity)

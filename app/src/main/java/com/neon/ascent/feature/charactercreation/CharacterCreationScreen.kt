@@ -590,43 +590,25 @@ fun CharacterCreationScreen(
             )
         }
 
+        val fileRestoreProgress by viewModel.fileRestoreProgress.collectAsState()
+        val p2pRestoreProgress by viewModel.p2pRestoreProgress.collectAsState()
         val p2pClientState by viewModel.p2pClientState.collectAsState()
-        when (val state = p2pClientState) {
-            is P2pClientState.Downloading, P2pClientState.Decrypting, P2pClientState.Restoring -> {
-                val statusText = when (state) {
-                    is P2pClientState.Downloading -> if (state.progressPercent >= 0) "DOWNLOADING BACKUP PAYLOAD... ${state.progressPercent}%" else "DOWNLOADING BACKUP PAYLOAD..."
-                    P2pClientState.Decrypting -> "DECRYPTING AES-256-GCM PAYLOAD..."
-                    P2pClientState.Restoring -> "RESTORING DATABASE & PROFILES..."
-                    else -> "PROCESSING MIGRATION..."
-                }
 
-                Dialog(onDismissRequest = {}) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = theme.surface),
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, theme.primary)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            CircularProgressIndicator(color = theme.primary)
-                            Text(
-                                text = statusText,
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    color = theme.primary,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace,
-                                    textAlign = TextAlign.Center
-                                )
-                            )
-                        }
+        val activeProgress = fileRestoreProgress ?: p2pRestoreProgress
+        val isP2pActive = p2pClientState is P2pClientState.Downloading || p2pClientState is P2pClientState.Decrypting || p2pClientState is P2pClientState.Restoring
+
+        if (activeProgress != null || isP2pActive) {
+            com.neon.ascent.ui.backup.TransferTerminalOverlay(
+                progress = activeProgress,
+                p2pClientState = p2pClientState,
+                onDismiss = {
+                    val wasReady = activeProgress?.stage == com.neon.ascent.core.domain.backup.models.RestoreStage.READY
+                    viewModel.resetP2pClientState()
+                    if (wasReady) {
+                        onNavigateToMainHub()
                     }
                 }
-            }
-            else -> {}
+            )
         }
     }
 }

@@ -52,6 +52,7 @@ open class UserPreferencesRepository @Inject constructor(
         val BACKUP_WIFI_ONLY = booleanPreferencesKey("backup_wifi_only")
         val BACKUP_REQUIRE_CHARGING = booleanPreferencesKey("backup_require_charging")
         val LAST_BACKUP_TIMESTAMP = longPreferencesKey("last_backup_timestamp")
+        val LAST_BACKUP_VERSION = intPreferencesKey("last_backup_version")
     }
 
     open val themeMode: Flow<String> = context.dataStore.data
@@ -148,8 +149,11 @@ open class UserPreferencesRepository @Inject constructor(
     val backupRequireCharging: Flow<Boolean> = context.dataStore.data
         .map { it[PreferencesKeys.BACKUP_REQUIRE_CHARGING] ?: false }
 
-    val lastBackupTimestamp: Flow<Long> = context.dataStore.data
+    open val lastBackupTimestamp: Flow<Long> = context.dataStore.data
         .map { it[PreferencesKeys.LAST_BACKUP_TIMESTAMP] ?: 0L }
+
+    open val lastBackupVersion: Flow<Int> = context.dataStore.data
+        .map { it[PreferencesKeys.LAST_BACKUP_VERSION] ?: 5 }
 
     open suspend fun setThemeMode(mode: String) {
         val coercedMode = when (mode.uppercase()) {
@@ -250,7 +254,11 @@ open class UserPreferencesRepository @Inject constructor(
         context.dataStore.edit { it[PreferencesKeys.BACKUP_REQUIRE_CHARGING] = enabled }
     }
 
-    suspend fun setLastBackupTimestamp(timestamp: Long) {
+    open suspend fun setLastBackupTimestamp(timestamp: Long) {
         context.dataStore.edit { it[PreferencesKeys.LAST_BACKUP_TIMESTAMP] = timestamp }
+    }
+
+    open suspend fun setLastBackupVersion(version: Int) {
+        context.dataStore.edit { it[PreferencesKeys.LAST_BACKUP_VERSION] = version }
     }
 }

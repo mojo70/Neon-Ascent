@@ -378,7 +378,59 @@ class FullDataBackupRepositoryImplTest {
         }
     }
 
-    private class TestNeonAscentDatabase : NeonAscentDatabase() {
+    private class FakeRiteSessionDao : RiteSessionDao {
+        val sessions = mutableListOf<RiteSessionEntity>()
+        override suspend fun insertSession(session: RiteSessionEntity) {
+            sessions.removeAll { it.id == session.id }
+            sessions.add(session)
+        }
+        override fun getSessionsForDate(date: String): kotlinx.coroutines.flow.Flow<List<RiteSessionEntity>> =
+            kotlinx.coroutines.flow.flowOf(sessions.filter { it.localDate == date })
+        override suspend fun getSessionsForDateAndKind(date: String, kind: String): List<RiteSessionEntity> =
+            sessions.filter { it.localDate == date && it.kind == kind }
+        override fun getSessionsForKind(kind: String): kotlinx.coroutines.flow.Flow<List<RiteSessionEntity>> =
+            kotlinx.coroutines.flow.flowOf(sessions.filter { it.kind == kind })
+        override fun getAllSessions(): kotlinx.coroutines.flow.Flow<List<RiteSessionEntity>> =
+            kotlinx.coroutines.flow.flowOf(sessions)
+        override suspend fun getAllSessionsList(): List<RiteSessionEntity> = sessions
+        override suspend fun insertSessions(sessions: List<RiteSessionEntity>) {
+            sessions.forEach { insertSession(it) }
+        }
+        override fun getSessionsFromDate(fromDate: String): kotlinx.coroutines.flow.Flow<List<RiteSessionEntity>> =
+            kotlinx.coroutines.flow.flowOf(sessions.filter { it.localDate >= fromDate })
+        override suspend fun deleteSession(id: String) {
+            sessions.removeAll { it.id == id }
+        }
+    }
+
+    private class FakeLibraryDao : LibraryDao {
+        val highlights = mutableListOf<LibraryHighlightEntity>()
+        override suspend fun getBookById(bookId: String): LibraryBookEntity? = null
+        override suspend fun getChaptersForBook(bookId: String): List<LibraryChapterEntity> = emptyList()
+        override suspend fun insertBook(book: LibraryBookEntity) {}
+        override suspend fun insertChapters(chapters: List<LibraryChapterEntity>) {}
+        override fun getHighlightsForBook(bookId: String): kotlinx.coroutines.flow.Flow<List<LibraryHighlightEntity>> =
+            kotlinx.coroutines.flow.flowOf(highlights.filter { it.bookId == bookId })
+        override suspend fun getAllHighlightsList(): List<LibraryHighlightEntity> = highlights
+        override suspend fun insertHighlight(highlight: LibraryHighlightEntity) {
+            highlights.removeAll { it.id == highlight.id && highlight.id != 0L }
+            highlights.add(highlight)
+        }
+        override suspend fun insertHighlights(highlights: List<LibraryHighlightEntity>) {
+            highlights.forEach { insertHighlight(it) }
+        }
+        override suspend fun deleteHighlight(highlight: LibraryHighlightEntity) {
+            highlights.remove(highlight)
+        }
+        override fun getAllQuotes(): kotlinx.coroutines.flow.Flow<List<LibraryQuoteEntity>> =
+            kotlinx.coroutines.flow.flowOf(emptyList())
+        override suspend fun insertQuote(quote: LibraryQuoteEntity) {}
+    }
+
+    private class TestNeonAscentDatabase(
+        val fakeLibraryDao: FakeLibraryDao = FakeLibraryDao(),
+        val fakeRiteSessionDao: FakeRiteSessionDao = FakeRiteSessionDao()
+    ) : NeonAscentDatabase() {
         var clearAllTablesCalled = false
         override fun clearAllTables() { clearAllTablesCalled = true }
         override fun createOpenHelper(config: DatabaseConfiguration): SupportSQLiteOpenHelper = throw NotImplementedError()
@@ -395,9 +447,9 @@ class FullDataBackupRepositoryImplTest {
         override fun dailyVitalRollupDao(): DailyVitalRollupDao = throw NotImplementedError()
         override fun bodySampleDao(): BodySampleDao = throw NotImplementedError()
         override fun operativeProfileDao(): OperativeProfileDao = throw NotImplementedError()
-        override fun libraryDao(): LibraryDao = throw NotImplementedError()
+        override fun libraryDao(): LibraryDao = fakeLibraryDao
         override fun vaultDao(): VaultDao = throw NotImplementedError()
-        override fun riteSessionDao(): RiteSessionDao = throw NotImplementedError()
+        override fun riteSessionDao(): RiteSessionDao = fakeRiteSessionDao
         override fun selfMapDao(): com.neon.ascent.core.data.local.dao.SelfMapDao = throw NotImplementedError()
         override fun reconstitutionDao(): ReconstitutionDao = throw NotImplementedError()
     }
@@ -670,7 +722,9 @@ class FullDataBackupRepositoryImplTest {
         reconstitutionDao = FakeReconstitutionDao()
         neuralMemoryDao = FakeNeuralMemoryDao()
         chatDao = FakeChatDao()
-        coreDatabase = TestNeonAscentDatabase()
+        val fakeLibraryDao = FakeLibraryDao()
+        val fakeRiteSessionDao = FakeRiteSessionDao()
+        coreDatabase = TestNeonAscentDatabase(fakeLibraryDao, fakeRiteSessionDao)
         appDatabase = TestAppDatabase()
         testContext = TestContext(tempFolder.root)
 
@@ -705,6 +759,10 @@ class FullDataBackupRepositoryImplTest {
             selfMapPreferencesDataStore = com.neon.ascent.core.data.datastore.SelfMapPreferencesDataStore(testContext),
             healthPreferencesDataStore = com.neon.ascent.core.data.datastore.HealthPreferencesDataStore(testContext),
             workoutPreferencesDataStore = com.neon.ascent.core.data.datastore.WorkoutPreferencesDataStore(testContext),
+            briefPreferencesDataStore = com.neon.ascent.core.data.datastore.BriefPreferencesDataStore(testContext),
+            directivePreferencesDataStore = com.neon.ascent.core.data.datastore.DirectivePreferencesDataStore(testContext),
+            riteSessionDao = fakeRiteSessionDao,
+            libraryDao = fakeLibraryDao,
             context = testContext
         )
     }
@@ -875,7 +933,7 @@ class FullDataBackupRepositoryImplTest {
 
         // Export payload
         val exportedJson = repository.exportBackupJson(BackupScope())
-        assertTrue(exportedJson.contains("\"version\": 4"))
+        assertTrue(exportedJson.contains("\"version\": 5"))
         assertTrue(exportedJson.contains("\"settingsPayload\""))
         assertTrue(exportedJson.contains("\"operativeProfile\""))
         assertTrue(exportedJson.contains("V_Test"))
@@ -956,7 +1014,7 @@ class FullDataBackupRepositoryImplTest {
         val json = repository.exportBackupJson(BackupScope())
         assertTrue("JSON should contain goalsPayload", json.contains("goalsPayload"))
         assertTrue("JSON should contain selfMapPayload", json.contains("selfMapPayload"))
-        assertTrue("JSON should contain version 4", json.contains("\"version\": 4"))
+        assertTrue("JSON should contain version 5", json.contains("\"version\": 5"))
 
         // Reset fake DAOs to test restore
         ascensionDao.directives.clear()
@@ -1229,9 +1287,73 @@ class FullDataBackupRepositoryImplTest {
         assertEquals("NINETY_DAYS", healthPrefs.codexPeriod.first())
         assertEquals("DECK", healthPrefs.codexWing.first())
         assertEquals("ex_bench", healthPrefs.codexLastExerciseId.first())
-
         assertEquals(com.neon.ascent.core.domain.workout.models.WorkoutLayoutMode.FOCUS, workoutPrefs.workoutLayoutMode.first())
         assertEquals(true, workoutPrefs.useCustomNumpadInFocusMode.first())
+    }
+
+    @Test
+    fun `export and restore payload v5 round trip preserves rites, library highlights, and expanded preferences`() = runBlocking {
+        val briefPrefs = com.neon.ascent.core.data.datastore.BriefPreferencesDataStore(testContext)
+        val directivePrefs = com.neon.ascent.core.data.datastore.DirectivePreferencesDataStore(testContext)
+        val healthPrefs = com.neon.ascent.core.data.datastore.HealthPreferencesDataStore(testContext)
+
+        briefPrefs.setTargetWakeWd("06:30")
+        briefPrefs.setTargetWakeWe("08:30")
+        briefPrefs.setPulsePmMode("WEEKDAY_CLOCK")
+        briefPrefs.setPulsePmCustomSchedule("MON,WED,FRI", "21:00")
+        briefPrefs.setAdaptiveWakeEnabled(true)
+        briefPrefs.setQuietHoursEnd("06:00")
+        briefPrefs.setShowDirectivesOnMorningShade(true)
+
+        directivePrefs.setDirectiveIntakeMode(com.neon.ascent.core.domain.goals.models.DirectiveIntakeMode.FORM)
+        healthPrefs.setAutoSyncEnabled(true)
+        healthPrefs.setSyncIntervalHours(12)
+
+        val rite = RiteSessionEntity(
+            id = "rite_1",
+            kind = "SIT",
+            startedAt = java.time.Instant.now(),
+            durationMin = 15,
+            source = "STILLJACK",
+            notes = "Deep meditation",
+            localDate = "2026-10-22"
+        )
+        coreDatabase.fakeRiteSessionDao.insertSession(rite)
+
+        val highlight = LibraryHighlightEntity(
+            id = 1L,
+            bookId = "book_cyber",
+            chapterIndex = 2,
+            startOffset = 10,
+            endOffset = 50,
+            color = 0xFF00FFFFL,
+            timestamp = System.currentTimeMillis()
+        )
+        coreDatabase.fakeLibraryDao.insertHighlight(highlight)
+
+        val exportedJson = repository.exportBackupJson(BackupScope())
+        assertTrue("JSON should contain version 5", exportedJson.contains("\"version\": 5"))
+        assertTrue("JSON should contain ritesPayload", exportedJson.contains("ritesPayload"))
+        assertTrue("JSON should contain libraryPayload", exportedJson.contains("libraryPayload"))
+        assertTrue("JSON should contain preferencesPayload", exportedJson.contains("preferencesPayload"))
+
+        // Reset
+        coreDatabase.fakeRiteSessionDao.sessions.clear()
+        coreDatabase.fakeLibraryDao.highlights.clear()
+
+        val restoreResult = repository.restoreBackupJson(exportedJson, RestoreMode.MERGE)
+        assertTrue(restoreResult.success)
+        assertEquals(1, restoreResult.restoredRitesCount)
+        assertEquals(1, restoreResult.restoredHighlightsCount)
+
+        assertEquals("06:30", briefPrefs.targetWakeWd.first())
+        assertEquals("08:30", briefPrefs.targetWakeWe.first())
+        assertEquals("WEEKDAY_CLOCK", briefPrefs.pulsePmMode.first())
+        assertEquals(com.neon.ascent.core.domain.goals.models.DirectiveIntakeMode.FORM, directivePrefs.directiveIntakeMode.first())
+        assertEquals(1, coreDatabase.fakeRiteSessionDao.sessions.size)
+        assertEquals("rite_1", coreDatabase.fakeRiteSessionDao.sessions.first().id)
+        assertEquals(1, coreDatabase.fakeLibraryDao.highlights.size)
+        assertEquals("book_cyber", coreDatabase.fakeLibraryDao.highlights.first().bookId)
     }
 
     @Test
@@ -1268,6 +1390,80 @@ class FullDataBackupRepositoryImplTest {
         assertEquals("PUSH_PULL_LEGS", restoredProfile?.activeProtocol)
         assertEquals("[]", restoredProfile?.scheduledDays)
         assertEquals(0, restoredProfile?.rotationIndex)
+    }
+
+    @Test
+    fun `restoreBackupJson emits progress stages in sequence`() = runBlocking {
+        val stages = mutableListOf<com.neon.ascent.core.domain.backup.models.RestoreStage>()
+        val exportedJson = repository.exportBackupJson(BackupScope())
+
+        val result = repository.restoreBackupJson(exportedJson, RestoreMode.MERGE) { progress ->
+            stages.add(progress.stage)
+        }
+
+        assertTrue(result.success)
+        assertTrue(stages.contains(com.neon.ascent.core.domain.backup.models.RestoreStage.READING))
+        assertTrue(stages.contains(com.neon.ascent.core.domain.backup.models.RestoreStage.PARSE))
+        assertTrue(stages.contains(com.neon.ascent.core.domain.backup.models.RestoreStage.CHECKSUM))
+        assertTrue(stages.contains(com.neon.ascent.core.domain.backup.models.RestoreStage.RESTORE_WORKOUT))
+        assertTrue(stages.contains(com.neon.ascent.core.domain.backup.models.RestoreStage.RESTORE_DOMAINS))
+        assertTrue(stages.contains(com.neon.ascent.core.domain.backup.models.RestoreStage.RESTORE_PREFS))
+        assertTrue(stages.contains(com.neon.ascent.core.domain.backup.models.RestoreStage.INTEGRITY))
+        assertTrue(stages.contains(com.neon.ascent.core.domain.backup.models.RestoreStage.READY))
+    }
+
+    @Test
+    fun `restore v4 payload succeeds and handles missing v5 sections`() = runBlocking {
+        val v4Json = """
+        {
+          "version": 4,
+          "exportedAt": "2026-10-21T12:00:00Z",
+          "appVersion": "1.0",
+          "workoutPayload": {
+            "sessions": [
+              {
+                "id": "v4_session_1",
+                "dateEpochMs": 1761000000000,
+                "protocol": "CYBER_PUMP",
+                "durationSeconds": 3600,
+                "experienceLevel": "ADVANCED",
+                "somatotype": "MESOMORPH"
+              }
+            ],
+            "logs": [],
+            "sets": []
+          },
+          "preferencesPayload": {
+            "defaultRestTimeSeconds": 90,
+            "autoStartRestTimer": true,
+            "workSetRestTimeSeconds": 120,
+            "workoutLayoutMode": "CLASSIC"
+          }
+        }
+        """.trimIndent()
+
+        val result = repository.restoreBackupJson(v4Json, RestoreMode.MERGE)
+        assertTrue(result.success)
+        assertEquals(1, result.restoredSessionsCount)
+        assertEquals(0, result.restoredRitesCount)
+        assertEquals(0, result.restoredHighlightsCount)
+    }
+
+    @Test
+    fun `restoreBackupJson emits FAIL stage on malformed JSON`() = runBlocking {
+        val stages = mutableListOf<com.neon.ascent.core.domain.backup.models.RestoreStage>()
+        var failureMessage: String? = null
+
+        val result = repository.restoreBackupJson("{ invalid json format }", RestoreMode.MERGE) { progress ->
+            stages.add(progress.stage)
+            if (progress.stage == com.neon.ascent.core.domain.backup.models.RestoreStage.FAIL) {
+                failureMessage = progress.error ?: progress.message
+            }
+        }
+
+        assertFalse(result.success)
+        assertTrue(stages.contains(com.neon.ascent.core.domain.backup.models.RestoreStage.FAIL))
+        assertNotNull(failureMessage)
     }
 }
 

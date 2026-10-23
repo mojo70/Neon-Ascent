@@ -40,6 +40,10 @@ class CreationViewModel @Inject constructor(
 
     val p2pClientState: StateFlow<P2pClientState> = p2pMigrationClient.clientState
 
+    private val _fileRestoreProgress = MutableStateFlow<com.neon.ascent.core.domain.backup.models.RestoreProgress?>(null)
+    val fileRestoreProgress: StateFlow<com.neon.ascent.core.domain.backup.models.RestoreProgress?> = _fileRestoreProgress.asStateFlow()
+    val p2pRestoreProgress: StateFlow<com.neon.ascent.core.domain.backup.models.RestoreProgress?> = p2pMigrationClient.restoreProgress
+
     private val _uiState = MutableStateFlow<CreationUiState>(CreationUiState.Initial)
     val uiState = _uiState.asStateFlow()
 
@@ -82,7 +86,9 @@ class CreationViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             _uiState.value = CreationUiState.Loading
-            val result = fullDataBackupRepository.restoreBackupJson(jsonContent, RestoreMode.REPLACE)
+            val result = fullDataBackupRepository.restoreBackupJson(jsonContent, RestoreMode.REPLACE) { progress ->
+                _fileRestoreProgress.value = progress
+            }
             if (result.success) {
                 userPreferencesRepository.setOnboardingComplete(true)
                 _uiState.value = CreationUiState.Success
@@ -92,6 +98,11 @@ class CreationViewModel @Inject constructor(
                 onError(result.message)
             }
         }
+    }
+
+    fun dismissRestoreProgress() {
+        _fileRestoreProgress.value = null
+        p2pMigrationClient.resetState()
     }
 
     fun restoreFromP2p(
@@ -115,6 +126,7 @@ class CreationViewModel @Inject constructor(
 
     fun resetP2pClientState() {
         p2pMigrationClient.resetState()
+        _fileRestoreProgress.value = null
     }
 
     fun bypassOnboarding(onSuccess: () -> Unit) {

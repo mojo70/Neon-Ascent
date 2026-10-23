@@ -33,6 +33,29 @@ enum class RestoreMode {
     REPLACE
 }
 
+enum class RestoreStage {
+    HANDSHAKE,
+    RECEIVING,
+    READING,
+    DECRYPT,
+    PARSE,
+    CHECKSUM,
+    RESTORE_WORKOUT,
+    RESTORE_DOMAINS,
+    RESTORE_PREFS,
+    INTEGRITY,
+    READY,
+    FAIL
+}
+
+data class RestoreProgress(
+    val stage: RestoreStage,
+    val message: String = "",
+    val checksumHex: String? = null,
+    val result: RestoreResult? = null,
+    val error: String? = null
+)
+
 data class RestoreResult(
     val success: Boolean,
     val message: String,
@@ -40,11 +63,13 @@ data class RestoreResult(
     val restoredBiomarkersCount: Int = 0,
     val restoredCodexCount: Int = 0,
     val restoredJournalCount: Int = 0,
+    val restoredRitesCount: Int = 0,
+    val restoredHighlightsCount: Int = 0,
     val timestamp: Long = System.currentTimeMillis()
 )
 
 data class NeonAscentBackupPayload(
-    val version: Int = 4,
+    val version: Int = 5,
     val exportedAt: String,
     val appVersion: String = "1.0",
     val workoutPayload: WorkoutBackupSection? = null,
@@ -58,7 +83,9 @@ data class NeonAscentBackupPayload(
     val selfMapPayload: SelfMapBackupSection? = null,
     val biohackingPayload: BiohackingBackupSection? = null,
     val chatPayload: ChatBackupSection? = null,
-    val preferencesPayload: PreferencesBackupSection? = null
+    val preferencesPayload: PreferencesBackupSection? = null,
+    val ritesPayload: RitesBackupSection? = null,
+    val libraryPayload: LibraryBackupSection? = null
 )
 
 data class WorkoutBackupSection(
@@ -327,7 +354,54 @@ data class PreferencesBackupSection(
     val useCustomNumpadInFocusMode: Boolean = false,
     val codexPeriod: String = "THIRTY_DAYS",
     val codexWing: String = "OPS_LOG",
-    val codexLastExerciseId: String? = null
+    val codexLastExerciseId: String? = null,
+    val targetWakeWd: String? = null,
+    val targetWakeWe: String? = null,
+    val pulsePmMode: String? = null,
+    val pulsePmCustomDays: String? = null,
+    val pulsePmCustomTime: String? = null,
+    val adaptiveWakeEnabled: Boolean = false,
+    val quietHoursEnd: String? = null,
+    val showDirectivesOnMorningShade: Boolean = false,
+    val directiveIntakeMode: String? = null,
+    val autoSyncEnabled: Boolean = false,
+    val syncIntervalHours: Int? = null,
+    val enabledAttributes: List<String> = emptyList(),
+    val liveMonitoringEnabled: Boolean = false,
+    val showSyncNotification: Boolean = false,
+    val isNetrunnerMode: Boolean = false,
+    val isAltarTrueTextMode: Boolean = false,
+    val biometricLockEnabled: Boolean = false,
+    val biometricLockTimeout: Int? = null
+)
+
+data class RitesBackupSection(
+    val sessions: List<RiteSessionDto> = emptyList()
+)
+
+data class RiteSessionDto(
+    val id: String,
+    val kind: String,
+    val startedAtEpochMs: Long,
+    val endedAtEpochMs: Long? = null,
+    val durationMin: Int,
+    val source: String,
+    val notes: String? = null,
+    val localDate: String
+)
+
+data class LibraryBackupSection(
+    val highlights: List<LibraryHighlightDto> = emptyList()
+)
+
+data class LibraryHighlightDto(
+    val id: Long = 0,
+    val bookId: String,
+    val chapterIndex: Int,
+    val startOffset: Int,
+    val endOffset: Int,
+    val color: Long,
+    val timestampEpochMs: Long
 )
 
 data class BiometricsBackupSection(

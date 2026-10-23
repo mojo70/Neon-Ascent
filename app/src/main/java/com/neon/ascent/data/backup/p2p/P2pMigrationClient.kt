@@ -44,6 +44,9 @@ class P2pMigrationClient @Inject constructor(
     private val _clientState = MutableStateFlow<P2pClientState>(P2pClientState.Idle)
     val clientState: StateFlow<P2pClientState> = _clientState.asStateFlow()
 
+    private val _restoreProgress = MutableStateFlow<com.neon.ascent.core.domain.backup.models.RestoreProgress?>(null)
+    val restoreProgress: StateFlow<com.neon.ascent.core.domain.backup.models.RestoreProgress?> = _restoreProgress.asStateFlow()
+
     suspend fun downloadAndRestore(serverInfo: P2pServerInfo): RestoreResult = withContext(Dispatchers.IO) {
         try {
             _clientState.value = P2pClientState.Downloading(0, 0L, 0L)
@@ -114,7 +117,9 @@ class P2pMigrationClient @Inject constructor(
 
             // 4. Restore Database
             _clientState.value = P2pClientState.Restoring
-            val restoreResult = fullDataBackupRepository.restoreBackupJson(jsonPayload, RestoreMode.REPLACE)
+            val restoreResult = fullDataBackupRepository.restoreBackupJson(jsonPayload, RestoreMode.REPLACE) { progress ->
+                _restoreProgress.value = progress
+            }
 
             if (restoreResult.success) {
                 _clientState.value = P2pClientState.Success(restoreResult.message)
@@ -133,5 +138,6 @@ class P2pMigrationClient @Inject constructor(
 
     fun resetState() {
         _clientState.value = P2pClientState.Idle
+        _restoreProgress.value = null
     }
 }
