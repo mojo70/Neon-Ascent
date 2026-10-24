@@ -1153,6 +1153,9 @@ fun AppNavigation(
                     args.highlightExerciseId?.let { oldId ->
                         workoutViewModel.substituteExercise(oldId, newExercise)
                     }
+                },
+                onOpenProtocols = {
+                    navController.popBackStack()
                 }
             )
         }

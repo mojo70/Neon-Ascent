@@ -109,6 +109,33 @@ class FullDataBackupRepositoryImplTest {
         override fun getUserProfile(userId: String): Flow<UserWorkoutProfileEntity?> = flowOf(profiles[userId])
         override suspend fun deleteUserProfile(userId: String) { profiles.remove(userId) }
 
+        val deloadWindows = mutableMapOf<String, DeloadWindowEntity>()
+
+        override suspend fun insertDeloadWindow(window: DeloadWindowEntity) {
+            deloadWindows[window.id] = window
+        }
+
+        override fun getActiveDeloadWindow(userId: String): Flow<DeloadWindowEntity?> =
+            flowOf(deloadWindows.values.lastOrNull { it.userId == userId && it.status == "ACTIVE" })
+
+        override fun getLatestDeloadWindow(userId: String): Flow<DeloadWindowEntity?> =
+            flowOf(deloadWindows.values.lastOrNull { it.userId == userId })
+
+        override fun getAllDeloadWindows(): Flow<List<DeloadWindowEntity>> =
+            flowOf(deloadWindows.values.toList())
+
+        override suspend fun updateActiveDeloadWindowStatus(userId: String, status: String) {
+            deloadWindows.values.filter { it.userId == userId && it.status == "ACTIVE" }.forEach {
+                deloadWindows[it.id] = it.copy(status = status)
+            }
+        }
+
+        override suspend fun endActiveDeloadWindow(userId: String, endedAt: Instant) {
+            deloadWindows.values.filter { it.userId == userId && it.status == "ACTIVE" }.forEach {
+                deloadWindows[it.id] = it.copy(end = endedAt, status = "COMPLETED")
+            }
+        }
+
         override suspend fun insertProgressionState(state: ProgressionStateEntity) {
             progressionStates[state.exerciseId] = state
         }
@@ -1157,6 +1184,45 @@ class FullDataBackupRepositoryImplTest {
         assertEquals(true, restoredProfile?.deepLinkToRoutine)
         assertEquals("[\"seq1\"]", restoredProfile?.customSequenceIds)
         assertEquals(1726132800000L, restoredProfile?.lastBlastStartDate?.toEpochMilli())
+    }
+
+    @Test
+    fun `export and restore active deload window round trip`() = runBlocking {
+        val now = Instant.now()
+        val activeWindow = DeloadWindowEntity(
+            id = "dw_101",
+            userId = "default_user",
+            start = now.minus(java.time.Duration.ofDays(1)),
+            end = now.plus(java.time.Duration.ofDays(8)),
+            source = "RECOVERY",
+            status = "ACTIVE"
+        )
+        workoutDao.insertDeloadWindow(activeWindow)
+
+        val scope = BackupScope(includeWorkout = true)
+        val json = repository.exportBackupJson(scope)
+
+        // Clear local storage
+        workoutDao.deloadWindows.clear()
+        assertTrue(workoutDao.deloadWindows.isEmpty())
+
+        // Restore
+        val result = repository.restoreBackupJson(json, RestoreMode.MERGE)
+        assertTrue("Restore should succeed", result.success)
+
+        // Assert window restored and active
+        val restoredWindow = workoutDao.getActiveDeloadWindow("default_user").first()
+        assertNotNull("Active deload window should be restored", restoredWindow)
+        assertEquals("dw_101", restoredWindow?.id)
+        assertEquals("ACTIVE", restoredWindow?.status)
+        assertEquals("RECOVERY", restoredWindow?.source)
+
+        // Verify a new session starting inside this active window would be isDeload
+        val isWindowActive = restoredWindow != null &&
+                restoredWindow.status == "ACTIVE" &&
+                !now.isBefore(restoredWindow.start) &&
+                !now.isAfter(restoredWindow.end)
+        assertTrue("New session inside restored window should evaluate isDeload = true", isWindowActive)
     }
 
     @Test

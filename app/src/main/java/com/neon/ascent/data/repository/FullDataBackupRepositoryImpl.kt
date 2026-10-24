@@ -397,6 +397,18 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                 )
             }
 
+            val deloadWindowsDto = workoutDao.getAllDeloadWindows().first().map { w ->
+                DeloadWindowDto(
+                    id = w.id,
+                    userId = w.userId,
+                    startEpochMs = w.start.toEpochMilli(),
+                    endEpochMs = w.end.toEpochMilli(),
+                    source = w.source,
+                    status = w.status,
+                    snoozedUntilEpochMs = w.snoozedUntil?.toEpochMilli()
+                )
+            }
+
             WorkoutBackupSection(
                 sessions = sessionsDto,
                 logs = logsDto,
@@ -416,7 +428,8 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                 augmentSets = augmentSetsDto,
                 augmentActivations = augmentActivationsDto,
                 routineAugmentCrossRefs = routineAugmentCrossRefsDto,
-                protocolRepTargets = repTargetsDto
+                protocolRepTargets = repTargetsDto,
+                deloadWindows = deloadWindowsDto
             )
         } else null
 
@@ -1458,6 +1471,23 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                             customSequenceIds = p.customSequenceIds ?: "[]",
                             coachingHintsEnabled = p.coachingHintsEnabled,
                             lastBlastStartDate = p.lastBlastStartDateEpochMs?.let { Instant.ofEpochMilli(it) }
+                        )
+                    )
+                }
+
+                w.deloadWindows.orEmpty().forEach { dw ->
+                    val endInstant = Instant.ofEpochMilli(dw.endEpochMs)
+                    val now = Instant.now()
+                    val activeStatus = if (endInstant.isAfter(now) && dw.status == "ACTIVE") "ACTIVE" else dw.status
+                    workoutDao.insertDeloadWindow(
+                        DeloadWindowEntity(
+                            id = dw.id,
+                            userId = dw.userId,
+                            start = Instant.ofEpochMilli(dw.startEpochMs),
+                            end = endInstant,
+                            source = dw.source,
+                            status = activeStatus,
+                            snoozedUntil = dw.snoozedUntilEpochMs?.let { Instant.ofEpochMilli(it) }
                         )
                     )
                 }

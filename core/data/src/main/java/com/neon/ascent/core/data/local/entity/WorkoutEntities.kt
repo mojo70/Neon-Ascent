@@ -409,3 +409,15 @@ data class FuelSnapshotEntity(
     val activityFactor: Float,
     val somatotype: String
 )
+
+@Entity(tableName = "deload_windows")
+data class DeloadWindowEntity(
+    @PrimaryKey val id: String,
+    val userId: String,
+    val start: Instant,
+    val end: Instant,
+    val source: String,
+    val status: String,
+    val snoozedUntil: Instant? = null
+)
+

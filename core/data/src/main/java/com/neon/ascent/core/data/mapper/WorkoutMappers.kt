@@ -515,3 +515,23 @@ fun WorkoutRoutine.toEntity() = WorkoutRoutineEntity(
     isSystem = isSystem,
     isAddedToLibrary = isAddedToLibrary
 )
+
+fun DeloadWindowEntity.toDomain() = DeloadWindow(
+    id = id,
+    userId = userId,
+    start = start,
+    end = end,
+    source = safeEnumValueOf(source, DeloadSource.MANUAL),
+    status = safeEnumValueOf(status, DeloadWindowStatus.ACTIVE),
+    snoozedUntil = snoozedUntil
+)
+
+fun DeloadWindow.toEntity() = DeloadWindowEntity(
+    id = id,
+    userId = userId,
+    start = start,
+    end = end,
+    source = source.name,
+    status = status.name,
+    snoozedUntil = snoozedUntil
+)

@@ -69,7 +69,7 @@ data class RestoreResult(
 )
 
 data class NeonAscentBackupPayload(
-    val version: Int = 6,
+    val version: Int = 7,
     val exportedAt: String,
     val appVersion: String = "1.0",
     val workoutPayload: WorkoutBackupSection? = null,
@@ -107,7 +107,8 @@ data class WorkoutBackupSection(
     val augmentSets: List<AugmentSetDto> = emptyList(),
     val augmentActivations: List<AugmentActivationDto> = emptyList(),
     val routineAugmentCrossRefs: List<RoutineAugmentCrossRefDto> = emptyList(),
-    val protocolRepTargets: List<ProtocolRepTargetDto> = emptyList()
+    val protocolRepTargets: List<ProtocolRepTargetDto> = emptyList(),
+    val deloadWindows: List<DeloadWindowDto> = emptyList()
 )
 
 data class WorkoutSessionDto(
@@ -281,6 +282,16 @@ data class RoutineSetDto(
     val weight: Float,
     val reps: Int,
     val goalReps: String? = null
+)
+
+data class DeloadWindowDto(
+    val id: String,
+    val userId: String,
+    val startEpochMs: Long,
+    val endEpochMs: Long,
+    val source: String,
+    val status: String,
+    val snoozedUntilEpochMs: Long? = null
 )
 
 data class WorkoutAugmentDto(

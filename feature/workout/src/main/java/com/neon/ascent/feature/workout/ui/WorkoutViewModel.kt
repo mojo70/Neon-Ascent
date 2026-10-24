@@ -145,7 +145,11 @@ data class WorkoutUiState(
     val operationalStatus: OperationalStatus = OperationalStatus.NOMINAL,
     val isStatusBannerDismissed: Boolean = false,
     val linkedDirectiveTitle: String? = null,
-    val linkedDirectiveId: String? = null
+    val linkedDirectiveId: String? = null,
+    val showSoftDeloadOfferSheet: Boolean = false,
+    val softDeloadOffer: SoftDeloadOffer? = null,
+    val pendingDeloadRoutine: WorkoutRoutine? = null,
+    val activeDeloadWindow: DeloadWindow? = null
 )
 
 @HiltViewModel
@@ -308,6 +312,13 @@ class WorkoutViewModel @Inject constructor(
             launch {
                 repository.getRecoveryScore().collect { score ->
                     _uiState.update { it.copy(recoveryScore = score) }
+                }
+            }
+
+            launch {
+                val userId = _uiState.value.userProfile?.userId ?: "default_user"
+                repository.getActiveDeloadWindow(userId).collect { window ->
+                    _uiState.update { it.copy(activeDeloadWindow = window) }
                 }
             }
 
@@ -1662,21 +1673,27 @@ class WorkoutViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            val userId = _uiState.value.userProfile?.userId ?: "default_user"
+            val activeDeload = repository.getActiveDeloadWindow(userId).first()
+            val now = java.time.Instant.now()
+            val isWindowActive = activeDeload != null && activeDeload.status == DeloadWindowStatus.ACTIVE && !now.isBefore(activeDeload.start) && !now.isAfter(activeDeload.end)
+            val effectiveIsDeload = isDeload || isWindowActive
+
             val sessions = repository.getAllSessions().first()
             val routines = repository.getAllRoutines().first()
             val matchingRoutine = _uiState.value.nextSequencedRoutine?.takeIf { it.protocol == protocol }
                 ?: WorkoutRotationResolver.resolveNextRoutine(sessions, routines, protocol)
 
             if (matchingRoutine != null) {
-                startRoutine(matchingRoutine, isDeload)
+                startRoutine(matchingRoutine, effectiveIsDeload)
             } else {
                 val sessionId = UUID.randomUUID().toString()
                 val session = WorkoutSession(
                     id = sessionId, 
                     protocol = protocol,
-                    isDeload = isDeload
+                    isDeload = effectiveIsDeload
                 )
-                val initialPhase = if (protocol == WorkoutProtocol.CYBER_CRAPP && !isDeload) RestPausePhase.MINI_SET_1 else RestPausePhase.NOT_ACTIVE
+                val initialPhase = if (protocol == WorkoutProtocol.CYBER_CRAPP && !effectiveIsDeload) RestPausePhase.MINI_SET_1 else RestPausePhase.NOT_ACTIVE
                 _uiState.update { it.copy(
                     session = session, 
                     isLoading = true, 
@@ -2566,6 +2583,11 @@ class WorkoutViewModel @Inject constructor(
 
             val sessionId = UUID.randomUUID().toString()
             val userProfile = _uiState.value.userProfile
+            val userId = userProfile?.userId ?: "default_user"
+            val activeDeload = repository.getActiveDeloadWindow(userId).first()
+            val now = java.time.Instant.now()
+            val isWindowActive = activeDeload != null && activeDeload.status == DeloadWindowStatus.ACTIVE && !now.isBefore(activeDeload.start) && !now.isAfter(activeDeload.end)
+            val effectiveIsDeload = isDeload || isWindowActive
 
             // Determine Day Type for Protocols
             val activeCycle = userProfile?.let { repository.getActiveCycle(it.userId).first() }
@@ -2590,14 +2612,14 @@ class WorkoutViewModel @Inject constructor(
             val session = WorkoutSession(
                 id = sessionId, 
                 protocol = fullRoutine.protocol,
-                isDeload = isDeload,
+                isDeload = effectiveIsDeload,
                 cycleId = activeCycle?.id,
                 protocolDayType = dayType
             )
 
             // 1. Create the session first in DB and UI state
             repository.saveSession(session)
-            val uiMode = if (fullRoutine.protocol == WorkoutProtocol.CYBER_CRAPP) ProtocolUiMode.CLUSTER else ProtocolUiMode.LINEAR
+            val uiMode = if (fullRoutine.protocol == WorkoutProtocol.CYBER_CRAPP && !effectiveIsDeload) ProtocolUiMode.CLUSTER else ProtocolUiMode.LINEAR
             _uiState.update { it.copy(session = session, previousLogs = emptyMap(), currentUiMode = uiMode) }
 
             var currentOrder = 0
@@ -2621,7 +2643,7 @@ class WorkoutViewModel @Inject constructor(
                 val exerciseMax = repository.getExerciseMax(routineExercise.exercise.familyId).first()
 
                 // Engine-based set generation (Excluding CyberCrapp which uses manual expansion below)
-                if (engine != null && !isDeload && fullRoutine.protocol != WorkoutProtocol.CYBER_CRAPP) {
+                if (engine != null && !effectiveIsDeload && fullRoutine.protocol != WorkoutProtocol.CYBER_CRAPP) {
                     val prescribedSets = mutableListOf<PrescribedSet>()
                     // Generate 4 warmups + 3 work sets (or 1 for DL)
                     val workSetCount = if (routineExercise.exercise.familyId == "deadlift") 1 else 3
@@ -2653,9 +2675,13 @@ class WorkoutViewModel @Inject constructor(
                     var warmupCount = 0
                     var normalCount = 0
                     routineExercise.sets.forEach { routineSet ->
+                        if (effectiveIsDeload && (routineSet.type == SetType.PARTIAL || routineSet.type == SetType.STRETCH)) {
+                            return@forEach
+                        }
+
                         val goalReps = if (routineSet.goalReps != null) {
                             routineSet.goalReps
-                        } else if (isDeload && routineSet.type == SetType.REST_PAUSE) {
+                        } else if (effectiveIsDeload && routineSet.type == SetType.REST_PAUSE) {
                             "DELOAD (RIR 3-4)"
                         } else {
                             CyberCrappRules.resolve(
@@ -2687,19 +2713,20 @@ class WorkoutViewModel @Inject constructor(
                         }
 
                         if (session.protocol == WorkoutProtocol.CYBER_CRAPP && routineSet.type == SetType.REST_PAUSE) {
-                            val typeToSave = if (isDeload) SetType.NORMAL else SetType.REST_PAUSE
+                            val typeToSave = if (effectiveIsDeload) SetType.NORMAL else SetType.REST_PAUSE
+                            val goalRepsToSave = if (effectiveIsDeload) "DELOAD (RIR 3-4)" else goalReps
                             for (i in 1..3) {
                                 globalSetTimestamp = globalSetTimestamp.plusMillis(1)
                                 val setLog = SetLog(
                                     id = UUID.randomUUID().toString(),
                                     workoutLogId = workoutLog.id,
                                     weight = setWeight,
-                                    reps = if (isDeload) 0 else routineSet.reps,
+                                    reps = if (effectiveIsDeload) 0 else routineSet.reps,
                                     type = typeToSave,
-                                    goalReps = goalReps,
-                                    clusterMiniSetIndex = if (isDeload) null else i,
+                                    goalReps = goalRepsToSave,
+                                    clusterMiniSetIndex = if (effectiveIsDeload) null else i,
                                     timestamp = globalSetTimestamp,
-                                    rir = if (isDeload) 4 else null
+                                    rir = if (effectiveIsDeload) 4 else null
                                 )
                                 repository.saveSetLog(setLog)
                             }
@@ -2732,13 +2759,14 @@ class WorkoutViewModel @Inject constructor(
                 }
             }
 
-            val initialPhase = if (fullRoutine.protocol == WorkoutProtocol.CYBER_CRAPP && !isDeload) RestPausePhase.MINI_SET_1 else RestPausePhase.NOT_ACTIVE
+            val initialPhase = if (fullRoutine.protocol == WorkoutProtocol.CYBER_CRAPP && !effectiveIsDeload) RestPausePhase.MINI_SET_1 else RestPausePhase.NOT_ACTIVE
             _uiState.update { it.copy(
                 activeRoutine = fullRoutine,
                 workoutDurationSeconds = 0,
                 isPaused = false,
                 workoutPhase = initialPhase
             ) }
+            activeSessionController.setWorkoutPhase(initialPhase)
             activeSessionController.setWorkoutPhase(initialPhase)
 
             startWorkoutTimer()
@@ -3451,7 +3479,81 @@ class WorkoutViewModel @Inject constructor(
         if (profile?.sequencerEnabled == true && state.nextSequencedRoutine != null && routine.id != state.nextSequencedRoutine.id) {
             _uiState.update { it.copy(showSequenceOverrideDialog = true, pendingSequenceRoutine = routine) }
         } else {
-            startRoutine(routine, isDeload)
+            viewModelScope.launch {
+                val userId = profile?.userId ?: "default_user"
+                val activeDeload = repository.getActiveDeloadWindow(userId).first()
+                val now = java.time.Instant.now()
+                val isWindowActive = activeDeload != null && activeDeload.status == DeloadWindowStatus.ACTIVE && !now.isBefore(activeDeload.start) && !now.isAfter(activeDeload.end)
+                val effectiveIsDeload = isDeload || isWindowActive
+
+                if (!effectiveIsDeload && routine.protocol == WorkoutProtocol.CYBER_CRAPP) {
+                    val recoveryScore = state.recoveryScore ?: repository.getRecoveryScore().first()
+                    val latestWindow = repository.getLatestDeloadWindow(userId).first()
+                    val snoozedUntil = latestWindow?.snoozedUntil
+                    val lastDate = latestWindow?.end ?: profile?.lastBlastStartDate
+                    val offer = com.neon.ascent.core.domain.workout.rules.SoftDeloadAdvisor.evaluateOffer(recoveryScore.status, lastDate, snoozedUntil, now)
+
+                    if (offer.shouldOffer) {
+                        _uiState.update { it.copy(
+                            showSoftDeloadOfferSheet = true,
+                            softDeloadOffer = offer,
+                            pendingDeloadRoutine = routine
+                        ) }
+                        return@launch
+                    }
+                }
+
+                startRoutine(routine, effectiveIsDeload)
+            }
+        }
+    }
+
+    fun acceptSoftDeloadOffer() {
+        val routine = _uiState.value.pendingDeloadRoutine ?: return
+        val userId = _uiState.value.userProfile?.userId ?: "default_user"
+        val source = _uiState.value.softDeloadOffer?.source ?: DeloadSource.RECOVERY
+        viewModelScope.launch {
+            repository.startDeloadWindow(userId, source)
+            _uiState.update { it.copy(showSoftDeloadOfferSheet = false, softDeloadOffer = null, pendingDeloadRoutine = null) }
+            startRoutine(routine, isDeload = true)
+        }
+    }
+
+    fun delaySoftDeloadOffer() {
+        val routine = _uiState.value.pendingDeloadRoutine ?: return
+        val userId = _uiState.value.userProfile?.userId ?: "default_user"
+        val snoozeTime = com.neon.ascent.core.domain.workout.rules.SoftDeloadAdvisor.calculateSnoozeTime()
+        viewModelScope.launch {
+            val latest = repository.getLatestDeloadWindow(userId).first()
+            if (latest != null) {
+                repository.saveDeloadWindow(latest.copy(snoozedUntil = snoozeTime))
+            } else {
+                repository.saveDeloadWindow(DeloadWindow(userId = userId, snoozedUntil = snoozeTime, status = DeloadWindowStatus.DISMISSED))
+            }
+            _uiState.update { it.copy(showSoftDeloadOfferSheet = false, softDeloadOffer = null, pendingDeloadRoutine = null) }
+            startRoutine(routine, isDeload = false)
+        }
+    }
+
+    fun dismissSoftDeloadOffer() {
+        val routine = _uiState.value.pendingDeloadRoutine
+        _uiState.update { it.copy(showSoftDeloadOfferSheet = false, softDeloadOffer = null, pendingDeloadRoutine = null) }
+        if (routine != null) {
+            startRoutine(routine, isDeload = false)
+        }
+    }
+
+    fun startManualDeload() {
+        val userId = _uiState.value.userProfile?.userId ?: "default_user"
+        viewModelScope.launch {
+            repository.startDeloadWindow(userId, DeloadSource.MANUAL)
+        }
+    }
+
+    fun endDeloadEarly() {
+        val userId = _uiState.value.userProfile?.userId ?: "default_user"
+        viewModelScope.launch {
+            repository.endDeloadWindow(userId)
         }
     }
 

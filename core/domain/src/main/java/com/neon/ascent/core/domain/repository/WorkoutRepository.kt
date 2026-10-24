@@ -82,4 +82,10 @@ interface WorkoutRepository {
     suspend fun upsertExerciseMax(max: ExerciseMax)
 
     suspend fun seedStarterExercises()
+
+    fun getActiveDeloadWindow(userId: String): Flow<DeloadWindow?>
+    fun getLatestDeloadWindow(userId: String): Flow<DeloadWindow?>
+    suspend fun saveDeloadWindow(window: DeloadWindow)
+    suspend fun startDeloadWindow(userId: String, source: DeloadSource = DeloadSource.MANUAL, durationDays: Long = 9): DeloadWindow
+    suspend fun endDeloadWindow(userId: String)
 }

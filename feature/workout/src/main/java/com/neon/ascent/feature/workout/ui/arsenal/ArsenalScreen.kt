@@ -37,6 +37,7 @@ fun ArsenalScreen(
     initialFamilyId: String? = null,
     highlightExerciseId: String? = null,
     onSubstitute: ((Exercise) -> Unit)? = null,
+    onOpenProtocols: (() -> Unit)? = null,
     viewModel: ArsenalViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -138,6 +139,66 @@ fun ArsenalScreen(
                 .padding(padding)
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
+            // Symmetrical Top Selector Switcher: PROTOCOLS vs ARSENAL
+            if (uiState.selectedSlot == null && onOpenProtocols != null) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    color = theme.surface,
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, theme.accent.copy(alpha = 0.3f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { onOpenProtocols() },
+                            color = Color.Transparent,
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text(
+                                text = "PROTOCOLS",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 10.dp),
+                                color = theme.inkMuted,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            color = theme.accent.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(6.dp),
+                            border = BorderStroke(1.dp, theme.accent)
+                        ) {
+                            Text(
+                                text = "ARSENAL (LIFTS)",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 10.dp),
+                                color = theme.accent,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+                }
+            }
+
             // Search Bar
             OutlinedTextField(
                 value = uiState.searchQuery,

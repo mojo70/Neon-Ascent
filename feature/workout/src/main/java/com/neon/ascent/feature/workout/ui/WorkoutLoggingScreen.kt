@@ -27,6 +27,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import com.neon.ascent.core.domain.workout.models.DeloadSource
+import com.neon.ascent.core.domain.workout.models.DeloadWindow
+import com.neon.ascent.core.domain.workout.models.DeloadWindowStatus
+import com.neon.ascent.core.domain.workout.models.SoftDeloadOffer
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.Density
@@ -130,7 +134,10 @@ fun WorkoutLoggingScreen(
                         onLaunchSoloAugment = { viewModel.startIndependentAugmentSession(it) },
                         onAugmentDossier = { showAugmentDossierFor = it },
                         onAugmentActionClick = { showAugmentActionMenuFor = it },
-                        onAddRoutine = { viewModel.toggleRoutineLibrary(it) }
+                        onAddRoutine = { viewModel.toggleRoutineLibrary(it) },
+                        onOpenArsenal = {
+                            onOpenArsenalForSubstitute?.invoke("")
+                        }
                     )
                 } else if (uiState.session == null) {
                     if (uiState.isCreatingRoutine) {
@@ -184,7 +191,9 @@ fun WorkoutLoggingScreen(
                             onResetProfile = { viewModel.resetWorkoutProfile() },
                             onUpdateRestTimerMode = { viewModel.updateRestTimerMode(it) },
                             onUpdateLayoutMode = { viewModel.setWorkoutLayoutMode(it) },
-                            onUpdateCustomNumpad = { viewModel.setUseCustomNumpadInFocusMode(it) }
+                            onUpdateCustomNumpad = { viewModel.setUseCustomNumpadInFocusMode(it) },
+                            onStartDeload = { viewModel.startManualDeload() },
+                            onEndDeloadEarly = { viewModel.endDeloadEarly() }
                         )
                     } else if (uiState.selectedProtocolForDetail != null) {
                         ProtocolDetailScreen(
@@ -248,7 +257,9 @@ fun WorkoutLoggingScreen(
                             onAddAugment = { viewModel.toggleAugmentLibrary(it) },
                             onAddRoutine = { viewModel.toggleRoutineLibrary(it) },
                             onDeactivateProtocol = { viewModel.initiateDeactivateProtocol() },
-                            onShowSettings = { viewModel.showSettings() }
+                            onShowSettings = { viewModel.showSettings() },
+                            onStartDeload = { viewModel.startManualDeload() },
+                            onEndDeloadEarly = { viewModel.endDeloadEarly() }
                         )
                     }
                 } else if (uiState.isReorderingExercises) {
@@ -326,6 +337,7 @@ fun WorkoutLoggingScreen(
                                     onViewInCodex = { onViewInCodex("") },
                                     protocol = uiState.session?.protocol,
                                     dayType = uiState.session?.protocolDayType,
+                                    isDeload = uiState.session?.isDeload == true,
                                     layoutMode = uiState.layoutMode,
                                     onToggleLayoutMode = { viewModel.toggleWorkoutLayoutMode() }
                                 )
@@ -457,6 +469,15 @@ fun WorkoutLoggingScreen(
                     }
                 },
                 containerColor = theme.surfaceRaised
+            )
+        }
+
+        if (uiState.showSoftDeloadOfferSheet && uiState.softDeloadOffer != null) {
+            SoftDeloadOfferSheet(
+                offer = uiState.softDeloadOffer!!,
+                onAccept = { viewModel.acceptSoftDeloadOffer() },
+                onDelay = { viewModel.delaySoftDeloadOffer() },
+                onDismiss = { viewModel.dismissSoftDeloadOffer() }
             )
         }
 
@@ -1347,6 +1368,7 @@ fun ActiveWorkoutHeader(
     onViewInCodex: () -> Unit = {},
     protocol: WorkoutProtocol? = null,
     dayType: ProtocolDayType? = null,
+    isDeload: Boolean = false,
     layoutMode: WorkoutLayoutMode = WorkoutLayoutMode.CLASSIC,
     onToggleLayoutMode: (() -> Unit)? = null
 ) {
@@ -1420,6 +1442,22 @@ fun ActiveWorkoutHeader(
                             modifier = Modifier.padding(start = 6.dp),
                             maxLines = 1
                         )
+                    }
+                    if (isDeload && zoom < 1.25f) {
+                        Surface(
+                            color = Color(0xFFFFB703).copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(4.dp),
+                            border = BorderStroke(1.dp, Color(0xFFFFB703)),
+                            modifier = Modifier.padding(start = 6.dp)
+                        ) {
+                            Text(
+                                "DELOAD",
+                                color = Color(0xFFFFB703),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -1662,7 +1700,9 @@ fun WorkoutIntakeScreen(
     onAddAugment: (WorkoutAugment) -> Unit,
     onAddRoutine: (WorkoutRoutine) -> Unit,
     onDeactivateProtocol: () -> Unit,
-    onShowSettings: () -> Unit
+    onShowSettings: () -> Unit,
+    onStartDeload: () -> Unit = {},
+    onEndDeloadEarly: () -> Unit = {}
 ) {
     val theme = LocalNeonTheme.current
     var isRoutinesExpanded by remember { mutableStateOf(true) }
@@ -1728,7 +1768,10 @@ fun WorkoutIntakeScreen(
         uiState.userProfile?.activeProtocol?.let { protocol ->
             ActiveProtocolCard(
                 protocol = protocol,
-                onDeactivate = onDeactivateProtocol
+                activeDeloadWindow = uiState.activeDeloadWindow,
+                onDeactivate = onDeactivateProtocol,
+                onStartDeload = onStartDeload,
+                onEndDeloadEarly = onEndDeloadEarly
             )
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -2171,7 +2214,13 @@ fun RecoveryScoreCard(score: RecoveryScore, onStartDeload: () -> Unit) {
 }
 
 @Composable
-fun ActiveProtocolCard(protocol: WorkoutProtocol, onDeactivate: () -> Unit) {
+fun ActiveProtocolCard(
+    protocol: WorkoutProtocol,
+    activeDeloadWindow: DeloadWindow? = null,
+    onDeactivate: () -> Unit,
+    onStartDeload: () -> Unit = {},
+    onEndDeloadEarly: () -> Unit = {}
+) {
     val theme = LocalNeonTheme.current
     var expanded by remember { mutableStateOf(false) }
 
@@ -2208,6 +2257,23 @@ fun ActiveProtocolCard(protocol: WorkoutProtocol, onDeactivate: () -> Unit) {
                 fontWeight = FontWeight.Black,
                 modifier = Modifier.padding(top = 4.dp)
             )
+
+            if (activeDeloadWindow != null && activeDeloadWindow.status == DeloadWindowStatus.ACTIVE) {
+                Surface(
+                    color = Color(0xFFFFB703).copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(4.dp),
+                    border = BorderStroke(1.dp, Color(0xFFFFB703)),
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    Text(
+                        "SOFT DELOAD WINDOW ACTIVE",
+                        color = Color(0xFFFFB703),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
             
             if (expanded) {
                 Text(
@@ -2228,6 +2294,29 @@ fun ActiveProtocolCard(protocol: WorkoutProtocol, onDeactivate: () -> Unit) {
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
+
+                if (activeDeloadWindow != null && activeDeloadWindow.status == DeloadWindowStatus.ACTIVE) {
+                    Button(
+                        onClick = onEndDeloadEarly,
+                        modifier = Modifier.fillMaxWidth().height(44.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFB703)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("END SOFT DELOAD EARLY", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                } else if (protocol == WorkoutProtocol.CYBER_CRAPP) {
+                    Button(
+                        onClick = onStartDeload,
+                        modifier = Modifier.fillMaxWidth().height(44.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("START SOFT DELOAD", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
                 OutlinedButton(
                     onClick = onDeactivate,
                     modifier = Modifier.fillMaxWidth(),
@@ -6374,7 +6463,8 @@ fun WorkoutExploreScreen(
     onLaunchSoloAugment: (AugmentActivation) -> Unit,
     onAugmentDossier: (WorkoutAugment) -> Unit,
     onAugmentActionClick: (WorkoutAugment) -> Unit,
-    onAddRoutine: (WorkoutRoutine) -> Unit
+    onAddRoutine: (WorkoutRoutine) -> Unit,
+    onOpenArsenal: () -> Unit = {}
 ) {
     val theme = LocalNeonTheme.current
     val sortedProtocols = remember {
@@ -6414,12 +6504,112 @@ fun WorkoutExploreScreen(
             )
         }
 
+        // Top Selector Switcher: PROTOCOLS vs ARSENAL
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            color = theme.surface,
+            shape = RoundedCornerShape(8.dp),
+            border = BorderStroke(1.dp, theme.accent.copy(alpha = 0.3f))
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Surface(
+                    modifier = Modifier.weight(1f),
+                    color = theme.accent.copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(6.dp),
+                    border = BorderStroke(1.dp, theme.accent)
+                ) {
+                    Text(
+                        text = "PROTOCOLS",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 10.dp),
+                        color = theme.accent,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onOpenArsenal() },
+                    color = Color.Transparent,
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text(
+                        text = "ARSENAL (LIFTS)",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 10.dp),
+                        color = theme.inkMuted,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onOpenArsenal() }
+                        .border(1.dp, theme.accent.copy(alpha = 0.5f), RoundedCornerShape(12.dp)),
+                    colors = CardDefaults.cardColors(containerColor = theme.surfaceRaised)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "ARSENAL // LIFT CATALOG",
+                                color = theme.accent,
+                                fontSize = 15.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Browse movement slots, exercise families & rotation pools",
+                                color = theme.inkMuted,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Default.FitnessCenter,
+                            contentDescription = null,
+                            tint = theme.accent,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+            }
+
             item {
                 Text(
                     "CORE METHODOLOGIES",
@@ -8050,6 +8240,123 @@ fun StrategicDeconditioningWindow(onDismiss: () -> Unit) {
             ) {
                 Text("UNDERSTOOD", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black)
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SoftDeloadOfferSheet(
+    offer: SoftDeloadOffer,
+    onAccept: () -> Unit,
+    onDelay: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val theme = LocalNeonTheme.current
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = theme.surfaceRaised,
+        scrimColor = Color.Black.copy(alpha = 0.6f)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = 8.dp)
+            ) {
+                Surface(
+                    color = Color(0xFFFFB703).copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(4.dp),
+                    border = BorderStroke(1.dp, Color(0xFFFFB703))
+                ) {
+                    Text(
+                        "SOFT DELOAD SUGGESTED",
+                        color = Color(0xFFFFB703),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            Text(
+                text = if (offer.source == DeloadSource.RECOVERY) "Logbook Fatigue Detected" else "28-Day Blast Threshold Reached",
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Black,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
+
+            Text(
+                text = offer.reason,
+                color = theme.inkMuted,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            Surface(
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 20.dp)
+            ) {
+                Text(
+                    text = "Rest-pause clusters convert to 3 normal straight sets (RIR 3-4). Partials and extreme stretches minimized (~7-10 days).",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    modifier = Modifier.padding(12.dp)
+                )
+            }
+
+            Button(
+                onClick = onAccept,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("ACCEPT SOFT DELOAD", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black, fontSize = 13.sp)
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onDelay,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, theme.hairline)
+                ) {
+                    Text("SNOOZE 24H", color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, theme.hairline)
+                ) {
+                    Text("DISMISS", color = theme.inkMuted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }

@@ -31,7 +31,9 @@ fun WorkoutSettingsScreen(
     onResetProfile: () -> Unit,
     onUpdateRestTimerMode: (RestTimerMode) -> Unit,
     onUpdateLayoutMode: ((WorkoutLayoutMode) -> Unit)? = null,
-    onUpdateCustomNumpad: ((Boolean) -> Unit)? = null
+    onUpdateCustomNumpad: ((Boolean) -> Unit)? = null,
+    onStartDeload: () -> Unit = {},
+    onEndDeloadEarly: () -> Unit = {}
 ) {
     val tempProfile = uiState.tempSettingsProfile ?: uiState.userProfile ?: return
     var showResetConfirmation by remember { mutableStateOf(false) }
@@ -100,12 +102,36 @@ fun WorkoutSettingsScreen(
                             shape = RoundedCornerShape(8.dp),
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
                         ) {
-                            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Adjust, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                Spacer(Modifier.width(16.dp))
-                                Column {
-                                    Text("Protocol Managed", color = Color.White, fontWeight = FontWeight.Bold)
-                                    Text("Rotation index: ${tempProfile.rotationIndex}", color = Color.Gray, fontSize = 12.sp)
+                            Column(Modifier.padding(16.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Adjust, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                    Spacer(Modifier.width(16.dp))
+                                    Column {
+                                        Text("Protocol Managed", color = Color.White, fontWeight = FontWeight.Bold)
+                                        Text("Rotation index: ${tempProfile.rotationIndex}", color = Color.Gray, fontSize = 12.sp)
+                                    }
+                                }
+
+                                if (uiState.activeDeloadWindow != null && uiState.activeDeloadWindow.status == DeloadWindowStatus.ACTIVE) {
+                                    Spacer(Modifier.height(12.dp))
+                                    Button(
+                                        onClick = onEndDeloadEarly,
+                                        modifier = Modifier.fillMaxWidth().height(40.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFB703)),
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Text("END SOFT DELOAD EARLY", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    }
+                                } else if (tempProfile.activeProtocol == WorkoutProtocol.CYBER_CRAPP) {
+                                    Spacer(Modifier.height(12.dp))
+                                    Button(
+                                        onClick = onStartDeload,
+                                        modifier = Modifier.fillMaxWidth().height(40.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Text("START SOFT DELOAD", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    }
                                 }
                             }
                         }

@@ -2906,4 +2906,33 @@ class WorkoutRepositoryImpl @Inject constructor(
     override suspend fun deleteSetLog(setLogId: String) {
         workoutDao.deleteSetLog(setLogId)
     }
+
+    override fun getActiveDeloadWindow(userId: String): Flow<DeloadWindow?> {
+        return workoutDao.getActiveDeloadWindow(userId).map { it?.toDomain() }
+    }
+
+    override fun getLatestDeloadWindow(userId: String): Flow<DeloadWindow?> {
+        return workoutDao.getLatestDeloadWindow(userId).map { it?.toDomain() }
+    }
+
+    override suspend fun saveDeloadWindow(window: DeloadWindow) {
+        workoutDao.insertDeloadWindow(window.toEntity())
+    }
+
+    override suspend fun startDeloadWindow(userId: String, source: DeloadSource, durationDays: Long): DeloadWindow {
+        workoutDao.updateActiveDeloadWindowStatus(userId, DeloadWindowStatus.COMPLETED.name)
+        val now = java.time.Instant.now()
+        val window = com.neon.ascent.core.domain.workout.rules.SoftDeloadAdvisor.createAcceptWindow(
+            userId = userId,
+            source = source,
+            start = now,
+            durationDays = durationDays
+        )
+        workoutDao.insertDeloadWindow(window.toEntity())
+        return window
+    }
+
+    override suspend fun endDeloadWindow(userId: String) {
+        workoutDao.endActiveDeloadWindow(userId, java.time.Instant.now())
+    }
 }

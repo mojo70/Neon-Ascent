@@ -54,6 +54,24 @@ interface WorkoutDao {
     suspend fun deleteUserProfile(userId: String)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertDeloadWindow(window: DeloadWindowEntity)
+
+    @Query("SELECT * FROM deload_windows WHERE userId = :userId AND status = 'ACTIVE' ORDER BY start DESC LIMIT 1")
+    fun getActiveDeloadWindow(userId: String): Flow<DeloadWindowEntity?>
+
+    @Query("SELECT * FROM deload_windows WHERE userId = :userId ORDER BY start DESC LIMIT 1")
+    fun getLatestDeloadWindow(userId: String): Flow<DeloadWindowEntity?>
+
+    @Query("SELECT * FROM deload_windows")
+    fun getAllDeloadWindows(): Flow<List<DeloadWindowEntity>>
+
+    @Query("UPDATE deload_windows SET status = :status WHERE userId = :userId AND status = 'ACTIVE'")
+    suspend fun updateActiveDeloadWindowStatus(userId: String, status: String)
+
+    @Query("UPDATE deload_windows SET `end` = :endedAt, status = 'COMPLETED' WHERE userId = :userId AND status = 'ACTIVE'")
+    suspend fun endActiveDeloadWindow(userId: String, endedAt: Instant)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertProgressionState(state: ProgressionStateEntity)
 
     @Query("SELECT * FROM progression_states WHERE exerciseId = :exerciseId")
