@@ -68,6 +68,7 @@ fun BiohackingScreen(
     onNavigateToOps: () -> Unit = {},
     onRelink: (UplinkProvider) -> Unit = {},
     onNavigateToSelfMap: () -> Unit = {},
+    onNavigateToChronicle: (() -> Unit)? = null,
     viewModel: BiohackingViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -122,6 +123,7 @@ fun BiohackingScreen(
     var showEffectivenessLogger by remember { mutableStateOf(false) }
     var showBodyLogSheet by remember { mutableStateOf(false) }
     var showChargeSheet by remember { mutableStateOf(false) }
+    var showDailyOriginSheet by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -168,6 +170,17 @@ fun BiohackingScreen(
                     }
                 }
             }
+        )
+    }
+
+    if (showDailyOriginSheet) {
+        com.neon.ascent.feature.biohacking.ui.sheet.DailyOriginSheet(
+            onDismiss = { showDailyOriginSheet = false },
+            onOpenChronicleCompose = { date, entryId ->
+                showDailyOriginSheet = false
+                onNavigateToChronicle?.invoke()
+            },
+            viewModel = viewModel
         )
     }
 
@@ -323,6 +336,15 @@ fun BiohackingScreen(
                 }
                 
                 Spacer(modifier = Modifier.height(20.dp))
+
+                // Daily Origin Day Card (LABS Sheet)
+                DailyOriginLabsCard(
+                    neonCyan = neonCyan,
+                    isCyber = visualMode == VisualMode.CYBER,
+                    onOpenSheet = { showDailyOriginSheet = true }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Self Map Attachment Load Card
                 SelfMapLabsCard(onNavigateToSelfMap = onNavigateToSelfMap)
@@ -2016,3 +2038,84 @@ fun SelfMapLabsCard(
         }
     }
 }
+
+@Composable
+fun DailyOriginLabsCard(
+    neonCyan: Color,
+    isCyber: Boolean,
+    onOpenSheet: () -> Unit
+) {
+    if (isCyber) {
+        CyberFrame(
+            label = "DAILY_ORIGIN // DAY_CARD",
+            borderColor = neonCyan
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onOpenSheet() }
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "DAILY_ORIGIN // AGGREGATION",
+                        color = neonCyan,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Text(
+                        text = "Read-only day card telemetry and free-text notes",
+                        color = Color.Gray,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+                Button(
+                    onClick = onOpenSheet,
+                    colors = ButtonDefaults.buttonColors(containerColor = neonCyan, contentColor = Color.Black)
+                ) {
+                    Text(
+                        text = "DAY_CARD",
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+        }
+    } else {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onOpenSheet() },
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Daily Origin Day Card",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
+                    )
+                    Text(
+                        text = "Read-only telemetry aggregation for today",
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
+                }
+                Button(onClick = onOpenSheet) {
+                    Text(text = "View Card")
+                }
+            }
+        }
+    }
+}
+

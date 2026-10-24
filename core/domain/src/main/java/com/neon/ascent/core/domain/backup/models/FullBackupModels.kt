@@ -478,10 +478,16 @@ data class QuoteDto(
     val timestampEpochMs: Long
 )
 
+data class DailyOriginLinkDto(
+    val localDate: String,
+    val chronicleEntryId: String
+)
+
 data class JournalBackupSection(
     val journalEntries: List<JournalEntryDto> = emptyList(),
     val dailyPrayers: List<DailyPrayerDto> = emptyList(),
-    val chronicleEntries: List<ChronicleEntryDto> = emptyList()
+    val chronicleEntries: List<ChronicleEntryDto> = emptyList(),
+    val dayLinks: List<DailyOriginLinkDto> = emptyList()
 )
 
 data class JournalEntryDto(
@@ -515,7 +521,8 @@ data class ChronicleEntryDto(
     val content: String,
     val timestampEpochMs: Long,
     val hearted: Boolean = false,
-    val metadata: String? = null
+    val metadata: String? = null,
+    val localDate: String? = null
 )
 
 data class CharacterBackupSection(

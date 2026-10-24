@@ -966,7 +966,7 @@ class FullDataBackupRepositoryImplTest {
 
         // Export payload
         val exportedJson = repository.exportBackupJson(BackupScope())
-        assertTrue(exportedJson.contains("\"version\": 5"))
+        assertTrue(exportedJson.contains("\"version\": 6"))
         assertTrue(exportedJson.contains("\"settingsPayload\""))
         assertTrue(exportedJson.contains("\"operativeProfile\""))
         assertTrue(exportedJson.contains("V_Test"))
@@ -1047,7 +1047,7 @@ class FullDataBackupRepositoryImplTest {
         val json = repository.exportBackupJson(BackupScope())
         assertTrue("JSON should contain goalsPayload", json.contains("goalsPayload"))
         assertTrue("JSON should contain selfMapPayload", json.contains("selfMapPayload"))
-        assertTrue("JSON should contain version 5", json.contains("\"version\": 5"))
+        assertTrue("JSON should contain version 6", json.contains("\"version\": 6"))
 
         // Reset fake DAOs to test restore
         ascensionDao.directives.clear()
@@ -1404,7 +1404,7 @@ class FullDataBackupRepositoryImplTest {
         coreDatabase.fakeLibraryDao.insertHighlight(highlight)
 
         val exportedJson = repository.exportBackupJson(BackupScope())
-        assertTrue("JSON should contain version 5", exportedJson.contains("\"version\": 5"))
+        assertTrue("JSON should contain version 6", exportedJson.contains("\"version\": 6"))
         assertTrue("JSON should contain ritesPayload", exportedJson.contains("ritesPayload"))
         assertTrue("JSON should contain libraryPayload", exportedJson.contains("libraryPayload"))
         assertTrue("JSON should contain preferencesPayload", exportedJson.contains("preferencesPayload"))
@@ -1613,6 +1613,41 @@ class FullDataBackupRepositoryImplTest {
 
         assertEquals(1, ranked.size)
         assertEquals("custom_ex_weighted_chest_dip", ranked.first().id)
+    }
+
+    @Test
+    fun `export and restore payload v6 round trip preserves daily origin day links and chronicle entries`() = runBlocking {
+        val entry = ChronicleEntry(
+            source = "journal",
+            sourceId = "chronicle_v6_101",
+            wing = "CHRONICLE",
+            room = "ORIGIN",
+            content = "Daily Origin Day Card reflection note for backup v6",
+            timestamp = 1761000000000L,
+            localDate = "2026-10-23"
+        )
+        chronicleRepository.saveEntry(entry)
+
+        // Act - export payload v6
+        val exportedJson = repository.exportBackupJson(BackupScope())
+        assertTrue("JSON should contain version 6", exportedJson.contains("\"version\": 6"))
+        assertTrue("JSON should contain chronicle entry", exportedJson.contains("Daily Origin Day Card reflection note for backup v6"))
+        assertTrue("JSON should contain dayLinks or localDate", exportedJson.contains("2026-10-23"))
+
+        // Reset fake repo
+        chronicleRepository.entries.clear()
+
+        // Act - restore payload
+        val restoreResult = repository.restoreBackupJson(exportedJson, RestoreMode.MERGE)
+        assertTrue(restoreResult.success)
+
+        // Assert - day link and chronicle entry survive round-trip
+        val restoredEntries = chronicleRepository.observeChronicle().first()
+        assertEquals(1, restoredEntries.size)
+        val restoredEntry = restoredEntries[0]
+        assertEquals("chronicle_v6_101", restoredEntry.sourceId)
+        assertEquals("Daily Origin Day Card reflection note for backup v6", restoredEntry.content)
+        assertEquals("2026-10-23", restoredEntry.localDate)
     }
 }
 

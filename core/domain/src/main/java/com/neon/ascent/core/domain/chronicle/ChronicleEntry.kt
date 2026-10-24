@@ -9,5 +9,6 @@ data class ChronicleEntry(
     val timestamp: Long = System.currentTimeMillis(),
     val hearted: Boolean = false,
     val metadata: String? = null,
-    val selfItemId: Long? = null
+    val selfItemId: Long? = null,
+    val localDate: String? = null
 )

@@ -540,7 +540,8 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                 )
             }
 
-            val chronicleEntries = chronicleRepository.observeChronicle().first().map { c ->
+            val rawChronicle = chronicleRepository.observeChronicle().first()
+            val chronicleEntries = rawChronicle.map { c ->
                 ChronicleEntryDto(
                     source = c.source,
                     sourceId = c.sourceId,
@@ -549,14 +550,19 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                     content = c.content,
                     timestampEpochMs = c.timestamp,
                     hearted = c.hearted,
-                    metadata = c.metadata
+                    metadata = c.metadata,
+                    localDate = c.localDate
                 )
             }
+            val dayLinks = rawChronicle
+                .filter { it.localDate != null }
+                .map { DailyOriginLinkDto(localDate = it.localDate!!, chronicleEntryId = it.sourceId) }
 
             JournalBackupSection(
                 journalEntries = entries,
                 dailyPrayers = prayers,
-                chronicleEntries = chronicleEntries
+                chronicleEntries = chronicleEntries,
+                dayLinks = dayLinks
             )
         } else null
 
@@ -1037,7 +1043,7 @@ class FullDataBackupRepositoryImpl @Inject constructor(
         )
 
         val payload = NeonAscentBackupPayload(
-            version = 5,
+            version = 6,
             exportedAt = now,
             appVersion = "1.0",
             workoutPayload = workoutSection,
@@ -1058,7 +1064,7 @@ class FullDataBackupRepositoryImpl @Inject constructor(
 
         healthPreferencesDataStore.updateLastSyncTime()
         userPreferencesRepository.setLastBackupTimestamp(System.currentTimeMillis())
-        userPreferencesRepository.setLastBackupVersion(5)
+        userPreferencesRepository.setLastBackupVersion(6)
 
         return gson.toJson(payload)
     }
@@ -1646,9 +1652,18 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                             content = ce.content,
                             timestamp = ce.timestampEpochMs,
                             hearted = ce.hearted,
-                            metadata = ce.metadata
+                            metadata = ce.metadata,
+                            localDate = ce.localDate
                         )
                     )
+                }
+
+                j.dayLinks.forEach { dl ->
+                    val entries = chronicleRepository.observeChronicle().first()
+                    val existing = entries.firstOrNull { it.sourceId == dl.chronicleEntryId }
+                    if (existing != null && existing.localDate != dl.localDate) {
+                        chronicleRepository.saveEntry(existing.copy(localDate = dl.localDate))
+                    }
                 }
             }
 

@@ -26,7 +26,8 @@ class LoreViewModel @Inject constructor(
     private val ascensionRepository: AscensionRepository,
     private val generateCyberLoreUseCase: GenerateCyberLoreUseCase,
     private val chronicleRepository: ChronicleRepository,
-    private val chronicleImportUseCase: ChronicleImportUseCase
+    private val chronicleImportUseCase: ChronicleImportUseCase,
+    private val dailyOriginRepository: com.neon.ascent.core.domain.chronicle.DailyOriginRepository
 ) : ViewModel() {
 
     val chronicleEntries: StateFlow<List<ChronicleEntry>> = chronicleRepository.observeChronicle()
@@ -117,6 +118,26 @@ class LoreViewModel @Inject constructor(
         viewModelScope.launch {
             val story = userStory.value
             userStoryRepository.saveStory(story.copy(cyberLore = newContent))
+        }
+    }
+
+    fun observeDayPayload(date: LocalDate): Flow<com.neon.ascent.core.domain.chronicle.DailyOriginPayload> {
+        return dailyOriginRepository.observeDay(date)
+    }
+
+    fun saveChronicleEntry(date: LocalDate, content: String) {
+        if (content.isBlank()) return
+        viewModelScope.launch {
+            val entry = ChronicleEntry(
+                source = "journal",
+                sourceId = java.util.UUID.randomUUID().toString(),
+                wing = "CHRONICLE",
+                room = "ORIGIN",
+                content = content,
+                timestamp = System.currentTimeMillis(),
+                localDate = date.toString()
+            )
+            chronicleRepository.saveEntry(entry)
         }
     }
 

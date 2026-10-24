@@ -22,7 +22,8 @@ class ChronicleRepositoryImpl @Inject constructor(
         val source: String? = null,
         val sourceId: String? = null,
         val hearted: Boolean = false,
-        val selfItemId: Long? = null
+        val selfItemId: Long? = null,
+        val localDate: String? = null
     )
 
     override fun observeChronicle(): Flow<List<ChronicleEntry>> {
@@ -108,17 +109,20 @@ class ChronicleRepositoryImpl @Inject constructor(
             timestamp = memory.timestamp,
             hearted = isHearted,
             metadata = memory.metadata,
-            selfItemId = payload?.selfItemId
+            selfItemId = payload?.selfItemId,
+            localDate = payload?.localDate
         )
     }
 
     private fun toNeuralMemory(entry: ChronicleEntry, existingId: Long = 0L): NeuralMemory {
         val importance = if (entry.hearted) 0.8f else 0.5f
+        val existingPayload = parseMetadata(entry.metadata)
         val metadataObj = MetadataPayload(
             source = entry.source,
             sourceId = entry.sourceId,
             hearted = entry.hearted,
-            selfItemId = entry.selfItemId
+            selfItemId = entry.selfItemId ?: existingPayload?.selfItemId,
+            localDate = entry.localDate ?: existingPayload?.localDate
         )
         val metadataJson = gson.toJson(metadataObj)
 

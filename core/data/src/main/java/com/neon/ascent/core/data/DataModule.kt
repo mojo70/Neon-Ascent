@@ -95,4 +95,10 @@ abstract class DataModule {
     abstract fun bindVaultRepository(
         vaultRepositoryImpl: VaultRepositoryImpl
     ): VaultRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindDailyOriginRepository(
+        dailyOriginRepositoryImpl: com.neon.ascent.core.data.repository.DailyOriginRepositoryImpl
+    ): com.neon.ascent.core.domain.chronicle.DailyOriginRepository
 }

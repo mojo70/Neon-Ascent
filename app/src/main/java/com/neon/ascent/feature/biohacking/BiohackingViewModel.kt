@@ -81,6 +81,7 @@ class BiohackingViewModel @Inject constructor(
     private val uplinkManager: NeuralUplinkManager,
     private val bodyLogRepository: BodyLogRepository,
     private val ritesRepository: RitesRepository,
+    private val dailyOriginRepository: com.neon.ascent.core.domain.chronicle.DailyOriginRepository,
     val modelDownloadManager: ModelDownloadManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -754,6 +755,16 @@ class BiohackingViewModel @Inject constructor(
 
     suspend fun getPermissionsToRequest(): Set<String> {
         return healthManager.getPermissionsToRequest()
+    }
+
+    fun observeDayPayload(date: LocalDate): Flow<com.neon.ascent.core.domain.chronicle.DailyOriginPayload> {
+        return dailyOriginRepository.observeDay(date)
+    }
+
+    fun linkChronicleToDay(date: LocalDate, chronicleEntryId: String) {
+        viewModelScope.launch {
+            dailyOriginRepository.linkChronicle(date, chronicleEntryId)
+        }
     }
 
     private fun calculateAge(dob: String): String {
