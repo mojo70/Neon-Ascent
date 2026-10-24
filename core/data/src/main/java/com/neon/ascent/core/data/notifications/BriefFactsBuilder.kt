@@ -93,7 +93,7 @@ class BriefFactsBuilder @Inject constructor(
         }
 
         val (winnerSession, winnerAsleepMin) = if (healthManager.isAvailableAndHasPermissions()) {
-            val sleepSessions = try { healthManager.sleepSessions(sleepWindowStart, now) } catch (_: Exception) { emptyList() }
+            val sleepSessions = try { healthManager.sleepSessions(sleepWindowStart, now.plus(2, ChronoUnit.HOURS)) } catch (_: Exception) { emptyList() }
             val winner = healthManager.pickCoreNight(sleepSessions, zone)
             if (winner != null) {
                 val stageMap = healthManager.stageMinutes(winner)

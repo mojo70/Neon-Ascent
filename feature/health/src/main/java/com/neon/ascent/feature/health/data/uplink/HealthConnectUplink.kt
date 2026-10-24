@@ -105,7 +105,7 @@ class HealthConnectUplink @Inject constructor(
                 val rhr = healthConnectManager.latestRestingHr(startOfDay, now)
                 
                 // Winner Sleep Session in window [18:00 local yesterday -> now]
-                val sleepSessions = healthConnectManager.sleepSessions(sleepWindowStart, now)
+                val sleepSessions = healthConnectManager.sleepSessions(sleepWindowStart, now.plus(2, java.time.temporal.ChronoUnit.HOURS))
                 val winnerSession = healthConnectManager.pickCoreNight(sleepSessions, zone)
 
                 val tibMinutes = winnerSession?.let {

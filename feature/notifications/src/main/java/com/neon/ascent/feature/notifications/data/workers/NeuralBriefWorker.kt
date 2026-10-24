@@ -19,7 +19,6 @@ import com.neon.ascent.core.domain.notifications.brief.BriefStanceResolver
 import com.neon.ascent.core.domain.notifications.brief.PmTemplateWriter
 import com.neon.ascent.core.domain.notifications.models.BriefFacts
 import com.neon.ascent.core.domain.notifications.models.BriefSlot
-import com.neon.ascent.core.domain.notifications.models.BriefStance
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
@@ -50,7 +49,21 @@ class NeuralBriefWorker @AssistedInject constructor(
             // 1. Determine Slot & Build Facts
             val currentHour = LocalTime.now().hour
             val slot = if (currentHour < 15) BriefSlot.AM else BriefSlot.PM
-            val facts = factsBuilder.build(slot)
+            var facts = factsBuilder.build(slot)
+
+            // Rapid sync polling loop for AM brief when sleep telemetry is initially missing
+            if (slot == BriefSlot.AM && facts.vitals.sleepMinutes == null) {
+                Log.i(TAG, "// NO_SLEEP_DATA_ON_FIRST_PASS: Polling telemetry buffer for sleep records...")
+                repeat(3) { attempt ->
+                    kotlinx.coroutines.delay(2000L)
+                    facts = factsBuilder.build(slot)
+                    if (facts.vitals.sleepMinutes != null) {
+                        Log.i(TAG, "// SLEEP_TELEMETRY_ACQUIRED on retry pass ${attempt + 1}: ${facts.vitals.sleepMinutes} min")
+                        return@repeat
+                    }
+                }
+            }
+
             val today = LocalDate.now().toString()
             val factsHash = facts.factsHash
 
@@ -93,9 +106,24 @@ class NeuralBriefWorker @AssistedInject constructor(
                     copy = copy.copy(shadeAllowed = false)
                 }
 
-                if (slot == BriefSlot.AM && facts.vitals.sleepMinutes == null && nowLocal.isBefore(LocalTime.of(8, 0))) {
-                    Log.i(TAG, "// SUPPRESS_AM_BRIEF: No sleep telemetry yet before 08:00 AM. Card only.")
-                    copy = copy.copy(shadeAllowed = false)
+                if (slot == BriefSlot.AM && facts.vitals.sleepMinutes == null) {
+                    if (nowLocal.isBefore(LocalTime.of(10, 0))) {
+                        Log.i(TAG, "// RETRY_SLEEP_TELEMETRY: Sleep data missing at $nowLocal (< 10:00 AM). Enqueuing 15m retry window.")
+                        copy = copy.copy(shadeAllowed = false)
+
+                        // Re-enqueue a 15-minute retry window to pull sleep data once synced
+                        val retryRequest = OneTimeWorkRequestBuilder<NeuralBriefWorker>()
+                            .setInitialDelay(15, TimeUnit.MINUTES)
+                            .addTag("brief_sleep_retry")
+                            .build()
+                        WorkManager.getInstance(applicationContext).enqueueUniqueWork(
+                            UNIQUE_WORK_NAME,
+                            ExistingWorkPolicy.REPLACE,
+                            retryRequest
+                        )
+                    } else {
+                        Log.i(TAG, "// SLEEP_TELEMETRY_TIMEOUT: Past 10:00 AM, proceeding with missing telemetry brief.")
+                    }
                 }
             }
 
