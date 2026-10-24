@@ -17,7 +17,6 @@ import com.neon.ascent.core.domain.notifications.brief.AmTemplateWriter
 import com.neon.ascent.core.domain.notifications.brief.BriefCopyValidator
 import com.neon.ascent.core.domain.notifications.brief.BriefStanceResolver
 import com.neon.ascent.core.domain.notifications.brief.PmTemplateWriter
-import com.neon.ascent.core.domain.notifications.brief.TemplateCopyWriter
 import com.neon.ascent.core.domain.notifications.models.BriefFacts
 import com.neon.ascent.core.domain.notifications.models.BriefSlot
 import com.neon.ascent.core.domain.notifications.models.BriefStance
@@ -78,6 +77,25 @@ class NeuralBriefWorker @AssistedInject constructor(
                 val polished = runAiPolish(facts, copy.shadeBody)
                 if (polished != null) {
                     copy = copy.copy(shadeBody = polished)
+                }
+            }
+
+            // Quiet hours & missing sleep data delivery guard
+            val nowLocal = LocalTime.now()
+            val quietEndStr = briefPrefs.quietHoursEnd.first()
+            val quietEnd = try { LocalTime.parse(quietEndStr) } catch (_: Exception) { LocalTime.of(7, 0) }
+            val isTest = inputData.getBoolean("is_test", false)
+
+            if (!isTest) {
+                val isQuietTime = nowLocal.isBefore(quietEnd) || nowLocal.isBefore(LocalTime.of(5, 0))
+                if (slot == BriefSlot.AM && isQuietTime) {
+                    Log.i(TAG, "// SUPPRESS_AM_BRIEF: Running during quiet hours/night ($nowLocal < $quietEnd). Card only.")
+                    copy = copy.copy(shadeAllowed = false)
+                }
+
+                if (slot == BriefSlot.AM && facts.vitals.sleepMinutes == null && nowLocal.isBefore(LocalTime.of(8, 0))) {
+                    Log.i(TAG, "// SUPPRESS_AM_BRIEF: No sleep telemetry yet before 08:00 AM. Card only.")
+                    copy = copy.copy(shadeAllowed = false)
                 }
             }
 

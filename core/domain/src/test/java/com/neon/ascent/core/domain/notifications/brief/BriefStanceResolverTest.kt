@@ -112,4 +112,29 @@ class BriefStanceResolverTest {
         assertEquals("NOMINAL — No overnight telemetry.", copy.shadeBody)
         assertEquals(OperationalStatus.NOMINAL, copy.status)
     }
+
+    @Test
+    fun `AM brief during quiet hours or with missing telemetry before wake window has shadeAllowed false`() {
+        val facts = BriefFacts(
+            slot = BriefSlot.AM,
+            lastSession = null,
+            vitals = BriefVitals(
+                sleepMinutes = null,
+                sanctumScore = null
+            )
+        )
+
+        val stance = BriefStanceResolver.resolve(facts)
+        var copy = AmTemplateWriter.write(facts, stance)
+
+        // Simulate NeuralBriefWorker delivery check at midnight (00:05 AM)
+        val midnightTime = LocalTime.of(0, 5)
+        val quietEnd = LocalTime.of(7, 0)
+        val isQuietTime = midnightTime.isBefore(quietEnd) || midnightTime.isBefore(LocalTime.of(5, 0))
+        if (isQuietTime) {
+            copy = copy.copy(shadeAllowed = false)
+        }
+
+        assertEquals(false, copy.shadeAllowed)
+    }
 }

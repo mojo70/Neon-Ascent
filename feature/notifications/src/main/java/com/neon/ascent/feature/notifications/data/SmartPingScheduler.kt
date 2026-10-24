@@ -8,14 +8,16 @@ import com.neon.ascent.core.domain.health.HealthManager
 import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.feature.notifications.data.workers.*
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.time.*
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
 import com.neon.ascent.core.data.datastore.BriefPreferencesDataStore
-import java.time.temporal.ChronoUnit
 
 @Singleton
 class SmartPingScheduler @Inject constructor(
@@ -76,14 +78,19 @@ class SmartPingScheduler @Inject constructor(
         val lastSleep = healthData?.sleep?.maxByOrNull { it.endTime }
         if (lastSleep != null) {
             val sleepEndTime = lastSleep.endTime.atZone(zoneId).toLocalTime()
-            val adaptiveAm = sleepEndTime.plusMinutes(20)
-            if (adaptiveAm.isAfter(amTargetTime)) {
-                amTargetTime = adaptiveAm
+            val morningStart = LocalTime.of(4, 0)
+            val morningEnd = LocalTime.of(12, 0)
+            // Only adjust morning target if lastSleep ended during the morning wake window (04:00 - 12:00)
+            if (sleepEndTime.isAfter(morningStart) && sleepEndTime.isBefore(morningEnd)) {
+                val adaptiveAm = sleepEndTime.plusMinutes(20).coerceAtMost(LocalTime.of(12, 0))
+                if (adaptiveAm.isAfter(amTargetTime)) {
+                    amTargetTime = adaptiveAm
+                }
             }
         }
 
         var nextAmDateTime = now.with(amTargetTime)
-        if (nextAmDateTime.isBefore(now)) {
+        if (nextAmDateTime.isBefore(now) || nextAmDateTime.isEqual(now)) {
             nextAmDateTime = nextAmDateTime.plusDays(1)
         }
 
@@ -104,7 +111,7 @@ class SmartPingScheduler @Inject constructor(
         }
 
         var nextPmDateTime = now.with(pmTargetTime)
-        if (nextPmDateTime.isBefore(now)) {
+        if (nextPmDateTime.isBefore(now) || nextPmDateTime.isEqual(now)) {
             nextPmDateTime = nextPmDateTime.plusDays(1)
         }
 
@@ -153,8 +160,10 @@ class SmartPingScheduler @Inject constructor(
                 .build()
             workManager.enqueue(oneTimeRequest)
         } else {
-            android.util.Log.d("SmartPingScheduler", "// SCHEDULING_PERIODIC_BRIEF...")
-            NeuralBriefWorker.schedule(context)
+            android.util.Log.d("SmartPingScheduler", "// SCHEDULING_ADAPTIVE_BRIEF...")
+            CoroutineScope(Dispatchers.IO).launch {
+                scheduleNextAdaptiveBrief()
+            }
         }
     }
 
@@ -186,8 +195,12 @@ class SmartPingScheduler @Inject constructor(
 
     suspend fun triggerBriefUpdateIfNecessary() {
         val now = LocalTime.now()
-        // Only update before 11:00 AM if data changed
-        if (now.isBefore(LocalTime.of(11, 0))) {
+        val quietEndStr = briefPrefs.quietHoursEnd.first()
+        val quietEnd = try { LocalTime.parse(quietEndStr) } catch (_: Exception) { LocalTime.of(7, 0) }
+        val windowStart = quietEnd.minusHours(1).coerceAtLeast(LocalTime.of(5, 0))
+
+        // Only update before 11:00 AM if data changed and current time is within morning pulse window
+        if (now.isAfter(windowStart) && now.isBefore(LocalTime.of(11, 0))) {
             val request = OneTimeWorkRequestBuilder<NeuralBriefWorker>()
                 .addTag("brief_update")
                 .build()
