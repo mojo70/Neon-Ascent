@@ -73,7 +73,9 @@ data class ExerciseDefinitionEntity(
     val rangeOverrideMin: Int? = null,
     val rangeOverrideMax: Int? = null,
     val allowsAddedLoad: Boolean = false,
-    val isPrimaryVariant: Boolean = false
+    val isPrimaryVariant: Boolean = false,
+    val tags: List<String> = emptyList(),
+    val isCustom: Boolean = false
 )
 
 @Entity(tableName = "progression_states")

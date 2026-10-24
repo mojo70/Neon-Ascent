@@ -69,7 +69,7 @@ data class RestoreResult(
 )
 
 data class NeonAscentBackupPayload(
-    val version: Int = 5,
+    val version: Int = 6,
     val exportedAt: String,
     val appVersion: String = "1.0",
     val workoutPayload: WorkoutBackupSection? = null,
@@ -170,7 +170,9 @@ data class ExerciseDefinitionDto(
     val rangeOverrideMin: Int? = null,
     val rangeOverrideMax: Int? = null,
     val allowsAddedLoad: Boolean = false,
-    val isPrimaryVariant: Boolean = false
+    val isPrimaryVariant: Boolean = false,
+    val tags: List<String> = emptyList(),
+    val isCustom: Boolean = false
 )
 
 data class ExerciseMaxDto(

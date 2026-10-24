@@ -9,8 +9,10 @@ import androidx.sqlite.db.SupportSQLiteOpenHelper
 import com.neon.ascent.core.data.NeonAscentDatabase
 import com.neon.ascent.core.data.local.dao.*
 import com.neon.ascent.core.data.local.entity.*
+import com.neon.ascent.core.data.mapper.toDomain
 import com.neon.ascent.core.domain.backup.models.BackupScope
 import com.neon.ascent.core.domain.backup.models.RestoreMode
+import com.neon.ascent.core.domain.workout.rules.ExerciseRanking
 import com.neon.ascent.core.domain.chronicle.ChronicleEntry
 import com.neon.ascent.core.domain.chronicle.ChronicleRepository
 import com.neon.ascent.core.domain.library.models.LibraryBook
@@ -74,6 +76,10 @@ class FullDataBackupRepositoryImplTest {
 
         override suspend fun insertExerciseDefinition(exercise: ExerciseDefinitionEntity) {
             exercises[exercise.id] = exercise
+        }
+
+        override suspend fun deleteCustomExerciseDefinition(id: String) {
+            exercises.remove(id)
         }
 
         override fun getExerciseDefinitions(): Flow<List<ExerciseDefinitionEntity>> = flowOf(exercises.values.toList())
@@ -1464,6 +1470,83 @@ class FullDataBackupRepositoryImplTest {
         assertFalse(result.success)
         assertTrue(stages.contains(com.neon.ascent.core.domain.backup.models.RestoreStage.FAIL))
         assertNotNull(failureMessage)
+    }
+
+    @Test
+    fun `export and restore custom exercises round trip preserves custom variants under family and allows ranking`() = runBlocking {
+        val customFamily = ExerciseDefinitionEntity(
+            id = "custom_fam_chest_dip",
+            name = "Chest Dip",
+            description = "Custom bodyweight chest dip family",
+            cues = listOf("Lean forward", "Go deep"),
+            muscleGroups = listOf("Horizontal Press"),
+            equipment = listOf("Bodyweight"),
+            gifAssetPath = null,
+            isLockedClassic = false,
+            injurySubstitutions = emptyList(),
+            movementType = "COMPOUND_UPPER",
+            familyId = "custom_fam_chest_dip",
+            familyName = "Chest Dip",
+            implement = "BODYWEIGHT",
+            stance = "STANDARD",
+            tags = listOf("FORM_PRIORITY", "LOWER_BACK_FRIENDLY"),
+            isCustom = true,
+            isPrimaryVariant = true
+        )
+
+        val customVariant = ExerciseDefinitionEntity(
+            id = "custom_ex_weighted_chest_dip",
+            name = "Weighted Chest Dip",
+            description = "Custom weighted chest dip",
+            cues = listOf("Add weight belt", "Lean forward"),
+            muscleGroups = listOf("Horizontal Press"),
+            equipment = listOf("Bodyweight"),
+            gifAssetPath = null,
+            isLockedClassic = false,
+            injurySubstitutions = emptyList(),
+            movementType = "COMPOUND_UPPER",
+            familyId = "custom_fam_chest_dip",
+            familyName = "Chest Dip",
+            implement = "BODYWEIGHT",
+            stance = "STANDARD",
+            tags = listOf("FORM_PRIORITY", "AXIAL_LOAD"),
+            isCustom = true,
+            isPrimaryVariant = false
+        )
+
+        workoutDao.insertExerciseDefinition(customFamily)
+        workoutDao.insertExerciseDefinition(customVariant)
+
+        val exportedJson = repository.exportBackupJson(BackupScope(includeWorkout = true))
+        assertTrue("Exported JSON should contain customExercises", exportedJson.contains("customExercises"))
+        assertTrue("Exported JSON should contain custom exercise ID", exportedJson.contains("custom_ex_weighted_chest_dip"))
+
+        workoutDao.exercises.remove("custom_fam_chest_dip")
+        workoutDao.exercises.remove("custom_ex_weighted_chest_dip")
+        assertEquals(0, workoutDao.exercises.values.count { it.isCustom })
+
+        val restoreResult = repository.restoreBackupJson(exportedJson, RestoreMode.MERGE)
+        assertTrue(restoreResult.success)
+
+        val restoredCustoms = workoutDao.exercises.values.filter { it.isCustom }
+        assertEquals(2, restoredCustoms.size)
+
+        val restoredFamily = restoredCustoms.find { it.id == "custom_fam_chest_dip" }
+        val restoredVariant = restoredCustoms.find { it.id == "custom_ex_weighted_chest_dip" }
+
+        assertNotNull(restoredFamily)
+        assertNotNull(restoredVariant)
+        assertEquals("Chest Dip", restoredFamily?.familyName)
+        assertEquals("Chest Dip", restoredVariant?.familyName)
+        assertTrue(restoredFamily!!.isPrimaryVariant)
+        assertFalse(restoredVariant!!.isPrimaryVariant)
+
+        val domainFamily = restoredFamily.toDomain()
+        val domainVariant = restoredVariant.toDomain()
+        val ranked = ExerciseRanking.rankAlternatives(domainFamily, listOf(domainVariant))
+
+        assertEquals(1, ranked.size)
+        assertEquals("custom_ex_weighted_chest_dip", ranked.first().id)
     }
 }
 

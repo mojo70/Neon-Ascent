@@ -12,6 +12,7 @@ interface WorkoutRepository {
     fun getExerciseDefinitions(): Flow<List<Exercise>>
     suspend fun getExerciseById(id: String): Exercise?
     suspend fun saveExerciseDefinition(exercise: Exercise)
+    suspend fun deleteCustomExercise(id: String)
 
     fun getExerciseFamilies(): Flow<List<ExerciseFamily>>
     fun getExercisesByFamily(familyId: String): Flow<List<Exercise>>

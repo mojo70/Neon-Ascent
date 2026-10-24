@@ -67,6 +67,7 @@ fun WorkoutLoggingScreen(
     onBack: () -> Unit,
     onViewInCodex: (String) -> Unit = {},
     onPerformScan: () -> Unit = {},
+    onOpenArsenalForSubstitute: ((String) -> Unit)? = null,
     viewModel: WorkoutViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -593,7 +594,9 @@ fun WorkoutLoggingScreen(
                     viewModel.substituteExercise(uiState.exerciseToSubstitute!!, newExercise)
                 },
                 onBrowseLibrary = {
+                    val exId = uiState.exerciseToSubstitute!!
                     viewModel.dismissSubstitution()
+                    onOpenArsenalForSubstitute?.invoke(exId)
                 },
                 onDismiss = { viewModel.dismissSubstitution() }
             )

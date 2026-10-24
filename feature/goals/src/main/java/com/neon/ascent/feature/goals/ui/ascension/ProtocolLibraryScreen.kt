@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,6 +30,7 @@ import com.neon.ascent.core.domain.goals.models.Protocol
 fun ProtocolLibraryScreen(
     onBack: () -> Unit,
     onProtocolClick: (Protocol) -> Unit,
+    onArsenalClick: (() -> Unit)? = null,
     viewModel: ProtocolLibraryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -57,6 +59,46 @@ fun ProtocolLibraryScreen(
                 .padding(padding)
                 .padding(16.dp)
         ) {
+            // Arsenal Top Card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onArsenalClick?.invoke() }
+                    .border(1.dp, theme.accent.copy(alpha = 0.5f), RoundedCornerShape(8.dp)),
+                colors = CardDefaults.cardColors(containerColor = theme.surfaceRaised)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "ARSENAL // LIFT CATALOG",
+                            color = theme.accent,
+                            fontSize = 14.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Browse movement slots, exercise families & rotation pools",
+                            color = theme.inkMuted,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.FitnessCenter,
+                        contentDescription = null,
+                        tint = theme.accent
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             // Search Bar
             OutlinedTextField(
                 value = uiState.searchQuery,

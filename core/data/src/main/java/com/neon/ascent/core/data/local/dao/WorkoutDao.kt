@@ -19,6 +19,9 @@ interface WorkoutDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertExerciseDefinition(exercise: ExerciseDefinitionEntity)
 
+    @Query("DELETE FROM exercise_definitions WHERE id = :id AND isCustom = 1")
+    suspend fun deleteCustomExerciseDefinition(id: String)
+
     @Query("SELECT * FROM exercise_definitions")
     fun getExerciseDefinitions(): Flow<List<ExerciseDefinitionEntity>>
 

@@ -186,4 +186,11 @@ sealed interface Screen {
 
     @Serializable
     data class CodexDossier(val exerciseId: String) : Screen
+
+    @Serializable
+    data class Arsenal(
+        val initialSlot: String? = null,
+        val initialFamilyId: String? = null,
+        val highlightExerciseId: String? = null
+    ) : Screen
 }

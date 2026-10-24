@@ -361,6 +361,47 @@ fun PersonalDatabaseOverview(
             }
         }
 
+        item { SectionHeader("ARSENAL_LIFT_LIBRARY", "CATALOG", { navController.navigate(Screen.Arsenal()) }) }
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { navController.navigate(Screen.Arsenal()) }
+                    .border(1.dp, theme.accent.copy(alpha = 0.5f), RoundedCornerShape(8.dp)),
+                colors = CardDefaults.cardColors(containerColor = theme.surfaceRaised)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "ARSENAL // LIFT CATALOG",
+                            color = theme.accent,
+                            fontSize = 13.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Browse movement slots, exercise families & rotation pools",
+                            color = theme.inkMuted,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.FitnessCenter,
+                        contentDescription = null,
+                        tint = theme.accent,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+
         item { SectionHeader("BIO_PROTOCOLS", "${protocols.size} VERIFIED", onBioClick) }
         val workingProtocols = protocols.filter { it.isWorking == true }
         if (workingProtocols.isEmpty()) {

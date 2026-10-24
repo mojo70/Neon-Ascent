@@ -74,6 +74,7 @@ import com.neon.ascent.feature.goals.ui.ascension.TerminalRitualScreen
 import com.neon.ascent.feature.goals.ui.ascension.NeuralMentorScreen
 import com.neon.ascent.feature.goals.ui.ascension.QuickTaskBottomSheet
 import com.neon.ascent.feature.goals.ui.ascension.ProtocolLibraryScreen
+import com.neon.ascent.feature.workout.ui.arsenal.ArsenalScreen
 import com.neon.ascent.feature.story.StoryIntakeScreen
 import com.neon.ascent.feature.loading.LoadingScreen
 import com.neon.ascent.feature.library.EReaderScreen
@@ -810,6 +811,9 @@ fun AppNavigation(
                         description = protocol.description,
                         vision = "Protocol from ${protocol.source}"
                     ))
+                },
+                onArsenalClick = {
+                    navController.navigate(Screen.Arsenal())
                 }
             )
         }
@@ -1106,6 +1110,9 @@ fun AppNavigation(
                 onPerformScan = {
                     navController.navigate(Screen.AttributeScan)
                 },
+                onOpenArsenalForSubstitute = { exerciseId ->
+                    navController.navigate(Screen.Arsenal(highlightExerciseId = exerciseId))
+                },
                 viewModel = workoutViewModel
             )
         }
@@ -1132,6 +1139,21 @@ fun AppNavigation(
                     biohackingViewModel.relink(UplinkProvider.HEALTH_CONNECT)
                 },
                 viewModel = codexViewModel
+            )
+        }
+
+        composable<Screen.Arsenal> { backStackEntry ->
+            val args = backStackEntry.toRoute<Screen.Arsenal>()
+            ArsenalScreen(
+                onBack = { navController.popBackStack() },
+                initialSlot = args.initialSlot,
+                initialFamilyId = args.initialFamilyId,
+                highlightExerciseId = args.highlightExerciseId,
+                onSubstitute = { newExercise ->
+                    args.highlightExerciseId?.let { oldId ->
+                        workoutViewModel.substituteExercise(oldId, newExercise)
+                    }
+                }
             )
         }
     }

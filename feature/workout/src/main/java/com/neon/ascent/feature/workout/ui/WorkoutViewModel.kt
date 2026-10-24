@@ -16,6 +16,7 @@ import com.neon.ascent.core.data.datastore.HealthPreferencesDataStore
 import com.neon.ascent.core.domain.goals.models.AscensionTask
 import com.neon.ascent.core.domain.goals.models.AscensionTaskType
 import com.neon.ascent.core.domain.workout.rules.CyberCrappRules
+import com.neon.ascent.core.domain.workout.rules.ExerciseRanking
 import com.neon.ascent.core.domain.workout.rules.ProgressionCalculator
 import com.neon.ascent.feature.workout.services.WorkoutTimerService
 import com.neon.ascent.core.data.datastore.BriefPreferencesDataStore
@@ -4111,16 +4112,9 @@ class WorkoutViewModel @Inject constructor(
 
     fun startSubstitution(exerciseId: String) {
         val exercise = _uiState.value.availableExercises.find { it.id == exerciseId } ?: return
-        val allOther = _uiState.value.availableExercises.filter { it.id != exerciseId }
-
-        // Sort rules:
-        // 1. Same familyId, different id
-        // 2. Same movementType
-        // 3. Everything else
-        val recommendations = allOther.sortedWith(
-            compareByDescending<Exercise> { it.familyId == exercise.familyId }
-                .thenByDescending { it.movementType == exercise.movementType && it.movementType != MovementType.UNDEFINED }
-                .thenBy { it.name }
+        val recommendations = ExerciseRanking.rankAlternatives(
+            target = exercise,
+            candidates = _uiState.value.availableExercises
         ).take(3)
 
         _uiState.update { it.copy(

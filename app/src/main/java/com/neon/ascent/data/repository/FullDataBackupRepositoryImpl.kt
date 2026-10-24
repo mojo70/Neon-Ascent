@@ -162,31 +162,39 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                 }
             }
 
-            val exercisesDto = workoutDao.getExerciseDefinitions().first().map { e ->
-                ExerciseDefinitionDto(
-                    id = e.id,
-                    name = e.name,
-                    description = e.description,
-                    cues = e.cues,
-                    muscleGroups = e.muscleGroups,
-                    equipment = e.equipment,
-                    gifAssetPath = e.gifAssetPath,
-                    isLockedClassic = e.isLockedClassic,
-                    injurySubstitutions = e.injurySubstitutions,
-                    dangerousFor = e.dangerousFor,
-                    movementType = e.movementType,
-                    notes = e.notes,
-                    familyId = e.familyId,
-                    familyName = e.familyName,
-                    implement = e.implement,
-                    stance = e.stance,
-                    specialtyBar = e.specialtyBar,
-                    rangeOverrideMin = e.rangeOverrideMin,
-                    rangeOverrideMax = e.rangeOverrideMax,
-                    allowsAddedLoad = e.allowsAddedLoad,
-                    isPrimaryVariant = e.isPrimaryVariant
+            val exercisesDto = workoutDao.getExerciseDefinitions().first()
+                .filter { it.isCustom }
+                .sortedWith(
+                    compareByDescending<ExerciseDefinitionEntity> { it.isPrimaryVariant }
+                        .thenBy { it.id }
                 )
-            }
+                .map { e ->
+                    ExerciseDefinitionDto(
+                        id = e.id,
+                        name = e.name,
+                        description = e.description,
+                        cues = e.cues,
+                        muscleGroups = e.muscleGroups,
+                        equipment = e.equipment,
+                        gifAssetPath = e.gifAssetPath,
+                        isLockedClassic = e.isLockedClassic,
+                        injurySubstitutions = e.injurySubstitutions,
+                        dangerousFor = e.dangerousFor,
+                        movementType = e.movementType,
+                        notes = e.notes,
+                        familyId = e.familyId,
+                        familyName = e.familyName,
+                        implement = e.implement,
+                        stance = e.stance,
+                        specialtyBar = e.specialtyBar,
+                        rangeOverrideMin = e.rangeOverrideMin,
+                        rangeOverrideMax = e.rangeOverrideMax,
+                        allowsAddedLoad = e.allowsAddedLoad,
+                        isPrimaryVariant = e.isPrimaryVariant,
+                        tags = e.tags,
+                        isCustom = e.isCustom
+                    )
+                }
 
             val maxesDto = workoutDao.getAllExerciseMaxes().first().map { m ->
                 ExerciseMaxDto(
@@ -1127,8 +1135,12 @@ class FullDataBackupRepositoryImpl @Inject constructor(
             ))
 
             payload.workoutPayload?.let { w ->
-                // Step 1: Exercise definitions
-                w.customExercises.forEach { e ->
+                // Step 1: Custom exercise definitions (parents / families first)
+                val customToRestore = w.customExercises.sortedWith(
+                    compareByDescending<ExerciseDefinitionDto> { it.isPrimaryVariant }
+                        .thenBy { it.id }
+                )
+                customToRestore.forEach { e ->
                     workoutDao.insertExerciseDefinition(
                         ExerciseDefinitionEntity(
                             id = e.id,
@@ -1151,7 +1163,9 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                             rangeOverrideMin = e.rangeOverrideMin,
                             rangeOverrideMax = e.rangeOverrideMax,
                             allowsAddedLoad = e.allowsAddedLoad,
-                            isPrimaryVariant = e.isPrimaryVariant
+                            isPrimaryVariant = e.isPrimaryVariant,
+                            tags = e.tags,
+                            isCustom = true
                         )
                     )
                 }

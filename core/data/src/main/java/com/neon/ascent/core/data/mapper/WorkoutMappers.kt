@@ -125,7 +125,9 @@ fun ExerciseDefinitionEntity.toDomain() = Exercise(
     rangeOverrideMin = rangeOverrideMin,
     rangeOverrideMax = rangeOverrideMax,
     allowsAddedLoad = allowsAddedLoad,
-    isPrimaryVariant = isPrimaryVariant
+    isPrimaryVariant = isPrimaryVariant,
+    tags = tags,
+    isCustom = isCustom
 )
 
 fun Exercise.toEntity() = ExerciseDefinitionEntity(
@@ -149,7 +151,9 @@ fun Exercise.toEntity() = ExerciseDefinitionEntity(
     rangeOverrideMin = rangeOverrideMin,
     rangeOverrideMax = rangeOverrideMax,
     allowsAddedLoad = allowsAddedLoad,
-    isPrimaryVariant = isPrimaryVariant
+    isPrimaryVariant = isPrimaryVariant,
+    tags = tags,
+    isCustom = isCustom
 )
 
 fun AugmentActivationEntity.toDomain() = AugmentActivation(

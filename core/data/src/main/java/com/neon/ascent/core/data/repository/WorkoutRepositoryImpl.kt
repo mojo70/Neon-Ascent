@@ -66,6 +66,10 @@ class WorkoutRepositoryImpl @Inject constructor(
         workoutDao.insertExerciseDefinition(exercise.toEntity())
     }
 
+    override suspend fun deleteCustomExercise(id: String) {
+        workoutDao.deleteCustomExerciseDefinition(id)
+    }
+
     override fun getExerciseFamilies(): Flow<List<ExerciseFamily>> =
         workoutDao.getExerciseDefinitions().map { entities ->
             entities.map { it.toDomain() }

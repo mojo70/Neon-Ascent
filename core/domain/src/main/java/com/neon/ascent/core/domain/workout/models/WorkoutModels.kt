@@ -367,7 +367,9 @@ data class Exercise(
     val rangeOverrideMin: Int? = null,
     val rangeOverrideMax: Int? = null,
     val allowsAddedLoad: Boolean = false,
-    val isPrimaryVariant: Boolean = false
+    val isPrimaryVariant: Boolean = false,
+    val tags: List<String> = emptyList(),
+    val isCustom: Boolean = false
 ) {
     val displayLabel: String
         get() = buildString {
@@ -384,6 +386,59 @@ data class Exercise(
 
     private fun String.capitalizeWords(): String =
         split("_").joinToString(" ") { it.lowercase().replaceFirstChar { char -> char.uppercase() } }
+
+    fun effectiveTags(): List<String> {
+        if (tags.isNotEmpty()) return tags
+        val result = mutableListOf<String>()
+        val famLower = familyName.lowercase()
+        val nameLower = name.lowercase()
+
+        when {
+            famLower.contains("row") || famLower.contains("horizontal pull") -> {
+                result.add("FORM_PRIORITY")
+                result.add("LENGTHENED_PARTIALS")
+                if (nameLower.contains("chest-supported") || nameLower.contains("chest supported") || nameLower.contains("t-bar") || nameLower.contains("seated cable")) {
+                    result.add("LOWER_BACK_FRIENDLY")
+                }
+            }
+            famLower.contains("pull-up") || famLower.contains("chin-up") || famLower.contains("lat pulldown") || famLower.contains("vertical pull") -> {
+                result.add("BACK_WIDTH")
+                if (nameLower.contains("pulldown")) result.add("FORM_PRIORITY")
+            }
+            famLower.contains("bench") || famLower.contains("press") -> {
+                if (stance == Stance.INCLINE || stance == Stance.FLOOR || nameLower.contains("incline") || nameLower.contains("floor")) {
+                    result.add("LENGTHENED_PARTIALS")
+                }
+                if (implement == Implement.MACHINE || implement == Implement.SMITH) {
+                    result.add("LOWER_BACK_FRIENDLY")
+                }
+            }
+            famLower.contains("squat") || famLower.contains("leg press") || famLower.contains("hack squat") -> {
+                if (implement == Implement.BARBELL && (stance == Stance.STANDARD || stance == Stance.BACK)) {
+                    result.add("AXIAL_LOAD")
+                } else if (implement == Implement.MACHINE || implement == Implement.SMITH || famLower.contains("leg press") || famLower.contains("belt squat")) {
+                    result.add("LOWER_BACK_FRIENDLY")
+                }
+            }
+            famLower.contains("deadlift") || famLower.contains("hinge") || famLower.contains("romanian") || famLower.contains("good morning") -> {
+                result.add("POSTERIOR_CHAIN")
+                if (implement == Implement.BARBELL) result.add("AXIAL_LOAD")
+            }
+            famLower.contains("curl") -> {
+                result.add("LENGTHENED_PARTIALS")
+                result.add("FORM_PRIORITY")
+            }
+            famLower.contains("tricep") || famLower.contains("extension") || famLower.contains("pushdown") -> {
+                result.add("CONSTANT_TENSION")
+            }
+        }
+
+        if (implement == Implement.DUMBBELL) {
+            result.add("UNILATERAL")
+        }
+
+        return result.distinct().take(3)
+    }
 }
 
 data class ExerciseFamily(
