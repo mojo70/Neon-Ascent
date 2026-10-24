@@ -186,22 +186,7 @@ fun AppNavigation(
         }
     }
 
-    val isAppLoaded by loadingViewModel.isAppLoaded.collectAsState()
-
-    val initialStartDestination = remember {
-        if (isAppLoaded) {
-            val char = dashboardViewModel.userCharacter.value
-            val hasCompleteProfile = char != null &&
-                    char.name.isNotBlank() &&
-                    char.weight.isNotBlank() &&
-                    char.weight != "0" &&
-                    char.units.isNotBlank()
-            val isComplete = char?.isCreationComplete == true || hasCompleteProfile
-            if (isComplete) Screen.MainHub else Screen.Creation
-        } else {
-            Screen.Loading
-        }
-    }
+    val initialStartDestination = Screen.Loading
 
     NavHost(
         navController = navController, 
@@ -214,17 +199,7 @@ fun AppNavigation(
             LoadingScreen(
                 onLoadingFinished = {
                     scope.launch {
-                        // Ensure we have the latest character state before deciding destination
-                        // Wait for database to emit character state at least once
-                        dashboardViewModel.isCharacterLoaded.first { it }
-                        
-                        val char = try {
-                            withTimeoutOrNull(800L) {
-                                dashboardViewModel.userCharacter.first { it != null }
-                            } ?: dashboardViewModel.userCharacter.value
-                        } catch (_: Exception) {
-                            dashboardViewModel.userCharacter.value
-                        }
+                        val char = dashboardViewModel.getOrFetchUserCharacter()
 
                         val hasCompleteProfile = char != null &&
                                 char.name.isNotBlank() &&

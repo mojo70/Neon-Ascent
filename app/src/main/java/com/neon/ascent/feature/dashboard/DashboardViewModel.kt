@@ -90,6 +90,10 @@ class DashboardViewModel @Inject constructor(
     val userCharacter: StateFlow<UserCharacter?> = characterRepository.getUserCharacter()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    suspend fun getOrFetchUserCharacter(): UserCharacter? {
+        return characterRepository.getUserCharacter().first()
+    }
+
     private val _isCharacterLoaded = MutableStateFlow(false)
     val isCharacterLoaded = _isCharacterLoaded.asStateFlow()
 
