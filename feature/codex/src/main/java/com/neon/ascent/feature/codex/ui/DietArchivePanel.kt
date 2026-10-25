@@ -203,6 +203,7 @@ fun DietCatalogItemCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
+                        modifier = Modifier.weight(1f, fill = false),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -211,7 +212,8 @@ fun DietCatalogItemCard(
                             color = if (isActive) cyan else Color.White,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.weight(1f, fill = false)
                         )
                         if (isActive) {
                             Surface(
@@ -225,11 +227,14 @@ fun DietCatalogItemCard(
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = FontFamily.Monospace,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    maxLines = 1
                                 )
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     Surface(
                         color = magenta.copy(alpha = 0.2f),
@@ -241,7 +246,8 @@ fun DietCatalogItemCard(
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            maxLines = 1
                         )
                     }
                 }
@@ -321,27 +327,31 @@ fun DietCatalogItemCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
+                        modifier = Modifier.weight(1f, fill = false),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
                             text = diet.name,
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f, fill = false)
                         )
                         if (isActive) {
                             Badge(
                                 containerColor = MaterialTheme.colorScheme.primary,
                                 contentColor = MaterialTheme.colorScheme.onPrimary
                             ) {
-                                Text(text = "ACTIVE", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Text(text = "ACTIVE", fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                             }
                         }
                     }
 
+                    Spacer(modifier = Modifier.width(8.dp))
+
                     AssistChip(
                         onClick = { },
-                        label = { Text("Grade ${diet.evidenceGrade.take(1)}", fontSize = 10.sp) }
+                        label = { Text("Grade ${diet.evidenceGrade.take(1)}", fontSize = 10.sp, maxLines = 1) }
                     )
                 }
 
@@ -611,8 +621,10 @@ fun DietDetailModal(
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 12.sp,
                                                 color = if (isCyber) cyan else MaterialTheme.colorScheme.onSurface,
-                                                fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default
+                                                fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default,
+                                                modifier = Modifier.weight(1f, fill = false)
                                             )
+                                            Spacer(modifier = Modifier.width(8.dp))
                                             Surface(
                                                 color = magenta.copy(alpha = 0.2f),
                                                 shape = RoundedCornerShape(4.dp)
@@ -623,7 +635,8 @@ fun DietDetailModal(
                                                     fontSize = 9.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default,
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                    maxLines = 1
                                                 )
                                             }
                                         }
