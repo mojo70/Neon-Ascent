@@ -237,6 +237,7 @@ fun AppNavigation(
 
             Scaffold(
                 containerColor = theme.canvas,
+                contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 bottomBar = {
                     NeonBottomBar(
                         selectedIndex = pagerState.currentPage,
