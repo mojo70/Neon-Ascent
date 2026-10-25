@@ -46,6 +46,8 @@ fun SetLogRow(
     val haptic = LocalHapticFeedback.current
     val rowGreenHighlight = if (theme.mode == VisualMode.STEVE) {
         Color(0xFF4CD964).copy(alpha = 0.32f)
+    } else if (theme.mode == VisualMode.PILOT) {
+        theme.accent.copy(alpha = 0.32f)
     } else {
         Color(0xFF00FF9C).copy(alpha = 0.28f)
     }
@@ -54,6 +56,8 @@ fun SetLogRow(
     val completedBorder = if (set.isCompleted) {
         if (theme.mode == VisualMode.STEVE) {
             BorderStroke(1.dp, Color(0xFF4CD964).copy(alpha = 0.8f))
+        } else if (theme.mode == VisualMode.PILOT) {
+            BorderStroke(1.dp, theme.accent.copy(alpha = 0.8f))
         } else {
             BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.7f))
         }
@@ -84,7 +88,7 @@ fun SetLogRow(
     }
     
     val labelColor = if (set.isCompleted && set.type == SetType.NORMAL) {
-        if (theme.mode == VisualMode.STEVE) Color(0xFF1B5E20) else Color(0xFF00FF9C)
+        if (theme.mode == VisualMode.STEVE) Color(0xFF1B5E20) else if (theme.mode == VisualMode.PILOT) theme.accent else Color(0xFF00FF9C)
     } else if (theme.mode == VisualMode.STEVE) {
         theme.ink
     } else {
@@ -176,7 +180,7 @@ fun SetLogRow(
             
             // Completion Check
             val checkBgColor = if (set.isCompleted) {
-                if (theme.mode == VisualMode.STEVE) Color(0xFF4CD964) else Color(0xFF00FF9C)
+                if (theme.mode == VisualMode.STEVE) Color(0xFF4CD964) else if (theme.mode == VisualMode.PILOT) theme.accent else Color(0xFF00FF9C)
             } else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
 
             Box(

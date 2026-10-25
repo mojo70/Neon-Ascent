@@ -150,8 +150,8 @@ fun BiohackingScreen(
     val scope = rememberCoroutineScope()
     val theme = LocalNeonTheme.current
     val visualMode = LocalVisualMode.current
-    val neonCyan = if (visualMode == VisualMode.STEVE) theme.ink else Color(0xFF00F5FF)
-    val neonMagenta = if (visualMode == VisualMode.STEVE) theme.secondary else Color(0xFFFF0088)
+    val neonCyan = if (visualMode == VisualMode.STEVE) theme.ink else if (visualMode == VisualMode.PILOT) theme.accent else Color(0xFF00F5FF)
+    val neonMagenta = if (visualMode == VisualMode.STEVE) theme.secondary else if (visualMode == VisualMode.PILOT) theme.accentDanger else Color(0xFFFF0088)
     val voidBg = theme.canvas
 
     val bodySamples by viewModel.recentBodySamples.collectAsState()
@@ -275,7 +275,6 @@ fun BiohackingScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .statusBarsPadding()
                     .padding(horizontal = 16.dp)
                     .verticalScroll(scrollState)
             ) {

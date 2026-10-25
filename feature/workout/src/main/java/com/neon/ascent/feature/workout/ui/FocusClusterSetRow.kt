@@ -56,13 +56,14 @@ fun FocusClusterSetRow(
 
     val containerBg = if (isCompleted) {
         if (theme.mode == VisualMode.STEVE) Color(0xFF1B5E20).copy(alpha = 0.25f)
+        else if (theme.mode == VisualMode.PILOT) theme.accent.copy(alpha = 0.25f)
         else Color(0xFF00FF9C).copy(alpha = 0.18f)
     } else theme.surfaceRaised
 
     val borderStroke = if (isCompleted) {
-        BorderStroke(2.dp, if (theme.mode == VisualMode.STEVE) Color(0xFF4CD964) else Color(0xFF00FF9C))
+        BorderStroke(2.dp, if (theme.mode == VisualMode.STEVE) Color(0xFF4CD964) else if (theme.mode == VisualMode.PILOT) theme.accent else Color(0xFF00FF9C))
     } else {
-        BorderStroke(1.dp, rpColor.copy(alpha = 0.4f))
+        BorderStroke(1.dp, if (theme.mode == VisualMode.PILOT) theme.hairline else rpColor.copy(alpha = 0.4f))
     }
 
     Surface(
@@ -169,8 +170,8 @@ fun FocusClusterSetRow(
 
                 // Giant Action / Check Button (56dp x 56dp)
                 val checkBg = if (isCompleted) {
-                    if (theme.mode == VisualMode.STEVE) Color(0xFF4CD964) else Color(0xFF00FF9C)
-                } else rpColor.copy(alpha = 0.2f)
+                    if (theme.mode == VisualMode.STEVE) Color(0xFF4CD964) else if (theme.mode == VisualMode.PILOT) theme.accent else Color(0xFF00FF9C)
+                } else if (theme.mode == VisualMode.PILOT) theme.accent.copy(alpha = 0.2f) else rpColor.copy(alpha = 0.2f)
 
                 Box(
                     modifier = Modifier

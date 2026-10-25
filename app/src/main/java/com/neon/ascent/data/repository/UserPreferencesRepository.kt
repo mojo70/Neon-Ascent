@@ -158,6 +158,7 @@ open class UserPreferencesRepository @Inject constructor(
     open suspend fun setThemeMode(mode: String) {
         val coercedMode = when (mode.uppercase()) {
             "STEVE" -> "STEVE"
+            "PILOT" -> "PILOT"
             else -> "CYBER"
         }
         context.dataStore.edit { it[PreferencesKeys.THEME_MODE] = coercedMode }

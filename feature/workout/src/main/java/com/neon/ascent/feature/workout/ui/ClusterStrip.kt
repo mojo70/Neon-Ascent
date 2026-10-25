@@ -46,14 +46,18 @@ fun ClusterSetRow(
 
     val rowGreenHighlight = if (theme.mode == VisualMode.STEVE) {
         Color(0xFF4CD964).copy(alpha = 0.32f)
+    } else if (theme.mode == VisualMode.PILOT) {
+        theme.accent.copy(alpha = 0.32f)
     } else {
         Color(0xFF00FF9C).copy(alpha = 0.28f)
     }
-    val defaultBackgroundColor = if (theme.mode == VisualMode.STEVE) theme.surfaceRaised.copy(alpha = 0.5f) else Color(0xFF00FFAA).copy(alpha = 0.05f)
+    val defaultBackgroundColor = if (theme.mode == VisualMode.STEVE || theme.mode == VisualMode.PILOT) theme.surfaceRaised.copy(alpha = 0.5f) else Color(0xFF00FFAA).copy(alpha = 0.05f)
     val rowBackgroundColor = if (isCompleted) rowGreenHighlight else defaultBackgroundColor
     val completedBorder = if (isCompleted) {
         if (theme.mode == VisualMode.STEVE) {
             BorderStroke(1.dp, Color(0xFF4CD964).copy(alpha = 0.8f))
+        } else if (theme.mode == VisualMode.PILOT) {
+            BorderStroke(1.dp, theme.accent.copy(alpha = 0.8f))
         } else {
             BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.7f))
         }
@@ -82,7 +86,7 @@ fun ClusterSetRow(
             ) {
                 Text(
                     "RP",
-                    color = if (isCompleted) (if (theme.mode == VisualMode.STEVE) Color(0xFF1B5E20) else Color(0xFF00FF9C)) else if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00FFAA),
+                    color = if (isCompleted) (if (theme.mode == VisualMode.STEVE) Color(0xFF1B5E20) else if (theme.mode == VisualMode.PILOT) theme.accent else Color(0xFF00FF9C)) else if (theme.mode == VisualMode.STEVE || theme.mode == VisualMode.PILOT) theme.ink else Color(0xFF00FFAA),
                     fontWeight = FontWeight.Black,
                     fontSize = 16.sp
                 )
@@ -159,7 +163,7 @@ fun ClusterSetRow(
 
             // Completion Check (Clickable area)
             val checkBgColor = if (isCompleted) {
-                if (theme.mode == VisualMode.STEVE) Color(0xFF4CD964) else Color(0xFF00FF9C)
+                if (theme.mode == VisualMode.STEVE) Color(0xFF4CD964) else if (theme.mode == VisualMode.PILOT) theme.accent else Color(0xFF00FF9C)
             } else theme.inkMuted.copy(alpha = 0.5f)
 
             Box(

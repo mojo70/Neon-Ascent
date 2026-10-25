@@ -1110,7 +1110,7 @@ fun FocusWorkoutContent(
                                 fontSize = 14.sp
                             )
                             if (isDone) {
-                                Text("✓ COMPLETE", color = Color(0xFF00FF9C), fontSize = 11.sp, fontWeight = FontWeight.Black)
+                                Text("✓ COMPLETE", color = if (theme.mode == VisualMode.STEVE) Color(0xFF1B5E20) else if (theme.mode == VisualMode.PILOT) theme.accent else Color(0xFF00FF9C), fontSize = 11.sp, fontWeight = FontWeight.Black)
                             } else {
                                 Text("${s.count { it.isCompleted }}/${s.size} SETS", color = theme.inkMuted, fontSize = 11.sp)
                             }
@@ -6044,21 +6044,24 @@ fun ClusterLoggingDialog(
                     val isActive = !set.isCompleted && (index == 0 || sets[index - 1].isCompleted) && !uiState.isResting
                     val miniSetRowGreenHighlight = if (theme.mode == VisualMode.STEVE) {
                         Color(0xFF4CD964).copy(alpha = 0.32f)
+                    } else if (theme.mode == VisualMode.PILOT) {
+                        theme.accent.copy(alpha = 0.32f)
                     } else {
                         Color(0xFF00FF9C).copy(alpha = 0.28f)
                     }
                     val surfaceColor = if (set.isCompleted) {
                         miniSetRowGreenHighlight
                     } else if (isActive) {
-                        Color(0xFF00FFAA).copy(alpha = 0.05f)
+                        if (theme.mode == VisualMode.PILOT) theme.accent.copy(alpha = 0.05f) else Color(0xFF00FFAA).copy(alpha = 0.05f)
                     } else {
                         Color.Transparent
                     }
                     val miniSetBorder = if (set.isCompleted) {
                         if (theme.mode == VisualMode.STEVE) BorderStroke(1.dp, Color(0xFF4CD964).copy(alpha = 0.8f))
+                        else if (theme.mode == VisualMode.PILOT) BorderStroke(1.dp, theme.accent.copy(alpha = 0.8f))
                         else BorderStroke(1.dp, Color(0xFF00FF9C).copy(alpha = 0.7f))
                     } else if (isActive && !set.isCompleted) {
-                        BorderStroke(1.dp, Color(0xFF00FFAA).copy(alpha = 0.3f))
+                        BorderStroke(1.dp, if (theme.mode == VisualMode.PILOT) theme.accent.copy(alpha = 0.3f) else Color(0xFF00FFAA).copy(alpha = 0.3f))
                     } else null
 
                     Surface(
@@ -6075,7 +6078,7 @@ fun ClusterLoggingDialog(
                         ) {
                             Text(
                                 "M-${index + 1}",
-                                color = if (set.isCompleted) (if (theme.mode == VisualMode.STEVE) Color(0xFF1B5E20) else Color(0xFF00FF9C)) else if (isActive) MaterialTheme.colorScheme.onSurface else theme.inkMuted,
+                                color = if (set.isCompleted) (if (theme.mode == VisualMode.STEVE) Color(0xFF1B5E20) else if (theme.mode == VisualMode.PILOT) theme.accent else Color(0xFF00FF9C)) else if (isActive) MaterialTheme.colorScheme.onSurface else theme.inkMuted,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.width(40.dp)
@@ -6111,7 +6114,7 @@ fun ClusterLoggingDialog(
                             Spacer(modifier = Modifier.width(16.dp))
 
                             val checkBg = if (set.isCompleted) {
-                                if (theme.mode == VisualMode.STEVE) Color(0xFF4CD964) else Color(0xFF00FF9C)
+                                if (theme.mode == VisualMode.STEVE) Color(0xFF4CD964) else if (theme.mode == VisualMode.PILOT) theme.accent else Color(0xFF00FF9C)
                             } else theme.inkMuted.copy(alpha = 0.2f)
 
                             IconButton(

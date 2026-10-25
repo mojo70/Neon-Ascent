@@ -85,7 +85,7 @@ fun PhysicalOpsHub(
                 subtitle = "NEURAL CALM & MEDITATION",
                 icon = Icons.Default.SelfImprovement,
                 label = "INITIATE SESSION",
-                color = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00CCFF),
+                color = if (theme.mode == VisualMode.STEVE) theme.ink else if (theme.mode == VisualMode.PILOT) theme.accent else Color(0xFF00CCFF),
                 onClick = onNavigateToStilljack
             )
 
@@ -96,7 +96,7 @@ fun PhysicalOpsHub(
                 subtitle = "PELVIC CORE & KEGEL REINFORCEMENT",
                 icon = Icons.Default.MonitorHeart,
                 label = "INITIATE PULSE",
-                color = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFFFF006E),
+                color = if (theme.mode == VisualMode.STEVE) theme.ink else if (theme.mode == VisualMode.PILOT) theme.accent else Color(0xFFFF006E),
                 onClick = onNavigateToHullPulse
             )
 

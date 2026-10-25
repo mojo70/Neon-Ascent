@@ -78,15 +78,16 @@ fun MatrixRainBackground() {
             val x = (size.width / columns) * i
             for (j in 0 until 15) {
                 val y = (rainState[i] + j) * (size.height / 40)
-                val alpha = if (theme.mode == VisualMode.CYBER) {
-                    (1f - (j / 15f)) * 0.08f
-                } else {
-                    0.04f // Steve: gray ticks @ 4%
+                val alpha = when (theme.mode) {
+                    VisualMode.CYBER -> (1f - (j / 15f)) * 0.08f
+                    VisualMode.STEVE -> 0.04f // Steve: gray ticks @ 4%
+                    VisualMode.PILOT -> 0.03f // Pilot: red ticks @ 3%
                 }
+                val tickColor = if (theme.mode == VisualMode.PILOT) theme.accent else theme.ink
                 
                 if (y > 0 && y < size.height) {
                     drawRect(
-                        color = theme.ink.copy(alpha = alpha),
+                        color = tickColor.copy(alpha = alpha),
                         topLeft = Offset(x, y),
                         size = Size(2.dp.toPx(), 8.dp.toPx())
                     )
@@ -232,8 +233,13 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .drawWithContent {
                     drawContent()
-                    val scanlineColor = theme.ink.copy(alpha = if (theme.mode == VisualMode.CYBER) 0.1f else 0.04f)
-                    for (i in 0 until size.height.toInt() step 6) {
+                    val scanlineColor = when (theme.mode) {
+                        VisualMode.CYBER -> theme.ink.copy(alpha = 0.1f)
+                        VisualMode.STEVE -> theme.ink.copy(alpha = 0.04f)
+                        VisualMode.PILOT -> theme.accent.copy(alpha = 0.03f)
+                    }
+                    val stepVal = if (theme.mode == VisualMode.PILOT) 8 else 6
+                    for (i in 0 until size.height.toInt() step stepVal) {
                         drawLine(scanlineColor, Offset(0f, i.toFloat()), Offset(size.width, i.toFloat()), strokeWidth = 1f)
                     }
                 }
@@ -591,10 +597,14 @@ fun SettingsScreen(
                             val previewPalette = when(mode) {
                                 VisualMode.CYBER -> NeonThemeData.cyber(neonIntensity)
                                 VisualMode.STEVE -> NeonThemeData.steve(neonIntensity)
+                                VisualMode.PILOT -> NeonThemeData.pilot(neonIntensity)
                             }
                             CyberTabButton(
                                 selected = visualMode == mode,
-                                onClick = { viewModel.setVisualMode(mode) },
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    viewModel.setVisualMode(mode)
+                                },
                                 label = mode.name,
                                 modifier = Modifier.weight(1f),
                                 palette = previewPalette
@@ -602,7 +612,11 @@ fun SettingsScreen(
                         }
                     }
                     Text(
-                        if (visualMode == VisualMode.CYBER) "NIGHT HUD // NEON ON VOID" else "DAY HUD // INK ON PAPER",
+                        when (visualMode) {
+                            VisualMode.CYBER -> "NIGHT HUD // NEON ON VOID"
+                            VisualMode.STEVE -> "DAY HUD // INK ON PAPER"
+                            VisualMode.PILOT -> "NIGHT HUD // RED ON VOID"
+                        },
                         color = theme.ink.copy(alpha = 0.4f),
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace
@@ -617,7 +631,11 @@ fun SettingsScreen(
                         colors = SliderDefaults.colors(thumbColor = theme.ink, activeTrackColor = theme.ink)
                     )
                     Text(
-                        if (visualMode == VisualMode.CYBER) "NIGHT HUD // GLOW GAIN" else "DAY HUD // INK WEIGHT",
+                        when (visualMode) {
+                            VisualMode.CYBER -> "NIGHT HUD // GLOW GAIN"
+                            VisualMode.STEVE -> "DAY HUD // INK WEIGHT"
+                            VisualMode.PILOT -> "NIGHT HUD // RED EDGE"
+                        },
                         color = theme.ink.copy(alpha = 0.4f),
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace
@@ -627,7 +645,13 @@ fun SettingsScreen(
                         // TODO: Open avatar selection
                     }
                     
-                    SettingsItem(if (visualMode == VisualMode.CYBER) "COLOR SCHEME: MATRIX_EMERALD" else "COLOR SCHEME: STEVE_HI-CON") {
+                    SettingsItem(
+                        when (visualMode) {
+                            VisualMode.CYBER -> "COLOR SCHEME: MATRIX_EMERALD"
+                            VisualMode.STEVE -> "COLOR SCHEME: STEVE_HI-CON"
+                            VisualMode.PILOT -> "COLOR SCHEME: PILOT_RED"
+                        }
+                    ) {
                         // TODO: Theme picker
                     }
                 }

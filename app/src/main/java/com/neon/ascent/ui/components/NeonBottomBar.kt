@@ -53,9 +53,9 @@ fun NeonBottomBar(
     val theme = LocalNeonTheme.current
     val visualMode = LocalVisualMode.current
     
-    val borderColor = if (visualMode == VisualMode.STEVE) theme.hairline else Color(0xFF1A262E)
-    val inactiveColor = if (visualMode == VisualMode.STEVE) theme.ink.copy(alpha = 0.65f) else Color(0xFF5A6E78)
-    val activeColor = theme.ink
+    val borderColor = theme.hairline
+    val inactiveColor = theme.inkMuted
+    val activeColor = theme.accent
     val items = NavItem.getItems(isAltarEnabled)
 
     Column(

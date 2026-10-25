@@ -44,7 +44,7 @@ val LocalGlowEnabled = staticCompositionLocalOf { true }
 val LocalIntensity = staticCompositionLocalOf { 0.8f }
 
 enum class VisualMode {
-    CYBER, STEVE
+    CYBER, STEVE, PILOT
 }
 
 val LocalVisualMode = staticCompositionLocalOf { VisualMode.CYBER }

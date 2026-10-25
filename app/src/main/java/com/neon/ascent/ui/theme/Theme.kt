@@ -40,6 +40,19 @@ private val SteveScheme = lightColorScheme(
     outline = Color(0xFFDDDDDD)
 )
 
+private val PilotScheme = darkColorScheme(
+    primary = Color(0xFFD32F2F),
+    secondary = Color(0xFFB71C1C),
+    background = Color(0xFF050505),
+    surface = Color(0xFF0F0F0F),
+    onPrimary = Color(0xFFE0E0E0),
+    onSecondary = Color(0xFFE0E0E0),
+    onBackground = Color(0xFFE0E0E0),
+    onSurface = Color(0xFFE0E0E0),
+    error = Color(0xFFB71C1C),
+    outline = Color(0xFFD32F2F)
+)
+
 @Composable
 fun NeonAscentTheme(
     visualMode: VisualMode = VisualMode.CYBER,
@@ -49,11 +62,13 @@ fun NeonAscentTheme(
     val colorScheme = when (visualMode) {
         VisualMode.CYBER -> NeonScheme
         VisualMode.STEVE -> SteveScheme
+        VisualMode.PILOT -> PilotScheme
     }
 
     val neonThemeData = when (visualMode) {
         VisualMode.CYBER -> NeonThemeData.cyber(intensity)
         VisualMode.STEVE -> NeonThemeData.steve(intensity)
+        VisualMode.PILOT -> NeonThemeData.pilot(intensity)
     }
 
     CompositionLocalProvider(

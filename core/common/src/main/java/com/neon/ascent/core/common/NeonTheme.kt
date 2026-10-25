@@ -29,6 +29,7 @@ data class NeonThemeData(
 
     fun accentFor(megacorpId: String): Color {
         if (mode == VisualMode.STEVE) return ink
+        if (mode == VisualMode.PILOT) return accent
         
         return when (megacorpId) {
             "aetherx" -> Color(0xFF00FFFF)
@@ -81,6 +82,23 @@ data class NeonThemeData(
             glowEnabled = false,
             intensity = intensity,
             mode = VisualMode.STEVE
+        )
+
+        fun pilot(intensity: Float = 0.8f) = NeonThemeData(
+            canvas = Color(0xFF050505),
+            surface = Color(0xFF0F0F0F),
+            surfaceRaised = Color(0xFF1A1A1A),
+            ink = Color(0xFFE0E0E0),
+            inkMuted = Color(0xFF9A9A9A),
+            inkFaint = Color(0xFF6E6E6E),
+            accent = Color(0xFFD32F2F),
+            accentDanger = Color(0xFFB71C1C),
+            hairline = Color(0xFFD32F2F),
+            grid = Color(0xFF1A1A1A),
+            overlay = Color(0xFFD32F2F).copy(alpha = 0.03f),
+            glowEnabled = false,
+            intensity = intensity,
+            mode = VisualMode.PILOT
         )
 
         private fun lerp(start: Color, stop: Color, fraction: Float): Color {

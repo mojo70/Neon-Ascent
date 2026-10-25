@@ -75,11 +75,12 @@ fun FocusSetLogRow(
 
     val containerBg = if (isCompleted) {
         if (theme.mode == VisualMode.STEVE) Color(0xFF1B5E20).copy(alpha = 0.25f)
+        else if (theme.mode == VisualMode.PILOT) theme.accent.copy(alpha = 0.25f)
         else Color(0xFF00FF9C).copy(alpha = 0.18f)
     } else theme.surfaceRaised
 
     val borderStroke = if (isCompleted) {
-        BorderStroke(2.dp, if (theme.mode == VisualMode.STEVE) Color(0xFF4CD964) else Color(0xFF00FF9C))
+        BorderStroke(2.dp, if (theme.mode == VisualMode.STEVE) Color(0xFF4CD964) else if (theme.mode == VisualMode.PILOT) theme.accent else Color(0xFF00FF9C))
     } else {
         BorderStroke(1.dp, theme.hairline)
     }
@@ -188,7 +189,7 @@ fun FocusSetLogRow(
 
                 // Giant Complete Button
                 val checkBg = if (isCompleted) {
-                    if (theme.mode == VisualMode.STEVE) Color(0xFF4CD964) else Color(0xFF00FF9C)
+                    if (theme.mode == VisualMode.STEVE) Color(0xFF4CD964) else if (theme.mode == VisualMode.PILOT) theme.accent else Color(0xFF00FF9C)
                 } else primaryColor.copy(alpha = 0.2f)
 
                 Box(

@@ -533,7 +533,7 @@ fun VitalsWing(
     }
     var showRecordDialog by remember { mutableStateOf(false) }
     val isImperial = uiState.userProfile?.unitSystem == UnitSystem.IMPERIAL
-    val isCyber = LocalNeonTheme.current.mode != VisualMode.STEVE
+    val isCyber = LocalNeonTheme.current.mode == VisualMode.CYBER
 
     Column(
         modifier = Modifier
@@ -4255,10 +4255,10 @@ fun CodexDirectiveCard(
 }
 
 @Composable
-private fun cardSurfaceColor(): Color = if (LocalNeonTheme.current.mode == VisualMode.STEVE) LocalNeonTheme.current.surface else Color.White.copy(alpha = 0.02f)
+private fun cardSurfaceColor(): Color = if (LocalNeonTheme.current.mode == VisualMode.STEVE || LocalNeonTheme.current.mode == VisualMode.PILOT) LocalNeonTheme.current.surface else Color.White.copy(alpha = 0.02f)
 
 @Composable
-private fun cardSurfaceColor03(): Color = if (LocalNeonTheme.current.mode == VisualMode.STEVE) LocalNeonTheme.current.surface else Color.White.copy(alpha = 0.03f)
+private fun cardSurfaceColor03(): Color = if (LocalNeonTheme.current.mode == VisualMode.STEVE || LocalNeonTheme.current.mode == VisualMode.PILOT) LocalNeonTheme.current.surface else Color.White.copy(alpha = 0.03f)
 
 @Composable
-private fun cardBorderColor(): Color = if (LocalNeonTheme.current.mode == VisualMode.STEVE) LocalNeonTheme.current.hairline else Color.White.copy(alpha = 0.05f)
+private fun cardBorderColor(): Color = if (LocalNeonTheme.current.mode == VisualMode.STEVE || LocalNeonTheme.current.mode == VisualMode.PILOT) LocalNeonTheme.current.hairline else Color.White.copy(alpha = 0.05f)

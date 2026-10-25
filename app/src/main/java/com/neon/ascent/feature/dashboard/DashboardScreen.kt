@@ -108,7 +108,7 @@ fun SlimChromeHeader(
     systemColor: Color
 ) {
     val theme = LocalNeonTheme.current
-    val accentColor = if (theme.mode == VisualMode.STEVE) theme.secondary else Color(0xFFFF006E)
+    val accentColor = if (theme.mode == VisualMode.STEVE) theme.secondary else if (theme.mode == VisualMode.PILOT) theme.accent else Color(0xFFFF006E)
 
     Row(
         modifier = Modifier
@@ -257,7 +257,7 @@ fun NeuralBriefCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "TODAY'S INTELLIGENCE // NEURAL_BRIEF /",
-                        color = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00CCFF),
+                        color = if (theme.mode == VisualMode.STEVE) theme.ink else if (theme.mode == VisualMode.PILOT) theme.accent else Color(0xFF00CCFF),
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
@@ -522,12 +522,13 @@ fun MetricPillRow(
 @Composable
 fun MetricPill(label: String, value: String, color: Color, icon: ImageVector, modifier: Modifier = Modifier) {
     val theme = LocalNeonTheme.current
-    val pillColor = if (theme.mode == VisualMode.STEVE) theme.ink else color
-    val pillBg = if (theme.mode == VisualMode.STEVE) theme.surface else Color.Black.copy(alpha = 0.2f)
+    val pillColor = if (theme.mode == VisualMode.STEVE) theme.ink else if (theme.mode == VisualMode.PILOT) theme.accent else color
+    val pillBg = if (theme.mode == VisualMode.STEVE || theme.mode == VisualMode.PILOT) theme.surface else Color.Black.copy(alpha = 0.2f)
+    val valueColor = if (theme.mode == VisualMode.PILOT) theme.ink else pillColor
 
     Column(
         modifier = modifier
-            .border(1.dp, if (theme.mode == VisualMode.STEVE) theme.hairline else color.copy(alpha = 0.4f), CyberCutShape)
+            .border(1.dp, if (theme.mode == VisualMode.STEVE || theme.mode == VisualMode.PILOT) theme.hairline else color.copy(alpha = 0.4f), CyberCutShape)
             .background(pillBg, CyberCutShape)
             .padding(12.dp)
     ) {
@@ -536,19 +537,20 @@ fun MetricPill(label: String, value: String, color: Color, icon: ImageVector, mo
             Icon(icon, contentDescription = null, tint = pillColor.copy(alpha = 0.8f), modifier = Modifier.size(16.dp))
         }
         Spacer(Modifier.height(8.dp))
-        Text(value, color = pillColor, fontSize = 22.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Black)
+        Text(value, color = valueColor, fontSize = 22.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Black)
     }
 }
 
 @Composable
 fun MissionChipRow(missions: List<AscensionMission>) {
+    val theme = LocalNeonTheme.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             "MISSION_CHIPS //",
-            color = Color.White.copy(alpha = 0.4f),
+            color = theme.ink.copy(alpha = 0.4f),
             fontSize = 10.sp,
             fontFamily = FontFamily.Monospace,
             modifier = Modifier.padding(end = 8.dp)
@@ -559,7 +561,7 @@ fun MissionChipRow(missions: List<AscensionMission>) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             missions.forEach { mission ->
-                val chipColor = if (mission.status == AscensionMissionStatus.RECOVERY) Color(0xFFFF8C00) else Color(0xFFFF006E)
+                val chipColor = if (theme.mode == VisualMode.STEVE) theme.ink else if (theme.mode == VisualMode.PILOT) theme.accent else (if (mission.status == AscensionMissionStatus.RECOVERY) Color(0xFFFF8C00) else Color(0xFFFF006E))
                 Box(
                     modifier = Modifier
                         .border(1.dp, chipColor.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
@@ -577,10 +579,10 @@ fun MissionChipRow(missions: List<AscensionMission>) {
             if (missions.size > 2) {
                 Text(
                     "+${missions.size - 2}",
-                    color = Color.White.copy(alpha = 0.4f),
+                    color = theme.ink.copy(alpha = 0.4f),
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 4.dp)
+                    modifier = Modifier.border(1.dp, theme.hairline, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 4.dp)
                 )
             }
         }
@@ -621,7 +623,7 @@ fun DashboardScreen(
     val neuralLoad = chargeVal
     
     val systemColor by animateColorAsState(
-        targetValue = if (theme.mode == VisualMode.STEVE) theme.ink else if (neuralLoad > 0.7f) Color(0xFFFF006E) else Color(0xFF00FF9C),
+        targetValue = if (theme.mode == VisualMode.STEVE) theme.ink else if (theme.mode == VisualMode.PILOT) theme.accent else if (neuralLoad > 0.7f) Color(0xFFFF006E) else Color(0xFF00FF9C),
         animationSpec = tween(500),
         label = "SystemColor"
     )
@@ -660,7 +662,7 @@ fun DashboardScreen(
                 .padding(horizontal = 12.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(8.dp))
             
             SlimChromeHeader(
                 character = userCharacter,
@@ -848,7 +850,7 @@ fun AiTerminal(
     } else {
         remember { mutableFloatStateOf(1.0f) }
     }
-    val dotColor = if (isProcessing) Color(0xFFFF006E) else (if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00F5FF))
+    val dotColor = if (isProcessing) theme.accentDanger else (if (theme.mode == VisualMode.STEVE) theme.ink else if (theme.mode == VisualMode.PILOT) theme.accent else Color(0xFF00F5FF))
 
     val scrollState = rememberScrollState()
     LaunchedEffect(messages.size, isProcessing) {
@@ -907,7 +909,7 @@ fun AiTerminal(
                             Spacer(Modifier.width(10.dp))
                             Text(
                                 "[NEON_GUIDE]",
-                                color = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00FFFF),
+                                color = if (theme.mode == VisualMode.STEVE) theme.ink else if (theme.mode == VisualMode.PILOT) theme.accent else Color(0xFF00FFFF),
                                 fontSize = 11.sp,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Black,
@@ -1136,7 +1138,7 @@ fun DashboardTaskItem(task: AscensionTask, onComplete: () -> Unit, onClick: () -
     val isCompleted = task.lastCompleted != null && 
         task.lastCompleted!!.atZone(ZoneId.systemDefault()).toLocalDate() == LocalDate.now()
     
-    val workoutColor = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00CCFF)
+    val workoutColor = if (theme.mode == VisualMode.STEVE) theme.ink else if (theme.mode == VisualMode.PILOT) theme.accent else Color(0xFF00CCFF)
 
     Row(
         modifier = Modifier
@@ -1238,7 +1240,7 @@ fun DashboardMissionCardV3(mission: AscensionMission, accentColor: Color? = null
 @Composable
 fun BioAgeDashboardCard(result: com.neon.ascent.model.BioAgeResult, modifier: Modifier = Modifier) {
     val theme = LocalNeonTheme.current
-    val accentColor = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00FFFF)
+    val accentColor = if (theme.mode == VisualMode.STEVE) theme.ink else if (theme.mode == VisualMode.PILOT) theme.accent else Color(0xFF00FFFF)
     CyberFrame(
         label = "BIOLOGICAL_AGE_SCAN",
         accentColor = accentColor,
