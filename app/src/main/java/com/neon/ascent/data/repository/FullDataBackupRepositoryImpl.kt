@@ -99,6 +99,8 @@ class FullDataBackupRepositoryImpl @Inject constructor(
     private val workoutPreferencesDataStore: WorkoutPreferencesDataStore,
     private val briefPreferencesDataStore: BriefPreferencesDataStore,
     private val directivePreferencesDataStore: DirectivePreferencesDataStore,
+    private val dietPreferencesDataStore: com.neon.ascent.core.data.datastore.DietPreferencesDataStore,
+    private val dietRepository: com.neon.ascent.core.domain.repository.DietRepository,
     private val riteSessionDao: RiteSessionDao,
     private val libraryDao: LibraryDao,
     @ApplicationContext private val context: Context
@@ -1042,8 +1044,15 @@ class FullDataBackupRepositoryImpl @Inject constructor(
             }
         )
 
+        val activeDietId = dietPreferencesDataStore.activeDietId.firstOrNull()
+        val dietOverrides = dietPreferencesDataStore.dietOverrides.firstOrNull() ?: com.neon.ascent.core.domain.labs.models.DietOverrides()
+        val dietSection = DietBackupSection(
+            activeDietId = activeDietId,
+            overrides = dietOverrides.toDto()
+        )
+
         val payload = NeonAscentBackupPayload(
-            version = 6,
+            version = 8,
             exportedAt = now,
             appVersion = "1.0",
             workoutPayload = workoutSection,
@@ -1059,12 +1068,13 @@ class FullDataBackupRepositoryImpl @Inject constructor(
             chatPayload = chatSection,
             preferencesPayload = preferencesSection,
             ritesPayload = ritesSection,
-            libraryPayload = librarySection
+            libraryPayload = librarySection,
+            dietPayload = dietSection
         )
 
         healthPreferencesDataStore.updateLastSyncTime()
         userPreferencesRepository.setLastBackupTimestamp(System.currentTimeMillis())
-        userPreferencesRepository.setLastBackupVersion(6)
+        userPreferencesRepository.setLastBackupVersion(8)
 
         return gson.toJson(payload)
     }
@@ -2207,6 +2217,15 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                         else -> "IMMEDIATE"
                     }
                     settingsRepository.setBiometricLockTimeout(timeoutStr)
+                }
+            }
+
+            runCatching { dietRepository.seedDefaultDiets() }
+
+            payload.dietPayload?.let { diet ->
+                dietPreferencesDataStore.setActiveDietId(diet.activeDietId)
+                diet.overrides?.let { overridesDto ->
+                    dietPreferencesDataStore.updateDietOverrides(overridesDto.toDomain())
                 }
             }
 

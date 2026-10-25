@@ -35,6 +35,9 @@ import com.neon.ascent.core.domain.goals.models.AscensionDirective
 import com.neon.ascent.core.domain.goals.models.AscensionDirectiveComparator
 import com.neon.ascent.core.domain.goals.models.PriorityTier
 import com.neon.ascent.core.domain.repository.AscensionRepository
+import com.neon.ascent.core.domain.labs.models.Diet
+import com.neon.ascent.core.domain.labs.models.DietOverrides
+import com.neon.ascent.core.domain.repository.DietRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import android.content.Context
@@ -121,7 +124,14 @@ data class CodexUiState(
     val userProfile: UserWorkoutProfile? = null,
     val activeDirectives: List<AscensionDirective> = emptyList(),
     val showDensityBanner: Boolean = false,
-    val densityNoteMessage: String? = null
+    val densityNoteMessage: String? = null,
+
+    // Diet Archive State
+    val allDiets: List<Diet> = emptyList(),
+    val selectedOutcomeDomainFilter: String = "ALL",
+    val activeDiet: Diet? = null,
+    val dietOverrides: DietOverrides = DietOverrides(),
+    val selectedDietDetail: Diet? = null
 )
 
 enum class VitalsGroup(val label: String) {
@@ -131,6 +141,7 @@ enum class VitalsGroup(val label: String) {
     HEART("HEART"),
     MOVE("MOVE"),
     FUEL("FUEL"),
+    DIET("DIET"),
     RITES("RITES")
 }
 
@@ -297,6 +308,7 @@ class CodexViewModel @Inject constructor(
     private val ritesRepository: RitesRepository,
     private val characterRepository: CharacterRepository,
     private val ascensionRepository: AscensionRepository,
+    private val dietRepository: DietRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -334,6 +346,24 @@ class CodexViewModel @Inject constructor(
                         densityNoteMessage = noteMsg
                     ) 
                 }
+            }
+        }
+
+        viewModelScope.launch {
+            dietRepository.observeAll().collect { diets ->
+                _uiState.update { it.copy(allDiets = diets) }
+            }
+        }
+
+        viewModelScope.launch {
+            dietRepository.observeActiveDiet().collect { active ->
+                _uiState.update { it.copy(activeDiet = active) }
+            }
+        }
+
+        viewModelScope.launch {
+            dietRepository.observeOverrides().collect { overrides ->
+                _uiState.update { it.copy(dietOverrides = overrides) }
             }
         }
         viewModelScope.launch {
@@ -480,11 +510,32 @@ class CodexViewModel @Inject constructor(
             VitalsGroup.HEART -> VitalsType.RHR
             VitalsGroup.MOVE -> VitalsType.STEPS
             VitalsGroup.FUEL -> VitalsType.KCAL_EATEN
+            VitalsGroup.DIET -> VitalsType.KCAL_EATEN
             VitalsGroup.RITES -> VitalsType.SANCTUM
         }
         _uiState.update { it.copy(vitalsGroup = group, vitalsType = nextType) }
         loadVitalsGroupData(_uiState.value.selectedPeriod, group)
         loadVitalsData(_uiState.value.selectedPeriod, nextType)
+    }
+
+    fun selectOutcomeDomainFilter(domain: String) {
+        _uiState.update { it.copy(selectedOutcomeDomainFilter = domain) }
+    }
+
+    fun selectDietDetail(diet: Diet?) {
+        _uiState.update { it.copy(selectedDietDetail = diet) }
+    }
+
+    fun setActiveDiet(dietId: String?) {
+        viewModelScope.launch {
+            dietRepository.setActiveDiet(dietId)
+        }
+    }
+
+    fun updateDietOverrides(overrides: DietOverrides) {
+        viewModelScope.launch {
+            dietRepository.updateOverrides(overrides)
+        }
     }
 
     fun selectVitalsType(type: VitalsType) {
@@ -845,6 +896,7 @@ class CodexViewModel @Inject constructor(
                         }
                     }
                 }
+                VitalsGroup.DIET -> { }
                 VitalsGroup.RITES -> {
                     val startDateObj = if (period == CodexPeriod.ALL) {
                         LocalDate.now().minusDays(365)

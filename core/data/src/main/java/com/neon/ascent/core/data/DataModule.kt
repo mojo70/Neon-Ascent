@@ -101,4 +101,10 @@ abstract class DataModule {
     abstract fun bindDailyOriginRepository(
         dailyOriginRepositoryImpl: com.neon.ascent.core.data.repository.DailyOriginRepositoryImpl
     ): com.neon.ascent.core.domain.chronicle.DailyOriginRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindDietRepository(
+        dietRepositoryImpl: com.neon.ascent.core.data.repository.DietRepositoryImpl
+    ): com.neon.ascent.core.domain.repository.DietRepository
 }

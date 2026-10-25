@@ -1,5 +1,7 @@
 package com.neon.ascent.core.domain.backup.models
 
+import com.neon.ascent.core.domain.labs.models.DietOverrides
+
 enum class BackupFrequency {
     DAILY,
     WEEKLY,
@@ -69,7 +71,7 @@ data class RestoreResult(
 )
 
 data class NeonAscentBackupPayload(
-    val version: Int = 7,
+    val version: Int = 8,
     val exportedAt: String,
     val appVersion: String = "1.0",
     val workoutPayload: WorkoutBackupSection? = null,
@@ -85,7 +87,40 @@ data class NeonAscentBackupPayload(
     val chatPayload: ChatBackupSection? = null,
     val preferencesPayload: PreferencesBackupSection? = null,
     val ritesPayload: RitesBackupSection? = null,
-    val libraryPayload: LibraryBackupSection? = null
+    val libraryPayload: LibraryBackupSection? = null,
+    val dietPayload: DietBackupSection? = null
+)
+
+data class DietBackupSection(
+    val activeDietId: String? = null,
+    val overrides: DietOverridesDto? = null
+)
+
+data class DietOverridesDto(
+    val preferredProteinGramsPerKg: Double? = null,
+    val preferredModestCarbTargetGrams: Int? = null,
+    val preferredHigherCarbMealDays: List<String> = emptyList(),
+    val preferredHigherCarbMealsPerWeek: Int? = null,
+    val freeListExceptions: List<String> = emptyList(),
+    val notes: String? = null
+)
+
+fun DietOverrides.toDto(): DietOverridesDto = DietOverridesDto(
+    preferredProteinGramsPerKg = preferredProteinGramsPerKg,
+    preferredModestCarbTargetGrams = preferredModestCarbTargetGrams,
+    preferredHigherCarbMealDays = preferredHigherCarbMealDays,
+    preferredHigherCarbMealsPerWeek = preferredHigherCarbMealsPerWeek,
+    freeListExceptions = freeListExceptions,
+    notes = notes
+)
+
+fun DietOverridesDto.toDomain(): DietOverrides = DietOverrides(
+    preferredProteinGramsPerKg = preferredProteinGramsPerKg,
+    preferredModestCarbTargetGrams = preferredModestCarbTargetGrams,
+    preferredHigherCarbMealDays = preferredHigherCarbMealDays,
+    preferredHigherCarbMealsPerWeek = preferredHigherCarbMealsPerWeek,
+    freeListExceptions = freeListExceptions,
+    notes = notes
 )
 
 data class WorkoutBackupSection(

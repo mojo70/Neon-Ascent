@@ -54,6 +54,8 @@ import java.util.*
 import com.neon.ascent.feature.dashboard.selfmap.SelfMapViewModel
 import com.neon.ascent.feature.dashboard.selfmap.getLoadBandLabel
 import androidx.compose.material.icons.automirrored.filled.LibraryBooks
+import com.neon.ascent.core.domain.labs.models.Diet
+import com.neon.ascent.core.domain.labs.models.DietOverrides
 
 @Composable
 fun BiohackingScreen(
@@ -98,6 +100,9 @@ fun BiohackingScreen(
     val completedSessions by viewModel.completedSessionsThisWeek.collectAsState()
     val scheduledSessions by viewModel.scheduledSessionsThisWeek.collectAsState()
     val selectedTimeRange by viewModel.selectedTimeRange.collectAsState()
+    val activeDiet by viewModel.activeDiet.collectAsState()
+    val dietOverrides by viewModel.dietOverrides.collectAsState()
+    val isHigherCarbDay by viewModel.isHigherCarbDay.collectAsState()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -348,6 +353,18 @@ fun BiohackingScreen(
 
                 // Self Map Attachment Load Card
                 SelfMapLabsCard(onNavigateToSelfMap = onNavigateToSelfMap)
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Active Diet & Today Protocol (LABS Surface)
+                ActiveDietLabsCard(
+                    activeDiet = activeDiet,
+                    overrides = dietOverrides,
+                    isHigherCarbDay = isHigherCarbDay,
+                    neonCyan = neonCyan,
+                    isCyber = visualMode == VisualMode.CYBER,
+                    onNavigateToCodex = { onNavigateToGuide("Codex Diet Panel") }
+                )
 
                 Spacer(modifier = Modifier.height(20.dp))
 
@@ -2113,6 +2130,191 @@ fun DailyOriginLabsCard(
                 }
                 Button(onClick = onOpenSheet) {
                     Text(text = "View Card")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ActiveDietLabsCard(
+    activeDiet: Diet?,
+    overrides: DietOverrides,
+    isHigherCarbDay: Boolean,
+    neonCyan: Color,
+    isCyber: Boolean,
+    onNavigateToCodex: () -> Unit
+) {
+    val title = activeDiet?.name ?: "No Active Diet Selected"
+    val proteinText = when {
+        overrides.preferredProteinGramsPerKg != null -> "Protein Target: ~${overrides.preferredProteinGramsPerKg} g/kg daily"
+        activeDiet?.typicalParameters?.proteinGramsPerKgMin != null -> "Protein Floor: ~${activeDiet.typicalParameters.proteinGramsPerKgMin}–${activeDiet.typicalParameters.proteinGramsPerKgMax} g/kg daily"
+        activeDiet != null -> "Protein Floor: Prioritize adequate whole-food protein"
+        else -> "Select a diet in Codex to track live targets"
+    }
+
+    val carbText = when {
+        overrides.preferredModestCarbTargetGrams != null -> "Baseline Carbs: ~${overrides.preferredModestCarbTargetGrams}g net carbs"
+        activeDiet?.typicalParameters?.baselineNetCarbsGramsMin != null -> "Baseline Carbs: ~${activeDiet.typicalParameters.baselineNetCarbsGramsMin}–${activeDiet.typicalParameters.baselineNetCarbsGramsMax}g net carbs"
+        activeDiet != null -> "Baseline Carbs: Whole-food carbohydrate control"
+        else -> null
+    }
+
+    if (isCyber) {
+        CyberFrame(
+            label = "ACTIVE_DIET // TODAY_PROTOCOL",
+            borderColor = neonCyan,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onNavigateToCodex() }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = title.uppercase(),
+                            color = neonCyan,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = proteinText,
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        if (carbText != null) {
+                            Text(
+                                text = carbText,
+                                color = Color.Gray,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "CODEX →",
+                        color = neonCyan,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+
+                if (isHigherCarbDay && activeDiet != null) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(neonCyan.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
+                            .border(1.dp, neonCyan, RoundedCornerShape(4.dp))
+                            .padding(vertical = 6.dp, horizontal = 10.dp)
+                    ) {
+                        Text(
+                            text = "⚡ HIGHER-CARB MEAL RECOMMENDED TODAY (Post-Training / Evening)",
+                            color = neonCyan,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+
+                if (activeDiet != null && activeDiet.stackingNotes.isNotEmpty()) {
+                    val note = activeDiet.stackingNotes.first()
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "💡 STACKING [${note.evidenceGradeTag}]: ${note.title} — ${note.description}",
+                        color = Color.Gray,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+        }
+    } else {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onNavigateToCodex() },
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = proteinText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        if (carbText != null) {
+                            Text(
+                                text = carbText,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Codex →",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                if (isHigherCarbDay && activeDiet != null) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "⚡ Higher-Carb Meal Recommended Today (Post-Training / Evening)",
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(vertical = 6.dp, horizontal = 10.dp)
+                        )
+                    }
+                }
+
+                if (activeDiet != null && activeDiet.stackingNotes.isNotEmpty()) {
+                    val note = activeDiet.stackingNotes.first()
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "💡 Stacking [${note.evidenceGradeTag}]: ${note.title} — ${note.description}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.Gray
+                    )
                 }
             }
         }

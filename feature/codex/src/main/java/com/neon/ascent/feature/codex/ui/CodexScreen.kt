@@ -20,6 +20,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import com.neon.ascent.core.common.LocalNeonTheme
 import com.neon.ascent.core.common.VisualMode
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -513,6 +514,7 @@ fun OpsLogWing(
 fun VitalsWing(
     uiState: CodexUiState,
     isLoading: Boolean = false,
+    viewModel: CodexViewModel = hiltViewModel(),
     onGroupSelected: (VitalsGroup) -> Unit = {},
     onTypeSelected: (VitalsType) -> Unit = {},
     onPeriodSelected: (CodexPeriod) -> Unit = {},
@@ -531,6 +533,7 @@ fun VitalsWing(
     }
     var showRecordDialog by remember { mutableStateOf(false) }
     val isImperial = uiState.userProfile?.unitSystem == UnitSystem.IMPERIAL
+    val isCyber = LocalNeonTheme.current.mode != VisualMode.STEVE
 
     Column(
         modifier = Modifier
@@ -899,6 +902,16 @@ fun VitalsWing(
                 } else {
                     VitalsChart(uiState.kcalEatenPoints, uiState.sessionSummaries, VitalsType.KCAL_EATEN)
                 }
+            }
+            VitalsGroup.DIET -> {
+                DietArchivePanel(
+                    uiState = uiState,
+                    isCyber = isCyber,
+                    onFilterSelected = { viewModel.selectOutcomeDomainFilter(it) },
+                    onDietSelected = { viewModel.selectDietDetail(it) },
+                    onSetActiveDiet = { viewModel.setActiveDiet(it) },
+                    onDismissDetail = { viewModel.selectDietDetail(null) }
+                )
             }
             VitalsGroup.RITES -> {
                 RitesGroupView(

@@ -62,6 +62,11 @@ import kotlinx.serialization.json.*
 import java.time.format.DateTimeFormatter
 import java.util.*
 
+import com.neon.ascent.core.domain.labs.models.Diet
+import com.neon.ascent.core.domain.labs.models.DietOverrides
+import com.neon.ascent.core.domain.repository.DietRepository
+import kotlinx.coroutines.flow.combine
+
 @HiltViewModel
 class BiohackingViewModel @Inject constructor(
     private val biohackingDao: BiohackingDao,
@@ -82,9 +87,41 @@ class BiohackingViewModel @Inject constructor(
     private val bodyLogRepository: BodyLogRepository,
     private val ritesRepository: RitesRepository,
     private val dailyOriginRepository: com.neon.ascent.core.domain.chronicle.DailyOriginRepository,
+    private val dietRepository: DietRepository,
     val modelDownloadManager: ModelDownloadManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
+
+    val activeDiet: StateFlow<Diet?> = dietRepository.observeActiveDiet()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val dietOverrides: StateFlow<DietOverrides> = dietRepository.observeOverrides()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DietOverrides())
+
+    val isTrainingToday: StateFlow<Boolean> = combine(
+        workoutRepository.getAllSessions(),
+        workoutRepository.getUserProfile("default_user")
+    ) { sessions, profile ->
+        val today = LocalDate.now()
+        val hasSessionToday = sessions.any { session ->
+            session.date.atZone(ZoneId.systemDefault()).toLocalDate() == today
+        }
+        val isScheduledToday = profile?.scheduledDays?.any { day ->
+            day.dayOfWeek == today.dayOfWeek.value
+        } ?: false
+        hasSessionToday || isScheduledToday
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val isHigherCarbDay: StateFlow<Boolean> = combine(
+        dietOverrides,
+        isTrainingToday
+    ) { overrides, trainingToday ->
+        val todayDayOfWeek = LocalDate.now().dayOfWeek.name
+        val isDayPreferred = overrides.preferredHigherCarbMealDays.any { day ->
+            day.equals(todayDayOfWeek, ignoreCase = true)
+        }
+        isDayPreferred || trainingToday
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val _uiState = MutableStateFlow(BiohackingData())
     val uiState: StateFlow<BiohackingData> = _uiState.asStateFlow()

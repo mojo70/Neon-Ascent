@@ -59,6 +59,9 @@ import javax.inject.Singleton
 /**
  * Open-fail does not delete user data.
  */
+import com.neon.ascent.core.data.local.dao.DietDao
+import com.neon.ascent.core.data.local.migration.MIGRATION_65_66
+
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
@@ -128,7 +131,7 @@ object DatabaseModule {
             MIGRATION_54_55, MIGRATION_55_56, MIGRATION_56_57,
             MIGRATION_57_58, MIGRATION_58_59, MIGRATION_59_60,
             MIGRATION_60_61, MIGRATION_61_62, MIGRATION_62_63,
-            MIGRATION_63_64, MIGRATION_64_65
+            MIGRATION_63_64, MIGRATION_64_65, MIGRATION_65_66
         )
         .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
         .build()
@@ -217,5 +220,10 @@ object DatabaseModule {
     @Provides
     fun provideReconstitutionDao(database: NeonAscentDatabase): ReconstitutionDao {
         return database.reconstitutionDao()
+    }
+
+    @Provides
+    fun provideDietDao(database: NeonAscentDatabase): DietDao {
+        return database.dietDao()
     }
 }

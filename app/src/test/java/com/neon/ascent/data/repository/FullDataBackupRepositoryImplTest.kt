@@ -485,6 +485,7 @@ class FullDataBackupRepositoryImplTest {
         override fun riteSessionDao(): RiteSessionDao = fakeRiteSessionDao
         override fun selfMapDao(): com.neon.ascent.core.data.local.dao.SelfMapDao = throw NotImplementedError()
         override fun reconstitutionDao(): ReconstitutionDao = throw NotImplementedError()
+        override fun dietDao(): DietDao = throw NotImplementedError()
     }
 
     private class TestAppDatabase : AppDatabase() {
@@ -724,6 +725,20 @@ class FullDataBackupRepositoryImplTest {
         override suspend fun markAllAsReadForContact(contactName: String) {}
     }
 
+    private class FakeDietDao : com.neon.ascent.core.data.local.dao.DietDao {
+        private val diets = mutableMapOf<String, com.neon.ascent.core.data.local.entity.DietEntity>()
+        override fun getAllDiets(): Flow<List<com.neon.ascent.core.data.local.entity.DietEntity>> = flowOf(diets.values.toList())
+        override fun getDietById(id: String): Flow<com.neon.ascent.core.data.local.entity.DietEntity?> = flowOf(diets[id])
+        override suspend fun getDietByIdSync(id: String): com.neon.ascent.core.data.local.entity.DietEntity? = diets[id]
+        override suspend fun getDietCount(): Int = diets.size
+        override suspend fun insertDiets(diets: List<com.neon.ascent.core.data.local.entity.DietEntity>) {
+            diets.forEach { this.diets[it.id] = it }
+        }
+        override suspend fun insertDiet(diet: com.neon.ascent.core.data.local.entity.DietEntity) {
+            diets[diet.id] = diet
+        }
+    }
+
     private lateinit var workoutDao: FakeWorkoutDao
     private lateinit var journalDao: FakeJournalDao
     private lateinit var chronicleRepository: FakeChronicleRepository
@@ -794,6 +809,8 @@ class FullDataBackupRepositoryImplTest {
             workoutPreferencesDataStore = com.neon.ascent.core.data.datastore.WorkoutPreferencesDataStore(testContext),
             briefPreferencesDataStore = com.neon.ascent.core.data.datastore.BriefPreferencesDataStore(testContext),
             directivePreferencesDataStore = com.neon.ascent.core.data.datastore.DirectivePreferencesDataStore(testContext),
+            dietPreferencesDataStore = com.neon.ascent.core.data.datastore.DietPreferencesDataStore(testContext),
+            dietRepository = com.neon.ascent.core.data.repository.DietRepositoryImpl(FakeDietDao(), com.neon.ascent.core.data.datastore.DietPreferencesDataStore(testContext)),
             riteSessionDao = fakeRiteSessionDao,
             libraryDao = fakeLibraryDao,
             context = testContext
@@ -966,7 +983,7 @@ class FullDataBackupRepositoryImplTest {
 
         // Export payload
         val exportedJson = repository.exportBackupJson(BackupScope())
-        assertTrue(exportedJson.contains("\"version\": 6"))
+        assertTrue(exportedJson.contains("\"version\": 8"))
         assertTrue(exportedJson.contains("\"settingsPayload\""))
         assertTrue(exportedJson.contains("\"operativeProfile\""))
         assertTrue(exportedJson.contains("V_Test"))
@@ -1047,7 +1064,7 @@ class FullDataBackupRepositoryImplTest {
         val json = repository.exportBackupJson(BackupScope())
         assertTrue("JSON should contain goalsPayload", json.contains("goalsPayload"))
         assertTrue("JSON should contain selfMapPayload", json.contains("selfMapPayload"))
-        assertTrue("JSON should contain version 6", json.contains("\"version\": 6"))
+        assertTrue("JSON should contain version 8", json.contains("\"version\": 8"))
 
         // Reset fake DAOs to test restore
         ascensionDao.directives.clear()
@@ -1404,7 +1421,7 @@ class FullDataBackupRepositoryImplTest {
         coreDatabase.fakeLibraryDao.insertHighlight(highlight)
 
         val exportedJson = repository.exportBackupJson(BackupScope())
-        assertTrue("JSON should contain version 6", exportedJson.contains("\"version\": 6"))
+        assertTrue("JSON should contain version 8", exportedJson.contains("\"version\": 8"))
         assertTrue("JSON should contain ritesPayload", exportedJson.contains("ritesPayload"))
         assertTrue("JSON should contain libraryPayload", exportedJson.contains("libraryPayload"))
         assertTrue("JSON should contain preferencesPayload", exportedJson.contains("preferencesPayload"))
@@ -1628,9 +1645,9 @@ class FullDataBackupRepositoryImplTest {
         )
         chronicleRepository.saveEntry(entry)
 
-        // Act - export payload v6
+        // Act - export payload v8
         val exportedJson = repository.exportBackupJson(BackupScope())
-        assertTrue("JSON should contain version 6", exportedJson.contains("\"version\": 6"))
+        assertTrue("JSON should contain version 8", exportedJson.contains("\"version\": 8"))
         assertTrue("JSON should contain chronicle entry", exportedJson.contains("Daily Origin Day Card reflection note for backup v6"))
         assertTrue("JSON should contain dayLinks or localDate", exportedJson.contains("2026-10-23"))
 
@@ -1648,6 +1665,50 @@ class FullDataBackupRepositoryImplTest {
         assertEquals("chronicle_v6_101", restoredEntry.sourceId)
         assertEquals("Daily Origin Day Card reflection note for backup v6", restoredEntry.content)
         assertEquals("2026-10-23", restoredEntry.localDate)
+    }
+
+    @Test
+    fun `export and restore payload v8 round trip preserves active diet selection and diet overrides`() = runBlocking {
+        val dietPrefs = com.neon.ascent.core.data.datastore.DietPreferencesDataStore(testContext)
+
+        // Set active diet and overrides
+        dietPrefs.setActiveDietId("cyber_cyclical_diet")
+        dietPrefs.updateDietOverrides(
+            com.neon.ascent.core.domain.labs.models.DietOverrides(
+                preferredProteinGramsPerKg = 2.0,
+                preferredModestCarbTargetGrams = 80,
+                preferredHigherCarbMealDays = listOf("TUESDAY", "SATURDAY"),
+                preferredHigherCarbMealsPerWeek = 2,
+                freeListExceptions = listOf("sweet_corn"),
+                notes = "Target 2.0g/kg protein"
+            )
+        )
+
+        val exportedJson = repository.exportBackupJson(BackupScope())
+
+        assertTrue("JSON should contain version 8", exportedJson.contains("\"version\": 8"))
+        assertTrue("JSON should contain dietPayload", exportedJson.contains("dietPayload"))
+        assertTrue("JSON should contain activeDietId", exportedJson.contains("\"activeDietId\": \"cyber_cyclical_diet\""))
+        assertTrue("JSON should contain preferredProteinGramsPerKg", exportedJson.contains("\"preferredProteinGramsPerKg\": 2.0"))
+
+        // Reset active diet and overrides to simulate fresh restore
+        dietPrefs.setActiveDietId(null)
+        dietPrefs.updateDietOverrides(com.neon.ascent.core.domain.labs.models.DietOverrides())
+        assertNull(dietPrefs.activeDietId.first())
+
+        val restoreResult = repository.restoreBackupJson(exportedJson, RestoreMode.REPLACE)
+        assertTrue("Restore should succeed", restoreResult.success)
+
+        val restoredActiveDietId = dietPrefs.activeDietId.first()
+        assertEquals("cyber_cyclical_diet", restoredActiveDietId)
+
+        val restoredOverrides = dietPrefs.dietOverrides.first()
+        assertEquals(2.0, restoredOverrides.preferredProteinGramsPerKg!!, 0.001)
+        assertEquals(80, restoredOverrides.preferredModestCarbTargetGrams)
+        assertEquals(listOf("TUESDAY", "SATURDAY"), restoredOverrides.preferredHigherCarbMealDays)
+        assertEquals(2, restoredOverrides.preferredHigherCarbMealsPerWeek)
+        assertEquals(listOf("sweet_corn"), restoredOverrides.freeListExceptions)
+        assertEquals("Target 2.0g/kg protein", restoredOverrides.notes)
     }
 }
 

@@ -29,4 +29,10 @@ object DataStoreModule {
     fun provideWorkoutPreferencesDataStore(
         @ApplicationContext context: Context
     ): WorkoutPreferencesDataStore = WorkoutPreferencesDataStore(context)
+
+    @Provides
+    @Singleton
+    fun provideDietPreferencesDataStore(
+        @ApplicationContext context: Context
+    ): DietPreferencesDataStore = DietPreferencesDataStore(context)
 }

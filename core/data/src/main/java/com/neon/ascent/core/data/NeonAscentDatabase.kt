@@ -39,6 +39,9 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_62_63
 import com.neon.ascent.core.data.local.migration.MIGRATION_63_64
 import com.neon.ascent.core.data.local.migration.MIGRATION_64_65
 
+import com.neon.ascent.core.data.local.dao.DietDao
+import com.neon.ascent.core.data.local.migration.MIGRATION_65_66
+
 @Database(
     entities = [
         GoalEntity::class,
@@ -92,9 +95,10 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_64_65
         SelfMapSnapshotEntity::class,
         SelfMapMoodEntryEntity::class,
         SavedReconstitutionEntity::class,
-        DeloadWindowEntity::class
+        DeloadWindowEntity::class,
+        DietEntity::class
     ],
-    version = 65,
+    version = 66,
     exportSchema = true
 )
 @TypeConverters(
@@ -131,4 +135,5 @@ abstract class NeonAscentDatabase : RoomDatabase() {
     abstract fun riteSessionDao(): RiteSessionDao
     abstract fun selfMapDao(): SelfMapDao
     abstract fun reconstitutionDao(): ReconstitutionDao
+    abstract fun dietDao(): DietDao
 }
