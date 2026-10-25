@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -55,7 +56,6 @@ import com.neon.ascent.feature.dashboard.selfmap.SelfMapViewModel
 import com.neon.ascent.feature.dashboard.selfmap.getLoadBandLabel
 import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import com.neon.ascent.core.domain.labs.models.Diet
-import com.neon.ascent.core.domain.labs.models.DietOverrides
 
 @Composable
 fun BiohackingScreen(
@@ -101,7 +101,6 @@ fun BiohackingScreen(
     val scheduledSessions by viewModel.scheduledSessionsThisWeek.collectAsState()
     val selectedTimeRange by viewModel.selectedTimeRange.collectAsState()
     val activeDiet by viewModel.activeDiet.collectAsState()
-    val dietOverrides by viewModel.dietOverrides.collectAsState()
     val isHigherCarbDay by viewModel.isHigherCarbDay.collectAsState()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -340,40 +339,18 @@ fun BiohackingScreen(
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Daily Origin Day Card (LABS Sheet)
-                DailyOriginLabsCard(
-                    neonCyan = neonCyan,
-                    isCyber = visualMode == VisualMode.CYBER,
-                    onOpenSheet = { showDailyOriginSheet = true }
-                )
-
                 Spacer(modifier = Modifier.height(16.dp))
-
-                // Self Map Attachment Load Card
-                SelfMapLabsCard(onNavigateToSelfMap = onNavigateToSelfMap)
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Active Diet & Today Protocol (LABS Surface)
-                ActiveDietLabsCard(
-                    activeDiet = activeDiet,
-                    overrides = dietOverrides,
-                    isHigherCarbDay = isHigherCarbDay,
-                    neonCyan = neonCyan,
-                    isCyber = visualMode == VisualMode.CYBER,
-                    onNavigateToCodex = { onNavigateToGuide("Codex Diet Panel") }
-                )
-
-                Spacer(modifier = Modifier.height(20.dp))
 
                 // Hero: Full Body Holographic Selector
-                CyberFrame(label = "HOLOGRAPHIC_SELECTOR", borderColor = neonCyan) {
+                ExpandableCyberFrame(
+                    label = "HOLOGRAPHIC_SELECTOR",
+                    borderColor = neonCyan,
+                    initiallyExpanded = focus == null || focus == "hologram"
+                ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(400.dp),
+                            .height(380.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         FullBodyHologram(
@@ -398,6 +375,20 @@ fun BiohackingScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Quick Telemetry HUD Bar (Condensed Day Card, Self Map, Active Diet)
+                BiohackingTelemetryHud(
+                    neonCyan = neonCyan,
+                    neonMagenta = neonMagenta,
+                    isCyber = visualMode == VisualMode.CYBER,
+                    activeDiet = activeDiet,
+                    isHigherCarbDay = isHigherCarbDay,
+                    onOpenDailyOriginSheet = { showDailyOriginSheet = true },
+                    onNavigateToSelfMap = onNavigateToSelfMap,
+                    onNavigateToCodex = { onNavigateToGuide("Codex Diet Panel") }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 CyberActionButton(
                     label = "DOPAMINE_MENU // PROTOCOL_BYPASS",
                     color = neonMagenta,
@@ -407,7 +398,11 @@ fun BiohackingScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // LABS Tools Section
-                CyberFrame(label = "LABS_TOOLS // DETERMINISTIC_CALCULATORS", borderColor = neonCyan) {
+                ExpandableCyberFrame(
+                    label = "LABS_TOOLS // DETERMINISTIC_CALCULATORS",
+                    borderColor = neonCyan,
+                    initiallyExpanded = focus == "calculators"
+                ) {
                     Column(
                         modifier = Modifier.padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -452,7 +447,7 @@ fun BiohackingScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Uplink Status Section
                 UplinkStatusPanel(
@@ -470,38 +465,46 @@ fun BiohackingScreen(
                         viewModel.toggleLiveMonitoring(enabled)
                         if (enabled) LiveBiometricService.start(context)
                         else LiveBiometricService.stop(context)
-                    }
+                    },
+                    initiallyExpanded = focus == "uplink"
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Nutrition Macros Uplink
                 macros?.let {
                     NutritionMacrosCard(
                         macros = it,
                         neonCyan = neonCyan,
-                        neonMagenta = neonMagenta
+                        neonMagenta = neonMagenta,
+                        initiallyExpanded = focus == "nutrition" || focus == "macros"
                     )
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
 
                 // VITALS Stack (P0)
-                VitalsStack(
-                    snapshot = vitalsSnapshot,
-                    rhrSeries = rhrSeries,
-                    hrvSeries = hrvSeries,
-                    completedSessions = completedSessions,
-                    scheduledSessions = scheduledSessions,
-                    recoveryScore = recoveryScore,
-                    neonCharge = neonCharge,
-                    macros = macros,
-                    hasNutritionPermission = hasNutritionPermission,
-                    neonCyan = neonCyan,
-                    neonMagenta = neonMagenta,
-                    onNavigateToOps = onNavigateToOps,
-                    onRequestNutritionPermission = { viewModel.relink(UplinkProvider.HEALTH_CONNECT) },
-                    onChargeClick = { showChargeSheet = true }
-                )
+                ExpandableCyberFrame(
+                    label = "VITALS_STACK // CORE_TELEMETRY",
+                    borderColor = neonCyan,
+                    initiallyExpanded = focus == null || focus == "vitals"
+                ) {
+                    VitalsStack(
+                        snapshot = vitalsSnapshot,
+                        rhrSeries = rhrSeries,
+                        hrvSeries = hrvSeries,
+                        completedSessions = completedSessions,
+                        scheduledSessions = scheduledSessions,
+                        recoveryScore = recoveryScore,
+                        neonCharge = neonCharge,
+                        macros = macros,
+                        hasNutritionPermission = hasNutritionPermission,
+                        neonCyan = neonCyan,
+                        neonMagenta = neonMagenta,
+                        onNavigateToOps = onNavigateToOps,
+                        onRequestNutritionPermission = { viewModel.relink(UplinkProvider.HEALTH_CONNECT) },
+                        onChargeClick = { showChargeSheet = true }
+                    )
+                }
                 
                 if (showChargeSheet) {
                     ChargeInspectSheet(
@@ -511,7 +514,7 @@ fun BiohackingScreen(
                     )
                 }
                 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Biometric Trends Section
                 BiometricTrendsSection(
@@ -521,18 +524,20 @@ fun BiohackingScreen(
                     neonCyan = neonCyan,
                     neonMagenta = neonMagenta,
                     onNavigateToGuide = onNavigateToGuide,
-                    onNavigateToDopamineMenu = onNavigateToDopamineMenu
+                    onNavigateToDopamineMenu = onNavigateToDopamineMenu,
+                    initiallyExpanded = focus == "trends"
                 )
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // BODY_LOG Card (P0)
                 BodyLogCard(
                     samples = bodySamples,
                     measurementUnit = measurementUnit,
                     neonCyan = neonCyan,
-                    onLogBodyClick = { showBodyLogSheet = true }
+                    onLogBodyClick = { showBodyLogSheet = true },
+                    initiallyExpanded = focus == "body_log"
                 )
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Baselines Section
                 ExpandableBioSection("BASELINES_&_DEMOGRAPHICS", neonCyan, initiallyExpanded = focus == "baselines") {
@@ -576,13 +581,6 @@ fun BiohackingScreen(
                             fontFamily = FontFamily.Monospace
                         )
                     }
-                } else {
-                    CyberActionButton(
-                        label = "SYNC_WEARABLE_DATA",
-                        color = neonCyan.copy(alpha = 0.5f),
-                        onClick = { viewModel.syncWearable() }
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
                 }
 
                 // Lifestyle Stack
@@ -672,6 +670,15 @@ fun BiohackingScreen(
                             }
                         }
                     }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                if (!uiState.isWearableSynced) {
+                    CyberActionButton(
+                        label = "SYNC_WEARABLE_DATA",
+                        color = neonCyan.copy(alpha = 0.5f),
+                        onClick = { viewModel.syncWearable() }
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
@@ -1340,10 +1347,15 @@ fun UplinkStatusPanel(
     onManualSyncClick: () -> Unit,
     onRelink: (UplinkProvider) -> Unit,
     isLiveMonitoringEnabled: Boolean,
-    onLiveMonitoringToggle: (Boolean) -> Unit
+    onLiveMonitoringToggle: (Boolean) -> Unit,
+    initiallyExpanded: Boolean = false
 ) {
     val theme = LocalNeonTheme.current
-    CyberFrame(label = "NEURAL_UPLINK_STATUS", borderColor = neonCyan.copy(alpha = 0.6f)) {
+    ExpandableCyberFrame(
+        label = "NEURAL_UPLINK_STATUS",
+        borderColor = neonCyan.copy(alpha = 0.6f),
+        initiallyExpanded = initiallyExpanded
+    ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1507,12 +1519,18 @@ fun BiometricTrendsSection(
     neonCyan: Color,
     neonMagenta: Color,
     onNavigateToGuide: (String?) -> Unit,
-    onNavigateToDopamineMenu: () -> Unit
+    onNavigateToDopamineMenu: () -> Unit,
+    initiallyExpanded: Boolean = false
 ) {
     val theme = LocalNeonTheme.current
     val ranges = mapOf(7 to "7D", 30 to "30D", 90 to "90D")
 
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    ExpandableCyberFrame(
+        label = "BIOMETRIC_TRENDS",
+        borderColor = neonCyan,
+        initiallyExpanded = initiallyExpanded
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1589,6 +1607,7 @@ fun BiometricTrendsSection(
             }
         }
     }
+}
 }
 
 @Composable
@@ -1699,9 +1718,18 @@ fun TrendCard(
 }
 
 @Composable
-fun NutritionMacrosCard(macros: com.neon.ascent.core.domain.workout.rules.Macros, neonCyan: Color, neonMagenta: Color) {
+fun NutritionMacrosCard(
+    macros: com.neon.ascent.core.domain.workout.rules.Macros,
+    neonCyan: Color,
+    neonMagenta: Color,
+    initiallyExpanded: Boolean = false
+) {
     val theme = LocalNeonTheme.current
-    CyberFrame(label = "BIOMETRIC_NUTRITION_UPLINK", borderColor = neonCyan) {
+    ExpandableCyberFrame(
+        label = "BIOMETRIC_NUTRITION_UPLINK",
+        borderColor = neonCyan,
+        initiallyExpanded = initiallyExpanded
+    ) {
         Column {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1739,7 +1767,8 @@ fun BodyLogCard(
     samples: List<BodySampleEntity>,
     measurementUnit: String = "Metric",
     neonCyan: Color,
-    onLogBodyClick: () -> Unit
+    onLogBodyClick: () -> Unit,
+    initiallyExpanded: Boolean = false
 ) {
     val theme = LocalNeonTheme.current
     val isImperial = measurementUnit.equals("Imperial", ignoreCase = true)
@@ -1770,7 +1799,11 @@ fun BodyLogCard(
         "NOT_LOGGED"
     }
 
-    CyberFrame(label = "BODY_LOG // COMPOSITION_&_METRICS", borderColor = neonCyan) {
+    ExpandableCyberFrame(
+        label = "BODY_LOG // COMPOSITION_&_METRICS",
+        borderColor = neonCyan,
+        initiallyExpanded = initiallyExpanded
+    ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1977,347 +2010,181 @@ fun Sparkline(
 }
 
 @Composable
-fun SelfMapLabsCard(
+fun BiohackingTelemetryHud(
+    neonCyan: Color,
+    neonMagenta: Color,
+    isCyber: Boolean,
+    activeDiet: Diet?,
+    isHigherCarbDay: Boolean,
+    onOpenDailyOriginSheet: () -> Unit,
     onNavigateToSelfMap: () -> Unit,
+    onNavigateToCodex: () -> Unit,
     selfMapViewModel: SelfMapViewModel = hiltViewModel()
 ) {
-    val uiState by selfMapViewModel.uiState.collectAsState()
-    val theme = LocalNeonTheme.current
-    val cyan = theme.accent
+    val selfMapState by selfMapViewModel.uiState.collectAsState()
+    val (_, bandColor) = getLoadBandLabel(selfMapState.coreAttachmentLoad)
 
-    val (bandText, bandColor) = getLoadBandLabel(uiState.coreAttachmentLoad)
-
-    CyberFrame(
-        label = "SELF_MAP // ATTACHMENT_LOAD",
-        borderColor = cyan,
-        accentColor = cyan,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onNavigateToSelfMap() }
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "CORE ATTACHMENT LOAD: ",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            color = Color.Gray,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    )
-                    Text(
-                        text = "${uiState.coreAttachmentLoad.toInt()}%",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            color = bandColor,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(2.dp))
-
-                Text(
-                    text = "Band: $bandText | Core items (≥0.7): ${uiState.coreCount}",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = Color.LightGray,
-                        fontFamily = FontFamily.Monospace
-                    )
-                )
-
-                val formattedAvg = (Math.round(uiState.avgImportance * 100.0) / 100.0).toString()
-                Text(
-                    text = "Active attachments: ${uiState.activeItems.size} | Avg importance: $formattedAvg",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        color = Color.Gray,
-                        fontFamily = FontFamily.Monospace
-                    )
-                )
-            }
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "CANVAS →",
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        color = cyan,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
-                        letterSpacing = 1.sp
-                    )
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun DailyOriginLabsCard(
-    neonCyan: Color,
-    isCyber: Boolean,
-    onOpenSheet: () -> Unit
-) {
     if (isCyber) {
         CyberFrame(
-            label = "DAILY_ORIGIN // DAY_CARD",
+            label = "TELEMETRY_HUD // QUICK_ACCESS",
             borderColor = neonCyan
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onOpenSheet() }
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                    .padding(vertical = 10.dp, horizontal = 4.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "DAILY_ORIGIN // AGGREGATION",
-                        color = neonCyan,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    Text(
-                        text = "Read-only day card telemetry and free-text notes",
-                        color = Color.Gray,
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-                Button(
-                    onClick = onOpenSheet,
-                    colors = ButtonDefaults.buttonColors(containerColor = neonCyan, contentColor = Color.Black)
-                ) {
-                    Text(
-                        text = "DAY_CARD",
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
+                // 1. Day Card Tile
+                HudTile(
+                    modifier = Modifier.weight(1f),
+                    title = "DAY_CARD",
+                    subtitle = "AGGREGATION",
+                    accentColor = neonCyan,
+                    onClick = onOpenDailyOriginSheet
+                )
+
+                VerticalDivider(
+                    modifier = Modifier
+                        .height(32.dp)
+                        .padding(horizontal = 2.dp),
+                    color = neonCyan.copy(alpha = 0.3f)
+                )
+
+                // 2. Self Map Tile
+                HudTile(
+                    modifier = Modifier.weight(1f),
+                    title = "SELF_MAP",
+                    subtitle = "${selfMapState.coreAttachmentLoad.toInt()}% LOAD",
+                    subtitleColor = bandColor,
+                    accentColor = neonCyan,
+                    onClick = onNavigateToSelfMap
+                )
+
+                VerticalDivider(
+                    modifier = Modifier
+                        .height(32.dp)
+                        .padding(horizontal = 2.dp),
+                    color = neonCyan.copy(alpha = 0.3f)
+                )
+
+                // 3. Active Diet Tile
+                val dietTitle = activeDiet?.name?.uppercase() ?: "NO DIET"
+                val dietSubtitle = if (isHigherCarbDay && activeDiet != null) "⚡ REFEED" else dietTitle
+                HudTile(
+                    modifier = Modifier.weight(1f),
+                    title = "ACTIVE_DIET",
+                    subtitle = dietSubtitle,
+                    subtitleColor = if (isHigherCarbDay && activeDiet != null) neonMagenta else Color.White,
+                    accentColor = neonCyan,
+                    onClick = onNavigateToCodex
+                )
             }
         }
     } else {
         Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onOpenSheet() },
+            modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                    .padding(10.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Daily Origin Day Card",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp
-                    )
-                    Text(
-                        text = "Read-only telemetry aggregation for today",
-                        color = Color.Gray,
-                        fontSize = 12.sp
-                    )
-                }
-                Button(onClick = onOpenSheet) {
-                    Text(text = "View Card")
-                }
+                HudTile(
+                    modifier = Modifier.weight(1f),
+                    title = "Day Card",
+                    subtitle = "Aggregation",
+                    accentColor = MaterialTheme.colorScheme.primary,
+                    onClick = onOpenDailyOriginSheet
+                )
+                
+                VerticalDivider(
+                    modifier = Modifier
+                        .height(32.dp)
+                        .padding(horizontal = 2.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+
+                HudTile(
+                    modifier = Modifier.weight(1f),
+                    title = "Self Map",
+                    subtitle = "${selfMapState.coreAttachmentLoad.toInt()}% Load",
+                    subtitleColor = bandColor,
+                    accentColor = MaterialTheme.colorScheme.primary,
+                    onClick = onNavigateToSelfMap
+                )
+
+                VerticalDivider(
+                    modifier = Modifier
+                        .height(32.dp)
+                        .padding(horizontal = 2.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+
+                HudTile(
+                    modifier = Modifier.weight(1f),
+                    title = "Active Diet",
+                    subtitle = activeDiet?.name ?: "No Diet",
+                    accentColor = MaterialTheme.colorScheme.primary,
+                    onClick = onNavigateToCodex
+                )
             }
         }
     }
 }
 
 @Composable
-fun ActiveDietLabsCard(
-    activeDiet: Diet?,
-    overrides: DietOverrides,
-    isHigherCarbDay: Boolean,
-    neonCyan: Color,
-    isCyber: Boolean,
-    onNavigateToCodex: () -> Unit
+private fun HudTile(
+    title: String,
+    subtitle: String,
+    accentColor: Color,
+    modifier: Modifier = Modifier,
+    subtitleColor: Color = Color.White,
+    onClick: () -> Unit
 ) {
-    val title = activeDiet?.name ?: "No Active Diet Selected"
-    val proteinText = when {
-        overrides.preferredProteinGramsPerKg != null -> "Protein Target: ~${overrides.preferredProteinGramsPerKg} g/kg daily"
-        activeDiet?.typicalParameters?.proteinGramsPerKgMin != null -> "Protein Floor: ~${activeDiet.typicalParameters.proteinGramsPerKgMin}–${activeDiet.typicalParameters.proteinGramsPerKgMax} g/kg daily"
-        activeDiet != null -> "Protein Floor: Prioritize adequate whole-food protein"
-        else -> "Select a diet in Codex to track live targets"
-    }
-
-    val carbText = when {
-        overrides.preferredModestCarbTargetGrams != null -> "Baseline Carbs: ~${overrides.preferredModestCarbTargetGrams}g net carbs"
-        activeDiet?.typicalParameters?.baselineNetCarbsGramsMin != null -> "Baseline Carbs: ~${activeDiet.typicalParameters.baselineNetCarbsGramsMin}–${activeDiet.typicalParameters.baselineNetCarbsGramsMax}g net carbs"
-        activeDiet != null -> "Baseline Carbs: Whole-food carbohydrate control"
-        else -> null
-    }
-
-    if (isCyber) {
-        CyberFrame(
-            label = "ACTIVE_DIET // TODAY_PROTOCOL",
-            borderColor = neonCyan,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onNavigateToCodex() }
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(6.dp))
+            .clickable { onClick() }
+            .padding(vertical = 4.dp, horizontal = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = title.uppercase(),
-                            color = neonCyan,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = proteinText,
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        if (carbText != null) {
-                            Text(
-                                text = carbText,
-                                color = Color.Gray,
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
-                    }
-
-                    Text(
-                        text = "CODEX →",
-                        color = neonCyan,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-
-                if (isHigherCarbDay && activeDiet != null) {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(neonCyan.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
-                            .border(1.dp, neonCyan, RoundedCornerShape(4.dp))
-                            .padding(vertical = 6.dp, horizontal = 10.dp)
-                    ) {
-                        Text(
-                            text = "⚡ HIGHER-CARB MEAL RECOMMENDED TODAY (Post-Training / Evening)",
-                            color = neonCyan,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-                }
-
-                if (activeDiet != null && activeDiet.stackingNotes.isNotEmpty()) {
-                    val note = activeDiet.stackingNotes.first()
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "💡 STACKING [${note.evidenceGradeTag}]: ${note.title} — ${note.description}",
-                        color = Color.Gray,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-            }
+            Text(
+                text = title,
+                color = accentColor,
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.width(2.dp))
+            Text(
+                text = "→",
+                color = accentColor.copy(alpha = 0.7f),
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
+            )
         }
-    } else {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onNavigateToCodex() },
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = proteinText,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium
-                        )
-                        if (carbText != null) {
-                            Text(
-                                text = carbText,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color.Gray
-                            )
-                        }
-                    }
-
-                    Text(
-                        text = "Codex →",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                if (isHigherCarbDay && activeDiet != null) {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Surface(
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = "⚡ Higher-Carb Meal Recommended Today (Post-Training / Evening)",
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(vertical = 6.dp, horizontal = 10.dp)
-                        )
-                    }
-                }
-
-                if (activeDiet != null && activeDiet.stackingNotes.isNotEmpty()) {
-                    val note = activeDiet.stackingNotes.first()
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "💡 Stacking [${note.evidenceGradeTag}]: ${note.title} — ${note.description}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.Gray
-                    )
-                }
-            }
-        }
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = subtitle,
+            color = subtitleColor,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

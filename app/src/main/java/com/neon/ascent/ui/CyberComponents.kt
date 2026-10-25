@@ -419,6 +419,78 @@ fun CyberFrame(
 }
 
 @Composable
+fun ExpandableCyberFrame(
+    label: String,
+    modifier: Modifier = Modifier,
+    accentColor: Color? = null,
+    borderColor: Color? = null,
+    backgroundColor: Color? = null,
+    initiallyExpanded: Boolean = false,
+    content: @Composable () -> Unit
+) {
+    var expanded by remember(initiallyExpanded) { mutableStateOf(initiallyExpanded) }
+    val theme = LocalNeonTheme.current
+    val finalAccent = accentColor ?: theme.accentDanger
+    val finalBorder = borderColor ?: theme.accent
+    val finalBg = backgroundColor ?: theme.overlay
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(4.dp))
+                .clickable { expanded = !expanded }
+                .padding(vertical = 4.dp)
+        ) {
+            Box(
+                Modifier
+                    .size(4.dp, 16.dp)
+                    .background(finalAccent)
+                    .neonBorder(finalAccent, width = 1.dp, glowIntensity = if (theme.glowEnabled) 0.8f else 0f, cornerRadius = 0.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    color = if (theme.mode == VisualMode.STEVE) theme.ink else finalBorder,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 2.sp,
+                    fontFamily = FontFamily.Monospace
+                ),
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(8.dp))
+            Box(
+                Modifier
+                    .height(1.dp)
+                    .weight(0.3f)
+                    .background(finalBorder.copy(alpha = 0.3f))
+            )
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                contentDescription = if (expanded) "Collapse $label" else "Expand $label",
+                tint = finalBorder,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        
+        AnimatedVisibility(visible = expanded) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .neonBorder(finalBorder.copy(alpha = 0.6f), width = 1.dp, cornerRadius = 4.dp, glowIntensity = if (theme.glowEnabled) 1f else 0f)
+                    .background(finalBg)
+                    .padding(12.dp)
+            ) {
+                content()
+            }
+        }
+    }
+}
+
+@Composable
 fun HudCornerAccents(color: Color) {
     Canvas(modifier = Modifier.fillMaxSize()) {
         val lineLen = 24.dp.toPx()
