@@ -518,6 +518,11 @@ class SettingsViewModel @Inject constructor(
     fun setMeasurementUnit(unit: String) {
         viewModelScope.launch {
             userPreferencesRepository.updateMeasurementUnit(unit)
+            val char = characterRepository.getUserCharacter().first()
+            if (char != null && !char.units.equals(unit, ignoreCase = true)) {
+                val updatedChar = char.convertUnits(unit)
+                characterRepository.saveCharacter(updatedChar)
+            }
         }
     }
 

@@ -80,4 +80,115 @@ data class UserCharacter(
 
     fun getEquippedList(): List<String> = equippedCyberware?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
     fun getQuickhackList(): List<String> = loadedQuickhacks?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+
+    fun convertUnits(targetUnit: String): UserCharacter {
+        val currentIsImperial = units.equals("Imperial", ignoreCase = true)
+        val targetIsImperial = targetUnit.equals("Imperial", ignoreCase = true)
+
+        if (currentIsImperial == targetIsImperial) {
+            return this.copy(units = if (targetIsImperial) "Imperial" else "Metric")
+        }
+
+        if (targetIsImperial) {
+            // Converting Metric -> Imperial
+            val weightKg = weight.toDoubleOrNull()
+            val newWeight = if (weightKg != null && weightKg > 0) {
+                val lbs = weightKg * 2.2046226218
+                String.format(java.util.Locale.US, "%.1f", lbs)
+            } else weight
+
+            val cmVal = heightCm?.toDoubleOrNull()
+            val (newFeet, newInches) = if (cmVal != null && cmVal > 0) {
+                val totalInches = kotlin.math.round(cmVal / 2.54).toInt()
+                val feet = totalInches / 12
+                val inches = totalInches % 12
+                feet.toString() to inches.toString()
+            } else {
+                (heightFeet ?: "0") to (heightInches ?: "0")
+            }
+
+            return this.copy(
+                units = "Imperial",
+                weight = newWeight,
+                heightFeet = newFeet,
+                heightInches = newInches,
+                heightCm = heightCm
+            )
+        } else {
+            // Converting Imperial -> Metric
+            val weightLbs = weight.toDoubleOrNull()
+            val newWeight = if (weightLbs != null && weightLbs > 0) {
+                val kg = weightLbs * 0.45359237
+                String.format(java.util.Locale.US, "%.1f", kg)
+            } else weight
+
+            val feet = heightFeet?.toIntOrNull() ?: 0
+            val inches = heightInches?.toIntOrNull() ?: 0
+            val newCm = if (feet > 0 || inches > 0) {
+                val totalInches = feet * 12 + inches
+                val cm = kotlin.math.round(totalInches * 2.54).toInt()
+                cm.toString()
+            } else {
+                heightCm ?: "0"
+            }
+
+            return this.copy(
+                units = "Metric",
+                weight = newWeight,
+                heightCm = newCm,
+                heightFeet = heightFeet,
+                heightInches = heightInches
+            )
+        }
+    }
+
+    fun formattedHeight(targetUnit: String = this.units): String {
+        val targetIsImperial = targetUnit.equals("Imperial", ignoreCase = true)
+        return if (targetIsImperial) {
+            if (!heightFeet.isNullOrBlank() && !heightInches.isNullOrBlank()) {
+                "${heightFeet}'${heightInches}\""
+            } else if (!heightCm.isNullOrBlank()) {
+                val cmVal = heightCm.toDoubleOrNull() ?: 0.0
+                val totalInches = kotlin.math.round(cmVal / 2.54).toInt()
+                val feet = totalInches / 12
+                val inches = totalInches % 12
+                "${feet}'${inches}\""
+            } else {
+                "0'0\""
+            }
+        } else {
+            if (!heightCm.isNullOrBlank()) {
+                "${heightCm} CM"
+            } else if (!heightFeet.isNullOrBlank()) {
+                val feet = heightFeet.toIntOrNull() ?: 0
+                val inches = heightInches?.toIntOrNull() ?: 0
+                val totalInches = feet * 12 + inches
+                val cm = kotlin.math.round(totalInches * 2.54).toInt()
+                "${cm} CM"
+            } else {
+                "0 CM"
+            }
+        }
+    }
+
+    fun formattedWeight(targetUnit: String = this.units): String {
+        val charIsImperial = units.equals("Imperial", ignoreCase = true)
+        val targetIsImperial = targetUnit.equals("Imperial", ignoreCase = true)
+        val numericWeight = weight.toDoubleOrNull()
+
+        return if (numericWeight == null || numericWeight <= 0) {
+            if (targetIsImperial) "0 LBS" else "0 KG"
+        } else if (charIsImperial == targetIsImperial) {
+            val unitLabel = if (targetIsImperial) "LBS" else "KG"
+            "${weight} $unitLabel"
+        } else if (targetIsImperial) {
+            // Character is Metric (KG), target is Imperial (LBS)
+            val lbs = numericWeight * 2.2046226218
+            String.format(java.util.Locale.US, "%.1f LBS", lbs)
+        } else {
+            // Character is Imperial (LBS), target is Metric (KG)
+            val kg = numericWeight * 0.45359237
+            String.format(java.util.Locale.US, "%.1f KG", kg)
+        }
+    }
 }

@@ -787,6 +787,18 @@ class BiohackingViewModel @Inject constructor(
                     note = input.note.ifBlank { null }
                 )
             }
+
+            if (input.weightKg.isNotBlank()) {
+                val currentChar = _character.value
+                if (currentChar != null) {
+                    val updatedChar = currentChar.copy(weight = input.weightKg)
+                    characterRepository.saveCharacter(updatedChar)
+                }
+            }
+
+            input.bodyFatPct.toFloatOrNull()?.let { bfFloat ->
+                updateData { d -> d.copy(bodyFatPercentage = bfFloat) }
+            }
         }
     }
 

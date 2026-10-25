@@ -125,6 +125,7 @@ fun SettingsScreen(
     val directiveIntakeMode by viewModel.directiveIntakeMode.collectAsState()
     val selfMapIntakeMode by viewModel.selfMapIntakeMode.collectAsState()
     val workoutLayoutMode by viewModel.workoutLayoutMode.collectAsState()
+    val measurementUnit by viewModel.measurementUnit.collectAsState()
 
     // Biometrics & Sync State
     val isHealthGranted by viewModel.isHealthConnectGranted.collectAsState()
@@ -556,6 +557,18 @@ fun SettingsScreen(
                                 selected = workoutLayoutMode == mode,
                                 onClick = { viewModel.setWorkoutLayoutMode(mode) },
                                 label = if (mode == WorkoutLayoutMode.CLASSIC) "CLASSIC (FULL)" else "FOCUS (PROGRESSIVE)",
+                                modifier = Modifier.weight(1f),
+                                palette = theme
+                            )
+                        }
+                    }
+                    Text("Measurement units default", color = theme.ink.copy(alpha = 0.6f), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                    Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("Imperial", "Metric").forEach { unit ->
+                            CyberTabButton(
+                                selected = measurementUnit.equals(unit, ignoreCase = true),
+                                onClick = { viewModel.setMeasurementUnit(unit) },
+                                label = unit.uppercase(),
                                 modifier = Modifier.weight(1f),
                                 palette = theme
                             )

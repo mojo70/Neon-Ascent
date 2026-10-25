@@ -541,6 +541,26 @@ fun BiohackingScreen(
 
                 // Baselines Section
                 ExpandableBioSection("BASELINES_&_DEMOGRAPHICS", neonCyan, initiallyExpanded = focus == "baselines") {
+                    val isImperial = measurementUnit.equals("Imperial", ignoreCase = true)
+                    val lastWeightSample = bodySamples.filter { it.metric == "WEIGHT" }.maxByOrNull { it.loggedAt }
+                    val lastBfSample = bodySamples.filter { it.metric == "BF_PCT" }.maxByOrNull { it.loggedAt }
+
+                    val baselineWeightStr = lastWeightSample?.let {
+                        if (isImperial) {
+                            val lbs = it.value * 2.2046226218
+                            String.format(Locale.US, "%.1f LBS", lbs)
+                        } else {
+                            String.format(Locale.US, "%.1f KG", it.value)
+                        }
+                    } ?: displayChar.formattedWeight(measurementUnit)
+
+                    val baselineBfStr = lastBfSample?.let {
+                        val methodSuffix = it.method?.let { m -> " ($m)" } ?: ""
+                        String.format(Locale.US, "%.1f%%%s", it.value, methodSuffix)
+                    } ?: uiState.bodyFatPercentage?.let {
+                        String.format(Locale.US, "%.1f%%", it)
+                    } ?: "NOT_LOGGED"
+
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             BioReadOnlyField("AGE", calculateAge(displayChar.dob), Modifier.weight(1f), neonCyan)
@@ -557,11 +577,11 @@ fun BiohackingScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            BioReadOnlyField("HEIGHT", "${displayChar.heightFeet ?: "0"}'${displayChar.heightInches ?: "0"}\"", Modifier.weight(1f), neonCyan)
-                            BioReadOnlyField("WEIGHT", "${displayChar.weight}kg", Modifier.weight(1f), neonCyan)
+                            BioReadOnlyField("HEIGHT", displayChar.formattedHeight(measurementUnit), Modifier.weight(1f), neonCyan)
+                            BioReadOnlyField("WEIGHT", baselineWeightStr, Modifier.weight(1f), neonCyan, onClick = { showBodyLogSheet = true })
                         }
-                        BioSliderField("BODY_FAT_%", uiState.bodyFatPercentage ?: 15f, 5f..40f, neonCyan) {
-                            viewModel.updateData { d -> d.copy(bodyFatPercentage = it) }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            BioReadOnlyField("BODY_FAT_%", baselineBfStr, Modifier.weight(1f), neonCyan, onClick = { showBodyLogSheet = true })
                         }
                     }
                 }
@@ -1215,9 +1235,16 @@ fun ExpandableBioSection(
 }
 
 @Composable
-fun BioReadOnlyField(label: String, value: String, modifier: Modifier = Modifier, color: Color) {
+fun BioReadOnlyField(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    color: Color,
+    onClick: (() -> Unit)? = null
+) {
     val theme = LocalNeonTheme.current
-    Column(modifier = modifier) {
+    val clickableModifier = if (onClick != null) modifier.clickable { onClick() } else modifier
+    Column(modifier = clickableModifier) {
         Text(label, color = color.copy(alpha = 0.6f), fontSize = 8.sp, fontWeight = FontWeight.Bold)
         Text(value, color = theme.ink, fontSize = 14.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
     }
