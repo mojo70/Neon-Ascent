@@ -101,6 +101,10 @@ class FullDataBackupRepositoryImpl @Inject constructor(
     private val directivePreferencesDataStore: DirectivePreferencesDataStore,
     private val dietPreferencesDataStore: com.neon.ascent.core.data.datastore.DietPreferencesDataStore,
     private val dietRepository: com.neon.ascent.core.domain.repository.DietRepository,
+    private val supplementPreferencesDataStore: com.neon.ascent.core.data.datastore.SupplementPreferencesDataStore,
+    private val supplementRepository: com.neon.ascent.core.domain.repository.SupplementRepository,
+    private val biohackingProtocolPreferencesDataStore: com.neon.ascent.core.data.datastore.BiohackingProtocolPreferencesDataStore,
+    private val biohackingProtocolRepository: com.neon.ascent.core.domain.repository.BiohackingProtocolRepository,
     private val riteSessionDao: RiteSessionDao,
     private val libraryDao: LibraryDao,
     @ApplicationContext private val context: Context
@@ -1051,8 +1055,22 @@ class FullDataBackupRepositoryImpl @Inject constructor(
             overrides = dietOverrides.toDto()
         )
 
+        val activeStackIds = supplementPreferencesDataStore.activeStackIds.firstOrNull() ?: emptySet()
+        val supplementOverridesMap = supplementPreferencesDataStore.overrides.firstOrNull() ?: emptyMap()
+        val supplementSection = SupplementBackupSection(
+            activeStackIds = activeStackIds,
+            overrides = supplementOverridesMap.mapValues { it.value.toDto() }
+        )
+
+        val activeProtocolIds = biohackingProtocolPreferencesDataStore.activeProtocolIds.firstOrNull() ?: emptySet()
+        val protocolOverridesMap = biohackingProtocolPreferencesDataStore.overrides.firstOrNull() ?: emptyMap()
+        val protocolSection = BiohackingProtocolBackupSection(
+            activeProtocolIds = activeProtocolIds,
+            overrides = protocolOverridesMap.mapValues { it.value.toDto() }
+        )
+
         val payload = NeonAscentBackupPayload(
-            version = 8,
+            version = 10,
             exportedAt = now,
             appVersion = "1.0",
             workoutPayload = workoutSection,
@@ -1069,12 +1087,14 @@ class FullDataBackupRepositoryImpl @Inject constructor(
             preferencesPayload = preferencesSection,
             ritesPayload = ritesSection,
             libraryPayload = librarySection,
-            dietPayload = dietSection
+            dietPayload = dietSection,
+            supplementPayload = supplementSection,
+            biohackingProtocolPayload = protocolSection
         )
 
         healthPreferencesDataStore.updateLastSyncTime()
         userPreferencesRepository.setLastBackupTimestamp(System.currentTimeMillis())
-        userPreferencesRepository.setLastBackupVersion(8)
+        userPreferencesRepository.setLastBackupVersion(10)
 
         return gson.toJson(payload)
     }
@@ -1121,7 +1141,10 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                 payload.chatPayload == null &&
                 payload.preferencesPayload == null &&
                 payload.ritesPayload == null &&
-                payload.libraryPayload == null
+                payload.libraryPayload == null &&
+                payload.dietPayload == null &&
+                payload.supplementPayload == null &&
+                payload.biohackingProtocolPayload == null
             ) {
                 val failure = RestoreResult(success = false, message = "Invalid JSON payload structure: No backup sections found")
                 onProgress?.invoke(RestoreProgress(stage = RestoreStage.FAIL, message = failure.message, error = failure.message))
@@ -2227,6 +2250,22 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                 diet.overrides?.let { overridesDto ->
                     dietPreferencesDataStore.updateDietOverrides(overridesDto.toDomain())
                 }
+            }
+
+            runCatching { supplementRepository.seedDefaultSupplements() }
+
+            payload.supplementPayload?.let { supp ->
+                supplementPreferencesDataStore.setActiveStackIds(supp.activeStackIds)
+                val mappedOverrides = supp.overrides.mapValues { it.value.toDomain() }
+                supplementPreferencesDataStore.updateAllOverrides(mappedOverrides)
+            }
+
+            runCatching { biohackingProtocolRepository.seedDefaultProtocols() }
+
+            payload.biohackingProtocolPayload?.let { proto ->
+                biohackingProtocolPreferencesDataStore.setActiveProtocolIds(proto.activeProtocolIds)
+                val mappedOverrides = proto.overrides.mapValues { it.value.toDomain() }
+                biohackingProtocolPreferencesDataStore.updateAllOverrides(mappedOverrides)
             }
 
             var ritesRestored = 0

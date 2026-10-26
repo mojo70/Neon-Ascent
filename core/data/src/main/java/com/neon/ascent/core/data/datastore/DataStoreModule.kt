@@ -35,4 +35,10 @@ object DataStoreModule {
     fun provideDietPreferencesDataStore(
         @ApplicationContext context: Context
     ): DietPreferencesDataStore = DietPreferencesDataStore(context)
+
+    @Provides
+    @Singleton
+    fun provideSupplementPreferencesDataStore(
+        @ApplicationContext context: Context
+    ): SupplementPreferencesDataStore = SupplementPreferencesDataStore(context)
 }

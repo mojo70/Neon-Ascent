@@ -37,7 +37,13 @@ import com.neon.ascent.core.domain.goals.models.PriorityTier
 import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.core.domain.labs.models.Diet
 import com.neon.ascent.core.domain.labs.models.DietOverrides
+import com.neon.ascent.core.domain.labs.models.Supplement
+import com.neon.ascent.core.domain.labs.models.SupplementOverride
+import com.neon.ascent.core.domain.labs.models.BiohackingProtocol
+import com.neon.ascent.core.domain.labs.models.BiohackingProtocolOverride
 import com.neon.ascent.core.domain.repository.DietRepository
+import com.neon.ascent.core.domain.repository.SupplementRepository
+import com.neon.ascent.core.domain.repository.BiohackingProtocolRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import android.content.Context
@@ -131,7 +137,21 @@ data class CodexUiState(
     val selectedOutcomeDomainFilter: String = "ALL",
     val activeDiet: Diet? = null,
     val dietOverrides: DietOverrides = DietOverrides(),
-    val selectedDietDetail: Diet? = null
+    val selectedDietDetail: Diet? = null,
+
+    // Supplement Archive State
+    val allSupplements: List<Supplement> = emptyList(),
+    val activeSupplementStack: List<Supplement> = emptyList(),
+    val supplementOverrides: Map<String, SupplementOverride> = emptyMap(),
+    val selectedSupplementOutcomeDomainFilter: String = "ALL",
+    val selectedSupplementDetail: Supplement? = null,
+
+    // Biohacking Protocol Archive State
+    val allProtocols: List<BiohackingProtocol> = emptyList(),
+    val activeProtocols: List<BiohackingProtocol> = emptyList(),
+    val protocolOverrides: Map<String, BiohackingProtocolOverride> = emptyMap(),
+    val selectedProtocolOutcomeDomainFilter: String = "ALL",
+    val selectedProtocolDetail: BiohackingProtocol? = null
 )
 
 enum class VitalsGroup(val label: String) {
@@ -142,6 +162,8 @@ enum class VitalsGroup(val label: String) {
     MOVE("MOVE"),
     FUEL("FUEL"),
     DIET("DIET"),
+    SUPPLEMENTS("SUPP"),
+    PROTO("PROTO"),
     RITES("RITES")
 }
 
@@ -309,6 +331,8 @@ class CodexViewModel @Inject constructor(
     private val characterRepository: CharacterRepository,
     private val ascensionRepository: AscensionRepository,
     private val dietRepository: DietRepository,
+    private val supplementRepository: SupplementRepository,
+    private val biohackingProtocolRepository: BiohackingProtocolRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -364,6 +388,42 @@ class CodexViewModel @Inject constructor(
         viewModelScope.launch {
             dietRepository.observeOverrides().collect { overrides ->
                 _uiState.update { it.copy(dietOverrides = overrides) }
+            }
+        }
+
+        viewModelScope.launch {
+            supplementRepository.observeAll().collect { supplements ->
+                _uiState.update { it.copy(allSupplements = supplements) }
+            }
+        }
+
+        viewModelScope.launch {
+            supplementRepository.observeActiveStack().collect { stack ->
+                _uiState.update { it.copy(activeSupplementStack = stack) }
+            }
+        }
+
+        viewModelScope.launch {
+            supplementRepository.observeOverrides().collect { overrides ->
+                _uiState.update { it.copy(supplementOverrides = overrides) }
+            }
+        }
+
+        viewModelScope.launch {
+            biohackingProtocolRepository.observeAll().collect { protocols ->
+                _uiState.update { it.copy(allProtocols = protocols) }
+            }
+        }
+
+        viewModelScope.launch {
+            biohackingProtocolRepository.observeActiveProtocols().collect { active ->
+                _uiState.update { it.copy(activeProtocols = active) }
+            }
+        }
+
+        viewModelScope.launch {
+            biohackingProtocolRepository.observeOverrides().collect { overrides ->
+                _uiState.update { it.copy(protocolOverrides = overrides) }
             }
         }
         viewModelScope.launch {
@@ -511,6 +571,8 @@ class CodexViewModel @Inject constructor(
             VitalsGroup.MOVE -> VitalsType.STEPS
             VitalsGroup.FUEL -> VitalsType.KCAL_EATEN
             VitalsGroup.DIET -> VitalsType.KCAL_EATEN
+            VitalsGroup.SUPPLEMENTS -> VitalsType.SANCTUM
+            VitalsGroup.PROTO -> VitalsType.SANCTUM
             VitalsGroup.RITES -> VitalsType.SANCTUM
         }
         _uiState.update { it.copy(vitalsGroup = group, vitalsType = nextType) }
@@ -535,6 +597,58 @@ class CodexViewModel @Inject constructor(
     fun updateDietOverrides(overrides: DietOverrides) {
         viewModelScope.launch {
             dietRepository.updateOverrides(overrides)
+        }
+    }
+
+    fun selectSupplementOutcomeDomainFilter(domain: String) {
+        _uiState.update { it.copy(selectedSupplementOutcomeDomainFilter = domain) }
+    }
+
+    fun selectSupplementDetail(supplement: Supplement?) {
+        _uiState.update { it.copy(selectedSupplementDetail = supplement) }
+    }
+
+    fun toggleSupplementInActiveStack(supplementId: String) {
+        val currentStackIds = _uiState.value.activeSupplementStack.map { it.id }.toMutableSet()
+        if (currentStackIds.contains(supplementId)) {
+            currentStackIds.remove(supplementId)
+        } else {
+            currentStackIds.add(supplementId)
+        }
+        viewModelScope.launch {
+            supplementRepository.setActiveStack(currentStackIds)
+        }
+    }
+
+    fun updateSupplementOverride(supplementId: String, override: SupplementOverride?) {
+        viewModelScope.launch {
+            supplementRepository.updateOverride(supplementId, override)
+        }
+    }
+
+    fun selectProtocolOutcomeDomainFilter(domain: String) {
+        _uiState.update { it.copy(selectedProtocolOutcomeDomainFilter = domain) }
+    }
+
+    fun selectProtocolDetail(protocol: BiohackingProtocol?) {
+        _uiState.update { it.copy(selectedProtocolDetail = protocol) }
+    }
+
+    fun toggleActiveProtocol(protocolId: String) {
+        val currentActiveIds = _uiState.value.activeProtocols.map { it.id }.toMutableSet()
+        if (currentActiveIds.contains(protocolId)) {
+            currentActiveIds.remove(protocolId)
+        } else {
+            currentActiveIds.add(protocolId)
+        }
+        viewModelScope.launch {
+            biohackingProtocolRepository.setActiveProtocols(currentActiveIds)
+        }
+    }
+
+    fun updateProtocolOverride(protocolId: String, override: BiohackingProtocolOverride?) {
+        viewModelScope.launch {
+            biohackingProtocolRepository.updateOverride(protocolId, override)
         }
     }
 
@@ -897,6 +1011,8 @@ class CodexViewModel @Inject constructor(
                     }
                 }
                 VitalsGroup.DIET -> { }
+                VitalsGroup.SUPPLEMENTS -> { }
+                VitalsGroup.PROTO -> { }
                 VitalsGroup.RITES -> {
                     val startDateObj = if (period == CodexPeriod.ALL) {
                         LocalDate.now().minusDays(365)

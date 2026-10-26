@@ -1,6 +1,8 @@
 package com.neon.ascent.core.domain.backup.models
 
 import com.neon.ascent.core.domain.labs.models.DietOverrides
+import com.neon.ascent.core.domain.labs.models.SupplementOverride
+import com.neon.ascent.core.domain.labs.models.BiohackingProtocolOverride
 
 enum class BackupFrequency {
     DAILY,
@@ -71,7 +73,7 @@ data class RestoreResult(
 )
 
 data class NeonAscentBackupPayload(
-    val version: Int = 8,
+    val version: Int = 10,
     val exportedAt: String,
     val appVersion: String = "1.0",
     val workoutPayload: WorkoutBackupSection? = null,
@@ -88,7 +90,58 @@ data class NeonAscentBackupPayload(
     val preferencesPayload: PreferencesBackupSection? = null,
     val ritesPayload: RitesBackupSection? = null,
     val libraryPayload: LibraryBackupSection? = null,
-    val dietPayload: DietBackupSection? = null
+    val dietPayload: DietBackupSection? = null,
+    val supplementPayload: SupplementBackupSection? = null,
+    val biohackingProtocolPayload: BiohackingProtocolBackupSection? = null
+)
+
+data class BiohackingProtocolBackupSection(
+    val activeProtocolIds: Set<String> = emptySet(),
+    val overrides: Map<String, BiohackingProtocolOverrideDto> = emptyMap()
+)
+
+data class BiohackingProtocolOverrideDto(
+    val preferredFrequency: String? = null,
+    val durationNote: String? = null,
+    val notes: String? = null,
+    val isPaused: Boolean = false
+)
+
+fun BiohackingProtocolOverride.toDto(): BiohackingProtocolOverrideDto = BiohackingProtocolOverrideDto(
+    preferredFrequency = preferredFrequency,
+    durationNote = durationNote,
+    notes = notes,
+    isPaused = isPaused
+)
+
+fun BiohackingProtocolOverrideDto.toDomain(): BiohackingProtocolOverride = BiohackingProtocolOverride(
+    preferredFrequency = preferredFrequency,
+    durationNote = durationNote,
+    notes = notes,
+    isPaused = isPaused
+)
+
+data class SupplementBackupSection(
+    val activeStackIds: Set<String> = emptySet(),
+    val overrides: Map<String, SupplementOverrideDto> = emptyMap()
+)
+
+data class SupplementOverrideDto(
+    val customDoseNote: String? = null,
+    val scheduleNote: String? = null,
+    val isPaused: Boolean = false
+)
+
+fun SupplementOverride.toDto(): SupplementOverrideDto = SupplementOverrideDto(
+    customDoseNote = customDoseNote,
+    scheduleNote = scheduleNote,
+    isPaused = isPaused
+)
+
+fun SupplementOverrideDto.toDomain(): SupplementOverride = SupplementOverride(
+    customDoseNote = customDoseNote,
+    scheduleNote = scheduleNote,
+    isPaused = isPaused
 )
 
 data class DietBackupSection(

@@ -64,7 +64,13 @@ import java.util.*
 
 import com.neon.ascent.core.domain.labs.models.Diet
 import com.neon.ascent.core.domain.labs.models.DietOverrides
+import com.neon.ascent.core.domain.labs.models.Supplement
+import com.neon.ascent.core.domain.labs.models.SupplementOverride
+import com.neon.ascent.core.domain.labs.models.BiohackingProtocol
+import com.neon.ascent.core.domain.labs.models.BiohackingProtocolOverride
 import com.neon.ascent.core.domain.repository.DietRepository
+import com.neon.ascent.core.domain.repository.SupplementRepository
+import com.neon.ascent.core.domain.repository.BiohackingProtocolRepository
 import kotlinx.coroutines.flow.combine
 
 @HiltViewModel
@@ -88,6 +94,8 @@ class BiohackingViewModel @Inject constructor(
     private val ritesRepository: RitesRepository,
     private val dailyOriginRepository: com.neon.ascent.core.domain.chronicle.DailyOriginRepository,
     private val dietRepository: DietRepository,
+    private val supplementRepository: SupplementRepository,
+    private val biohackingProtocolRepository: BiohackingProtocolRepository,
     val modelDownloadManager: ModelDownloadManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -97,6 +105,18 @@ class BiohackingViewModel @Inject constructor(
 
     val dietOverrides: StateFlow<DietOverrides> = dietRepository.observeOverrides()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DietOverrides())
+
+    val activeSupplementStack: StateFlow<List<Supplement>> = supplementRepository.observeActiveStack()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val supplementOverrides: StateFlow<Map<String, SupplementOverride>> = supplementRepository.observeOverrides()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    val activeProtocols: StateFlow<List<BiohackingProtocol>> = biohackingProtocolRepository.observeActiveProtocols()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val protocolOverrides: StateFlow<Map<String, BiohackingProtocolOverride>> = biohackingProtocolRepository.observeOverrides()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     val isTrainingToday: StateFlow<Boolean> = combine(
         workoutRepository.getAllSessions(),

@@ -486,6 +486,8 @@ class FullDataBackupRepositoryImplTest {
         override fun selfMapDao(): com.neon.ascent.core.data.local.dao.SelfMapDao = throw NotImplementedError()
         override fun reconstitutionDao(): ReconstitutionDao = throw NotImplementedError()
         override fun dietDao(): DietDao = throw NotImplementedError()
+        override fun supplementDao(): com.neon.ascent.core.data.local.dao.SupplementDao = throw NotImplementedError()
+        override fun biohackingProtocolDao(): com.neon.ascent.core.data.local.dao.BiohackingProtocolDao = throw NotImplementedError()
     }
 
     private class TestAppDatabase : AppDatabase() {
@@ -739,6 +741,34 @@ class FullDataBackupRepositoryImplTest {
         }
     }
 
+    private class FakeSupplementDao : com.neon.ascent.core.data.local.dao.SupplementDao {
+        private val supplements = mutableMapOf<String, com.neon.ascent.core.data.local.entity.SupplementEntity>()
+        override fun getAllSupplements(): Flow<List<com.neon.ascent.core.data.local.entity.SupplementEntity>> = flowOf(supplements.values.toList())
+        override fun getSupplementById(id: String): Flow<com.neon.ascent.core.data.local.entity.SupplementEntity?> = flowOf(supplements[id])
+        override suspend fun getSupplementByIdSync(id: String): com.neon.ascent.core.data.local.entity.SupplementEntity? = supplements[id]
+        override suspend fun getSupplementCount(): Int = supplements.size
+        override suspend fun insertSupplements(supplements: List<com.neon.ascent.core.data.local.entity.SupplementEntity>) {
+            supplements.forEach { this.supplements[it.id] = it }
+        }
+        override suspend fun insertSupplement(supplement: com.neon.ascent.core.data.local.entity.SupplementEntity) {
+            supplements[supplement.id] = supplement
+        }
+    }
+
+    private class FakeBiohackingProtocolDao : com.neon.ascent.core.data.local.dao.BiohackingProtocolDao {
+        private val protocols = mutableMapOf<String, com.neon.ascent.core.data.local.entity.BiohackingProtocolEntity>()
+        override fun getAllProtocols(): Flow<List<com.neon.ascent.core.data.local.entity.BiohackingProtocolEntity>> = flowOf(protocols.values.toList())
+        override fun getProtocolById(id: String): Flow<com.neon.ascent.core.data.local.entity.BiohackingProtocolEntity?> = flowOf(protocols[id])
+        override suspend fun getProtocolByIdSync(id: String): com.neon.ascent.core.data.local.entity.BiohackingProtocolEntity? = protocols[id]
+        override suspend fun getProtocolCount(): Int = protocols.size
+        override suspend fun insertProtocols(protocols: List<com.neon.ascent.core.data.local.entity.BiohackingProtocolEntity>) {
+            protocols.forEach { this.protocols[it.id] = it }
+        }
+        override suspend fun insertProtocol(protocol: com.neon.ascent.core.data.local.entity.BiohackingProtocolEntity) {
+            protocols[protocol.id] = protocol
+        }
+    }
+
     private lateinit var workoutDao: FakeWorkoutDao
     private lateinit var journalDao: FakeJournalDao
     private lateinit var chronicleRepository: FakeChronicleRepository
@@ -811,6 +841,10 @@ class FullDataBackupRepositoryImplTest {
             directivePreferencesDataStore = com.neon.ascent.core.data.datastore.DirectivePreferencesDataStore(testContext),
             dietPreferencesDataStore = com.neon.ascent.core.data.datastore.DietPreferencesDataStore(testContext),
             dietRepository = com.neon.ascent.core.data.repository.DietRepositoryImpl(FakeDietDao(), com.neon.ascent.core.data.datastore.DietPreferencesDataStore(testContext)),
+            supplementPreferencesDataStore = com.neon.ascent.core.data.datastore.SupplementPreferencesDataStore(testContext),
+            supplementRepository = com.neon.ascent.core.data.repository.SupplementRepositoryImpl(FakeSupplementDao(), com.neon.ascent.core.data.datastore.SupplementPreferencesDataStore(testContext)),
+            biohackingProtocolPreferencesDataStore = com.neon.ascent.core.data.datastore.BiohackingProtocolPreferencesDataStore(testContext),
+            biohackingProtocolRepository = com.neon.ascent.core.data.repository.BiohackingProtocolRepositoryImpl(FakeBiohackingProtocolDao(), com.neon.ascent.core.data.datastore.BiohackingProtocolPreferencesDataStore(testContext)),
             riteSessionDao = fakeRiteSessionDao,
             libraryDao = fakeLibraryDao,
             context = testContext
@@ -983,7 +1017,7 @@ class FullDataBackupRepositoryImplTest {
 
         // Export payload
         val exportedJson = repository.exportBackupJson(BackupScope())
-        assertTrue(exportedJson.contains("\"version\": 8"))
+        assertTrue(exportedJson.contains("\"version\": 10"))
         assertTrue(exportedJson.contains("\"settingsPayload\""))
         assertTrue(exportedJson.contains("\"operativeProfile\""))
         assertTrue(exportedJson.contains("V_Test"))
@@ -1064,7 +1098,7 @@ class FullDataBackupRepositoryImplTest {
         val json = repository.exportBackupJson(BackupScope())
         assertTrue("JSON should contain goalsPayload", json.contains("goalsPayload"))
         assertTrue("JSON should contain selfMapPayload", json.contains("selfMapPayload"))
-        assertTrue("JSON should contain version 8", json.contains("\"version\": 8"))
+        assertTrue("JSON should contain version 10", json.contains("\"version\": 10"))
 
         // Reset fake DAOs to test restore
         ascensionDao.directives.clear()
@@ -1421,7 +1455,7 @@ class FullDataBackupRepositoryImplTest {
         coreDatabase.fakeLibraryDao.insertHighlight(highlight)
 
         val exportedJson = repository.exportBackupJson(BackupScope())
-        assertTrue("JSON should contain version 8", exportedJson.contains("\"version\": 8"))
+        assertTrue("JSON should contain version 10", exportedJson.contains("\"version\": 10"))
         assertTrue("JSON should contain ritesPayload", exportedJson.contains("ritesPayload"))
         assertTrue("JSON should contain libraryPayload", exportedJson.contains("libraryPayload"))
         assertTrue("JSON should contain preferencesPayload", exportedJson.contains("preferencesPayload"))
@@ -1645,9 +1679,9 @@ class FullDataBackupRepositoryImplTest {
         )
         chronicleRepository.saveEntry(entry)
 
-        // Act - export payload v8
+        // Act - export payload v10
         val exportedJson = repository.exportBackupJson(BackupScope())
-        assertTrue("JSON should contain version 8", exportedJson.contains("\"version\": 8"))
+        assertTrue("JSON should contain version 10", exportedJson.contains("\"version\": 10"))
         assertTrue("JSON should contain chronicle entry", exportedJson.contains("Daily Origin Day Card reflection note for backup v6"))
         assertTrue("JSON should contain dayLinks or localDate", exportedJson.contains("2026-10-23"))
 
@@ -1686,7 +1720,7 @@ class FullDataBackupRepositoryImplTest {
 
         val exportedJson = repository.exportBackupJson(BackupScope())
 
-        assertTrue("JSON should contain version 8", exportedJson.contains("\"version\": 8"))
+        assertTrue("JSON should contain version 10", exportedJson.contains("\"version\": 10"))
         assertTrue("JSON should contain dietPayload", exportedJson.contains("dietPayload"))
         assertTrue("JSON should contain activeDietId", exportedJson.contains("\"activeDietId\": \"cyber_cyclical_diet\""))
         assertTrue("JSON should contain preferredProteinGramsPerKg", exportedJson.contains("\"preferredProteinGramsPerKg\": 2.0"))
@@ -1709,6 +1743,130 @@ class FullDataBackupRepositoryImplTest {
         assertEquals(2, restoredOverrides.preferredHigherCarbMealsPerWeek)
         assertEquals(listOf("sweet_corn"), restoredOverrides.freeListExceptions)
         assertEquals("Target 2.0g/kg protein", restoredOverrides.notes)
+    }
+
+    @Test
+    fun `export and restore payload v9 round trip preserves active supplement stack and overrides`() = runBlocking {
+        val suppPrefs = com.neon.ascent.core.data.datastore.SupplementPreferencesDataStore(testContext)
+
+        // Set active stack and overrides
+        val targetStack = setOf("caffeine", "l_theanine")
+        suppPrefs.setActiveStackIds(targetStack)
+        val targetOverride = com.neon.ascent.core.domain.labs.models.SupplementOverride(
+            customDoseNote = "100 mg AM espresso",
+            scheduleNote = "Mon-Fri AM",
+            isPaused = false
+        )
+        suppPrefs.updateOverride("caffeine", targetOverride)
+
+        val exportedJson = repository.exportBackupJson(BackupScope())
+
+        assertTrue("JSON should contain version 10", exportedJson.contains("\"version\": 10"))
+        assertTrue("JSON should contain supplementPayload", exportedJson.contains("supplementPayload"))
+        assertTrue("JSON should contain caffeine", exportedJson.contains("caffeine"))
+        assertTrue("JSON should contain l_theanine", exportedJson.contains("l_theanine"))
+        assertTrue("JSON should contain customDoseNote", exportedJson.contains("100 mg AM espresso"))
+
+        // Reset preferences to simulate fresh restore
+        suppPrefs.setActiveStackIds(emptySet())
+        suppPrefs.updateAllOverrides(emptyMap())
+        assertTrue(suppPrefs.activeStackIds.first().isEmpty())
+
+        val restoreResult = repository.restoreBackupJson(exportedJson, RestoreMode.REPLACE)
+        assertTrue("Restore should succeed", restoreResult.success)
+
+        val restoredStack = suppPrefs.activeStackIds.first()
+        assertEquals(targetStack, restoredStack)
+
+        val restoredOverrides = suppPrefs.overrides.first()
+        assertEquals(1, restoredOverrides.size)
+        val caffeineOverride = restoredOverrides["caffeine"]
+        assertNotNull(caffeineOverride)
+        assertEquals("100 mg AM espresso", caffeineOverride?.customDoseNote)
+        assertEquals("Mon-Fri AM", caffeineOverride?.scheduleNote)
+        assertFalse(caffeineOverride!!.isPaused)
+    }
+
+    @Test
+    fun `export and restore payload v10 round trip preserves active biohacking protocols and overrides`() = runBlocking {
+        val protoPrefs = com.neon.ascent.core.data.datastore.BiohackingProtocolPreferencesDataStore(testContext)
+
+        // Set active protocols and overrides
+        val targetProtocols = setOf("finnish_sauna", "cold_water_immersion")
+        protoPrefs.setActiveProtocolIds(targetProtocols)
+        val targetOverride = com.neon.ascent.core.domain.labs.models.BiohackingProtocolOverride(
+            preferredFrequency = "4x/week post-workout",
+            durationNote = "20 min @ 85C",
+            notes = "Hydrate with electrolytes",
+            isPaused = false
+        )
+        protoPrefs.updateOverride("finnish_sauna", targetOverride)
+
+        val exportedJson = repository.exportBackupJson(BackupScope())
+
+        assertTrue("JSON should contain version 10", exportedJson.contains("\"version\": 10"))
+        assertTrue("JSON should contain biohackingProtocolPayload", exportedJson.contains("biohackingProtocolPayload"))
+        assertTrue("JSON should contain finnish_sauna", exportedJson.contains("finnish_sauna"))
+        assertTrue("JSON should contain cold_water_immersion", exportedJson.contains("cold_water_immersion"))
+        assertTrue("JSON should contain preferredFrequency", exportedJson.contains("4x/week post-workout"))
+        assertTrue("JSON should contain durationNote", exportedJson.contains("20 min @ 85C"))
+
+        // Reset preferences to simulate fresh restore
+        protoPrefs.setActiveProtocolIds(emptySet())
+        protoPrefs.updateAllOverrides(emptyMap())
+        assertTrue(protoPrefs.activeProtocolIds.first().isEmpty())
+
+        val restoreResult = repository.restoreBackupJson(exportedJson, RestoreMode.REPLACE)
+        assertTrue("Restore should succeed", restoreResult.success)
+
+        val restoredProtocols = protoPrefs.activeProtocolIds.first()
+        assertEquals(targetProtocols, restoredProtocols)
+
+        val restoredOverrides = protoPrefs.overrides.first()
+        assertEquals(1, restoredOverrides.size)
+        val saunaOverride = restoredOverrides["finnish_sauna"]
+        assertNotNull(saunaOverride)
+        assertEquals("4x/week post-workout", saunaOverride?.preferredFrequency)
+        assertEquals("20 min @ 85C", saunaOverride?.durationNote)
+        assertEquals("Hydrate with electrolytes", saunaOverride?.notes)
+        assertFalse(saunaOverride!!.isPaused)
+    }
+
+    @Test
+    fun `legacy payload v8 restores cleanly when supplementPayload is absent`() = runBlocking {
+        val legacyJson = """
+        {
+          "version": 8,
+          "exportedAt": "2026-10-23T12:00:00Z",
+          "appVersion": "1.0",
+          "dietPayload": {
+            "activeDietId": "cyber_cyclical_diet"
+          }
+        }
+        """.trimIndent()
+
+        val restoreResult = repository.restoreBackupJson(legacyJson, RestoreMode.MERGE)
+        assertTrue("Legacy v8 payload restore should succeed", restoreResult.success)
+    }
+
+    @Test
+    fun `legacy payload v9 restores cleanly when biohackingProtocolPayload is absent`() = runBlocking {
+        val legacyJson = """
+        {
+          "version": 9,
+          "exportedAt": "2026-10-23T12:00:00Z",
+          "appVersion": "1.0",
+          "dietPayload": {
+            "activeDietId": "cyber_cyclical_diet"
+          },
+          "supplementPayload": {
+            "activeStackIds": ["caffeine"]
+          }
+        }
+        """.trimIndent()
+
+        val restoreResult = repository.restoreBackupJson(legacyJson, RestoreMode.MERGE)
+        assertTrue("Legacy v9 payload restore should succeed", restoreResult.success)
     }
 }
 

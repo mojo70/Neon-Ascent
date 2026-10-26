@@ -56,6 +56,10 @@ import com.neon.ascent.feature.dashboard.selfmap.SelfMapViewModel
 import com.neon.ascent.feature.dashboard.selfmap.getLoadBandLabel
 import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import com.neon.ascent.core.domain.labs.models.Diet
+import com.neon.ascent.core.domain.labs.models.Supplement
+import com.neon.ascent.core.domain.labs.models.SupplementOverride
+import com.neon.ascent.core.domain.labs.models.BiohackingProtocol
+import com.neon.ascent.core.domain.labs.models.BiohackingProtocolOverride
 
 @Composable
 fun BiohackingScreen(
@@ -101,6 +105,10 @@ fun BiohackingScreen(
     val scheduledSessions by viewModel.scheduledSessionsThisWeek.collectAsState()
     val selectedTimeRange by viewModel.selectedTimeRange.collectAsState()
     val activeDiet by viewModel.activeDiet.collectAsState()
+    val activeSupplementStack by viewModel.activeSupplementStack.collectAsState()
+    val supplementOverrides by viewModel.supplementOverrides.collectAsState()
+    val activeProtocols by viewModel.activeProtocols.collectAsState()
+    val protocolOverrides by viewModel.protocolOverrides.collectAsState()
     val isHigherCarbDay by viewModel.isHigherCarbDay.collectAsState()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -374,16 +382,22 @@ fun BiohackingScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Quick Telemetry HUD Bar (Condensed Day Card, Self Map, Active Diet)
+                // Quick Telemetry HUD Bar (Condensed Day Card, Self Map, Active Diet, Active Stack)
                 BiohackingTelemetryHud(
                     neonCyan = neonCyan,
                     neonMagenta = neonMagenta,
                     isCyber = visualMode == VisualMode.CYBER,
                     activeDiet = activeDiet,
                     isHigherCarbDay = isHigherCarbDay,
+                    activeSupplementStack = activeSupplementStack,
+                    supplementOverrides = supplementOverrides,
+                    activeProtocols = activeProtocols,
+                    protocolOverrides = protocolOverrides,
                     onOpenDailyOriginSheet = { showDailyOriginSheet = true },
                     onNavigateToSelfMap = onNavigateToSelfMap,
-                    onNavigateToCodex = { onNavigateToGuide("Codex Diet Panel") }
+                    onNavigateToCodexDiet = { onNavigateToGuide("Codex Diet Panel") },
+                    onNavigateToCodexSupplements = { onNavigateToGuide("Codex Supplement Panel") },
+                    onNavigateToCodexProtocols = { onNavigateToGuide("Codex Protocol Panel") }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -2042,9 +2056,15 @@ fun BiohackingTelemetryHud(
     isCyber: Boolean,
     activeDiet: Diet?,
     isHigherCarbDay: Boolean,
+    activeSupplementStack: List<Supplement>,
+    supplementOverrides: Map<String, SupplementOverride>,
+    activeProtocols: List<BiohackingProtocol> = emptyList(),
+    protocolOverrides: Map<String, BiohackingProtocolOverride> = emptyMap(),
     onOpenDailyOriginSheet: () -> Unit,
     onNavigateToSelfMap: () -> Unit,
-    onNavigateToCodex: () -> Unit,
+    onNavigateToCodexDiet: () -> Unit,
+    onNavigateToCodexSupplements: () -> Unit,
+    onNavigateToCodexProtocols: () -> Unit = {},
     selfMapViewModel: SelfMapViewModel = hiltViewModel()
 ) {
     val selfMapState by selfMapViewModel.uiState.collectAsState()
@@ -2055,56 +2075,104 @@ fun BiohackingTelemetryHud(
             label = "TELEMETRY_HUD // QUICK_ACCESS",
             borderColor = neonCyan
         ) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 10.dp, horizontal = 4.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(vertical = 8.dp, horizontal = 4.dp)
             ) {
-                // 1. Day Card Tile
-                HudTile(
-                    modifier = Modifier.weight(1f),
-                    title = "DAY_CARD",
-                    subtitle = "AGGREGATION",
-                    accentColor = neonCyan,
-                    onClick = onOpenDailyOriginSheet
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // 1. Day Card Tile
+                    HudTile(
+                        modifier = Modifier.weight(1f),
+                        title = "DAY_CARD",
+                        subtitle = "AGGREGATION",
+                        accentColor = neonCyan,
+                        onClick = onOpenDailyOriginSheet
+                    )
+
+                    VerticalDivider(
+                        modifier = Modifier
+                            .height(32.dp)
+                            .padding(horizontal = 2.dp),
+                        color = neonCyan.copy(alpha = 0.3f)
+                    )
+
+                    // 2. Self Map Tile
+                    HudTile(
+                        modifier = Modifier.weight(1f),
+                        title = "SELF_MAP",
+                        subtitle = "${selfMapState.coreAttachmentLoad.toInt()}% LOAD",
+                        subtitleColor = bandColor,
+                        accentColor = neonCyan,
+                        onClick = onNavigateToSelfMap
+                    )
+
+                    VerticalDivider(
+                        modifier = Modifier
+                            .height(32.dp)
+                            .padding(horizontal = 2.dp),
+                        color = neonCyan.copy(alpha = 0.3f)
+                    )
+
+                    // 3. Active Diet Tile
+                    val dietTitle = activeDiet?.name?.uppercase() ?: "NO DIET"
+                    val dietSubtitle = if (isHigherCarbDay && activeDiet != null) "⚡ REFEED" else dietTitle
+                    HudTile(
+                        modifier = Modifier.weight(1f),
+                        title = "ACTIVE_DIET",
+                        subtitle = dietSubtitle,
+                        subtitleColor = if (isHigherCarbDay && activeDiet != null) neonMagenta else Color.White,
+                        accentColor = neonCyan,
+                        onClick = onNavigateToCodexDiet
+                    )
+
+                    VerticalDivider(
+                        modifier = Modifier
+                            .height(32.dp)
+                            .padding(horizontal = 2.dp),
+                        color = neonCyan.copy(alpha = 0.3f)
+                    )
+
+                    // 4. Active Supplement Stack Tile
+                    val stackSubtitle = if (activeSupplementStack.isEmpty()) "NONE" else "${activeSupplementStack.size} ACTIVE"
+                    HudTile(
+                        modifier = Modifier.weight(1f),
+                        title = "STACK",
+                        subtitle = stackSubtitle,
+                        subtitleColor = if (activeSupplementStack.isNotEmpty()) neonCyan else Color.Gray,
+                        accentColor = neonCyan,
+                        onClick = onNavigateToCodexSupplements
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+                HorizontalDivider(color = neonCyan.copy(alpha = 0.2f))
+                Spacer(modifier = Modifier.height(4.dp))
+
+                ActiveSupplementStackSummaryContent(
+                    activeSupplementStack = activeSupplementStack,
+                    supplementOverrides = supplementOverrides,
+                    isCyber = true,
+                    neonCyan = neonCyan,
+                    neonMagenta = neonMagenta,
+                    onNavigateToCodexSupplements = onNavigateToCodexSupplements
                 )
 
-                VerticalDivider(
-                    modifier = Modifier
-                        .height(32.dp)
-                        .padding(horizontal = 2.dp),
-                    color = neonCyan.copy(alpha = 0.3f)
-                )
+                Spacer(modifier = Modifier.height(4.dp))
+                HorizontalDivider(color = neonCyan.copy(alpha = 0.15f))
+                Spacer(modifier = Modifier.height(4.dp))
 
-                // 2. Self Map Tile
-                HudTile(
-                    modifier = Modifier.weight(1f),
-                    title = "SELF_MAP",
-                    subtitle = "${selfMapState.coreAttachmentLoad.toInt()}% LOAD",
-                    subtitleColor = bandColor,
-                    accentColor = neonCyan,
-                    onClick = onNavigateToSelfMap
-                )
-
-                VerticalDivider(
-                    modifier = Modifier
-                        .height(32.dp)
-                        .padding(horizontal = 2.dp),
-                    color = neonCyan.copy(alpha = 0.3f)
-                )
-
-                // 3. Active Diet Tile
-                val dietTitle = activeDiet?.name?.uppercase() ?: "NO DIET"
-                val dietSubtitle = if (isHigherCarbDay && activeDiet != null) "⚡ REFEED" else dietTitle
-                HudTile(
-                    modifier = Modifier.weight(1f),
-                    title = "ACTIVE_DIET",
-                    subtitle = dietSubtitle,
-                    subtitleColor = if (isHigherCarbDay && activeDiet != null) neonMagenta else Color.White,
-                    accentColor = neonCyan,
-                    onClick = onNavigateToCodex
+                ActiveProtocolsSummaryContent(
+                    activeProtocols = activeProtocols,
+                    protocolOverrides = protocolOverrides,
+                    isCyber = true,
+                    neonCyan = neonCyan,
+                    neonMagenta = neonMagenta,
+                    onNavigateToCodexProtocols = onNavigateToCodexProtocols
                 )
             }
         }
@@ -2113,50 +2181,299 @@ fun BiohackingTelemetryHud(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(10.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                    .padding(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    HudTile(
+                        modifier = Modifier.weight(1f),
+                        title = "Day Card",
+                        subtitle = "Aggregation",
+                        accentColor = MaterialTheme.colorScheme.primary,
+                        onClick = onOpenDailyOriginSheet
+                    )
+
+                    VerticalDivider(
+                        modifier = Modifier
+                            .height(32.dp)
+                            .padding(horizontal = 2.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant
+                    )
+
+                    HudTile(
+                        modifier = Modifier.weight(1f),
+                        title = "Self Map",
+                        subtitle = "${selfMapState.coreAttachmentLoad.toInt()}% Load",
+                        subtitleColor = bandColor,
+                        accentColor = MaterialTheme.colorScheme.primary,
+                        onClick = onNavigateToSelfMap
+                    )
+
+                    VerticalDivider(
+                        modifier = Modifier
+                            .height(32.dp)
+                            .padding(horizontal = 2.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant
+                    )
+
+                    HudTile(
+                        modifier = Modifier.weight(1f),
+                        title = "Active Diet",
+                        subtitle = activeDiet?.name ?: "No Diet",
+                        accentColor = MaterialTheme.colorScheme.primary,
+                        onClick = onNavigateToCodexDiet
+                    )
+
+                    VerticalDivider(
+                        modifier = Modifier
+                            .height(32.dp)
+                            .padding(horizontal = 2.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant
+                    )
+
+                    HudTile(
+                        modifier = Modifier.weight(1f),
+                        title = "Stack",
+                        subtitle = if (activeSupplementStack.isEmpty()) "None" else "${activeSupplementStack.size} Active",
+                        accentColor = MaterialTheme.colorScheme.primary,
+                        onClick = onNavigateToCodexSupplements
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Spacer(modifier = Modifier.height(4.dp))
+
+                ActiveSupplementStackSummaryContent(
+                    activeSupplementStack = activeSupplementStack,
+                    supplementOverrides = supplementOverrides,
+                    isCyber = false,
+                    neonCyan = MaterialTheme.colorScheme.primary,
+                    neonMagenta = MaterialTheme.colorScheme.secondary,
+                    onNavigateToCodexSupplements = onNavigateToCodexSupplements
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Spacer(modifier = Modifier.height(4.dp))
+
+                ActiveProtocolsSummaryContent(
+                    activeProtocols = activeProtocols,
+                    protocolOverrides = protocolOverrides,
+                    isCyber = false,
+                    neonCyan = MaterialTheme.colorScheme.primary,
+                    neonMagenta = MaterialTheme.colorScheme.secondary,
+                    onNavigateToCodexProtocols = onNavigateToCodexProtocols
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActiveSupplementStackSummaryContent(
+    activeSupplementStack: List<Supplement>,
+    supplementOverrides: Map<String, SupplementOverride>,
+    isCyber: Boolean,
+    neonCyan: Color,
+    neonMagenta: Color,
+    onNavigateToCodexSupplements: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .clickable { onNavigateToCodexSupplements() }
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+    ) {
+        if (activeSupplementStack.isEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                HudTile(
-                    modifier = Modifier.weight(1f),
-                    title = "Day Card",
-                    subtitle = "Aggregation",
-                    accentColor = MaterialTheme.colorScheme.primary,
-                    onClick = onOpenDailyOriginSheet
+                Text(
+                    text = if (isCyber) "ACTIVE STACK: NONE SELECTED" else "Active Stack: None selected",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (isCyber) Color.Gray else MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                
-                VerticalDivider(
-                    modifier = Modifier
-                        .height(32.dp)
-                        .padding(horizontal = 2.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant
+                Text(
+                    text = if (isCyber) "CATALOG ›" else "Catalog ›",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = neonCyan
                 )
+            }
+        } else {
+            val namesText = activeSupplementStack.joinToString(", ") { supp ->
+                val override = supplementOverrides[supp.id]
+                if (override?.isPaused == true) "${supp.name} (PAUSED)" else supp.name
+            }
 
-                HudTile(
-                    modifier = Modifier.weight(1f),
-                    title = "Self Map",
-                    subtitle = "${selfMapState.coreAttachmentLoad.toInt()}% Load",
-                    subtitleColor = bandColor,
-                    accentColor = MaterialTheme.colorScheme.primary,
-                    onClick = onNavigateToSelfMap
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (isCyber) "STACK (${activeSupplementStack.size}): $namesText" else "Stack (${activeSupplementStack.size}): $namesText",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (isCyber) Color.White else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
-
-                VerticalDivider(
-                    modifier = Modifier
-                        .height(32.dp)
-                        .padding(horizontal = 2.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = if (isCyber) "CODEX ›" else "Codex ›",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = neonCyan
                 )
+            }
 
-                HudTile(
-                    modifier = Modifier.weight(1f),
-                    title = "Active Diet",
-                    subtitle = activeDiet?.name ?: "No Diet",
-                    accentColor = MaterialTheme.colorScheme.primary,
-                    onClick = onNavigateToCodex
+            val scheduleNotes = activeSupplementStack.mapNotNull { supp ->
+                val override = supplementOverrides[supp.id]
+                val note = listOfNotNull(override?.scheduleNote, override?.customDoseNote)
+                    .filter { it.isNotBlank() }
+                    .joinToString(" - ")
+                if (note.isNotBlank() && override?.isPaused != true) {
+                    "${supp.name}: $note"
+                } else null
+            }
+
+            if (scheduleNotes.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "⏰ REMINDERS: " + scheduleNotes.joinToString(" | "),
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
+                    color = if (isCyber) neonCyan else MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            // Synergy Hint
+            val stackIds = activeSupplementStack.map { it.id }.toSet()
+            val synergyHint = when {
+                (stackIds.contains("caffeine") || stackIds.contains("caffeine_l_theanine_stack")) && stackIds.contains("l_theanine") ->
+                    "⚡ SYNERGY: Caffeine + L-Theanine (Smoother focus & reduced jitter)"
+                stackIds.contains("magnesium") && stackIds.contains("glycine") ->
+                    "🌙 SLEEP SYNERGY: Magnesium + Glycine (Sleep architecture & relaxation)"
+                stackIds.contains("vitamin_d3") && stackIds.contains("vitamin_k2") ->
+                    "🦴 SYNERGY: Vitamin D3 + K2 (Bone matrix & calcium utilization)"
+                else -> null
+            }
+
+            if (synergyHint != null) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = synergyHint,
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
+                    color = if (isCyber) neonMagenta else MaterialTheme.colorScheme.secondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActiveProtocolsSummaryContent(
+    activeProtocols: List<BiohackingProtocol>,
+    protocolOverrides: Map<String, BiohackingProtocolOverride>,
+    isCyber: Boolean,
+    neonCyan: Color,
+    neonMagenta: Color,
+    onNavigateToCodexProtocols: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .clickable { onNavigateToCodexProtocols() }
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+    ) {
+        if (activeProtocols.isEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (isCyber) "ACTIVE PROTOCOLS: NONE SELECTED" else "Active Protocols: None selected",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (isCyber) Color.Gray else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = if (isCyber) "CATALOG ›" else "Catalog ›",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = neonCyan
+                )
+            }
+        } else {
+            val namesText = activeProtocols.joinToString(", ") { protocol ->
+                val override = protocolOverrides[protocol.id]
+                if (override?.isPaused == true) "${protocol.name} (PAUSED)" else protocol.name
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (isCyber) "PROTOCOLS (${activeProtocols.size}): $namesText" else "Protocols (${activeProtocols.size}): $namesText",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (isCyber) Color.White else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = if (isCyber) "CODEX ›" else "Codex ›",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = neonCyan
+                )
+            }
+
+            val activeTodayProtocols = activeProtocols.filter { protocol ->
+                val override = protocolOverrides[protocol.id]
+                override?.isPaused != true
+            }
+
+            if (activeTodayProtocols.isNotEmpty()) {
+                val todayText = activeTodayProtocols.take(3).joinToString(", ") { p ->
+                    val override = protocolOverrides[p.id]
+                    val freq = override?.preferredFrequency ?: p.typicalParameters.take(25)
+                    if (freq.isNotBlank()) "${p.name} ($freq)" else p.name
+                }
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = if (isCyber) "⚡ TODAY ACTIVE: $todayText" else "⚡ Today Active: $todayText",
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
+                    color = neonMagenta,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            val stackingHints = activeTodayProtocols.flatMap { it.stackingNotes }
+            if (stackingHints.isNotEmpty()) {
+                val hint = stackingHints.first()
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = if (isCyber) "💡 SYNERGY HINT: ${hint.title} — ${hint.description}" else "💡 Synergy Hint: ${hint.title} — ${hint.description}",
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
+                    color = if (isCyber) neonCyan else MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }

@@ -913,6 +913,28 @@ fun VitalsWing(
                     onDismissDetail = { viewModel.selectDietDetail(null) }
                 )
             }
+            VitalsGroup.SUPPLEMENTS -> {
+                SupplementArchivePanel(
+                    uiState = uiState,
+                    isCyber = isCyber,
+                    onFilterSelected = { viewModel.selectSupplementOutcomeDomainFilter(it) },
+                    onSupplementSelected = { viewModel.selectSupplementDetail(it) },
+                    onToggleActiveStack = { viewModel.toggleSupplementInActiveStack(it) },
+                    onUpdateOverride = { id, override -> viewModel.updateSupplementOverride(id, override) },
+                    onDismissDetail = { viewModel.selectSupplementDetail(null) }
+                )
+            }
+            VitalsGroup.PROTO -> {
+                ProtocolArchivePanel(
+                    uiState = uiState,
+                    isCyber = isCyber,
+                    onFilterSelected = { viewModel.selectProtocolOutcomeDomainFilter(it) },
+                    onProtocolSelected = { viewModel.selectProtocolDetail(it) },
+                    onToggleActiveProtocol = { viewModel.toggleActiveProtocol(it) },
+                    onUpdateOverride = { id, override -> viewModel.updateProtocolOverride(id, override) },
+                    onDismissDetail = { viewModel.selectProtocolDetail(null) }
+                )
+            }
             VitalsGroup.RITES -> {
                 RitesGroupView(
                     ritesState = uiState.ritesState,

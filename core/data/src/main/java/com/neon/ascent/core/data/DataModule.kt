@@ -107,4 +107,16 @@ abstract class DataModule {
     abstract fun bindDietRepository(
         dietRepositoryImpl: com.neon.ascent.core.data.repository.DietRepositoryImpl
     ): com.neon.ascent.core.domain.repository.DietRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSupplementRepository(
+        supplementRepositoryImpl: com.neon.ascent.core.data.repository.SupplementRepositoryImpl
+    ): com.neon.ascent.core.domain.repository.SupplementRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindBiohackingProtocolRepository(
+        biohackingProtocolRepositoryImpl: com.neon.ascent.core.data.repository.BiohackingProtocolRepositoryImpl
+    ): com.neon.ascent.core.domain.repository.BiohackingProtocolRepository
 }
