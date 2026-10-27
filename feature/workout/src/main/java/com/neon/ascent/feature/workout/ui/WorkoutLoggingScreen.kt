@@ -2045,7 +2045,10 @@ fun SequenceOverrideDialog(
             }
         },
         confirmButton = {
-            Column(Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Button(
                     onClick = { onConfirm(true) },
                     modifier = Modifier.fillMaxWidth(),
@@ -2055,19 +2058,24 @@ fun SequenceOverrideDialog(
                     Text("UPDATE SEQUENCE BASELINE", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
                 Spacer(Modifier.height(8.dp))
-                TextButton(
+                Button(
                     onClick = { onConfirm(false) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = theme.surface),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("ONE-OFF SESSION (KEEP SEQUENCE)", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+                Spacer(Modifier.height(4.dp))
+                TextButton(
+                    onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("ONE-OFF SESSION (KEEP SEQUENCE)", color = MaterialTheme.colorScheme.onSurface)
+                    Text("CANCEL", color = theme.inkMuted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("CANCEL", color = theme.inkMuted)
-            }
-        }
+        dismissButton = null
     )
 }
 
@@ -2113,23 +2121,28 @@ fun InjuryWarningDialog(
             }
         },
         confirmButton = {
-            Button(
-                onClick = onAutoSwap,
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                shape = RoundedCornerShape(8.dp)
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("NEURAL SWAP (STABILITY-FIRST)", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
+                Button(
+                    onClick = onAutoSwap,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("NEURAL SWAP (STABILITY-FIRST)", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.height(8.dp))
+                TextButton(
+                    onClick = onIgnore,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("IGNORE & PROCEED AT RISK", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                }
             }
         },
-        dismissButton = {
-            TextButton(
-                onClick = onIgnore,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("IGNORE & PROCEED AT RISK", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-            }
-        }
+        dismissButton = null
     )
 }
 
