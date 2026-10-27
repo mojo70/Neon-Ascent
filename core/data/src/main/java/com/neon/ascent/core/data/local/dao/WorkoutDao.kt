@@ -209,6 +209,7 @@ interface WorkoutDao {
         INNER JOIN workout_sessions ws ON wl.sessionId = ws.id
         WHERE wl.exerciseId = :exerciseId 
         AND wl.sessionId != :excludedSessionId
+        AND EXISTS (SELECT 1 FROM set_logs sl WHERE sl.workoutLogId = wl.id AND sl.isCompleted = 1)
         ORDER BY ws.date DESC 
         LIMIT 1
     """)

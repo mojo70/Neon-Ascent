@@ -160,4 +160,86 @@ class SoftDeloadSessionStructureTest {
         assertTrue(generatedSets.any { it.first == SetType.PARTIAL })
         assertTrue(generatedSets.any { it.first == SetType.STRETCH })
     }
+
+    @Test
+    fun `routine set generation deduplicates multiple rest pause sets into a single 3 mini set cluster`() {
+        // Create a routine that mistakenly has 3 REST_PAUSE RoutineSets saved
+        val bloatedRoutine = WorkoutRoutine(
+            id = "bloated_cc_push",
+            name = "CyberCrapp Push (Bloated)",
+            protocol = WorkoutProtocol.CYBER_CRAPP,
+            exercises = listOf(
+                RoutineExercise(
+                    exercise = benchPress,
+                    sets = listOf(
+                        RoutineSet(type = SetType.WARMUP, weight = 135f, reps = 5),
+                        RoutineSet(type = SetType.REST_PAUSE, weight = 225f, reps = 9),
+                        RoutineSet(type = SetType.REST_PAUSE, weight = 225f, reps = 4),
+                        RoutineSet(type = SetType.REST_PAUSE, weight = 225f, reps = 3)
+                    )
+                )
+            )
+        )
+
+        var hasExpandedCluster = false
+        val generatedSets = mutableListOf<Triple<SetType, String?, Int?>>()
+        bloatedRoutine.exercises.first().sets.forEach { routineSet ->
+            if (bloatedRoutine.protocol == WorkoutProtocol.CYBER_CRAPP && routineSet.type == SetType.REST_PAUSE) {
+                if (hasExpandedCluster) return@forEach
+                hasExpandedCluster = true
+                for (i in 1..3) {
+                    generatedSets.add(Triple(SetType.REST_PAUSE, routineSet.goalReps, i))
+                }
+            } else {
+                generatedSets.add(Triple(routineSet.type, routineSet.goalReps, null))
+            }
+        }
+
+        // Should have 1 WARMUP set + 3 REST_PAUSE cluster mini-sets = 4 sets total (NOT 10 sets)
+        assertEquals(4, generatedSets.size)
+        assertEquals(1, generatedSets.count { it.first == SetType.WARMUP })
+        assertEquals(3, generatedSets.count { it.first == SetType.REST_PAUSE })
+    }
+
+    @Test
+    fun `logged sets collapse cluster mini sets into a single RoutineSet when saving routine updates`() {
+        val activeSetLogs = listOf(
+            com.neon.ascent.core.domain.workout.models.SetLog(id = "s1", workoutLogId = "w1", type = SetType.WARMUP, weight = 135f, reps = 5, isCompleted = true),
+            com.neon.ascent.core.domain.workout.models.SetLog(id = "s2", workoutLogId = "w1", type = SetType.REST_PAUSE, weight = 225f, reps = 9, isCompleted = true, clusterMiniSetIndex = 1),
+            com.neon.ascent.core.domain.workout.models.SetLog(id = "s3", workoutLogId = "w1", type = SetType.REST_PAUSE, weight = 225f, reps = 4, isCompleted = true, clusterMiniSetIndex = 2),
+            com.neon.ascent.core.domain.workout.models.SetLog(id = "s4", workoutLogId = "w1", type = SetType.REST_PAUSE, weight = 225f, reps = 3, isCompleted = true, clusterMiniSetIndex = 3)
+        )
+
+        val routineSets = mutableListOf<RoutineSet>()
+        val clusterSets = activeSetLogs.filter { it.clusterMiniSetIndex != null }
+
+        activeSetLogs.forEach { setLog ->
+            if (setLog.clusterMiniSetIndex == null) {
+                routineSets.add(
+                    RoutineSet(
+                        type = setLog.type,
+                        weight = setLog.weight,
+                        reps = if (setLog.isCompleted) setLog.reps else 0
+                    )
+                )
+            } else if (setLog.clusterMiniSetIndex == 1) {
+                val clusterWeight = clusterSets.firstOrNull()?.weight ?: setLog.weight
+                val firstMiniSet = clusterSets.firstOrNull { it.clusterMiniSetIndex == 1 } ?: setLog
+                routineSets.add(
+                    RoutineSet(
+                        type = SetType.REST_PAUSE,
+                        weight = clusterWeight,
+                        reps = if (firstMiniSet.isCompleted) firstMiniSet.reps else 0
+                    )
+                )
+            }
+        }
+
+        // Should collapse 3 mini-sets into exactly 1 REST_PAUSE RoutineSet + 1 WARMUP set = 2 RoutineSets
+        assertEquals(2, routineSets.size)
+        assertEquals(SetType.WARMUP, routineSets[0].type)
+        assertEquals(SetType.REST_PAUSE, routineSets[1].type)
+        assertEquals(225f, routineSets[1].weight)
+        assertEquals(9, routineSets[1].reps)
+    }
 }

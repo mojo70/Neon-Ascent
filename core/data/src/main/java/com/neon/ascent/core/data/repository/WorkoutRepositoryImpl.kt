@@ -2883,6 +2883,7 @@ class WorkoutRepositoryImpl @Inject constructor(
         workoutDao.getLatestLogForExercise(exerciseId, excludedSessionId).map { logWithSets -> 
             logWithSets?.sets
                 ?.map { it.toDomain() }
+                ?.filter { it.isCompleted }
                 ?.sortedBy { it.timestamp }
                 ?: emptyList() 
         }

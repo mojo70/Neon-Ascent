@@ -1155,11 +1155,14 @@ class WorkoutViewModel @Inject constructor(
                 repository.saveWorkoutLog(workoutLog)
 
                 // Build sets. If loggingStyle or protocol is CYBER_CRAPP and type is REST_PAUSE, expand.
+                var hasExpandedCluster = false
                 routineExercise.sets.forEach { routineSet ->
                     val isClusterType = (sessionProtocol == WorkoutProtocol.CYBER_CRAPP || activation.loggingStyle == AugmentLoggingStyle.CYBER_CRAPP) && 
                                        routineSet.type == SetType.REST_PAUSE
                     
                     if (isClusterType) {
+                        if (hasExpandedCluster) return@forEach
+                        hasExpandedCluster = true
                         for (i in 1..3) {
                             globalSetTimestamp = globalSetTimestamp.plusMillis(1)
                             val setLog = SetLog(
@@ -1490,12 +1493,15 @@ class WorkoutViewModel @Inject constructor(
                 )
                 repository.saveWorkoutLog(workoutLog)
 
+                var hasExpandedCluster = false
                 routineExercise.sets.forEach { routineSet ->
                     val isClusterType = (activation.loggingStyle == AugmentLoggingStyle.CYBER_CRAPP || (activation.loggingStyle == AugmentLoggingStyle.INHERIT && protocol == WorkoutProtocol.CYBER_CRAPP)) && 
                                        routineSet.type == SetType.REST_PAUSE
                     
                     if (isClusterType) {
-                         for (i in 1..3) {
+                        if (hasExpandedCluster) return@forEach
+                        hasExpandedCluster = true
+                        for (i in 1..3) {
                             globalTimestamp = globalTimestamp.plusMillis(1)
                             repository.saveSetLog(SetLog(
                                 id = java.util.UUID.randomUUID().toString(),
@@ -2674,6 +2680,7 @@ class WorkoutViewModel @Inject constructor(
                     // Fallback to manual routine sets or CC logic
                     var warmupCount = 0
                     var normalCount = 0
+                    var hasExpandedCluster = false
                     routineExercise.sets.forEach { routineSet ->
                         if (effectiveIsDeload && (routineSet.type == SetType.PARTIAL || routineSet.type == SetType.STRETCH)) {
                             return@forEach
@@ -2713,6 +2720,9 @@ class WorkoutViewModel @Inject constructor(
                         }
 
                         if (session.protocol == WorkoutProtocol.CYBER_CRAPP && routineSet.type == SetType.REST_PAUSE) {
+                            if (hasExpandedCluster) return@forEach
+                            hasExpandedCluster = true
+
                             val typeToSave = if (effectiveIsDeload) SetType.NORMAL else SetType.REST_PAUSE
                             val goalRepsToSave = if (effectiveIsDeload) "DELOAD (RIR 3-4)" else goalReps
                             for (i in 1..3) {
@@ -2721,7 +2731,7 @@ class WorkoutViewModel @Inject constructor(
                                     id = UUID.randomUUID().toString(),
                                     workoutLogId = workoutLog.id,
                                     weight = setWeight,
-                                    reps = if (effectiveIsDeload) 0 else routineSet.reps,
+                                    reps = 0,
                                     type = typeToSave,
                                     goalReps = goalRepsToSave,
                                     clusterMiniSetIndex = if (effectiveIsDeload) null else i,
@@ -3637,19 +3647,41 @@ class WorkoutViewModel @Inject constructor(
                     ?: state.availableExercises.find { it.id == log.exerciseId }
                 
                 if (exercise != null) {
-                    RoutineExercise(
-                        exercise = exercise,
-                        sets = sets.map { setLog ->
-                            RoutineSet(
-                                type = setLog.type,
-                                weight = setLog.weight,
-                                reps = if (setLog.isCompleted) setLog.reps else {
-                                    // If not completed, try to extract min from goalReps (e.g. "11-20" -> 11)
-                                    setLog.goalReps?.split("-")?.firstOrNull()?.filter { it.isDigit() }?.toIntOrNull() ?: 0
-                                },
-                                goalReps = setLog.goalReps
+                    val routineSets = mutableListOf<RoutineSet>()
+                    val clusterSets = sets.filter { it.clusterMiniSetIndex != null }
+                    
+                    sets.forEach { setLog ->
+                        if (setLog.clusterMiniSetIndex == null) {
+                            routineSets.add(
+                                RoutineSet(
+                                    type = setLog.type,
+                                    weight = setLog.weight,
+                                    reps = if (setLog.isCompleted) setLog.reps else {
+                                        setLog.goalReps?.split("-")?.firstOrNull()?.filter { it.isDigit() }?.toIntOrNull() ?: 0
+                                    },
+                                    goalReps = setLog.goalReps
+                                )
+                            )
+                        } else if (setLog.clusterMiniSetIndex == 1) {
+                            // Collapse all cluster mini-sets into a single REST_PAUSE RoutineSet
+                            val clusterWeight = clusterSets.firstOrNull()?.weight ?: setLog.weight
+                            val firstMiniSet = clusterSets.firstOrNull { it.clusterMiniSetIndex == 1 } ?: setLog
+                            routineSets.add(
+                                RoutineSet(
+                                    type = SetType.REST_PAUSE,
+                                    weight = clusterWeight,
+                                    reps = if (firstMiniSet.isCompleted) firstMiniSet.reps else {
+                                        firstMiniSet.goalReps?.split("-")?.firstOrNull()?.filter { it.isDigit() }?.toIntOrNull() ?: 0
+                                    },
+                                    goalReps = firstMiniSet.goalReps
+                                )
                             )
                         }
+                    }
+
+                    RoutineExercise(
+                        exercise = exercise,
+                        sets = routineSets
                     )
                 } else null
             }
