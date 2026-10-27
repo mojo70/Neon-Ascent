@@ -43,6 +43,7 @@ import com.neon.ascent.core.data.local.dao.DietDao
 import com.neon.ascent.core.data.local.migration.MIGRATION_65_66
 import com.neon.ascent.core.data.local.migration.MIGRATION_68_69
 import com.neon.ascent.core.data.local.migration.MIGRATION_69_70
+import com.neon.ascent.core.data.local.migration.MIGRATION_70_71
 
 @Database(
     entities = [
@@ -102,7 +103,7 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_69_70
         SupplementEntity::class,
         BiohackingProtocolEntity::class
     ],
-    version = 70,
+    version = 71,
     exportSchema = true
 )
 @TypeConverters(
