@@ -2820,6 +2820,16 @@ class WorkoutRepositoryImpl @Inject constructor(
             }
         }
 
+    override fun getSessionWithDetails(sessionId: String): Flow<Pair<WorkoutSession, List<Pair<WorkoutLog, List<SetLog>>>>?> =
+        workoutDao.getSessionWithDetails(sessionId).map { sessionWithLogs ->
+            sessionWithLogs?.let { swl ->
+                swl.session.toDomain() to swl.logs.map { logWithSets ->
+                    logWithSets.log.toDomain() to logWithSets.sets.map { it.toDomain() }
+                        .sortedWith(compareBy({ it.timestamp }, { it.id }))
+                }.sortedBy { it.first.order }
+            }
+        }
+
     override fun countSessionsBetween(from: java.time.Instant, to: java.time.Instant): Flow<Int> =
         if (from == java.time.Instant.EPOCH || from.toEpochMilli() == 0L) {
             workoutDao.getAllSessions().map { sessions -> sessions.count { it.date <= to } }

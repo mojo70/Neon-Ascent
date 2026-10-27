@@ -214,7 +214,8 @@ fun CodexScreen(
                             isLoading = uiState.isLoading,
                             onPeriodSelected = { viewModel.selectPeriod(it) },
                             onExerciseSelected = { viewModel.selectExercise(it) },
-                            onQueryChanged = { viewModel.updateSearchQuery(it) }
+                            onQueryChanged = { viewModel.updateSearchQuery(it) },
+                            onSelectSession = { viewModel.selectSession(it) }
                         )
                         CodexWing.VITALS -> VitalsWing(
                             uiState = uiState,
@@ -271,6 +272,13 @@ fun CodexScreen(
                         CodexWing.SELF_MAP -> SelfMapWing()
                     }
                 }
+
+                uiState.selectedSessionDetail?.let { sessionDetail ->
+                    SessionDetailSheet(
+                        sessionDetail = sessionDetail,
+                        onDismiss = { viewModel.dismissSessionDetail() }
+                    )
+                }
             }
         }
     }
@@ -325,7 +333,8 @@ fun OpsLogWing(
     isLoading: Boolean = false,
     onPeriodSelected: (CodexPeriod) -> Unit,
     onExerciseSelected: (String) -> Unit,
-    onQueryChanged: (String) -> Unit
+    onQueryChanged: (String) -> Unit,
+    onSelectSession: (String) -> Unit = {}
 ) {
     if (isLoading) {
         LoadingWing("SCANNING_OPS_LOG")
@@ -393,7 +402,7 @@ fun OpsLogWing(
 
         // Heatmap
         SectionHeader("SESSION_HEATMAP")
-        SessionHeatmap(uiState.sessionSummaries, period)
+        SessionHeatmap(uiState.sessionSummaries, period, onSelectSession = onSelectSession)
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -475,7 +484,7 @@ fun OpsLogWing(
         if (uiState.sessionSummaries.isNotEmpty()) {
             SectionHeader("SESSION_HISTORY // ACTIVITY_LOG")
             uiState.sessionSummaries.forEach { summary ->
-                SessionRow(summary)
+                SessionRow(summary, onClick = { onSelectSession(summary.sessionId) })
             }
         }
 
@@ -1427,12 +1436,13 @@ fun AddSampleQuickDialog(
 }
 
 @Composable
-fun SessionRow(summary: SessionSummary) {
+fun SessionRow(summary: SessionSummary, onClick: () -> Unit = {}) {
     val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 4.dp)
+            .clickable(onClick = onClick),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)),
         shape = RoundedCornerShape(4.dp)
@@ -3204,7 +3214,11 @@ fun MuscleFrequencyRow(frequency: Map<String, Int>) {
 }
 
 @Composable
-fun SessionHeatmap(summaries: List<SessionSummary>, period: CodexPeriod) {
+fun SessionHeatmap(
+    summaries: List<SessionSummary>,
+    period: CodexPeriod,
+    onSelectSession: (String) -> Unit = {}
+) {
     val cyanColor = Color(0xFF00FF9C)
     val deloadColor = Color(0xFFFF8C00)
     val emptyColor = Color.White.copy(alpha = 0.05f)
@@ -3310,6 +3324,9 @@ fun SessionHeatmap(summaries: List<SessionSummary>, period: CodexPeriod) {
                             )
                             .clickable(enabled = !isFuture) {
                                 selectedDate = if (selectedDate == date) null else date
+                                if (daySessions.size == 1 && daySessions.first().sessionId.isNotEmpty()) {
+                                    onSelectSession(daySessions.first().sessionId)
+                                }
                             }
                     )
                 }
@@ -3374,23 +3391,46 @@ fun SessionHeatmap(summaries: List<SessionSummary>, period: CodexPeriod) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .then(
+                                    if (s.sessionId.isNotEmpty()) Modifier.clickable { onSelectSession(s.sessionId) }
+                                    else Modifier
+                                )
                                 .padding(vertical = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "• $protoStr$dayTypeStr$durStr$rpeStr$deloadBadge",
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Medium
-                            )
-                            if (s.volume > 0) {
+                            Column {
                                 Text(
-                                    text = "${s.volume} lbs",
-                                    color = cyanColor,
-                                    fontSize = 10.sp,
-                                    fontFamily = FontFamily.Monospace
+                                    text = "• $protoStr$dayTypeStr$durStr$rpeStr$deloadBadge",
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                if (s.primaryAugmentName != null) {
+                                    Text(
+                                        text = "  + ${s.primaryAugmentName}",
+                                        color = Color(0xFF00CCFF),
+                                        fontSize = 9.sp,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                if (s.volume > 0) {
+                                    Text(
+                                        text = "${s.volume} lbs",
+                                        color = cyanColor,
+                                        fontSize = 10.sp,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                                Text(
+                                    text = "VIEW >",
+                                    color = selectedBorderColor,
+                                    fontSize = 9.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
                         }

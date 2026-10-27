@@ -235,7 +235,16 @@ data class SetLogDto(
     val isCompleted: Boolean = true,
     val rir: Int? = null,
     val isWarmup: Boolean = false,
-    val timestampEpochMs: Long
+    val timestampEpochMs: Long,
+    val clusterMiniSetIndex: Int? = null,
+    val isLengthenedPartial: Boolean = false,
+    val isLoadedStretch: Boolean = false,
+    val stretchDurationSeconds: Int? = null,
+    val prescribedWeight: Float? = null,
+    val prescribedReps: Int? = null,
+    val percentOfMax: Float? = null,
+    val isAmrap: Boolean = false,
+    val accommodatingLoad: Float? = null
 )
 
 data class ExerciseDefinitionDto(

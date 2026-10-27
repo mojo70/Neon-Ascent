@@ -212,6 +212,14 @@ class FullDataBackupRepositoryImplTest {
             return flowOf(result)
         }
 
+        override fun getSessionWithDetails(sessionId: String): Flow<WorkoutSessionWithLogs?> {
+            val session = sessions[sessionId] ?: return flowOf(null)
+            val sessionLogs = logs.values.filter { it.sessionId == session.id }.map { log ->
+                WorkoutLogWithSets(log, sets.values.filter { it.workoutLogId == log.id })
+            }
+            return flowOf(WorkoutSessionWithLogs(session, sessionLogs))
+        }
+
         override fun countSessionsBetween(from: Instant, to: Instant): Flow<Int> = flowOf(sessions.size)
         override fun getSessionsWithDetailsBetween(from: Instant, to: Instant): Flow<List<WorkoutSessionWithLogs>> = flowOf(emptyList())
         override fun getSessionDatesAndDeloadBetween(from: Instant, to: Instant): Flow<List<SessionDateAndDeload>> = flowOf(emptyList())
@@ -1867,6 +1875,89 @@ class FullDataBackupRepositoryImplTest {
 
         val restoreResult = repository.restoreBackupJson(legacyJson, RestoreMode.MERGE)
         assertTrue("Legacy v9 payload restore should succeed", restoreResult.success)
+    }
+
+    @Test
+    fun `export and restore preserves clusterMiniSetIndex and set flags`() = runBlocking {
+        val session = WorkoutSessionEntity(
+            id = "sess_cluster_1",
+            date = Instant.parse("2026-10-26T10:00:00Z"),
+            protocol = "CYBER_CRAPP",
+            durationSeconds = 2400,
+            notes = "Cluster workout test",
+            experienceLevel = "INTERMEDIATE",
+            somatotype = "MESOMORPH"
+        )
+        val log = WorkoutLogEntity(
+            id = "log_c1",
+            sessionId = "sess_cluster_1",
+            exerciseId = "ex_press",
+            order = 0,
+            exerciseName = "Incline Dumbbell Press",
+            protocolOverride = null
+        )
+        val set1 = SetLogEntity(
+            id = "set_c1",
+            workoutLogId = "log_c1",
+            weight = 85f,
+            reps = 8,
+            setType = "REST_PAUSE",
+            goalReps = "8-10",
+            isCompleted = true,
+            rir = 0,
+            isWarmup = false,
+            timestamp = Instant.parse("2026-10-26T10:05:00Z"),
+            clusterMiniSetIndex = 1,
+            isLengthenedPartial = false,
+            isLoadedStretch = false,
+            stretchDurationSeconds = null
+        )
+        val set2 = SetLogEntity(
+            id = "set_c2",
+            workoutLogId = "log_c1",
+            weight = 85f,
+            reps = 6,
+            setType = "REST_PAUSE",
+            goalReps = "8-10",
+            isCompleted = true,
+            rir = 0,
+            isWarmup = false,
+            timestamp = Instant.parse("2026-10-26T10:05:15Z"),
+            clusterMiniSetIndex = 2,
+            isLengthenedPartial = true,
+            isLoadedStretch = true,
+            stretchDurationSeconds = 10
+        )
+
+        workoutDao.upsertSession(session)
+        workoutDao.upsertWorkoutLog(log)
+        workoutDao.upsertSetLog(set1)
+        workoutDao.upsertSetLog(set2)
+
+        val exportedJson = repository.exportBackupJson(BackupScope(includeWorkout = true))
+        assertTrue("Exported JSON contains clusterMiniSetIndex", exportedJson.contains("clusterMiniSetIndex"))
+        assertTrue("Exported JSON contains isLengthenedPartial", exportedJson.contains("isLengthenedPartial"))
+
+        // Reset fake DB and restore
+        workoutDao.sessions.clear()
+        workoutDao.logs.clear()
+        workoutDao.sets.clear()
+
+        val restoreResult = repository.restoreBackupJson(exportedJson, RestoreMode.REPLACE)
+        assertTrue(restoreResult.success)
+
+        val restoredSets = workoutDao.sets.values.toList()
+        assertEquals(2, restoredSets.size)
+
+        val s1 = restoredSets.find { it.id == "set_c1" }
+        assertEquals(1, s1?.clusterMiniSetIndex)
+        assertEquals(false, s1?.isLengthenedPartial)
+
+        val s2 = restoredSets.find { it.id == "set_c2" }
+        assertEquals(2, s2?.clusterMiniSetIndex)
+        assertEquals(true, s2?.isLengthenedPartial)
+        assertEquals(true, s2?.isLoadedStretch)
+        assertEquals(10, s2?.stretchDurationSeconds)
     }
 }
 

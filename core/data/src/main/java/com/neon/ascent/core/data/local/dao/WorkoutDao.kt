@@ -237,6 +237,10 @@ interface WorkoutDao {
     @Query("SELECT * FROM workout_sessions ORDER BY date DESC")
     fun getAllSessionsWithDetails(): Flow<List<WorkoutSessionWithLogs>>
 
+    @Transaction
+    @Query("SELECT * FROM workout_sessions WHERE id = :sessionId")
+    fun getSessionWithDetails(sessionId: String): Flow<WorkoutSessionWithLogs?>
+
     @Query("SELECT COUNT(*) FROM workout_sessions WHERE date BETWEEN :from AND :to")
     fun countSessionsBetween(from: Instant, to: Instant): Flow<Int>
 

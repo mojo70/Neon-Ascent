@@ -162,7 +162,16 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                             isCompleted = st.isCompleted,
                             rir = st.rir,
                             isWarmup = st.isWarmup,
-                            timestampEpochMs = st.timestamp.toEpochMilli()
+                            timestampEpochMs = st.timestamp.toEpochMilli(),
+                            clusterMiniSetIndex = st.clusterMiniSetIndex,
+                            isLengthenedPartial = st.isLengthenedPartial,
+                            isLoadedStretch = st.isLoadedStretch,
+                            stretchDurationSeconds = st.stretchDurationSeconds,
+                            prescribedWeight = st.prescribedWeight,
+                            prescribedReps = st.prescribedReps,
+                            percentOfMax = st.percentOfMax,
+                            isAmrap = st.isAmrap,
+                            accommodatingLoad = st.accommodatingLoad
                         )
                     }
                 }
@@ -1383,10 +1392,15 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                             rir = st.rir,
                             isWarmup = st.isWarmup,
                             timestamp = Instant.ofEpochMilli(st.timestampEpochMs),
-                            clusterMiniSetIndex = null,
-                            isLengthenedPartial = false,
-                            isLoadedStretch = false,
-                            stretchDurationSeconds = null
+                            clusterMiniSetIndex = st.clusterMiniSetIndex,
+                            isLengthenedPartial = st.isLengthenedPartial,
+                            isLoadedStretch = st.isLoadedStretch,
+                            stretchDurationSeconds = st.stretchDurationSeconds,
+                            prescribedWeight = st.prescribedWeight,
+                            prescribedReps = st.prescribedReps,
+                            percentOfMax = st.percentOfMax,
+                            isAmrap = st.isAmrap,
+                            accommodatingLoad = st.accommodatingLoad
                         )
                     )
                     setsRestored++

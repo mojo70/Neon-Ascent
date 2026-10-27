@@ -229,8 +229,8 @@ class BriefFactsBuilder @Inject constructor(
         val startOfWeek = LocalDate.now(zone).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).atStartOfDay(zone).toInstant()
         val sessionsThisWeekCount = sessions.count { !it.date.isBefore(startOfWeek) }
         val userProfile = try { workoutRepository.getUserProfile("default_user").first() } catch (_: Exception) { null }
-        val scheduledCount = userProfile?.scheduledDays?.size ?: 3
-        val isWeeklyTargetMet = sessionsThisWeekCount >= scheduledCount
+        val scheduledCount = userProfile?.scheduledDays?.takeIf { it.isNotEmpty() }?.size ?: 3
+        val isWeeklyTargetMet = scheduledCount > 0 && sessionsThisWeekCount >= scheduledCount
 
         val routines = try { workoutRepository.getAllRoutines().first() } catch (_: Exception) { emptyList() }
         val nextDayTypeLetter = WorkoutRotationResolver.resolveNextDayTypeLetter(sessions, routines)

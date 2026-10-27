@@ -315,7 +315,7 @@ class DashboardViewModel @Inject constructor(
                 val startOfWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).atStartOfDay(zone).toInstant()
                 val sessionsThisWeekCount = sessions.count { !it.date.isBefore(startOfWeek) }
 
-                val scheduledCount = userProfile?.scheduledDays?.size ?: 3
+                val scheduledCount = userProfile?.scheduledDays?.takeIf { it.isNotEmpty() }?.size ?: 3
                 val isWeeklyTargetMet = sessionsThisWeekCount >= scheduledCount
 
                 val nextRoutine = com.neon.ascent.core.domain.workout.rules.WorkoutRotationResolver.resolveNextRoutine(sessions, routines)

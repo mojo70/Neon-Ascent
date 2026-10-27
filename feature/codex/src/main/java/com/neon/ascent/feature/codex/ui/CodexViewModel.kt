@@ -2,6 +2,7 @@ package com.neon.ascent.feature.codex.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
 import com.neon.ascent.core.data.datastore.HealthPreferencesDataStore
 import com.neon.ascent.core.data.local.dao.DailyVitalRollupDao
 import com.neon.ascent.core.data.local.dao.BodySampleDao
@@ -84,6 +85,8 @@ data class CodexUiState(
     val totalVolume: Long = 0,
     val streak: Int = 0,
     val sessionSummaries: List<SessionSummary> = emptyList(),
+    val selectedSessionId: String? = null,
+    val selectedSessionDetail: Pair<com.neon.ascent.core.domain.workout.models.WorkoutSession, List<Pair<com.neon.ascent.core.domain.workout.models.WorkoutLog, List<com.neon.ascent.core.domain.workout.models.SetLog>>>>? = null,
     val prs: List<PrDisplayData> = emptyList(),
     val muscleFrequency: Map<String, Int> = emptyMap(),
     val hitRate: Float = 0f,
@@ -269,6 +272,7 @@ data class StallItem(
 )
 
 data class SessionSummary(
+    val id: String = "",
     val date: LocalDate,
     val isDeload: Boolean,
     val volume: Long = 0,
@@ -276,8 +280,12 @@ data class SessionSummary(
     val primaryAugmentName: String? = null,
     val dayType: ProtocolDayType? = null,
     val durationSeconds: Long = 0,
-    val sessionRpe: Int? = null
-)
+    val sessionRpe: Int? = null,
+    val jointHealth: Int? = null,
+    val notes: String? = null
+) {
+    val sessionId: String get() = id
+}
 
 data class ExerciseDossier(
     val exercise: Exercise,
@@ -1321,6 +1329,24 @@ class CodexViewModel @Inject constructor(
         }
     }
 
+    private var sessionDetailJob: Job? = null
+
+    fun selectSession(sessionId: String) {
+        sessionDetailJob?.cancel()
+        _uiState.update { it.copy(selectedSessionId = sessionId, selectedSessionDetail = null) }
+        sessionDetailJob = viewModelScope.launch {
+            workoutRepository.getSessionWithDetails(sessionId).collect { detail ->
+                _uiState.update { it.copy(selectedSessionDetail = detail) }
+            }
+        }
+    }
+
+    fun dismissSessionDetail() {
+        sessionDetailJob?.cancel()
+        sessionDetailJob = null
+        _uiState.update { it.copy(selectedSessionId = null, selectedSessionDetail = null) }
+    }
+
     private fun loadUserProfile() {
         viewModelScope.launch {
             workoutRepository.getUserProfile("default_user").collect { profile ->
@@ -1376,6 +1402,7 @@ class CodexViewModel @Inject constructor(
                         ?: logs.firstOrNull { it.first.augmentName != null }?.first?.augmentName
                     
                     SessionSummary(
+                        id = session.id,
                         date = session.date.atZone(zone).toLocalDate(), 
                         isDeload = session.isDeload, 
                         volume = vol,
@@ -1383,7 +1410,9 @@ class CodexViewModel @Inject constructor(
                         primaryAugmentName = augmentName,
                         dayType = session.protocolDayType,
                         durationSeconds = session.durationSeconds,
-                        sessionRpe = session.sessionRpe
+                        sessionRpe = session.sessionRpe,
+                        jointHealth = session.jointHealth,
+                        notes = session.notes
                     )
                 }.sortedByDescending { it.date }
 

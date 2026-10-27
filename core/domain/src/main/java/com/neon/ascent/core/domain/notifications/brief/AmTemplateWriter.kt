@@ -139,7 +139,7 @@ object AmTemplateWriter {
         }
 
         // 5. Week hit rate complete -> NOMINAL
-        if (nextSession.isWeeklyTargetMet) {
+        if (nextSession.isWeeklyTargetMet && nextSession.scheduledThisWeek > 0) {
             val done = nextSession.completedThisWeek
             val total = nextSession.scheduledThisWeek.coerceAtLeast(done)
             return DriverResult(

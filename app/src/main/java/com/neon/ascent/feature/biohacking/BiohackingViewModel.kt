@@ -324,7 +324,7 @@ class BiohackingViewModel @Inject constructor(
 
         viewModelScope.launch {
             workoutRepository.getUserProfile("default_user").collect { profile ->
-                _scheduledSessionsThisWeek.value = profile?.scheduledDays?.size ?: 0
+                _scheduledSessionsThisWeek.value = profile?.scheduledDays?.takeIf { it.isNotEmpty() }?.size ?: 3
             }
         }
         

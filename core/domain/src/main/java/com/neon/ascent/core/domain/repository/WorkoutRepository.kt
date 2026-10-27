@@ -43,6 +43,7 @@ interface WorkoutRepository {
     fun getLatestSetsForExercise(exerciseId: String, excludedSessionId: String): Flow<List<SetLog>>
 
     fun getFullHistory(): Flow<List<Pair<WorkoutSession, List<Pair<WorkoutLog, List<SetLog>>>>>>
+    fun getSessionWithDetails(sessionId: String): Flow<Pair<WorkoutSession, List<Pair<WorkoutLog, List<SetLog>>>>?>
 
     fun countSessionsBetween(from: java.time.Instant, to: java.time.Instant): Flow<Int>
     fun getSessionsBetween(from: java.time.Instant, to: java.time.Instant): Flow<List<Pair<WorkoutSession, List<Pair<WorkoutLog, List<SetLog>>>>>>

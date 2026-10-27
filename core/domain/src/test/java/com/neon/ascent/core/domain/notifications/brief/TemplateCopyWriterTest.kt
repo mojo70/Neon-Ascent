@@ -140,6 +140,27 @@ class TemplateCopyWriterTest {
     }
 
     @Test
+    fun `Week target met with zero scheduled count does not emit 0-0 Easy day`() {
+        val facts = BriefFacts(
+            slot = BriefSlot.AM,
+            vitals = BriefVitals(sleepMinutes = 440, needMin = 440),
+            nextSession = BriefNextSession(
+                scheduled = true,
+                dayType = "A",
+                isWeeklyTargetMet = true,
+                completedThisWeek = 0,
+                scheduledThisWeek = 0
+            )
+        )
+
+        val copy = AmTemplateWriter.write(facts, BriefStance.HOLD)
+
+        assertEquals(OperationalStatus.NOMINAL, copy.status)
+        assertFalse("Does not print 0/0", copy.shadeBody.contains("0/0"))
+        assertTrue("Falls back to day phrase", copy.shadeBody.contains("NOMINAL — Push today."))
+    }
+
+    @Test
     fun `PROMPT 4 Case 5 Missing RHR and HRV skips those drivers and still emits template`() {
         val facts = BriefFacts(
             slot = BriefSlot.AM,
