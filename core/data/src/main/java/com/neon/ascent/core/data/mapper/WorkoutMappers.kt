@@ -325,6 +325,7 @@ fun UserWorkoutProfileEntity.toDomain() = UserWorkoutProfile(
     sequencerEnabled = sequencerEnabled,
     customSequenceIds = runCatching { gson.fromJson<List<String>>(customSequenceIds, object : TypeToken<List<String>>() {}.type) }.getOrNull() ?: emptyList(),
     coachingHintsEnabled = coachingHintsEnabled,
+    cyberCrappRotationMode = safeEnumValueOf(cyberCrappRotationMode, CyberCrappRotationMode.STRAIGHT),
     lastBlastStartDate = lastBlastStartDate
 )
 
@@ -356,6 +357,7 @@ fun UserWorkoutProfile.toEntity() = UserWorkoutProfileEntity(
     sequencerEnabled = sequencerEnabled,
     customSequenceIds = gson.toJson(customSequenceIds),
     coachingHintsEnabled = coachingHintsEnabled,
+    cyberCrappRotationMode = cyberCrappRotationMode.name,
     lastBlastStartDate = lastBlastStartDate
 )
 
@@ -502,7 +504,8 @@ fun WorkoutRoutineEntity.toDomain(
         protocol = safeEnumValueOf(protocol, WorkoutProtocol.GENERAL),
         createdAt = createdAt,
         isSystem = isSystem,
-        isAddedToLibrary = isAddedToLibrary
+        isAddedToLibrary = isAddedToLibrary,
+        scheduledDays = runCatching { gson.fromJson<List<ScheduledDay>>(scheduledDays, object : TypeToken<List<ScheduledDay>>() {}.type) }.getOrNull() ?: emptyList()
     )
 }
 
@@ -513,7 +516,8 @@ fun WorkoutRoutine.toEntity() = WorkoutRoutineEntity(
     protocol = protocol.name,
     createdAt = createdAt,
     isSystem = isSystem,
-    isAddedToLibrary = isAddedToLibrary
+    isAddedToLibrary = isAddedToLibrary,
+    scheduledDays = gson.toJson(scheduledDays)
 )
 
 fun DeloadWindowEntity.toDomain() = DeloadWindow(

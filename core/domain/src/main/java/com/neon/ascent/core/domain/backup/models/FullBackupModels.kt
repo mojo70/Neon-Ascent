@@ -312,6 +312,7 @@ data class UserWorkoutProfileDto(
     val scheduledDays: String? = "[]",
     val deepLinkToRoutine: Boolean = false,
     val customSequenceIds: String? = "[]",
+    val cyberCrappRotationMode: String = "STRAIGHT",
     val lastBlastStartDateEpochMs: Long? = null
 )
 
@@ -361,7 +362,8 @@ data class WorkoutRoutineDto(
     val protocol: String,
     val createdAtEpochMs: Long,
     val isSystem: Boolean = false,
-    val isAddedToLibrary: Boolean = true
+    val isAddedToLibrary: Boolean = true,
+    val scheduledDays: String? = "[]"
 )
 
 data class RoutineExerciseCrossRefDto(
@@ -462,6 +464,7 @@ data class PreferencesBackupSection(
     val workoutZoomLevel: Float = 1.0f,
     val workoutLayoutMode: String = "CLASSIC",
     val useCustomNumpadInFocusMode: Boolean = false,
+    val cyberCrappRotationMode: String = "STRAIGHT",
     val codexPeriod: String = "THIRTY_DAYS",
     val codexWing: String = "OPS_LOG",
     val codexLastExerciseId: String? = null,

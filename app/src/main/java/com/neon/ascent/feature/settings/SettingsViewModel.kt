@@ -152,6 +152,15 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    val cyberCrappRotationMode: StateFlow<com.neon.ascent.core.domain.workout.models.CyberCrappRotationMode> = workoutPreferencesDataStore.cyberCrappRotationMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.neon.ascent.core.domain.workout.models.CyberCrappRotationMode.STRAIGHT)
+
+    fun setCyberCrappRotationMode(mode: com.neon.ascent.core.domain.workout.models.CyberCrappRotationMode) {
+        viewModelScope.launch {
+            workoutPreferencesDataStore.setCyberCrappRotationMode(mode)
+        }
+    }
+
     private val gson = Gson()
 
     private val _pendingRestorePreview = MutableStateFlow<BackupPreview?>(null)

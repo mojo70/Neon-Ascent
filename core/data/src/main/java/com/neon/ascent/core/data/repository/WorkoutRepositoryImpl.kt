@@ -302,6 +302,122 @@ class WorkoutRepositoryImpl @Inject constructor(
                     )
                 )
             }
+            "routine_cybercrapp_push_b" -> {
+                val incline = targetExercises.find { it.id == "incline_bench_press" } ?: return null
+                val dbPress = targetExercises.find { it.id == "shoulder_press_dumbbell" } ?: return null
+                val tricep = targetExercises.find { it.id == "tricep_pushdown_cable" } ?: targetExercises.find { it.id == "db_tricep_extension" } ?: return null
+                WorkoutRoutine(
+                    id = "routine_cybercrapp_push_b",
+                    name = "CyberCrapp Push B",
+                    description = "PROTOCOL: CYBERCRAPP (VARIANT B)\nGOAL: Upper Chest Emphasis + Joint Strain Reduction\n\nMETHOD: \n- 1 Main Set to failure + 2 rest-pause 'mini-sets'.\n\nFOCUS: Incline Chest, Shoulders, Triceps.",
+                    protocol = WorkoutProtocol.CYBER_CRAPP,
+                    isSystem = true,
+                    isAddedToLibrary = false,
+                    exercises = listOf(
+                        RoutineExercise(
+                            exercise = incline,
+                            sets = listOf(
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.REST_PAUSE)
+                            )
+                        ),
+                        RoutineExercise(
+                            exercise = dbPress,
+                            sets = listOf(
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.REST_PAUSE)
+                            )
+                        ),
+                        RoutineExercise(
+                            exercise = tricep,
+                            sets = listOf(
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.REST_PAUSE)
+                            )
+                        )
+                    )
+                )
+            }
+            "routine_cybercrapp_pull_b" -> {
+                val pulldown = targetExercises.find { it.id == "lat_pulldown" } ?: return null
+                val row = targetExercises.find { it.id == "seated_row" } ?: targetExercises.find { it.id == "bent_over_row" } ?: return null
+                val curl = targetExercises.find { it.id == "bicep_curl_dumbbell" } ?: targetExercises.find { it.id == "jerry_curl" } ?: return null
+                WorkoutRoutine(
+                    id = "routine_cybercrapp_pull_b",
+                    name = "CyberCrapp Pull B",
+                    description = "PROTOCOL: CYBERCRAPP (VARIANT B)\nGOAL: Vertical Lat Pull + Horizontal Cable Thickness\n\nMETHOD: \n- Standard CC Cluster protocol.\n\nFOCUS: Vertical Lats, Upper Back, Biceps.",
+                    protocol = WorkoutProtocol.CYBER_CRAPP,
+                    isSystem = true,
+                    isAddedToLibrary = false,
+                    exercises = listOf(
+                        RoutineExercise(
+                            exercise = pulldown,
+                            sets = listOf(
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.REST_PAUSE)
+                            )
+                        ),
+                        RoutineExercise(
+                            exercise = row,
+                            sets = listOf(
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.REST_PAUSE)
+                            )
+                        ),
+                        RoutineExercise(
+                            exercise = curl,
+                            sets = listOf(
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.REST_PAUSE)
+                            )
+                        )
+                    )
+                )
+            }
+            "routine_cybercrapp_legs_b" -> {
+                val frontSquat = targetExercises.find { it.id == "front_squat" } ?: targetExercises.find { it.id == "leg_press_45" } ?: return null
+                val legCurl = targetExercises.find { it.id == "leg_curl_plate_loaded" } ?: targetExercises.find { it.id == "romanian_deadlift" } ?: return null
+                val calf = targetExercises.find { it.id == "calf_raise" } ?: return null
+                WorkoutRoutine(
+                    id = "routine_cybercrapp_legs_b",
+                    name = "CyberCrapp Legs B",
+                    description = "PROTOCOL: CYBERCRAPP (VARIANT B)\nGOAL: Quad Emphasis + Hamstring Isolation\n\nMETHOD: \n- Front Squat clusters + Hamstring isolation.\n\nFOCUS: Anterior Quads, Hamstrings, Calves.",
+                    protocol = WorkoutProtocol.CYBER_CRAPP,
+                    isSystem = true,
+                    isAddedToLibrary = false,
+                    exercises = listOf(
+                        RoutineExercise(
+                            exercise = frontSquat,
+                            sets = listOf(
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.REST_PAUSE)
+                            )
+                        ),
+                        RoutineExercise(
+                            exercise = legCurl,
+                            sets = listOf(
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.REST_PAUSE)
+                            )
+                        ),
+                        RoutineExercise(
+                            exercise = calf,
+                            sets = listOf(
+                                RoutineSet(type = SetType.WARMUP),
+                                RoutineSet(type = SetType.REST_PAUSE)
+                            )
+                        )
+                    )
+                )
+            }
             else -> null
         }
     }
@@ -2584,6 +2700,11 @@ class WorkoutRepositoryImpl @Inject constructor(
             )
         )
         seedRoutine(cyberCrappC)
+
+        // Seed CyberCrapp Push B, Pull B, Legs B
+        getSystemRoutineDefinition("routine_cybercrapp_push_b", exercises)?.let { seedRoutine(it) }
+        getSystemRoutineDefinition("routine_cybercrapp_pull_b", exercises)?.let { seedRoutine(it) }
+        getSystemRoutineDefinition("routine_cybercrapp_legs_b", exercises)?.let { seedRoutine(it) }
 
         // Seed Starting Strength Routine
         val startingStrength = WorkoutRoutine(

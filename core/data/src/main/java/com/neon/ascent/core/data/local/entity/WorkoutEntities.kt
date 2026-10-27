@@ -1,5 +1,6 @@
 package com.neon.ascent.core.data.local.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -315,6 +316,8 @@ data class UserWorkoutProfileEntity(
     val sequencerEnabled: Boolean = true,
     val customSequenceIds: String = "[]",
     val coachingHintsEnabled: Boolean = true,
+    @ColumnInfo(defaultValue = "STRAIGHT")
+    val cyberCrappRotationMode: String = "STRAIGHT",
     val lastBlastStartDate: Instant? = null
 )
 
@@ -341,7 +344,9 @@ data class WorkoutRoutineEntity(
     val protocol: String,
     val createdAt: Instant,
     val isSystem: Boolean = false,
-    val isAddedToLibrary: Boolean = true
+    val isAddedToLibrary: Boolean = true,
+    @ColumnInfo(defaultValue = "[]")
+    val scheduledDays: String = "[]"
 )
 
 @Entity(

@@ -254,6 +254,7 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                     scheduledDays = p.scheduledDays,
                     deepLinkToRoutine = p.deepLinkToRoutine,
                     customSequenceIds = p.customSequenceIds,
+                    cyberCrappRotationMode = p.cyberCrappRotationMode,
                     lastBlastStartDateEpochMs = p.lastBlastStartDate?.toEpochMilli()
                 )
             }
@@ -313,7 +314,8 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                     protocol = r.routine.protocol,
                     createdAtEpochMs = r.routine.createdAt.toEpochMilli(),
                     isSystem = r.routine.isSystem,
-                    isAddedToLibrary = r.routine.isAddedToLibrary
+                    isAddedToLibrary = r.routine.isAddedToLibrary,
+                    scheduledDays = r.routine.scheduledDays
                 )
             }
 
@@ -998,6 +1000,7 @@ class FullDataBackupRepositoryImpl @Inject constructor(
             workoutZoomLevel = healthPreferencesDataStore.workoutZoomLevel.first(),
             workoutLayoutMode = workoutPreferencesDataStore.workoutLayoutMode.first().name,
             useCustomNumpadInFocusMode = workoutPreferencesDataStore.useCustomNumpadInFocusMode.first(),
+            cyberCrappRotationMode = workoutPreferencesDataStore.cyberCrappRotationMode.first().name,
             codexPeriod = healthPreferencesDataStore.codexPeriod.first(),
             codexWing = healthPreferencesDataStore.codexWing.first(),
             codexLastExerciseId = healthPreferencesDataStore.codexLastExerciseId.firstOrNull(),
@@ -1241,7 +1244,8 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                             protocol = r.protocol,
                             createdAt = Instant.ofEpochMilli(r.createdAtEpochMs),
                             isSystem = r.isSystem,
-                            isAddedToLibrary = r.isAddedToLibrary
+                            isAddedToLibrary = r.isAddedToLibrary,
+                            scheduledDays = r.scheduledDays ?: "[]"
                         )
                     )
                 }
@@ -1523,6 +1527,7 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                             rirCapturePerMiniSet = p.rirCapturePerMiniSet,
                             customSequenceIds = p.customSequenceIds ?: "[]",
                             coachingHintsEnabled = p.coachingHintsEnabled,
+                            cyberCrappRotationMode = p.cyberCrappRotationMode ?: "STRAIGHT",
                             lastBlastStartDate = p.lastBlastStartDateEpochMs?.let { Instant.ofEpochMilli(it) }
                         )
                     )
@@ -2208,6 +2213,11 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                     )
                 }
                 workoutPreferencesDataStore.setUseCustomNumpadInFocusMode(prefs.useCustomNumpadInFocusMode)
+                runCatching {
+                    workoutPreferencesDataStore.setCyberCrappRotationMode(
+                        com.neon.ascent.core.domain.workout.models.CyberCrappRotationMode.valueOf(prefs.cyberCrappRotationMode)
+                    )
+                }
                 healthPreferencesDataStore.setCodexPeriod(prefs.codexPeriod)
                 healthPreferencesDataStore.setCodexWing(prefs.codexWing)
                 healthPreferencesDataStore.setCodexLastExerciseId(prefs.codexLastExerciseId)

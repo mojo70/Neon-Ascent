@@ -32,11 +32,14 @@ fun WorkoutSettingsScreen(
     onUpdateRestTimerMode: (RestTimerMode) -> Unit,
     onUpdateLayoutMode: ((WorkoutLayoutMode) -> Unit)? = null,
     onUpdateCustomNumpad: ((Boolean) -> Unit)? = null,
+    onUpdateCyberCrappRotationMode: ((CyberCrappRotationMode) -> Unit)? = null,
+    onUpdateRoutineSchedule: ((String, List<ScheduledDay>) -> Unit)? = null,
     onStartDeload: () -> Unit = {},
     onEndDeloadEarly: () -> Unit = {}
 ) {
     val tempProfile = uiState.tempSettingsProfile ?: uiState.userProfile ?: return
     var showResetConfirmation by remember { mutableStateOf(false) }
+    var editingScheduleTarget by remember { mutableStateOf<ScheduleTarget?>(null) }
 
     Column(
         modifier = Modifier
@@ -124,6 +127,39 @@ fun WorkoutSettingsScreen(
                                     }
                                 } else if (tempProfile.activeProtocol == WorkoutProtocol.CYBER_CRAPP) {
                                     Spacer(Modifier.height(12.dp))
+                                    Text("CYBERCRAPP ROTATION MODE", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    Spacer(Modifier.height(4.dp))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        CyberCrappRotationMode.entries.forEach { mode ->
+                                            val isSelected = uiState.cyberCrappRotationMode == mode
+                                            Surface(
+                                                onClick = { onUpdateCyberCrappRotationMode?.invoke(mode) },
+                                                modifier = Modifier.weight(1f).height(36.dp),
+                                                shape = RoundedCornerShape(6.dp),
+                                                color = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFF2C2C2E),
+                                                border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.3f))
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Text(
+                                                        text = if (mode == CyberCrappRotationMode.STRAIGHT) "STRAIGHT" else "A / B",
+                                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else Color.White,
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 11.sp
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Text(
+                                        text = if (uiState.cyberCrappRotationMode == CyberCrappRotationMode.STRAIGHT)
+                                            "Straight — strength focus, same lifts"
+                                        else
+                                            "A/B — lower overuse risk, alternating variants",
+                                        color = Color.Gray,
+                                        fontSize = 11.sp,
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    )
+                                    Spacer(Modifier.height(12.dp))
                                     Button(
                                         onClick = onStartDeload,
                                         modifier = Modifier.fillMaxWidth().height(40.dp),
@@ -158,6 +194,71 @@ fun WorkoutSettingsScreen(
                                 }
                             }
                         }
+                    }
+                }
+            }
+
+            // Category: WORKOUT SCHEDULES
+            item {
+                SettingsCategoryHeader("WORKOUT SCHEDULES", Color(0xFFFFB703))
+
+                Text(
+                    "View and configure weekly workout schedules for active protocols and routines.",
+                    color = Color.Gray,
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                // 1. Overall Profile Schedule
+                ScheduleItemCard(
+                    title = "Overall Profile Schedule",
+                    subtitle = "Weekly Target Schedule",
+                    scheduledDays = tempProfile.scheduledDays,
+                    onEdit = {
+                        editingScheduleTarget = ScheduleTarget.Profile
+                    }
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                // 2. Active Protocol Sub-Routine Schedules
+                Text(
+                    "ACTIVE PROTOCOL & SUB-ROUTINE SCHEDULES",
+                    color = Color.Gray,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                val activeProtocol = tempProfile.activeProtocol
+                val activeRoutines = uiState.allRoutines.filter { r ->
+                    r.isAddedToLibrary || (activeProtocol != null && r.protocol == activeProtocol)
+                }
+
+                if (activeRoutines.isEmpty()) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        color = Color(0xFF1C1C1E),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            "No active routines found for current protocol.",
+                            color = Color.Gray,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
+                } else {
+                    activeRoutines.forEach { routine ->
+                        ScheduleItemCard(
+                            title = routine.name,
+                            subtitle = routine.protocol.displayName,
+                            scheduledDays = routine.scheduledDays,
+                            onEdit = {
+                                editingScheduleTarget = ScheduleTarget.Routine(routine)
+                            }
+                        )
+                        Spacer(Modifier.height(6.dp))
                     }
                 }
             }
@@ -413,6 +514,30 @@ fun WorkoutSettingsScreen(
                 containerColor = Color(0xFF1C1C1E)
             )
         }
+
+        editingScheduleTarget?.let { target ->
+            val title = when (target) {
+                ScheduleTarget.Profile -> "EDIT PROFILE SCHEDULE"
+                is ScheduleTarget.Routine -> "EDIT SCHEDULE: ${target.routine.name}"
+            }
+            val initialDays = when (target) {
+                ScheduleTarget.Profile -> tempProfile.scheduledDays
+                is ScheduleTarget.Routine -> target.routine.scheduledDays
+            }
+
+            ScheduleEditorDialog(
+                title = title,
+                initialScheduledDays = initialDays,
+                onDismiss = { editingScheduleTarget = null },
+                onSave = { newDays ->
+                    when (target) {
+                        ScheduleTarget.Profile -> onUpdateProfile(tempProfile.copy(scheduledDays = newDays))
+                        is ScheduleTarget.Routine -> onUpdateRoutineSchedule?.invoke(target.routine.id, newDays)
+                    }
+                    editingScheduleTarget = null
+                }
+            )
+        }
     }
 }
 
@@ -497,4 +622,170 @@ fun StepInput(
             }
         }
     }
+}
+
+sealed interface ScheduleTarget {
+    object Profile : ScheduleTarget
+    data class Routine(val routine: WorkoutRoutine) : ScheduleTarget
+}
+
+@Composable
+fun ScheduleItemCard(
+    title: String,
+    subtitle: String,
+    scheduledDays: List<ScheduledDay>,
+    onEdit: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = Color(0xFF1C1C1E),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, if (scheduledDays.isNotEmpty()) Color(0xFFFFB703).copy(alpha = 0.4f) else Color.Gray.copy(alpha = 0.2f))
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Text(subtitle, color = Color.Gray, fontSize = 10.sp)
+
+                Spacer(Modifier.height(6.dp))
+
+                if (scheduledDays.isEmpty()) {
+                    Surface(
+                        color = Color(0xFFFF453A).copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            "UNSCHEDULED",
+                            color = Color(0xFFFF453A),
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        val dayNames = listOf("", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+                        val daysFormatted = scheduledDays.sortedBy { it.dayOfWeek }.joinToString(", ") { dayNames.getOrElse(it.dayOfWeek) { "" } }
+                        val timeStr = scheduledDays.firstOrNull()?.time ?: ""
+
+                        Text(
+                            "$daysFormatted at $timeStr",
+                            color = Color(0xFFFFB703),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            Button(
+                onClick = onEdit,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (scheduledDays.isEmpty()) MaterialTheme.colorScheme.primary else Color(0xFF2C2C2E)
+                ),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                shape = RoundedCornerShape(6.dp)
+            ) {
+                Text(
+                    text = if (scheduledDays.isEmpty()) "ADD SCHEDULE" else "EDIT",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ScheduleEditorDialog(
+    title: String,
+    initialScheduledDays: List<ScheduledDay>,
+    onDismiss: () -> Unit,
+    onSave: (List<ScheduledDay>) -> Unit
+) {
+    var selectedDays by remember {
+        mutableStateOf(initialScheduledDays.map { it.dayOfWeek }.toSet())
+    }
+    var selectedTime by remember {
+        mutableStateOf(initialScheduledDays.firstOrNull()?.time ?: "18:00")
+    }
+
+    val dayLabels = listOf("MON" to 1, "TUE" to 2, "WED" to 3, "THU" to 4, "FRI" to 5, "SAT" to 6, "SUN" to 7)
+    val quickTimes = listOf("06:00", "08:00", "12:00", "17:00", "18:00", "20:00")
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1C1C1E),
+        title = {
+            Text(title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text("ACTIVE DAYS", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    dayLabels.forEach { (label, dayNum) ->
+                        val isSelected = selectedDays.contains(dayNum)
+                        Surface(
+                            onClick = {
+                                selectedDays = if (isSelected) selectedDays - dayNum else selectedDays + dayNum
+                            },
+                            modifier = Modifier.weight(1f).height(36.dp),
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFF2C2C2E),
+                            border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.3f))
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(label, color = if (isSelected) MaterialTheme.colorScheme.onPrimary else Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+
+                Text("NOTIFICATION / WORKOUT TIME", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    quickTimes.forEach { timeStr ->
+                        val isSelected = selectedTime == timeStr
+                        Surface(
+                            onClick = { selectedTime = timeStr },
+                            modifier = Modifier.weight(1f).height(32.dp),
+                            shape = RoundedCornerShape(4.dp),
+                            color = if (isSelected) MaterialTheme.colorScheme.secondary else Color(0xFF2C2C2E)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(timeStr, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val result = selectedDays.sorted().map { dayNum ->
+                        ScheduledDay(dayOfWeek = dayNum, time = selectedTime)
+                    }
+                    onSave(result)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Text("SAVE SCHEDULE", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = { onSave(emptyList()) }) {
+                    Text("CLEAR", color = Color(0xFFFF453A), fontSize = 12.sp)
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("CANCEL", color = Color.White, fontSize = 12.sp)
+                }
+            }
+        }
+    )
 }

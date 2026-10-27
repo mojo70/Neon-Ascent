@@ -126,6 +126,7 @@ fun SettingsScreen(
     val directiveIntakeMode by viewModel.directiveIntakeMode.collectAsState()
     val selfMapIntakeMode by viewModel.selfMapIntakeMode.collectAsState()
     val workoutLayoutMode by viewModel.workoutLayoutMode.collectAsState()
+    val cyberCrappRotationMode by viewModel.cyberCrappRotationMode.collectAsState()
     val measurementUnit by viewModel.measurementUnit.collectAsState()
 
     // Biometrics & Sync State
@@ -568,6 +569,26 @@ fun SettingsScreen(
                             )
                         }
                     }
+                    Text("CyberCrapp rotation mode", color = theme.ink.copy(alpha = 0.6f), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                    Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        com.neon.ascent.core.domain.workout.models.CyberCrappRotationMode.entries.forEach { mode ->
+                            CyberTabButton(
+                                selected = cyberCrappRotationMode == mode,
+                                onClick = { viewModel.setCyberCrappRotationMode(mode) },
+                                label = if (mode == com.neon.ascent.core.domain.workout.models.CyberCrappRotationMode.STRAIGHT) "STRAIGHT" else "A / B",
+                                modifier = Modifier.weight(1f),
+                                palette = theme
+                            )
+                        }
+                    }
+                    Text(
+                        text = if (cyberCrappRotationMode == com.neon.ascent.core.domain.workout.models.CyberCrappRotationMode.STRAIGHT)
+                            "Straight — strength focus, same lifts"
+                        else
+                            "A/B — lower overuse risk, alternating variants",
+                        color = theme.ink.copy(alpha = 0.6f),
+                        fontSize = 11.sp
+                    )
                     Text("Measurement units default", color = theme.ink.copy(alpha = 0.6f), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
                     Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf("Imperial", "Metric").forEach { unit ->

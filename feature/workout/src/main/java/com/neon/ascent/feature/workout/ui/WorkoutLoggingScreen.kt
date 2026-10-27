@@ -18,6 +18,7 @@ import androidx.compose.ui.zIndex
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -192,6 +193,8 @@ fun WorkoutLoggingScreen(
                             onUpdateRestTimerMode = { viewModel.updateRestTimerMode(it) },
                             onUpdateLayoutMode = { viewModel.setWorkoutLayoutMode(it) },
                             onUpdateCustomNumpad = { viewModel.setUseCustomNumpadInFocusMode(it) },
+                            onUpdateCyberCrappRotationMode = { viewModel.setCyberCrappRotationMode(it) },
+                            onUpdateRoutineSchedule = { id, days -> viewModel.updateRoutineSchedule(id, days) },
                             onStartDeload = { viewModel.startManualDeload() },
                             onEndDeloadEarly = { viewModel.endDeloadEarly() }
                         )
@@ -7118,6 +7121,52 @@ fun ProtocolDetailScreen(
             item { DossierSection("CONTRACT", dossier.loggingContract) }
 
             item { DossierSection("INTAKE", dossier.intake) }
+
+            if (protocol == WorkoutProtocol.CYBER_CRAPP) {
+                item {
+                    DossierSection("ROTATION MODE", "") {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().selectableGroup(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                CyberCrappRotationMode.entries.forEach { mode ->
+                                    val isSelected = uiState.cyberCrappRotationMode == mode
+                                    val buttonBg = if (isSelected) theme.surfaceRaised else theme.canvas
+                                    val textColor = if (isSelected) theme.ink else theme.ink.copy(alpha = 0.5f)
+                                    val borderColor = if (isSelected) theme.accent else theme.accent.copy(alpha = 0.2f)
+
+                                    Surface(
+                                        onClick = { viewModel.setCyberCrappRotationMode(mode) },
+                                        modifier = Modifier.weight(1f).height(44.dp),
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = buttonBg,
+                                        border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, borderColor)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Text(
+                                                text = if (mode == CyberCrappRotationMode.STRAIGHT) "STRAIGHT" else "A / B",
+                                                color = textColor,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 12.sp,
+                                                fontFamily = FontFamily.Monospace
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            Text(
+                                text = if (uiState.cyberCrappRotationMode == CyberCrappRotationMode.STRAIGHT)
+                                    "Straight — strength focus, same lifts"
+                                else
+                                    "A/B — lower overuse risk, alternating variants",
+                                color = theme.ink.copy(alpha = 0.6f),
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                }
+            }
 
             item {
                 DossierSection("TENETS", "") {

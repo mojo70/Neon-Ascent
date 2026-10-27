@@ -1219,6 +1219,7 @@ class FullDataBackupRepositoryImplTest {
             sequencerEnabled = true,
             customSequenceIds = "[\"seq1\"]",
             coachingHintsEnabled = true,
+            cyberCrappRotationMode = "A_B",
             lastBlastStartDate = Instant.ofEpochMilli(1726132800000L)
         )
         workoutDao.insertUserProfile(originalProfile)
@@ -1242,6 +1243,7 @@ class FullDataBackupRepositoryImplTest {
         assertEquals("MALE", restoredProfile?.gender)
         assertEquals(true, restoredProfile?.deepLinkToRoutine)
         assertEquals("[\"seq1\"]", restoredProfile?.customSequenceIds)
+        assertEquals("A_B", restoredProfile?.cyberCrappRotationMode)
         assertEquals(1726132800000L, restoredProfile?.lastBlastStartDate?.toEpochMilli())
     }
 
@@ -1395,6 +1397,7 @@ class FullDataBackupRepositoryImplTest {
 
         workoutPrefs.setWorkoutLayoutMode(com.neon.ascent.core.domain.workout.models.WorkoutLayoutMode.FOCUS)
         workoutPrefs.setUseCustomNumpadInFocusMode(true)
+        workoutPrefs.setCyberCrappRotationMode(com.neon.ascent.core.domain.workout.models.CyberCrappRotationMode.A_B)
 
         val json = repository.exportBackupJson(BackupScope())
 
@@ -1404,6 +1407,7 @@ class FullDataBackupRepositoryImplTest {
         healthPrefs.setAutoStartRestTimer(true)
         workoutPrefs.setWorkoutLayoutMode(com.neon.ascent.core.domain.workout.models.WorkoutLayoutMode.CLASSIC)
         workoutPrefs.setUseCustomNumpadInFocusMode(false)
+        workoutPrefs.setCyberCrappRotationMode(com.neon.ascent.core.domain.workout.models.CyberCrappRotationMode.STRAIGHT)
 
         val result = repository.restoreBackupJson(json, RestoreMode.MERGE)
         assertTrue(result.success)
@@ -1420,6 +1424,46 @@ class FullDataBackupRepositoryImplTest {
         assertEquals("ex_bench", healthPrefs.codexLastExerciseId.first())
         assertEquals(com.neon.ascent.core.domain.workout.models.WorkoutLayoutMode.FOCUS, workoutPrefs.workoutLayoutMode.first())
         assertEquals(true, workoutPrefs.useCustomNumpadInFocusMode.first())
+        assertEquals(com.neon.ascent.core.domain.workout.models.CyberCrappRotationMode.A_B, workoutPrefs.cyberCrappRotationMode.first())
+    }
+
+    @Test
+    fun `export and restore preserves cyberCrappRotationMode in preferences and user profile`() = runBlocking {
+        val workoutPrefs = com.neon.ascent.core.data.datastore.WorkoutPreferencesDataStore(testContext)
+        workoutPrefs.setCyberCrappRotationMode(com.neon.ascent.core.domain.workout.models.CyberCrappRotationMode.A_B)
+
+        val profile = UserWorkoutProfileEntity(
+            userId = "default_user",
+            experienceLevel = "INTERMEDIATE",
+            somatotype = "MESOMORPH",
+            injuries = emptyList(),
+            timePerSessionMinutes = 60,
+            age = 30,
+            heightCm = 175f,
+            weightKg = 75f,
+            gender = "MALE",
+            activityFactor = 1.2f,
+            unitSystem = "METRIC",
+            activeProtocol = "CYBER_CRAPP",
+            rotationIndex = 0,
+            scheduledDays = "[]",
+            deepLinkToRoutine = true,
+            cyberCrappRotationMode = "A_B"
+        )
+        workoutDao.insertUserProfile(profile)
+
+        val json = repository.exportBackupJson(BackupScope())
+
+        // Reset local preferences and DAO
+        workoutPrefs.setCyberCrappRotationMode(com.neon.ascent.core.domain.workout.models.CyberCrappRotationMode.STRAIGHT)
+        workoutDao.profiles.clear()
+
+        val result = repository.restoreBackupJson(json, RestoreMode.MERGE)
+        assertTrue(result.success)
+
+        assertEquals(com.neon.ascent.core.domain.workout.models.CyberCrappRotationMode.A_B, workoutPrefs.cyberCrappRotationMode.first())
+        val restoredProfile = workoutDao.getUserProfile("default_user").first()
+        assertEquals("A_B", restoredProfile?.cyberCrappRotationMode)
     }
 
     @Test

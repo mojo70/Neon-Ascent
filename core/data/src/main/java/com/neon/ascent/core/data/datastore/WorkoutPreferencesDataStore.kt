@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.neon.ascent.core.domain.workout.models.CyberCrappRotationMode
 import com.neon.ascent.core.domain.workout.models.WorkoutLayoutMode
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -24,9 +25,23 @@ class WorkoutPreferencesDataStore @Inject constructor(
     private object Keys {
         val WORKOUT_LAYOUT_MODE = stringPreferencesKey("workoutLayoutMode")
         val USE_CUSTOM_NUMPAD_FOCUS_MODE = booleanPreferencesKey("useCustomNumpadFocusMode")
+        val CYBER_CRAPP_ROTATION_MODE = stringPreferencesKey("cyberCrappRotationMode")
     }
 
     private val dataStore = context.workoutDataStore
+
+    val cyberCrappRotationMode: Flow<CyberCrappRotationMode> = dataStore.data.map { prefs ->
+        val modeStr = prefs[Keys.CYBER_CRAPP_ROTATION_MODE]
+        if (modeStr != null) {
+            try {
+                CyberCrappRotationMode.valueOf(modeStr)
+            } catch (e: Exception) {
+                CyberCrappRotationMode.STRAIGHT
+            }
+        } else {
+            CyberCrappRotationMode.STRAIGHT
+        }
+    }
 
     val workoutLayoutMode: Flow<WorkoutLayoutMode> = dataStore.data.map { prefs ->
         val modeStr = prefs[Keys.WORKOUT_LAYOUT_MODE]
@@ -54,6 +69,12 @@ class WorkoutPreferencesDataStore @Inject constructor(
     suspend fun setUseCustomNumpadInFocusMode(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[Keys.USE_CUSTOM_NUMPAD_FOCUS_MODE] = enabled
+        }
+    }
+
+    suspend fun setCyberCrappRotationMode(mode: CyberCrappRotationMode) {
+        dataStore.edit { prefs ->
+            prefs[Keys.CYBER_CRAPP_ROTATION_MODE] = mode.name
         }
     }
 }

@@ -142,6 +142,7 @@ data class WorkoutUiState(
     val allRoutines: List<WorkoutRoutine> = emptyList(),
     val layoutMode: WorkoutLayoutMode = WorkoutLayoutMode.CLASSIC,
     val useCustomNumpadInFocusMode: Boolean = false,
+    val cyberCrappRotationMode: CyberCrappRotationMode = CyberCrappRotationMode.STRAIGHT,
     val operationalStatus: OperationalStatus = OperationalStatus.NOMINAL,
     val isStatusBannerDismissed: Boolean = false,
     val linkedDirectiveTitle: String? = null,
@@ -335,6 +336,12 @@ class WorkoutViewModel @Inject constructor(
             }
 
             launch {
+                workoutPreferencesDataStore.cyberCrappRotationMode.collect { mode ->
+                    _uiState.update { it.copy(cyberCrappRotationMode = mode) }
+                }
+            }
+
+            launch {
                 try {
                     val slot = if (LocalTime.now().hour < 15) BriefSlot.AM else BriefSlot.PM
                     val freshFacts = factsBuilder.build(slot)
@@ -354,7 +361,8 @@ class WorkoutViewModel @Inject constructor(
                 try {
                     val sessions = repository.getAllSessions().first()
                     val routines = repository.getAllRoutines().first()
-                    val nextRoutine = WorkoutRotationResolver.resolveNextRoutine(sessions, routines)
+                    val rotationMode = _uiState.value.cyberCrappRotationMode
+                    val nextRoutine = WorkoutRotationResolver.resolveNextRoutine(sessions, routines, WorkoutProtocol.CYBER_CRAPP, rotationMode)
                     if (nextRoutine != null) {
                         syncTrainingTasks(nextRoutine)
                     }
@@ -901,6 +909,15 @@ class WorkoutViewModel @Inject constructor(
             repository.saveUserProfile(profile)
             syncWorkoutReminders(profile)
             _uiState.update { it.copy(userProfile = profile, isShowingSettings = false, tempSettingsProfile = null) }
+        }
+    }
+
+    fun updateRoutineSchedule(routineId: String, scheduledDays: List<ScheduledDay>) {
+        viewModelScope.launch {
+            val routine = _uiState.value.allRoutines.find { it.id == routineId }
+                ?: repository.getAllRoutines().first().find { it.id == routineId }
+                ?: return@launch
+            repository.saveRoutine(routine.copy(scheduledDays = scheduledDays))
         }
     }
 
@@ -1633,6 +1650,13 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
+    fun setCyberCrappRotationMode(mode: CyberCrappRotationMode) {
+        _uiState.update { it.copy(cyberCrappRotationMode = mode) }
+        viewModelScope.launch {
+            workoutPreferencesDataStore.setCyberCrappRotationMode(mode)
+        }
+    }
+
     fun initiateDeactivateProtocol() {
         _uiState.update { it.copy(showDeactivateProtocolDialog = true) }
     }
@@ -1688,7 +1712,7 @@ class WorkoutViewModel @Inject constructor(
             val sessions = repository.getAllSessions().first()
             val routines = repository.getAllRoutines().first()
             val matchingRoutine = _uiState.value.nextSequencedRoutine?.takeIf { it.protocol == protocol }
-                ?: WorkoutRotationResolver.resolveNextRoutine(sessions, routines, protocol)
+                ?: WorkoutRotationResolver.resolveNextRoutine(sessions, routines, protocol, _uiState.value.cyberCrappRotationMode)
 
             if (matchingRoutine != null) {
                 startRoutine(matchingRoutine, effectiveIsDeload)
@@ -3738,7 +3762,8 @@ class WorkoutViewModel @Inject constructor(
             try {
                 val sessions = repository.getAllSessions().first()
                 val routines = repository.getAllRoutines().first()
-                val nextRoutine = WorkoutRotationResolver.resolveNextRoutine(sessions, routines)
+                val rotationMode = _uiState.value.cyberCrappRotationMode
+                val nextRoutine = WorkoutRotationResolver.resolveNextRoutine(sessions, routines, WorkoutProtocol.CYBER_CRAPP, rotationMode)
                 if (nextRoutine != null) {
                     syncTrainingTasks(nextRoutine)
                 }

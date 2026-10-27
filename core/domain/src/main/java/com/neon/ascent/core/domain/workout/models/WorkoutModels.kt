@@ -595,6 +595,7 @@ data class UserWorkoutProfile(
     val customSequenceIds: List<String> = emptyList(),
     val coachingHintsEnabled: Boolean = true,
     val breathingVibrationEnabled: Boolean = true,
+    val cyberCrappRotationMode: CyberCrappRotationMode = CyberCrappRotationMode.STRAIGHT,
     val lastBlastStartDate: Instant? = null
 )
 
@@ -624,7 +625,8 @@ data class WorkoutRoutine(
     val protocol: WorkoutProtocol = WorkoutProtocol.GENERAL,
     val createdAt: Instant = Instant.now(),
     val isSystem: Boolean = false,
-    val isAddedToLibrary: Boolean = true
+    val isAddedToLibrary: Boolean = true,
+    val scheduledDays: List<ScheduledDay> = emptyList()
 )
 
 data class RoutineExercise(

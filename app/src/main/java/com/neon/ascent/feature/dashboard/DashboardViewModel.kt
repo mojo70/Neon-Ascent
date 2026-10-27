@@ -85,7 +85,8 @@ class DashboardViewModel @Inject constructor(
     private val healthManager: com.neon.ascent.core.domain.health.HealthManager,
     private val workoutRepository: WorkoutRepository,
     private val healthRepository: HealthRepository,
-    private val ritesRepository: RitesRepository
+    private val ritesRepository: RitesRepository,
+    private val workoutPreferencesDataStore: com.neon.ascent.core.data.datastore.WorkoutPreferencesDataStore
 ) : ViewModel() {
     val userCharacter: StateFlow<UserCharacter?> = characterRepository.getUserCharacter()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -318,7 +319,8 @@ class DashboardViewModel @Inject constructor(
                 val scheduledCount = userProfile?.scheduledDays?.takeIf { it.isNotEmpty() }?.size ?: 3
                 val isWeeklyTargetMet = sessionsThisWeekCount >= scheduledCount
 
-                val nextRoutine = com.neon.ascent.core.domain.workout.rules.WorkoutRotationResolver.resolveNextRoutine(sessions, routines)
+                val rotationMode = workoutPreferencesDataStore.cyberCrappRotationMode.first()
+                val nextRoutine = com.neon.ascent.core.domain.workout.rules.WorkoutRotationResolver.resolveNextRoutine(sessions, routines, com.neon.ascent.core.domain.workout.models.WorkoutProtocol.CYBER_CRAPP, rotationMode)
                 val routineTitle = "TRAINING SESSION: ${(nextRoutine?.name ?: "GENERAL").uppercase()}"
 
                 val scheduledToday = userProfile?.scheduledDays?.find { DayOfWeek.of(it.dayOfWeek) == today.dayOfWeek }
