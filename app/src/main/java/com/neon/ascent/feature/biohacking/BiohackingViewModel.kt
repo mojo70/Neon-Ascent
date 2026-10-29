@@ -35,9 +35,13 @@ import com.neon.ascent.feature.health.domain.uplink.UplinkProvider
 import com.neon.ascent.feature.health.domain.uplink.UplinkSyncStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
+import com.neon.ascent.feature.biohacking.ui.labs.buildLabsScanPrompt
+import com.neon.ascent.feature.biohacking.ui.labs.tapeEntryToCentimeters
 import com.neon.ascent.core.data.local.entity.BodySampleEntity
 import com.neon.ascent.core.data.repository.BodyLogRepository
 import com.neon.ascent.core.data.repository.RitesRepository
@@ -157,6 +161,7 @@ class BiohackingViewModel @Inject constructor(
 
     private val _isNeuralCoreThinking = MutableStateFlow(false)
     val isNeuralCoreThinking: StateFlow<Boolean> = _isNeuralCoreThinking.asStateFlow()
+    private var scanJob: Job? = null
 
     private val _latestReport = MutableStateFlow<String?>(null)
     val latestReport: StateFlow<String?> = _latestReport.asStateFlow()
@@ -446,24 +451,45 @@ class BiohackingViewModel @Inject constructor(
         }
     }
 
-    fun initiateLocalScan(sector: String) {
+    fun cancelScan() {
+        scanJob?.cancel()
+        scanJob = null
+        _isNeuralCoreThinking.value = false
+    }
+
+    private fun startScanJob(block: suspend kotlinx.coroutines.CoroutineScope.() -> Unit) {
+        scanJob?.cancel()
         _isNeuralCoreThinking.value = true
-        viewModelScope.launch {
-            val char = _character.value
-            val data = _uiState.value
-            
-            val prompt = """
-                SYSTEM_SCAN_REQUEST: Sector $sector
-                USER_PROFILE: ${char?.archetype} / ${char?.mbti}
-                BIOMETRICS: Energy=${data.energyScore}, Mood=${data.moodScore}, Focus=${data.focusScore}
-                OBJECTIVE: Generate a high-impact cyberpunk biohacking protocol for this sector. 
-                FORMAT: Concise, technical, neon-noir style. Max 100 words.
-            """.trimIndent()
-            
+        scanJob = viewModelScope.launch {
+            try {
+                block()
+            } finally {
+                if (coroutineContext[Job]?.isActive == true) {
+                    _isNeuralCoreThinking.value = false
+                }
+            }
+        }
+    }
+
+    fun initiateLocalScan(sector: String) {
+        val char = _character.value
+        val data = _uiState.value
+        startScanJob {
+            val prompt = buildLabsScanPrompt(
+                sector = sector,
+                archetype = char?.archetype,
+                mbti = char?.mbti,
+                energyScore = data.energyScore,
+                moodScore = data.moodScore,
+                focusScore = data.focusScore,
+                sex = char?.sex,
+                pregnancyFlag = data.pregnancyFlag,
+                primaryObjective = data.primaryObjective,
+                contraindications = data.contraindications
+            )
             val result = aiProvider.generateContent(prompt, forceLocal = data.enableOnDeviceNeuralCore)
+            if (coroutineContext[Job]?.isActive != true) return@startScanJob
             _latestReport.value = result
-            _isNeuralCoreThinking.value = false
-            
             updateData { it.copy(latestReportJson = result, reportTimestamp = System.currentTimeMillis()) }
         }
     }
@@ -544,8 +570,7 @@ class BiohackingViewModel @Inject constructor(
     }
 
     fun processLabResults(uri: Uri) {
-        viewModelScope.launch {
-            _isNeuralCoreThinking.value = true
+        startScanJob {
             try {
                 val contentResolver = context.contentResolver
                 val type = contentResolver.getType(uri)
@@ -578,6 +603,7 @@ class BiohackingViewModel @Inject constructor(
                         )
                     )
 
+                    if (coroutineContext[Job]?.isActive != true) return@startScanJob
                     updateData { it.copy(
                         calculatedBioAge = bioAge,
                         calendarAgeAtCalculation = calendarAge,
@@ -591,10 +617,12 @@ class BiohackingViewModel @Inject constructor(
                         ${result.explanation}
                     """.trimIndent()
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                _latestReport.value = "ERROR_PROCESSING_LAB_RESULTS: ${e.message}"
-            } finally {
-                _isNeuralCoreThinking.value = false
+                if (coroutineContext[Job]?.isActive == true) {
+                    _latestReport.value = "ERROR_PROCESSING_LAB_RESULTS: ${e.message}"
+                }
             }
         }
     }
@@ -769,15 +797,17 @@ class BiohackingViewModel @Inject constructor(
                 "CALF" to input.tapeCalfCm,
                 "FOREARM" to input.tapeForearmCm
             )
-            for ((site, cmStr) in tapeMap) {
-                cmStr.toDoubleOrNull()?.let { cm ->
+            for ((site, enteredStr) in tapeMap) {
+                enteredStr.toDoubleOrNull()?.let { entered ->
+                    // Imperial tape entry is inches. Stored samples stay centimeters.
+                    val centimeters = tapeEntryToCentimeters(entered, isImperial)
                     samples.add(
                         BodySampleEntity(
                             localDate = localDate,
                             loggedAt = loggedAt,
                             metric = "TAPE",
                             site = site,
-                            value = cm,
+                            value = centimeters,
                             unit = "CM",
                             side = input.tapeSide,
                             source = "NEON",

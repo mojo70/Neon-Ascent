@@ -1,65 +1,140 @@
+@file:OptIn(
+    androidx.compose.foundation.ExperimentalFoundationApi::class,
+    androidx.compose.material3.ExperimentalMaterial3Api::class
+)
+
 package com.neon.ascent.feature.biohacking
 
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.*
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.health.connect.client.PermissionController
-import com.neon.ascent.core.common.*
-import com.neon.ascent.core.domain.model.SpecialType
-import com.neon.ascent.feature.health.domain.uplink.*
-import com.neon.ascent.feature.health.data.workers.HealthSyncWorker
-import com.neon.ascent.feature.health.data.services.LiveBiometricService
-import com.neon.ascent.core.domain.character.models.UserCharacter
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.neon.ascent.core.common.LocalNeonTheme
+import com.neon.ascent.core.common.LocalVisualMode
+import com.neon.ascent.core.common.VisualMode
 import com.neon.ascent.core.data.local.entity.BodySampleEntity
+import com.neon.ascent.core.domain.character.models.UserCharacter
+import com.neon.ascent.core.domain.model.SpecialType
+import com.neon.ascent.feature.biohacking.ui.labs.LabsAnalyzeSection
+import com.neon.ascent.feature.biohacking.ui.labs.LabsCheckInSection
+import com.neon.ascent.feature.biohacking.ui.labs.LabsSection
+import com.neon.ascent.feature.biohacking.ui.labs.LabsTodaySection
+import com.neon.ascent.feature.biohacking.ui.labs.labsSectionForFocus
+import com.neon.ascent.feature.biohacking.ui.labs.showsPregnancyCheck
+import com.neon.ascent.feature.biohacking.ui.labs.waistDisplayValue
+import com.neon.ascent.feature.biohacking.ui.sheet.BodyLogAnchor
+import com.neon.ascent.feature.biohacking.ui.sheet.BodyLogSheet
+import com.neon.ascent.feature.health.data.services.LiveBiometricService
+import com.neon.ascent.feature.health.domain.uplink.UplinkProvider
+import com.neon.ascent.feature.health.domain.uplink.UplinkStatus
+import com.neon.ascent.feature.health.domain.uplink.UplinkSyncStatus
 import com.neon.ascent.model.BioProtocolLog
 import com.neon.ascent.model.BiohackingData
-import com.neon.ascent.ui.*
+import com.neon.ascent.model.HealthTrend
+import com.neon.ascent.ui.CyberActionButton
+import com.neon.ascent.ui.CyberCutShape
+import com.neon.ascent.ui.CyberFrame
+import com.neon.ascent.core.common.CyberGridBackground
+import com.neon.ascent.ui.GlitchText
+import com.neon.ascent.ui.NeuralLoadGauge
 import com.neon.ascent.ui.components.ChargeInspectSheet
-import com.neon.ascent.feature.biohacking.ui.sheet.BodyLogSheet
-import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.Period
 import java.time.format.DateTimeFormatter
-import java.util.*
-
-import com.neon.ascent.feature.dashboard.selfmap.SelfMapViewModel
-import com.neon.ascent.feature.dashboard.selfmap.getLoadBandLabel
-import androidx.compose.material.icons.automirrored.filled.LibraryBooks
-import com.neon.ascent.core.domain.labs.models.Diet
-import com.neon.ascent.core.domain.labs.models.Supplement
-import com.neon.ascent.core.domain.labs.models.SupplementOverride
-import com.neon.ascent.core.domain.labs.models.BiohackingProtocol
-import com.neon.ascent.core.domain.labs.models.BiohackingProtocolOverride
+import java.util.Locale
+import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 @Composable
 fun BiohackingScreen(
@@ -82,7 +157,7 @@ fun BiohackingScreen(
     val characterState by viewModel.character.collectAsState()
     val logs by viewModel.logs.collectAsState()
     val isNeuralCoreThinking by viewModel.isNeuralCoreThinking.collectAsState()
-    
+    val latestReport by viewModel.latestReport.collectAsState()
     val activeAiType by viewModel.activeAiType.collectAsState()
     val isLocalAiAvailable = activeAiType == AiType.LOCAL
     val downloadProgress by viewModel.modelDownloadManager.downloadProgress.collectAsState()
@@ -110,60 +185,90 @@ fun BiohackingScreen(
     val activeProtocols by viewModel.activeProtocols.collectAsState()
     val protocolOverrides by viewModel.protocolOverrides.collectAsState()
     val isHigherCarbDay by viewModel.isHigherCarbDay.collectAsState()
+    val bodySamples by viewModel.recentBodySamples.collectAsState()
+    val neonRowsCount by viewModel.neonBodyRowsCount.collectAsState()
+
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
-
-    LaunchedEffect(isSyncing) {
-        if (isSyncing) {
-            snackbarHostState.showSnackbar("Neural Uplink: Manual sync initiated...")
-        }
-    }
-
-    LaunchedEffect(uiState.isWearableSynced) {
-        if (uiState.isWearableSynced) {
-            snackbarHostState.showSnackbar("Neural Link Established: Synchronizing telemetry.")
-        }
-    }
-
-    val displayChar = characterState ?: UserCharacter(
-        name = "PROTAGONIST", sex = "NON_BINARY", dob = "2077.01.01", units = measurementUnit, weight = "75", somatotype = 0.5f
-    )
-
-    var selectedSector by remember { mutableStateOf("CORE_CHASSIS") }
-    var scanProgress by remember { mutableFloatStateOf(0f) }
-    var showReport by remember { mutableStateOf(false) }
-    var showEffectivenessLogger by remember { mutableStateOf(false) }
-    var showBodyLogSheet by remember { mutableStateOf(false) }
-    var showChargeSheet by remember { mutableStateOf(false) }
-    var showDailyOriginSheet by remember { mutableStateOf(false) }
-    val scrollState = rememberScrollState()
-
-    val filePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: android.net.Uri? ->
-        uri?.let { viewModel.processLabResults(it) }
-    }
-
-    val permissionsLauncher = rememberLauncherForActivityResult(
-        PermissionController.createRequestPermissionResultContract()
-    ) { granted ->
-        viewModel.syncWearable()
-        viewModel.checkAndTriggerBodyBackfill()
-    }
-
-    LaunchedEffect(Unit) {
-        viewModel.checkAndTriggerBodyBackfill()
-    }
-
     val scope = rememberCoroutineScope()
     val theme = LocalNeonTheme.current
     val visualMode = LocalVisualMode.current
     val neonCyan = if (visualMode == VisualMode.STEVE) theme.ink else if (visualMode == VisualMode.PILOT) theme.accent else Color(0xFF00F5FF)
     val neonMagenta = if (visualMode == VisualMode.STEVE) theme.secondary else if (visualMode == VisualMode.PILOT) theme.accentDanger else Color(0xFFFF0088)
-    val voidBg = theme.canvas
 
-    val bodySamples by viewModel.recentBodySamples.collectAsState()
-    val neonRowsCount by viewModel.neonBodyRowsCount.collectAsState()
+    val displayChar = characterState ?: UserCharacter(
+        name = "PROTAGONIST", sex = "NON_BINARY", dob = "2077.01.01", units = measurementUnit, weight = "75", somatotype = 0.5f
+    )
+
+    val focusedSection = labsSectionForFocus(focus)
+    var toolsExpanded by remember(focus) { mutableStateOf(focusedSection == LabsSection.Tools) }
+    var connectExpanded by remember(focus) { mutableStateOf(focusedSection == LabsSection.Connect) }
+    var checkInExpanded by remember(focus) { mutableStateOf(focusedSection == LabsSection.CheckIn) }
+    var recordsExpanded by remember(focus) { mutableStateOf(focusedSection == LabsSection.Records) }
+    var analyzeExpanded by remember(focus) { mutableStateOf(focusedSection == LabsSection.Analyze) }
+
+    var selectedSector by remember { mutableStateOf("CORE_CHASSIS") }
+    var showEffectivenessLogger by remember { mutableStateOf(false) }
+    var showBodyLogSheet by remember { mutableStateOf(false) }
+    var bodyLogAnchor by remember { mutableStateOf<BodyLogAnchor?>(null) }
+    var showChargeSheet by remember { mutableStateOf(false) }
+    var showDailyOriginSheet by remember { mutableStateOf(false) }
+    var showPrivacySheet by remember { mutableStateOf(false) }
+    var scanWasRunning by remember { mutableStateOf(false) }
+
+    val todayRequester = remember { BringIntoViewRequester() }
+    val logRequester = remember { BringIntoViewRequester() }
+    val toolsRequester = remember { BringIntoViewRequester() }
+    val connectRequester = remember { BringIntoViewRequester() }
+    val checkInRequester = remember { BringIntoViewRequester() }
+    val recordsRequester = remember { BringIntoViewRequester() }
+    val analyzeRequester = remember { BringIntoViewRequester() }
+
+    LaunchedEffect(isSyncing) {
+        if (isSyncing) snackbarHostState.showSnackbar("Neural Uplink: Manual sync initiated...")
+    }
+    LaunchedEffect(uiState.isWearableSynced) {
+        if (uiState.isWearableSynced) snackbarHostState.showSnackbar("Neural Link Established: Synchronizing telemetry.")
+    }
+    LaunchedEffect(focus) {
+        if (focus == null) return@LaunchedEffect
+        when (labsSectionForFocus(focus)) {
+            LabsSection.Today -> todayRequester.bringIntoView()
+            LabsSection.Log -> logRequester.bringIntoView()
+            LabsSection.Tools -> toolsRequester.bringIntoView()
+            LabsSection.Connect -> connectRequester.bringIntoView()
+            LabsSection.CheckIn -> checkInRequester.bringIntoView()
+            LabsSection.Records -> recordsRequester.bringIntoView()
+            LabsSection.Analyze -> analyzeRequester.bringIntoView()
+        }
+    }
+    LaunchedEffect(isNeuralCoreThinking) {
+        if (isNeuralCoreThinking) {
+            scanWasRunning = true
+        } else if (scanWasRunning) {
+            scanWasRunning = false
+            if (latestReport != null) {
+                analyzeExpanded = true
+                analyzeRequester.bringIntoView()
+            }
+        }
+    }
+
+    val filePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let { viewModel.processLabResults(it) }
+    }
+    val permissionsLauncher = rememberLauncherForActivityResult(
+        PermissionController.createRequestPermissionResultContract()
+    ) {
+        viewModel.syncWearable()
+        viewModel.checkAndTriggerBodyBackfill()
+    }
+    LaunchedEffect(Unit) { viewModel.checkAndTriggerBodyBackfill() }
+
+    fun openBodyLog(anchor: BodyLogAnchor) {
+        bodyLogAnchor = anchor
+        showBodyLogSheet = true
+    }
 
     if (showBodyLogSheet) {
         BodyLogSheet(
@@ -173,29 +278,26 @@ fun BiohackingScreen(
                 showBodyLogSheet = false
             },
             measurementUnit = measurementUnit,
+            initialAnchor = bodyLogAnchor,
             showShareToHcFooter = neonRowsCount > 0,
             onRequestHcBodyPerms = {
                 scope.launch {
                     val permissions = viewModel.getPermissionsToRequest()
-                    if (permissions.isNotEmpty()) {
-                        permissionsLauncher.launch(permissions)
-                    }
+                    if (permissions.isNotEmpty()) permissionsLauncher.launch(permissions)
                 }
             }
         )
     }
-
     if (showDailyOriginSheet) {
         com.neon.ascent.feature.biohacking.ui.sheet.DailyOriginSheet(
             onDismiss = { showDailyOriginSheet = false },
-            onOpenChronicleCompose = { date, entryId ->
+            onOpenChronicleCompose = { _, _ ->
                 showDailyOriginSheet = false
                 onNavigateToChronicle?.invoke()
             },
             viewModel = viewModel
         )
     }
-
     if (showPermissionRationale) {
         com.neon.ascent.feature.health.ui.PermissionRationaleDialog(
             rationale = permissionsRationale,
@@ -203,64 +305,27 @@ fun BiohackingScreen(
                 viewModel.dismissRationale()
                 scope.launch {
                     val permissions = viewModel.getPermissionsToRequest()
-                    if (permissions.isEmpty()) {
-                        // All permissions already granted, just sync
-                        viewModel.syncWearable()
-                    } else {
-                        permissionsLauncher.launch(permissions)
-                    }
+                    if (permissions.isEmpty()) viewModel.syncWearable() else permissionsLauncher.launch(permissions)
                 }
             },
             onDismiss = { viewModel.dismissRationale() }
         )
     }
-
-    LaunchedEffect(isNeuralCoreThinking) {
-        if (isNeuralCoreThinking) {
-            animate(0f, 1f, animationSpec = tween(2000, easing = LinearOutSlowInEasing)) { value, _ ->
-                scanProgress = value
-            }
-        } else if (scanProgress > 0f) {
-            showReport = true
-            animate(1f, 0f, animationSpec = tween(500)) { value, _ ->
-                scanProgress = value
-            }
-        }
-    }
-
-    // Privacy Onboarding Overlay
-    if (!uiState.hasCompletedPrivacyOnboarding) {
-        PrivacyOnboarding(
-            onComplete = { anon, wearable, genetic, neuralCore ->
-                viewModel.updateData { it.copy(
-                    consentAnonymizedUpload = anon,
-                    consentWearableSync = wearable,
-                    consentGeneticData = genetic,
-                    enableOnDeviceNeuralCore = neuralCore,
-                    hasCompletedPrivacyOnboarding = true,
-                    hasConsentedToDataProcessing = true
-                ) }
-            },
-            neonCyan = neonCyan,
-            neonMagenta = neonMagenta,
-            overlayColor = theme.overlay.copy(alpha = 0.95f)
+    if (showChargeSheet && neonCharge != null) {
+        ChargeInspectSheet(
+            charge = neonCharge,
+            onDismiss = { showChargeSheet = false },
+            isLabsView = true
         )
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(voidBg)
-            .cyberGlitch(intensity = if (visualMode == VisualMode.STEVE) 0f else scanProgress * 0.75f)
-    ) {
+    Box(modifier = Modifier.fillMaxSize().background(theme.canvas)) {
         if (visualMode == VisualMode.CYBER) {
             CyberGridBackground()
-            FloatingParticles(intensity = displayChar.neuralLoad + (scanProgress * 0.5f))
         }
-        
         Scaffold(
             containerColor = Color.Transparent,
-            snackbarHost = { 
+            snackbarHost = {
                 SnackbarHost(snackbarHostState) { data ->
                     Surface(
                         modifier = Modifier.padding(16.dp),
@@ -284,734 +349,467 @@ fun BiohackingScreen(
                     .fillMaxSize()
                     .padding(padding)
                     .padding(horizontal = 16.dp)
-                    .verticalScroll(scrollState)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Header
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            "BIOHACKING_INTERFACE // V.2.3",
-                            color = neonCyan,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Black,
-                            fontFamily = FontFamily.Monospace
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                "COLLECTIVE_NET: ${if (uiState.consentAnonymizedUpload) "SYNC_ON" else "OFFLINE"}",
-                                color = (if (uiState.consentAnonymizedUpload) neonCyan else neonMagenta).copy(alpha = 0.6f),
-                                fontSize = 9.sp,
-                                fontFamily = FontFamily.Monospace
-                            )
-                            if (uiState.enableOnDeviceNeuralCore) {
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    "SYNAPSE_STATUS: LOCAL // NO NETWORK",
-                                    color = neonCyan,
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace,
-                                    modifier = Modifier
-                                        .background(neonCyan.copy(alpha = 0.1f))
-                                        .padding(horizontal = 4.dp)
-                                )
-                            }
-                        }
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onNavigateToDopamineMenu) {
-                            Icon(
-                                imageVector = Icons.Default.Bolt,
-                                contentDescription = "Dopamine Menu",
-                                tint = neonMagenta,
-                                modifier = Modifier.cyberGlitch(0.1f)
-                            )
-                        }
-                        IconButton(onClick = { onNavigateToGuide(null) }) {
-                            Icon(
-                                imageVector = Icons.Default.ChatBubble,
-                                contentDescription = "Neon Guide",
-                                tint = neonCyan,
-                                modifier = Modifier.cyberGlitch(0.1f)
-                            )
-                        }
-                        NeuralLoadGauge(
-                            load = if (isNeuralCoreThinking) 0.9f else displayChar.neuralLoad, 
-                            modifier = Modifier.size(64.dp)
-                        )
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(16.dp))
+                LabsHeader(
+                    collectiveOn = uiState.consentAnonymizedUpload,
+                    onDevice = uiState.enableOnDeviceNeuralCore,
+                    neuralLoad = if (isNeuralCoreThinking) 0.9f else displayChar.neuralLoad,
+                    accent = neonCyan,
+                    danger = neonMagenta,
+                    onStatusClick = {
+                        if (uiState.hasCompletedPrivacyOnboarding) showPrivacySheet = true
+                    },
+                    onDopamine = onNavigateToDopamineMenu,
+                    onGuide = { onNavigateToGuide(null) }
+                )
 
-                // Hero: Full Body Holographic Selector
-                ExpandableCyberFrame(
-                    label = "HOLOGRAPHIC_SELECTOR",
-                    borderColor = neonCyan,
-                    initiallyExpanded = focus == null || focus == "hologram"
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(380.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        FullBodyHologram(
-                            character = displayChar,
-                            neuralLoad = displayChar.neuralLoad,
-                            selectedSector = selectedSector,
-                            onSectorSelected = { 
-                                selectedSector = it
-                                if (uiState.enableOnDeviceNeuralCore) {
-                                    viewModel.initiateLocalScan(it)
-                                }
-                            },
-                            modifier = Modifier.fillMaxSize(0.9f),
-                            highlightColor = if (isNeuralCoreThinking) neonMagenta else neonCyan
-                        )
-                        
-                        SectorLabel("COGNITION", Alignment.TopEnd, selectedSector == "CRANIAL_NODE", neonCyan, neonMagenta)
-                        SectorLabel("ENDOCRINE", Alignment.CenterStart, selectedSector == "CORE_CHASSIS", neonCyan, neonMagenta)
-                        SectorLabel("RECOVERY", Alignment.BottomEnd, selectedSector == "MOTOR_EXTREMITIES", neonCyan, neonMagenta)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Quick Telemetry HUD Bar (Condensed Day Card, Self Map, Active Diet, Active Stack)
-                BiohackingTelemetryHud(
+                LabsTodaySection(
+                    modifier = Modifier.bringIntoViewRequester(todayRequester),
+                    snapshot = vitalsSnapshot,
+                    rhrSeries = rhrSeries,
+                    hrvSeries = hrvSeries,
+                    completedSessions = completedSessions,
+                    scheduledSessions = scheduledSessions,
+                    recoveryScore = recoveryScore,
+                    neonCharge = neonCharge,
+                    macros = macros,
+                    hasNutritionPermission = hasNutritionPermission,
                     neonCyan = neonCyan,
                     neonMagenta = neonMagenta,
-                    isCyber = visualMode == VisualMode.CYBER,
                     activeDiet = activeDiet,
                     isHigherCarbDay = isHigherCarbDay,
                     activeSupplementStack = activeSupplementStack,
                     supplementOverrides = supplementOverrides,
                     activeProtocols = activeProtocols,
                     protocolOverrides = protocolOverrides,
-                    onOpenDailyOriginSheet = { showDailyOriginSheet = true },
-                    onNavigateToSelfMap = onNavigateToSelfMap,
+                    onOpenDayCard = { showDailyOriginSheet = true },
+                    onOpenSelfMap = onNavigateToSelfMap,
                     onNavigateToCodexDiet = { onNavigateToGuide("Codex Diet Panel") },
                     onNavigateToCodexSupplements = { onNavigateToGuide("Codex Supplement Panel") },
-                    onNavigateToCodexProtocols = { onNavigateToGuide("Codex Protocol Panel") }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                CyberActionButton(
-                    label = "DOPAMINE_MENU // PROTOCOL_BYPASS",
-                    color = neonMagenta,
-                    onClick = onNavigateToDopamineMenu
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // LABS Tools Section
-                ExpandableCyberFrame(
-                    label = "LABS_TOOLS // DETERMINISTIC_CALCULATORS",
-                    borderColor = neonCyan,
-                    initiallyExpanded = focus == "calculators"
-                ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "PRECISION BIO-CALCULATORS",
-                            color = neonCyan,
-                            fontSize = 12.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Deterministic calculation tools for reconstitution, exponential half-life decay, and compound unit conversions.",
-                            color = Color.White.copy(alpha = 0.7f),
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        CyberActionButton(
-                            label = "LAUNCH // RECONSTITUTION_CALCULATOR",
-                            color = neonCyan,
-                            onClick = onNavigateToReconstitutionCalculator
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            CyberActionButton(
-                                label = "HALF-LIFE SKETCH",
-                                color = neonCyan,
-                                modifier = Modifier.weight(1f),
-                                onClick = onNavigateToHalfLifeSketch
-                            )
-                            CyberActionButton(
-                                label = "UNIT CONVERTER",
-                                color = neonCyan,
-                                modifier = Modifier.weight(1f),
-                                onClick = onNavigateToUnitConverter
-                            )
+                    onNavigateToCodexProtocols = { onNavigateToGuide("Codex Protocol Panel") },
+                    onNavigateToOps = onNavigateToOps,
+                    onRequestNutritionPermission = { viewModel.relink(UplinkProvider.HEALTH_CONNECT) },
+                    onChargeClick = {
+                        if (neonCharge == null) {
+                            connectExpanded = true
+                            scope.launch { connectRequester.bringIntoView() }
+                        } else {
+                            showChargeSheet = true
                         }
+                    }
+                )
+
+                Column(
+                    modifier = Modifier.bringIntoViewRequester(logRequester).fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "LOG",
+                        color = neonCyan,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Black,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    LabsTextButton("Log body", neonCyan) { openBodyLog(BodyLogAnchor.Weight) }
+                    LabsTextButton("Log blood pressure", neonCyan) { openBodyLog(BodyLogAnchor.BloodPressure) }
+                    LabsTextButton("Log how I feel", neonCyan) {
+                        checkInExpanded = true
+                        scope.launch { checkInRequester.bringIntoView() }
+                    }
+                    BodyLogCard(
+                        samples = bodySamples,
+                        measurementUnit = measurementUnit,
+                        neonCyan = neonCyan,
+                        onWeightClick = { openBodyLog(BodyLogAnchor.Weight) },
+                        onBodyFatClick = { openBodyLog(BodyLogAnchor.BodyFat) },
+                        onWaistClick = { openBodyLog(BodyLogAnchor.Waist) },
+                        onBloodPressureClick = { openBodyLog(BodyLogAnchor.BloodPressure) }
+                    )
+                }
+
+                LabsCollapsedSection(
+                    label = "TOOLS",
+                    expanded = toolsExpanded,
+                    onToggle = { toolsExpanded = !toolsExpanded },
+                    borderColor = neonCyan,
+                    modifier = Modifier.bringIntoViewRequester(toolsRequester)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        CyberActionButton("LAUNCH // RECONSTITUTION_CALCULATOR", neonCyan, onClick = onNavigateToReconstitutionCalculator)
+                        CyberActionButton("HALF-LIFE SKETCH", neonCyan, onClick = onNavigateToHalfLifeSketch)
+                        CyberActionButton("UNIT CONVERTER", neonCyan, onClick = onNavigateToUnitConverter)
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Uplink Status Section
-                UplinkStatusPanel(
-                    syncStatuses = uplinkSyncStatuses,
-                    isSyncing = isSyncing,
-                    neonCyan = neonCyan,
-                    neonMagenta = neonMagenta,
-                    onManualSyncClick = { viewModel.triggerManualSync() },
-                    onRelink = { provider -> 
-                        viewModel.relink(provider)
-                        onRelink(provider)
-                    },
-                    isLiveMonitoringEnabled = isLiveMonitoringEnabled,
-                    onLiveMonitoringToggle = { enabled ->
-                        viewModel.toggleLiveMonitoring(enabled)
-                        if (enabled) LiveBiometricService.start(context)
-                        else LiveBiometricService.stop(context)
-                    },
-                    initiallyExpanded = focus == "uplink"
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Nutrition Macros Uplink
-                macros?.let {
-                    NutritionMacrosCard(
-                        macros = it,
-                        neonCyan = neonCyan,
-                        neonMagenta = neonMagenta,
-                        initiallyExpanded = focus == "nutrition" || focus == "macros"
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
-
-                // VITALS Stack (P0)
-                ExpandableCyberFrame(
-                    label = "VITALS_STACK // CORE_TELEMETRY",
+                LabsCollapsedSection(
+                    label = "CONNECT",
+                    expanded = connectExpanded,
+                    onToggle = { connectExpanded = !connectExpanded },
                     borderColor = neonCyan,
-                    initiallyExpanded = focus == null || focus == "vitals"
+                    modifier = Modifier.bringIntoViewRequester(connectRequester)
                 ) {
-                    VitalsStack(
-                        snapshot = vitalsSnapshot,
-                        rhrSeries = rhrSeries,
-                        hrvSeries = hrvSeries,
-                        completedSessions = completedSessions,
-                        scheduledSessions = scheduledSessions,
-                        recoveryScore = recoveryScore,
-                        neonCharge = neonCharge,
-                        macros = macros,
-                        hasNutritionPermission = hasNutritionPermission,
+                    UplinkStatusPanel(
+                        syncStatuses = uplinkSyncStatuses,
+                        isSyncing = isSyncing,
                         neonCyan = neonCyan,
                         neonMagenta = neonMagenta,
-                        onNavigateToOps = onNavigateToOps,
-                        onRequestNutritionPermission = { viewModel.relink(UplinkProvider.HEALTH_CONNECT) },
-                        onChargeClick = { showChargeSheet = true }
-                    )
-                }
-                
-                if (showChargeSheet) {
-                    ChargeInspectSheet(
-                        charge = neonCharge,
-                        onDismiss = { showChargeSheet = false },
-                        isLabsView = true
-                    )
-                }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Biometric Trends Section
-                BiometricTrendsSection(
-                    trends = trends,
-                    selectedRange = selectedTimeRange,
-                    onRangeSelected = { viewModel.setTimeRange(it) },
-                    neonCyan = neonCyan,
-                    neonMagenta = neonMagenta,
-                    onNavigateToGuide = onNavigateToGuide,
-                    onNavigateToDopamineMenu = onNavigateToDopamineMenu,
-                    initiallyExpanded = focus == "trends"
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // BODY_LOG Card (P0)
-                BodyLogCard(
-                    samples = bodySamples,
-                    measurementUnit = measurementUnit,
-                    neonCyan = neonCyan,
-                    onLogBodyClick = { showBodyLogSheet = true },
-                    initiallyExpanded = focus == "body_log"
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Baselines Section
-                ExpandableBioSection("BASELINES_&_DEMOGRAPHICS", neonCyan, initiallyExpanded = focus == "baselines") {
-                    val isImperial = measurementUnit.equals("Imperial", ignoreCase = true)
-                    val lastWeightSample = bodySamples.filter { it.metric == "WEIGHT" }.maxByOrNull { it.loggedAt }
-                    val lastBfSample = bodySamples.filter { it.metric == "BF_PCT" }.maxByOrNull { it.loggedAt }
-
-                    val baselineWeightStr = lastWeightSample?.let {
-                        if (isImperial) {
-                            val lbs = it.value * 2.2046226218
-                            String.format(Locale.US, "%.1f LBS", lbs)
-                        } else {
-                            String.format(Locale.US, "%.1f KG", it.value)
+                        onManualSyncClick = { viewModel.triggerManualSync() },
+                        onRelink = { provider ->
+                            viewModel.relink(provider)
+                            onRelink(provider)
+                        },
+                        isLiveMonitoringEnabled = isLiveMonitoringEnabled,
+                        onLiveMonitoringToggle = { enabled ->
+                            viewModel.toggleLiveMonitoring(enabled)
+                            if (enabled) LiveBiometricService.start(context) else LiveBiometricService.stop(context)
                         }
-                    } ?: displayChar.formattedWeight(measurementUnit)
+                    )
+                }
 
-                    val baselineBfStr = lastBfSample?.let {
-                        val methodSuffix = it.method?.let { m -> " ($m)" } ?: ""
-                        String.format(Locale.US, "%.1f%%%s", it.value, methodSuffix)
-                    } ?: uiState.bodyFatPercentage?.let {
-                        String.format(Locale.US, "%.1f%%", it)
-                    } ?: "NOT_LOGGED"
+                LabsCollapsedSection(
+                    label = "CHECK-IN",
+                    expanded = checkInExpanded,
+                    onToggle = { checkInExpanded = !checkInExpanded },
+                    borderColor = neonCyan,
+                    modifier = Modifier.bringIntoViewRequester(checkInRequester)
+                ) {
+                    LabsCheckInSection(
+                        energy = uiState.energyScore,
+                        mood = uiState.moodScore,
+                        focus = uiState.focusScore,
+                        stress = uiState.stressLevel,
+                        objective = uiState.primaryObjective,
+                        contraindications = uiState.contraindications,
+                        pregnancyFlag = uiState.pregnancyFlag,
+                        showPregnancy = showsPregnancyCheck(characterState?.sex),
+                        onEnergyChange = { score -> viewModel.updateData { it.copy(energyScore = score) } },
+                        onMoodChange = { score -> viewModel.updateData { it.copy(moodScore = score) } },
+                        onFocusChange = { score -> viewModel.updateData { it.copy(focusScore = score) } },
+                        onStressChange = { score -> viewModel.updateData { it.copy(stressLevel = score) } },
+                        onObjectiveCommit = { value -> viewModel.updateData { it.copy(primaryObjective = value) } },
+                        onContraindicationsCommit = { value -> viewModel.updateData { it.copy(contraindications = value) } },
+                        onPregnancyChange = { checked -> viewModel.updateData { it.copy(pregnancyFlag = checked) } },
+                        neonCyan = neonCyan,
+                        neonMagenta = neonMagenta
+                    )
+                }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LabsCollapsedSection(
+                    label = "RECORDS",
+                    expanded = recordsExpanded,
+                    onToggle = { recordsExpanded = !recordsExpanded },
+                    borderColor = neonCyan,
+                    modifier = Modifier.bringIntoViewRequester(recordsRequester)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = "BASELINES",
+                            color = neonCyan,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Black,
+                            fontFamily = FontFamily.Monospace
+                        )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            BioReadOnlyField("AGE", calculateAge(displayChar.dob), Modifier.weight(1f), neonCyan)
-                            BioReadOnlyField("SEX", displayChar.sex, Modifier.weight(1f), neonCyan)
+                            BioReadOnlyField("Age", calculateAge(displayChar.dob), Modifier.weight(1f), neonCyan)
+                            BioReadOnlyField("Sex", displayChar.sex, Modifier.weight(1f), neonCyan)
                         }
+                        BioReadOnlyField("Height", displayChar.formattedHeight(measurementUnit), Modifier.fillMaxWidth(), neonCyan)
                         if (uiState.calculatedBioAge != null) {
-                            Spacer(modifier = Modifier.height(8.dp))
                             BioAgeCard(
                                 bioAge = uiState.calculatedBioAge!!,
                                 calendarAge = uiState.calendarAgeAtCalculation ?: calculateAge(displayChar.dob).toIntOrNull() ?: 0,
                                 neonCyan = neonCyan,
                                 neonMagenta = neonMagenta
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            BioReadOnlyField("HEIGHT", displayChar.formattedHeight(measurementUnit), Modifier.weight(1f), neonCyan)
-                            BioReadOnlyField("WEIGHT", baselineWeightStr, Modifier.weight(1f), neonCyan, onClick = { showBodyLogSheet = true })
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            BioReadOnlyField("BODY_FAT_%", baselineBfStr, Modifier.weight(1f), neonCyan, onClick = { showBodyLogSheet = true })
-                        }
-                    }
-                }
-
-                // Wearable Metrics
-                if (uiState.isWearableSynced) {
-                    ExpandableBioSection("WEARABLE_METRICS", neonCyan, initiallyExpanded = focus == "hrv" || focus == "biometrics") {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            BioReadOnlyField("HEART_RATE", "${uiState.currentHeartRate ?: "--"} BPM", Modifier.weight(1f), neonCyan)
-                            BioReadOnlyField("STEPS_TODAY", "${uiState.currentSteps ?: "--"}", Modifier.weight(1f), neonCyan)
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "LAST_SYNC: ${uiState.lastSyncTimestamp?.let { java.time.Instant.ofEpochMilli(it).toString() } ?: "NEVER"}",
-                            color = theme.inkMuted,
-                            fontSize = 8.sp,
-                            fontFamily = FontFamily.Monospace
+                        BiometricTrendsSection(
+                            trends = trends,
+                            selectedRange = selectedTimeRange,
+                            onRangeSelected = { viewModel.setTimeRange(it) },
+                            neonCyan = neonCyan,
+                            neonMagenta = neonMagenta,
+                            onNavigateToGuide = onNavigateToGuide,
+                            onConnectWearable = { viewModel.triggerManualSync() }
                         )
                     }
                 }
 
-                // Lifestyle Stack
-                ExpandableBioSection("LIFESTYLE_STACK", neonCyan, initiallyExpanded = focus == "recovery" || focus == "lifestyle") {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        BioSliderField("ENERGY_SCORE", uiState.energyScore.toFloat(), 1f..10f, neonCyan) {
-                            viewModel.updateData { d -> d.copy(energyScore = it.toInt()) }
-                        }
-                        BioSliderField("MOOD_SCORE", uiState.moodScore.toFloat(), 1f..10f, neonCyan) {
-                            viewModel.updateData { d -> d.copy(moodScore = it.toInt()) }
-                        }
-                        BioSliderField("FOCUS_SCORE", uiState.focusScore.toFloat(), 1f..10f, neonCyan) {
-                            viewModel.updateData { d -> d.copy(focusScore = it.toInt()) }
-                        }
-                        BioSliderField("SLEEP_DURATION (HRS)", uiState.sleepHours ?: 7f, 4f..12f, neonCyan) {
-                            viewModel.updateData { d -> d.copy(sleepHours = it) }
-                        }
-                        BioSliderField("STRESS_LEVEL", uiState.stressLevel.toFloat(), 1f..10f, neonCyan) {
-                            viewModel.updateData { d -> d.copy(stressLevel = it.toInt()) }
-                        }
-                        BioInputField("SUPPLEMENT_STACK", uiState.supplements ?: "CREATINE, VIT_D, ASHWAGANDHA", neonCyan)
-                        BioInputField("DIET_TYPE", uiState.dietType ?: "KETO_OMAD", neonCyan)
-                    }
-                }
-
-                // Goals & Constraints
-                ExpandableBioSection("GOALS_&_CONSTRAINTS", neonCyan, initiallyExpanded = focus == "goals") {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        BioInputField("PRIMARY_OBJECTIVE", uiState.primaryObjective ?: "LONGEVITY", neonCyan)
-                        BioInputField("CONTRAINDICATIONS", uiState.contraindications ?: "NONE_DETECTED", neonCyan)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(
-                                checked = uiState.pregnancyFlag,
-                                onCheckedChange = { viewModel.updateData { d -> d.copy(pregnancyFlag = it) } },
-                                colors = CheckboxDefaults.colors(checkedColor = neonMagenta)
-                            )
-                            Text("PREGNANCY_FLAG", color = neonMagenta, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Lab & Genetic Uploads
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    UploadCard("LAB_RESULTS_PDF/JSON", Modifier.weight(1f), neonCyan) {
-                        filePickerLauncher.launch("*/*")
-                    }
-                    UploadCard("GENETIC_RAW_DATA", Modifier.weight(1f), neonMagenta) {
-                        // Placeholder for genetic data
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                if (!isLocalAiAvailable) {
-                    CyberFrame(label = "NEURAL_ENGINE_MISSING", borderColor = neonMagenta) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                "Local AI capabilities require the Neural Engine core (Gemma 2B). Download now to enable secure, on-device biohacking protocols.",
-                                color = theme.ink,
-                                fontSize = 12.sp,
-                                fontFamily = FontFamily.Monospace,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            if (isDownloading) {
-                                LinearProgressIndicator(
-                                    progress = { downloadProgress ?: 0f },
-                                    modifier = Modifier.fillMaxWidth().height(2.dp),
-                                    color = neonCyan,
-                                    trackColor = neonCyan.copy(alpha = 0.1f)
-                                )
-                                Text(
-                                    "DOWNLOADING_CORE...",
-                                    color = neonCyan,
-                                    fontSize = 10.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    modifier = Modifier.padding(top = 8.dp)
-                                )
-                            } else {
-                                CyberActionButton(
-                                    label = "DOWNLOAD NEURAL_ENGINE (Gemma 4-E2B)",
-                                    color = neonCyan,
-                                    onClick = { viewModel.modelDownloadManager.startDownload() }
-                                )
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
-
-                if (!uiState.isWearableSynced) {
-                    CyberActionButton(
-                        label = "SYNC_WEARABLE_DATA",
-                        color = neonCyan.copy(alpha = 0.5f),
-                        onClick = { viewModel.syncWearable() }
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
-
-                CyberActionButton(
-                    label = if (uiState.enableOnDeviceNeuralCore) "INITIATE NEURAL_CORE_SCAN" else "INITIATE AI_DEEP_SCAN",
-                    color = if (isLocalAiAvailable || !uiState.enableOnDeviceNeuralCore) neonCyan else theme.inkMuted,
-                    enabled = isLocalAiAvailable || !uiState.enableOnDeviceNeuralCore,
-                    onClick = { viewModel.initiateLocalScan(selectedSector) }
-                )
-
-                // Neural Insights from Memory Palace
-                if (neuralInsights.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(32.dp))
-                    CyberFrame(label = "NEURAL_INSIGHTS // MEMORY_PALACE", borderColor = neonCyan) {
-                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            neuralInsights.take(3).forEach { insight ->
-                                Column {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = insight.content,
-                                            color = theme.ink,
-                                            fontSize = 12.sp,
-                                            fontFamily = FontFamily.Monospace,
-                                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        IconButton(
-                                            onClick = { 
-                                                onNavigateToForge(
-                                                    SpecialType.INTELLIGENCE, 
-                                                    "Neural Insight: ${insight.content.take(15)}...", 
-                                                    insight.content,
-                                                    "Neural Load: ${((displayChar.neuralLoad) * 100).toInt()}%"
-                                                ) 
-                                            }
-                                        ) {
-                                            val isHighValue = insight.content.contains("Forge", ignoreCase = true) || 
-                                                              insight.content.contains("Sync", ignoreCase = true) ||
-                                                              insight.content.length > 40
-                                            Icon(
-                                                imageVector = if (isHighValue) Icons.Default.Bolt else Icons.Default.Add, 
-                                                "Forge Directive", 
-                                                tint = if (isHighValue) neonMagenta else neonCyan,
-                                                modifier = if (isHighValue) Modifier.cyberGlitch(0.3f) else Modifier
-                                            )
-                                        }
-                                    }
-                                    Text(
-                                        text = "LOGGED: ${java.time.Instant.ofEpochMilli(insight.timestamp)}",
-                                        color = neonCyan.copy(alpha = 0.5f),
-                                        fontSize = 8.sp,
-                                        fontFamily = FontFamily.Monospace
-                                    )
-                                }
-                                if (insight != neuralInsights.take(3).last()) {
-                                    HorizontalDivider(color = neonCyan.copy(alpha = 0.2f))
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Dynamic Report Section
-                if (showReport) {
-                    Spacer(modifier = Modifier.height(32.dp))
-                    ProtocolReport(
-                        report = viewModel.latestReport.collectAsState().value,
-                        magenta = neonMagenta, 
-                        cyan = neonCyan,
-                        onForgeClick = { report ->
+                LabsCollapsedSection(
+                    label = "ANALYZE",
+                    expanded = analyzeExpanded,
+                    onToggle = { analyzeExpanded = !analyzeExpanded },
+                    borderColor = neonCyan,
+                    modifier = Modifier.bringIntoViewRequester(analyzeRequester)
+                ) {
+                    LabsAnalyzeSection(
+                        selectedSector = selectedSector,
+                        onSectorSelected = { selectedSector = it },
+                        scanEnabled = isLocalAiAvailable || !uiState.enableOnDeviceNeuralCore,
+                        onRunScan = { viewModel.initiateLocalScan(selectedSector) },
+                        isLocalAiAvailable = isLocalAiAvailable,
+                        isDownloading = isDownloading,
+                        downloadProgress = downloadProgress,
+                        onDownloadModel = { viewModel.modelDownloadManager.startDownload() },
+                        onUploadLab = { filePickerLauncher.launch("*/*") },
+                        report = latestReport,
+                        showEffectivenessForm = showEffectivenessLogger,
+                        onLogHowThisFelt = { showEffectivenessLogger = true },
+                        onTurnIntoDirective = { report ->
                             onNavigateToForge(
-                                SpecialType.ENDURANCE, 
-                                "Bio Protocol: ${report.take(15)}...", 
+                                SpecialType.ENDURANCE,
+                                "Bio Protocol: ${report.take(15)}...",
                                 report,
                                 "Bio Age: ${uiState.calculatedBioAge ?: "Unknown"}"
                             )
-                        }
-                    ) {
-                        showEffectivenessLogger = true
-                    }
-                }
-                
-                // Effectiveness Logger Panel
-                if (showEffectivenessLogger) {
-                    Spacer(modifier = Modifier.height(32.dp))
-                    EffectivenessLoggerPanel(
-                        onLog = { e, s, m, f, se, n ->
-                            viewModel.logProtocolEffectiveness(e, s, m, f, se, n, "PROTOCOL_X_77")
+                        },
+                        onLogEffectiveness = { energy, sleep, mood, focusScore, sideEffects, notes ->
+                            val protocolId = (uiState.reportTimestamp ?: System.currentTimeMillis()).toString()
+                            viewModel.logProtocolEffectiveness(
+                                energy,
+                                sleep,
+                                mood,
+                                focusScore,
+                                sideEffects.ifBlank { null },
+                                notes.ifBlank { null },
+                                protocolId
+                            )
                             showEffectivenessLogger = false
                         },
-                        neonCyan = neonCyan
+                        logs = logs,
+                        neuralInsights = neuralInsights,
+                        onForgeInsight = { insight ->
+                            onNavigateToForge(
+                                SpecialType.INTELLIGENCE,
+                                "Neural Insight: ${insight.content.take(15)}...",
+                                insight.content,
+                                "Neural Load: ${((displayChar.neuralLoad) * 100).toInt()}%"
+                            )
+                        },
+                        neonCyan = neonCyan,
+                        neonMagenta = neonMagenta
                     )
                 }
-                
-                // Log History
-                if (logs.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(32.dp))
-                    CyberFrame(label = "PROTOCOL_LOG_HISTORY", borderColor = neonCyan.copy(alpha = 0.5f)) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            logs.take(5).forEach { log ->
-                                EffectivenessLogItem(log, neonCyan)
-                            }
-                        }
-                    }
-                }
-                
-                // Stats Heatmap Mock
-                if (uiState.consentAnonymizedUpload) {
-                    Spacer(modifier = Modifier.height(32.dp))
-                    CommunityStatsHeatmap(neonCyan)
-                }
-
-                Spacer(modifier = Modifier.height(64.dp))
+                Spacer(modifier = Modifier.height(48.dp))
             }
         }
 
-        // Thinking Animation
         if (isNeuralCoreThinking) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(theme.overlay)
-                    .zIndex(20f),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    GlitchText(
-                        text = "NEURAL_CORE THINKING...",
-                        color = neonCyan,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Black
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    LinearProgressIndicator(
-                        progress = { scanProgress },
-                        modifier = Modifier
-                            .width(240.dp)
-                            .height(2.dp),
-                        color = neonCyan,
-                        trackColor = neonCyan.copy(alpha = 0.1f),
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "UPLINKING_LOCAL_SYNAPSE",
-                        color = neonMagenta,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace,
-                        modifier = Modifier.alpha(pulseAlpha())
-                    )
-                }
-            }
+            ThinkingOverlay(
+                accent = neonCyan,
+                danger = neonMagenta,
+                onCancel = { viewModel.cancelScan() }
+            )
         }
 
-        if (scanProgress > 0f && !isNeuralCoreThinking) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        listOf(theme.ink, neonCyan.copy(alpha = 0.5f), Color.Transparent),
-                        center = center,
-                        radius = scanProgress * size.maxDimension
-                    ),
-                    radius = scanProgress * size.maxDimension,
-                    alpha = (1f - scanProgress).coerceAtLeast(0f)
+        if (!uiState.hasCompletedPrivacyOnboarding) {
+            PrivacyOnboarding(
+                onComplete = { anon, wearable, genetic, neuralCore ->
+                    viewModel.updateData {
+                        it.copy(
+                            consentAnonymizedUpload = anon,
+                            consentWearableSync = wearable,
+                            consentGeneticData = genetic,
+                            enableOnDeviceNeuralCore = neuralCore,
+                            hasCompletedPrivacyOnboarding = true,
+                            hasConsentedToDataProcessing = true
+                        )
+                    }
+                },
+                neonCyan = neonCyan,
+                neonMagenta = neonMagenta,
+                overlayColor = theme.overlay.copy(alpha = 0.95f)
+            )
+        } else if (showPrivacySheet) {
+            PrivacyChooserSheet(
+                uiState = uiState,
+                neonCyan = neonCyan,
+                neonMagenta = neonMagenta,
+                onDismiss = { showPrivacySheet = false },
+                onConfirm = { anon, wearable, genetic, neuralCore ->
+                    viewModel.updateData {
+                        it.copy(
+                            consentAnonymizedUpload = anon,
+                            consentWearableSync = wearable,
+                            consentGeneticData = genetic,
+                            enableOnDeviceNeuralCore = neuralCore
+                        )
+                    }
+                    showPrivacySheet = false
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun LabsHeader(
+    collectiveOn: Boolean,
+    onDevice: Boolean,
+    neuralLoad: Float,
+    accent: Color,
+    danger: Color,
+    onStatusClick: () -> Unit,
+    onDopamine: () -> Unit,
+    onGuide: () -> Unit
+) {
+    val theme = LocalNeonTheme.current
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "LABS",
+                color = accent,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Black,
+                fontFamily = FontFamily.Monospace
+            )
+            Text(
+                text = "${if (collectiveOn) "Collective net on" else "Collective net off"} · ${if (onDevice) "On-device" else "On-device off"}",
+                color = theme.ink,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.clickable(onClickLabel = "Privacy and sync settings", onClick = onStatusClick)
+            )
+        }
+        IconButtonNoRipple(onDopamine, "Dopamine Menu", Icons.Default.Bolt, danger)
+        IconButtonNoRipple(onGuide, "Neon Guide", Icons.Default.ChatBubble, accent)
+        NeuralLoadGauge(load = neuralLoad, modifier = Modifier.size(64.dp))
+    }
+}
+
+@Composable
+private fun IconButtonNoRipple(onClick: () -> Unit, description: String, icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color) {
+    androidx.compose.material3.IconButton(onClick = onClick) {
+        Icon(imageVector = icon, contentDescription = description, tint = tint)
+    }
+}
+
+@Composable
+private fun LabsTextButton(label: String, accent: Color, onClick: () -> Unit) {
+    val theme = LocalNeonTheme.current
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+        border = BorderStroke(1.dp, accent)
+    ) {
+        Text(label, color = theme.ink, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
+    }
+}
+
+@Composable
+private fun LabsCollapsedSection(
+    label: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    borderColor: Color,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val action = if (expanded) "Collapse $label" else "Expand $label"
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .clickable(onClickLabel = action, onClick = onToggle),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                color = borderColor,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Black,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.weight(1f)
+            )
+            Icon(
+                imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                contentDescription = action,
+                tint = borderColor
+            )
+        }
+        AnimatedVisibility(visible = expanded) {
+            Column(modifier = Modifier.padding(bottom = 12.dp)) { content() }
+        }
+        HorizontalDivider(color = borderColor.copy(alpha = 0.2f))
+    }
+}
+
+@Composable
+private fun ThinkingOverlay(accent: Color, danger: Color, onCancel: () -> Unit) {
+    val theme = LocalNeonTheme.current
+    val motionScale = animatorDurationScale()
+    Box(
+        modifier = Modifier.fillMaxSize().background(theme.overlay).zIndex(20f),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            GlitchText(text = "NEURAL_CORE THINKING...", color = accent, fontSize = 24.sp, fontWeight = FontWeight.Black)
+            Spacer(modifier = Modifier.height(16.dp))
+            if (motionScale == 0f) {
+                LinearProgressIndicator(
+                    progress = { 1f },
+                    modifier = Modifier.width(240.dp).height(2.dp),
+                    color = accent,
+                    trackColor = accent.copy(alpha = 0.1f)
                 )
+            } else {
+                LinearProgressIndicator(
+                    modifier = Modifier.width(240.dp).height(2.dp),
+                    color = accent,
+                    trackColor = accent.copy(alpha = 0.1f)
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "UPLINKING_LOCAL_SYNAPSE",
+                color = danger,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.alpha(pulseAlpha())
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            TextButton(onClick = onCancel) {
+                Text("Cancel", color = theme.ink, fontSize = 14.sp)
             }
         }
     }
 }
 
 @Composable
-fun calculateAge(dob: String): String {
-    return try {
-        val formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd")
-        val birthDate = LocalDate.parse(dob, formatter)
-        val currentDate = LocalDate.now()
-        Period.between(birthDate, currentDate).years.toString()
-    } catch (e: Exception) {
-        "ERR"
-    }
+private fun animatorDurationScale(): Float {
+    val context = LocalContext.current
+    return Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
 }
 
 @Composable
 private fun pulseAlpha(): Float {
+    val scale = animatorDurationScale()
     val infiniteTransition = rememberInfiniteTransition(label = "Pulse")
-    return infiniteTransition.animateFloat(
+    val animated by infiniteTransition.animateFloat(
         initialValue = 0.3f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(500, easing = LinearEasing),
+            animation = tween(durationMillis = 500, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "Alpha"
-    ).value
+    )
+    return if (scale == 0f) 1f else animated
 }
 
-@Composable
-fun FullBodyHologram(
-    character: UserCharacter?,
-    neuralLoad: Float,
-    selectedSector: String,
-    onSectorSelected: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    highlightColor: Color = Color(0xFF00F5FF)
-) {
-    val infiniteTransition = rememberInfiniteTransition(label = "HoloPulse")
-    val pulse by infiniteTransition.animateFloat(
-        initialValue = 0.5f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "Pulse"
-    )
-
-    Box(modifier = modifier.pointerInput(Unit) {
-        detectTapGestures { offset ->
-            val yPercent = offset.y / size.height
-            when {
-                yPercent < 0.25f -> onSectorSelected("CRANIAL_NODE")
-                yPercent < 0.65f -> onSectorSelected("CORE_CHASSIS")
-                else -> onSectorSelected("MOTOR_EXTREMITIES")
-            }
-        }
-    }) {
-        AvatarImage(
-            character = character,
-            modifier = Modifier.fillMaxSize().alpha(0.6f),
-            alpha = 0.6f
-        )
-
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val magenta = Color(0xFFFF0088)
-            val w = size.width
-            val h = size.height
-            
-            // Interactive Sector Highlighting
-            when (selectedSector) {
-                "CRANIAL_NODE" -> {
-                    drawCircle(
-                        color = highlightColor.copy(alpha = 0.4f * pulse),
-                        center = Offset(w * 0.5f, h * 0.12f),
-                        radius = w * 0.2f,
-                        style = Stroke(width = 2.dp.toPx())
-                    )
-                }
-                "CORE_CHASSIS" -> {
-                    drawRect(
-                        color = highlightColor.copy(alpha = 0.3f * pulse),
-                        topLeft = Offset(w * 0.25f, h * 0.25f),
-                        size = Size(w * 0.5f, h * 0.35f),
-                        style = Stroke(width = 2.dp.toPx())
-                    )
-                }
-                "MOTOR_EXTREMITIES" -> {
-                    drawLine(
-                        color = highlightColor.copy(alpha = 0.5f * pulse),
-                        start = Offset(w * 0.2f, h * 0.8f),
-                        end = Offset(w * 0.8f, h * 0.8f),
-                        strokeWidth = 4.dp.toPx()
-                    )
-                }
-            }
-
-            // Scanlines / Data Particles
-            repeat(12) { i ->
-                val lineY = (h * 0.05f) + (i * h * 0.08f)
-                drawLine(
-                    color = highlightColor.copy(alpha = 0.1f),
-                    start = Offset(0f, lineY),
-                    end = Offset(w, lineY),
-                    strokeWidth = 1f
-                )
-            }
-        }
+fun calculateAge(dob: String): String {
+    return try {
+        val birthDate = LocalDate.parse(dob, DateTimeFormatter.ofPattern("yyyy.MM.dd"))
+        Period.between(birthDate, LocalDate.now()).years.toString()
+    } catch (_: Exception) {
+        "ERR"
     }
-}
-
-@Composable
-fun BoxScope.SectorLabel(label: String, alignment: Alignment, isSelected: Boolean, cyan: Color, magenta: Color) {
-    val alpha by animateFloatAsState(if (isSelected) 1f else 0.3f, label = "Alpha")
-    val color by animateColorAsState(if (isSelected) magenta else cyan, label = "Color")
-    
-    Text(
-        text = label,
-        color = color,
-        fontSize = 10.sp,
-        fontWeight = FontWeight.Black,
-        fontFamily = FontFamily.Monospace,
-        modifier = Modifier
-            .align(alignment)
-            .padding(12.dp)
-            .alpha(alpha)
-            .border(1.dp, color.copy(alpha = 0.5f), RoundedCornerShape(2.dp))
-            .padding(horizontal = 6.dp, vertical = 2.dp)
-    )
 }
 
 @Composable
@@ -1019,182 +817,104 @@ fun PrivacyOnboarding(
     onComplete: (anon: Boolean, wearable: Boolean, genetic: Boolean, neuralCore: Boolean) -> Unit,
     neonCyan: Color,
     neonMagenta: Color,
-    overlayColor: Color
+    overlayColor: Color,
+    initialAnon: Boolean = false,
+    initialWearable: Boolean = false,
+    initialGenetic: Boolean = false,
+    initialNeuralCore: Boolean = true
 ) {
-    val theme = LocalNeonTheme.current
-    var anon by remember { mutableStateOf(false) }
-    var wearable by remember { mutableStateOf(false) }
-    var genetic by remember { mutableStateOf(false) }
-    var neuralCore by remember { mutableStateOf(true) }
-
     Box(
         modifier = Modifier.fillMaxSize().background(overlayColor).zIndex(30f).padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
         CyberFrame(label = "PRIVACY_ENCRYPTION_INIT", borderColor = neonCyan) {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(
-                    "Select your data sharing protocols. All data is end-to-end encrypted on-device.",
-                    color = theme.ink,
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-                
-                PrivacyToggle("Collective Neural Net (Anonymized Stats)", anon, neonCyan) { anon = it }
-                PrivacyToggle("Wearable Auto-Sync", wearable, neonCyan) { wearable = it }
-                PrivacyToggle("Genetic Data Personalization", genetic, neonMagenta) { genetic = it }
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .border(1.dp, neonCyan.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
-                        .background(neonCyan.copy(alpha = 0.05f))
-                        .padding(8.dp)
-                ) {
-                    Column {
-                        PrivacyToggle("Enable ON-DEVICE NEURAL_CORE", neuralCore, neonCyan) { neuralCore = it }
-                        Text(
-                            "(100% private, zero data leaves device)",
-                            color = neonCyan.copy(alpha = 0.7f),
-                            fontSize = 9.sp,
-                            fontFamily = FontFamily.Monospace,
-                            modifier = Modifier.padding(start = 32.dp)
-                        )
-                    }
-                }
-                
-                Spacer(Modifier.height(8.dp))
-                
-                CyberActionButton("CONFIRM_PROTOCOLS", neonCyan) {
-                    onComplete(anon, wearable, genetic, neuralCore)
-                }
-            }
+            PrivacyChooserContent(
+                initialAnon = initialAnon,
+                initialWearable = initialWearable,
+                initialGenetic = initialGenetic,
+                initialNeuralCore = initialNeuralCore,
+                neonCyan = neonCyan,
+                neonMagenta = neonMagenta,
+                confirmLabel = "Confirm",
+                onComplete = onComplete
+            )
         }
     }
 }
 
 @Composable
-fun PrivacyToggle(label: String, checked: Boolean, color: Color, onCheckedChange: (Boolean) -> Unit) {
+fun PrivacyChooserSheet(
+    uiState: BiohackingData,
+    neonCyan: Color,
+    neonMagenta: Color,
+    onDismiss: () -> Unit,
+    onConfirm: (Boolean, Boolean, Boolean, Boolean) -> Unit
+) {
+    val theme = LocalNeonTheme.current
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = theme.canvas,
+        contentColor = theme.ink
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+            PrivacyChooserContent(
+                initialAnon = uiState.consentAnonymizedUpload,
+                initialWearable = uiState.consentWearableSync,
+                initialGenetic = uiState.consentGeneticData,
+                initialNeuralCore = uiState.enableOnDeviceNeuralCore,
+                neonCyan = neonCyan,
+                neonMagenta = neonMagenta,
+                confirmLabel = "Confirm",
+                onComplete = onConfirm
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+private fun PrivacyChooserContent(
+    initialAnon: Boolean,
+    initialWearable: Boolean,
+    initialGenetic: Boolean,
+    initialNeuralCore: Boolean,
+    neonCyan: Color,
+    neonMagenta: Color,
+    confirmLabel: String,
+    onComplete: (Boolean, Boolean, Boolean, Boolean) -> Unit
+) {
+    val theme = LocalNeonTheme.current
+    var anon by remember { mutableStateOf(initialAnon) }
+    var wearable by remember { mutableStateOf(initialWearable) }
+    var genetic by remember { mutableStateOf(initialGenetic) }
+    var neuralCore by remember { mutableStateOf(initialNeuralCore) }
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            text = "Select your data sharing protocols. All data is end-to-end encrypted on-device.",
+            color = theme.ink,
+            fontSize = 12.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        PrivacyToggle("Collective net", "Anonymized stats can leave this phone.", anon, neonCyan) { anon = it }
+        PrivacyToggle("Wearable auto-sync", "Health Connect can write readings into Labs.", wearable, neonCyan) { wearable = it }
+        PrivacyToggle("Genetic personalization", "Lab and genetic files can be used in scans.", genetic, neonMagenta) { genetic = it }
+        PrivacyToggle("On-device core", "The scan runs on this phone.", neuralCore, neonCyan) { neuralCore = it }
+        CyberActionButton(confirmLabel, neonCyan) { onComplete(anon, wearable, genetic, neuralCore) }
+    }
+}
+
+@Composable
+fun PrivacyToggle(label: String, detail: String, checked: Boolean, color: Color, onCheckedChange: (Boolean) -> Unit) {
     val theme = LocalNeonTheme.current
     Row(verticalAlignment = Alignment.CenterVertically) {
         Checkbox(
-            checked = checked, 
+            checked = checked,
             onCheckedChange = onCheckedChange,
             colors = CheckboxDefaults.colors(checkedColor = color, uncheckedColor = color.copy(alpha = 0.3f))
         )
-        Text(label, color = theme.ink, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
-    }
-}
-
-@Composable
-fun ProtocolReport(
-    report: String?, 
-    magenta: Color, 
-    cyan: Color, 
-    onForgeClick: (String) -> Unit = {},
-    onLogClick: () -> Unit
-) {
-    val theme = LocalNeonTheme.current
-    CyberFrame(label = "AI_GENERATED_PROTOCOL", borderColor = magenta, accentColor = cyan) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (report == null) {
-                Text("ANALYZING_SYNAPTIC_INPUTS...", color = theme.inkMuted, fontSize = 12.sp)
-            } else {
-                Text(
-                    report,
-                    color = theme.ink,
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-            
-            Box(Modifier.fillMaxWidth().background(magenta.copy(alpha = 0.1f)).padding(8.dp)) {
-                Text(
-                    "SAFETY_WARNING: CORE_GENERATED_ADVICE. VALIDATE WITH SYSTEM_MEDIC.",
-                    color = magenta,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = onLogClick,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = cyan.copy(alpha = 0.1f)),
-                    border = BorderStroke(1.dp, cyan)
-                ) {
-                    Text("LOG_EFF", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Black)
-                }
-                
-                Button(
-                    onClick = { report?.let { onForgeClick(it) } },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = magenta.copy(alpha = 0.1f)),
-                    border = BorderStroke(1.dp, magenta)
-                ) {
-                    Text("FORGE_DIRECTIVE", color = magenta, fontSize = 10.sp, fontWeight = FontWeight.Black)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun EffectivenessLoggerPanel(onLog: (Int, Int, Int, Int, String, String) -> Unit, neonCyan: Color) {
-    val theme = LocalNeonTheme.current
-    var energy by remember { mutableFloatStateOf(5f) }
-    var sleep by remember { mutableFloatStateOf(5f) }
-    var notes by remember { mutableStateOf("") }
-
-    CyberFrame(label = "LOG_RESULTS // PHASE_1", borderColor = neonCyan) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            BioSliderField("CURRENT_ENERGY", energy, 1f..10f, neonCyan) { energy = it }
-            BioSliderField("SLEEP_QUALITY", sleep, 1f..10f, neonCyan) { sleep = it }
-            
-            OutlinedTextField(
-                value = notes,
-                onValueChange = { notes = it },
-                label = { Text("NOTES_FROM_THE_MATRIX", color = neonCyan.copy(alpha = 0.5f), fontSize = 10.sp) },
-                modifier = Modifier.fillMaxWidth(),
-                textStyle = MaterialTheme.typography.bodySmall.copy(color = theme.ink, fontFamily = FontFamily.Monospace),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent, 
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedIndicatorColor = neonCyan,
-                    unfocusedIndicatorColor = neonCyan.copy(alpha = 0.3f)
-                )
-            )
-            
-            CyberActionButton("LOG_TO_NEURAL_NET", neonCyan) {
-                onLog(energy.toInt(), sleep.toInt(), 5, 5, "NONE", notes)
-            }
-        }
-    }
-}
-
-@Composable
-fun CommunityStatsHeatmap(cyan: Color) {
-    val theme = LocalNeonTheme.current
-    CyberFrame(label = "COMMUNITY_INSIGHTS", borderColor = cyan.copy(alpha = 0.4f)) {
         Column {
-            Text(
-                "82% of similar users reported +15% Focus on this stack.",
-                color = theme.ink,
-                fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace
-            )
-            Spacer(Modifier.height(8.dp))
-            // Mock Heatmap
-            Row(Modifier.fillMaxWidth().height(4.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                repeat(20) { i ->
-                    val color: Color = if (i < 16) cyan else theme.inkMuted.copy(alpha = 0.2f)
-                    Box(Modifier.weight(1f).fillMaxHeight().background(color))
-                }
-            }
+            Text(label, color = theme.ink, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+            Text(detail, color = theme.inkMuted, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
         }
     }
 }
@@ -1206,44 +926,8 @@ fun EffectivenessLogItem(log: BioProtocolLog, cyan: Color) {
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).background(theme.surfaceRaised).padding(8.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text("LOG_${log.timestamp}", color = cyan, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
-        Text("ENERGY: ${log.energyScore}", color = theme.ink, fontSize = 9.sp)
-    }
-}
-
-@Composable
-fun ExpandableBioSection(
-    label: String, 
-    color: Color, 
-    initiallyExpanded: Boolean = false,
-    content: @Composable () -> Unit
-) {
-    var expanded by remember(initiallyExpanded) { mutableStateOf(initiallyExpanded) }
-    
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expanded = !expanded }
-                .padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(label, color = color, fontSize = 12.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace, modifier = Modifier.weight(1f))
-            Icon(
-                if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(16.dp)
-            )
-        }
-        
-        AnimatedVisibility(visible = expanded) {
-            Column(modifier = Modifier.padding(bottom = 16.dp)) {
-                content()
-            }
-        }
-        
-        HorizontalDivider(color = color.copy(alpha = 0.2f), thickness = 0.5.dp)
+        Text("Log ${log.timestamp}", color = cyan, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+        Text("Energy ${log.energyScore}", color = theme.ink, fontSize = 12.sp)
     }
 }
 
@@ -1258,42 +942,44 @@ fun BioReadOnlyField(
     val theme = LocalNeonTheme.current
     val clickableModifier = if (onClick != null) modifier.clickable { onClick() } else modifier
     Column(modifier = clickableModifier) {
-        Text(label, color = color.copy(alpha = 0.6f), fontSize = 8.sp, fontWeight = FontWeight.Bold)
+        Text(label, color = color.copy(alpha = 0.6f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
         Text(value, color = theme.ink, fontSize = 14.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
     }
 }
 
 @Composable
-fun BioSliderField(label: String, value: Float, range: ClosedFloatingPointRange<Float>, color: Color, onValueChange: (Float) -> Unit) {
+fun BioSliderField(
+    label: String,
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    color: Color,
+    onValueChange: (Float) -> Unit
+) {
     val theme = LocalNeonTheme.current
+    var sliderValue by remember(value) { mutableFloatStateOf(value) }
+    val steps = ((range.endInclusive - range.start).roundToInt() - 1).coerceAtLeast(0)
     Column {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, color = color.copy(alpha = 0.6f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            Text(value.toInt().toString(), color = theme.ink, fontSize = 10.sp, fontWeight = FontWeight.Black)
+            Text(label, color = color.copy(alpha = 0.8f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(
+                "${sliderValue.roundToInt()} / ${range.endInclusive.roundToInt()}",
+                color = theme.ink,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Black
+            )
         }
         Slider(
-            value = value,
-            onValueChange = onValueChange,
+            value = sliderValue,
+            onValueChange = { sliderValue = it },
+            onValueChangeFinished = {
+                val snapped = sliderValue.roundToInt().toFloat().coerceIn(range.start, range.endInclusive)
+                sliderValue = snapped
+                onValueChange(snapped)
+            },
             valueRange = range,
+            steps = steps,
             colors = SliderDefaults.colors(thumbColor = color, activeTrackColor = color, inactiveTrackColor = color.copy(alpha = 0.2f))
         )
-    }
-}
-
-@Composable
-fun BioInputField(label: String, value: String, color: Color) {
-    val theme = LocalNeonTheme.current
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(theme.surface)
-            .border(0.5.dp, color.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
-            .padding(12.dp)
-    ) {
-        Column {
-            Text(label, color = color.copy(alpha = 0.6f), fontSize = 8.sp, fontWeight = FontWeight.Bold)
-            Text(value, color = theme.ink, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
-        }
     }
 }
 
@@ -1302,7 +988,6 @@ fun BioAgeCard(bioAge: Float, calendarAge: Int, neonCyan: Color, neonMagenta: Co
     val theme = LocalNeonTheme.current
     val delta = bioAge - calendarAge
     val color = if (delta <= 0) neonCyan else neonMagenta
-    
     CyberFrame(label = "BIOLOGICAL_AGE_ANALYSIS", borderColor = color) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
             Row(
@@ -1311,19 +996,19 @@ fun BioAgeCard(bioAge: Float, calendarAge: Int, neonCyan: Color, neonMagenta: Co
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("CALENDAR", color = theme.inkMuted, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                    Text("CALENDAR", color = theme.inkMuted, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
                     Text("$calendarAge", color = theme.ink, fontSize = 24.sp, fontWeight = FontWeight.Black)
                 }
                 Text(" VS ", color = color, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp))
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("BIOLOGICAL", color = color, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                    Text("BIOLOGICAL", color = color, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
                     Text(String.format(Locale.US, "%.1f", bioAge), color = color, fontSize = 24.sp, fontWeight = FontWeight.Black)
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = if (delta <= 0) "SYSTEM_OPTIMIZED: -${String.format(Locale.US, "%.1f", -delta)} YEARS" 
-                       else "DEGRADATION_DETECTED: +${String.format(Locale.US, "%.1f", delta)} YEARS",
+                text = if (delta <= 0) "SYSTEM_OPTIMIZED: -${String.format(Locale.US, "%.1f", -delta)} YEARS"
+                else "DEGRADATION_DETECTED: +${String.format(Locale.US, "%.1f", delta)} YEARS",
                 color = color,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
@@ -1340,41 +1025,13 @@ fun UploadCard(label: String, modifier: Modifier = Modifier, color: Color, onCli
         modifier = modifier
             .background(theme.surfaceRaised)
             .border(1.dp, color.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-            .clickable { onClick() }
+            .clickable(onClickLabel = label) { onClick() }
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(Icons.Default.Add, contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
+        Icon(Icons.Default.Add, contentDescription = label, tint = color, modifier = Modifier.size(24.dp))
         Spacer(Modifier.height(8.dp))
-        Text(label, color = color, fontSize = 10.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
-    }
-}
-
-@Composable
-fun ReportCard(title: String, detail: String, description: String, magenta: Color, cyan: Color) {
-    val theme = LocalNeonTheme.current
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(theme.surfaceRaised)
-            .neonBorder(magenta.copy(alpha = 0.4f), width = 1.dp, cornerRadius = 8.dp)
-            .padding(12.dp)
-    ) {
-        Text(title, color = theme.ink, fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
-        Text(detail, color = magenta, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
-        Spacer(Modifier.height(6.dp))
-        Text(description, color = theme.inkMuted, fontSize = 11.sp, fontFamily = FontFamily.Monospace, lineHeight = 14.sp)
-        
-        Spacer(Modifier.height(14.dp))
-        Button(
-            onClick = {},
-            modifier = Modifier.height(34.dp).align(Alignment.End),
-            colors = ButtonDefaults.buttonColors(containerColor = theme.surface),
-            contentPadding = PaddingValues(horizontal = 14.dp),
-            shape = RoundedCornerShape(4.dp)
-        ) {
-            Text("LOG EFFECTIVENESS", fontSize = 10.sp, color = cyan, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
-        }
+        Text(label, color = color, fontSize = 12.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
     }
 }
 
@@ -1387,75 +1044,49 @@ fun UplinkStatusPanel(
     onManualSyncClick: () -> Unit,
     onRelink: (UplinkProvider) -> Unit,
     isLiveMonitoringEnabled: Boolean,
-    onLiveMonitoringToggle: (Boolean) -> Unit,
-    initiallyExpanded: Boolean = false
+    onLiveMonitoringToggle: (Boolean) -> Unit
 ) {
     val theme = LocalNeonTheme.current
-    ExpandableCyberFrame(
-        label = "NEURAL_UPLINK_STATUS",
-        borderColor = neonCyan.copy(alpha = 0.6f),
-        initiallyExpanded = initiallyExpanded
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "LIVE_MONITORING (BLE)",
-                    color = theme.ink,
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Live monitoring", color = theme.ink, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+            Switch(
+                checked = isLiveMonitoringEnabled,
+                onCheckedChange = onLiveMonitoringToggle,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = neonCyan,
+                    checkedTrackColor = neonCyan.copy(alpha = 0.5f)
                 )
-                Switch(
-                    checked = isLiveMonitoringEnabled,
-                    onCheckedChange = onLiveMonitoringToggle,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = neonCyan,
-                        checkedTrackColor = neonCyan.copy(alpha = 0.5f)
-                    ),
-                    modifier = Modifier.scale(0.7f)
-                )
-            }
-
-            HorizontalDivider(color = neonCyan.copy(alpha = 0.2f), thickness = 0.5.dp)
-
-            if (syncStatuses.isEmpty()) {
-                Text(
-                    "NO_ACTIVE_UPLINKS_FOUND",
-                    color = theme.inkMuted,
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
-            syncStatuses.forEach { status ->
-                UplinkStatusItem(status, neonCyan, neonMagenta, onRelink)
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-            
-            Button(
-                onClick = onManualSyncClick,
-                modifier = Modifier.fillMaxWidth().height(32.dp),
-                enabled = !isSyncing,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = neonCyan.copy(alpha = 0.1f),
-                    disabledContainerColor = neonCyan.copy(alpha = 0.05f)
-                ),
-                border = BorderStroke(1.dp, if (isSyncing) neonCyan.copy(alpha = 0.2f) else neonCyan.copy(alpha = 0.5f)),
-                shape = RoundedCornerShape(4.dp),
-                contentPadding = PaddingValues(0.dp)
-            ) {
-                if (isSyncing) {
-                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = neonCyan)
-                    Spacer(Modifier.width(8.dp))
-                    Text("SYNC_IN_PROGRESS...", color = neonCyan.copy(alpha = 0.5f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                } else {
-                    Icon(Icons.Default.Refresh, contentDescription = null, tint = neonCyan, modifier = Modifier.size(14.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("MANUAL_DEEP_SYNC", color = neonCyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                }
+            )
+        }
+        HorizontalDivider(color = neonCyan.copy(alpha = 0.2f), thickness = 0.5.dp)
+        if (syncStatuses.isEmpty()) {
+            Text("No active uplinks", color = theme.inkMuted, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+        }
+        syncStatuses.forEach { status -> UplinkStatusItem(status, neonCyan, neonMagenta, onRelink) }
+        Button(
+            onClick = onManualSyncClick,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            enabled = !isSyncing,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = neonCyan.copy(alpha = 0.1f),
+                disabledContainerColor = neonCyan.copy(alpha = 0.05f)
+            ),
+            border = BorderStroke(1.dp, neonCyan.copy(alpha = if (isSyncing) 0.2f else 0.5f)),
+            shape = RoundedCornerShape(4.dp)
+        ) {
+            if (isSyncing) {
+                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = neonCyan)
+                Spacer(Modifier.width(8.dp))
+                Text("Sync in progress", color = neonCyan, fontSize = 12.sp)
+            } else {
+                Icon(Icons.Default.Refresh, contentDescription = "Sync wearables", tint = neonCyan, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Sync wearables", color = neonCyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -1471,163 +1102,89 @@ fun UplinkStatusItem(
     val theme = LocalNeonTheme.current
     val statusColor = when (syncStatus.currentStatus) {
         is UplinkStatus.Connected -> neonCyan
-        is UplinkStatus.Error -> neonMagenta
-        is UplinkStatus.PermissionRequired -> neonMagenta
-        is UplinkStatus.NeedsReAuth -> neonMagenta
+        is UplinkStatus.Error, is UplinkStatus.PermissionRequired, is UplinkStatus.NeedsReAuth -> neonMagenta
         is UplinkStatus.Syncing -> Color.Yellow
         else -> theme.inkMuted
     }
-
-    val statusText = when (val s = syncStatus.currentStatus) {
-        is UplinkStatus.Connected -> "CONNECTED"
-        is UplinkStatus.Error -> "ERROR: ${s.message}"
-        is UplinkStatus.PermissionRequired -> "NO_PERMISSION"
-        is UplinkStatus.NeedsReAuth -> "RE-AUTH_REQUIRED"
-        is UplinkStatus.Syncing -> "SYNCING (${(s.progress * 100).toInt()}%)"
-        is UplinkStatus.Authenticating -> "AUTHENTICATING..."
-        is UplinkStatus.Disconnected -> "DISCONNECTED"
+    val statusText = when (val status = syncStatus.currentStatus) {
+        is UplinkStatus.Connected -> "Connected"
+        is UplinkStatus.Error -> "Error: ${status.message}"
+        is UplinkStatus.PermissionRequired -> "Permission needed"
+        is UplinkStatus.NeedsReAuth -> "Sign in again"
+        is UplinkStatus.Syncing -> "Syncing (${(status.progress * 100).toInt()}%)"
+        is UplinkStatus.Authenticating -> "Signing in"
+        is UplinkStatus.Disconnected -> "Disconnected"
     }
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = syncStatus.provider.name.replace("_", " "),
-                color = theme.ink,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace
-            )
-            Text(
-                text = statusText,
-                color = statusColor,
-                fontSize = 9.sp,
-                fontFamily = FontFamily.Monospace,
-                maxLines = 1
-            )
+            Text(syncStatus.provider.name.replace("_", " "), color = theme.ink, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+            Text(statusText, color = statusColor, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
             syncStatus.lastSuccessfulSync?.let { lastSync ->
-                val timeAgo = formatTimeAgo(lastSync)
-                Text(
-                    text = "LAST_SYNC: $timeAgo",
-                    color = theme.inkMuted,
-                    fontSize = 8.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
-            if (syncStatus.lastError != null && syncStatus.currentStatus !is UplinkStatus.Error) {
-                Text(
-                    text = "LAST_ERR: ${syncStatus.lastError}",
-                    color = neonMagenta.copy(alpha = 0.7f),
-                    fontSize = 8.sp,
-                    fontFamily = FontFamily.Monospace,
-                    maxLines = 1
-                )
+                Text("Last sync ${formatTimeAgo(lastSync)}", color = theme.inkMuted, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
             }
         }
-        
-        if (syncStatus.currentStatus is UplinkStatus.Error || syncStatus.currentStatus is UplinkStatus.PermissionRequired || syncStatus.currentStatus is UplinkStatus.Disconnected || syncStatus.currentStatus is UplinkStatus.NeedsReAuth) {
-            TextButton(
-                onClick = { onRelink(syncStatus.provider) },
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                modifier = Modifier.height(24.dp)
-            ) {
-                Text("RE-LINK", color = neonCyan, fontSize = 10.sp, fontWeight = FontWeight.Black)
+        if (syncStatus.currentStatus is UplinkStatus.Error ||
+            syncStatus.currentStatus is UplinkStatus.PermissionRequired ||
+            syncStatus.currentStatus is UplinkStatus.Disconnected ||
+            syncStatus.currentStatus is UplinkStatus.NeedsReAuth
+        ) {
+            TextButton(onClick = { onRelink(syncStatus.provider) }) {
+                Text("Re-link", color = neonCyan, fontSize = 12.sp, fontWeight = FontWeight.Black)
             }
         }
     }
 }
 
 fun formatTimeAgo(timestamp: Long): String {
-    val now = System.currentTimeMillis()
-    val diff = now - timestamp
+    val diff = System.currentTimeMillis() - timestamp
     return when {
-        diff < 60000 -> "Just now"
-        diff < 3600000 -> "${diff / 60000}m ago"
-        diff < 86400000 -> "${diff / 3600000}h ago"
-        else -> "${diff / 86400000}d ago"
+        diff < 60_000 -> "Just now"
+        diff < 3_600_000 -> "${diff / 60_000}m ago"
+        diff < 86_400_000 -> "${diff / 3_600_000}h ago"
+        else -> "${diff / 86_400_000}d ago"
     }
 }
 
 @Composable
 fun BiometricTrendsSection(
-    trends: List<com.neon.ascent.model.HealthTrend>,
+    trends: List<HealthTrend>,
     selectedRange: Int,
     onRangeSelected: (Int) -> Unit,
     neonCyan: Color,
     neonMagenta: Color,
     onNavigateToGuide: (String?) -> Unit,
-    onNavigateToDopamineMenu: () -> Unit,
-    initiallyExpanded: Boolean = false
+    onConnectWearable: () -> Unit
 ) {
     val theme = LocalNeonTheme.current
     val ranges = mapOf(7 to "7D", 30 to "30D", 90 to "90D")
-
-    ExpandableCyberFrame(
-        label = "BIOMETRIC_TRENDS",
-        borderColor = neonCyan,
-        initiallyExpanded = initiallyExpanded
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                "BIOMETRIC_TRENDS",
-                color = neonCyan,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Black,
-                fontFamily = FontFamily.Monospace,
-                letterSpacing = 2.sp
-            )
-            
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("TRENDS", color = neonCyan, fontSize = 12.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ranges.forEach { (days, label) ->
                     Text(
                         text = label,
                         color = if (selectedRange == days) neonCyan else theme.inkMuted,
-                        fontSize = 9.sp,
+                        fontSize = 12.sp,
                         fontWeight = if (selectedRange == days) FontWeight.Bold else FontWeight.Normal,
                         fontFamily = FontFamily.Monospace,
                         modifier = Modifier
                             .clickable { onRangeSelected(days) }
                             .padding(horizontal = 4.dp, vertical = 2.dp)
-                            .background(if (selectedRange == days) neonCyan.copy(alpha = 0.1f) else Color.Transparent)
                     )
                 }
             }
         }
-        
         if (trends.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(140.dp)
-                    .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
-                    .border(1.dp, theme.inkMuted.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
-                    .clickable { onNavigateToDopamineMenu() },
-                contentAlignment = Alignment.Center
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
-                    Icon(Icons.Default.Analytics, contentDescription = null, tint = theme.inkMuted.copy(alpha = 0.5f), modifier = Modifier.size(32.dp))
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "NO_UPLINK_DATA_DETECTED",
-                        color = theme.inkMuted,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    Text(
-                        "Initialize your neural link. Tap here for a Dopamine Menu reset while you wait for sync.",
-                        color = neonMagenta.copy(alpha = 0.7f),
-                        fontSize = 9.sp,
-                        fontFamily = FontFamily.Monospace,
-                        textAlign = TextAlign.Center
-                    )
+                Icon(Icons.Default.Analytics, contentDescription = "No trend data", tint = theme.inkMuted, modifier = Modifier.size(32.dp))
+                Spacer(Modifier.height(8.dp))
+                Text("No wearable readings yet", color = theme.ink, fontSize = 12.sp, fontFamily = FontFamily.Monospace, textAlign = TextAlign.Center)
+                TextButton(onClick = onConnectWearable) {
+                    Text("Connect a wearable", color = neonCyan, fontSize = 12.sp)
                 }
             }
         } else {
@@ -1636,23 +1193,16 @@ fun BiometricTrendsSection(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 trends.forEach { trend ->
-                    TrendCard(
-                        trend = trend,
-                        neonCyan = neonCyan,
-                        neonMagenta = neonMagenta,
-                        onNavigateToGuide = onNavigateToGuide,
-                        modifier = Modifier.width(220.dp)
-                    )
+                    TrendCard(trend, neonCyan, neonMagenta, onNavigateToGuide, Modifier.width(220.dp))
                 }
             }
         }
     }
 }
-}
 
 @Composable
 fun TrendCard(
-    trend: com.neon.ascent.model.HealthTrend,
+    trend: HealthTrend,
     neonCyan: Color,
     neonMagenta: Color,
     onNavigateToGuide: (String?) -> Unit,
@@ -1660,143 +1210,56 @@ fun TrendCard(
 ) {
     val theme = LocalNeonTheme.current
     var isExpanded by remember { mutableStateOf(false) }
-    
-    // Threshold-based color coding
     val statusColor = when (trend.label) {
         "SLEEP" -> if ((trend.currentValue.toFloatOrNull() ?: 8f) < 6.5f) neonMagenta else neonCyan
         "HRV" -> if ((trend.currentValue.toFloatOrNull() ?: 35f) < 35f) neonMagenta else neonCyan
         "STEPS" -> if ((trend.currentValue.toFloatOrNull() ?: 10000f) < 5000f) neonMagenta else neonCyan
         else -> neonCyan
     }
-    
+    val footnote = when (trend.label) {
+        "SLEEP" -> "Sleep under 6.5 h"
+        "HRV" -> "HRV under 35 ms"
+        "STEPS" -> "Steps under 5,000"
+        else -> null
+    }
     CyberFrame(
         label = trend.label,
         borderColor = statusColor.copy(alpha = 0.6f),
         modifier = modifier.clickable { isExpanded = !isExpanded }
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom
-            ) {
-                Text(
-                    text = trend.currentValue,
-                    color = theme.ink,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = FontFamily.Monospace
-                )
-                Text(
-                    text = trend.unit,
-                    color = statusColor,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.padding(bottom = 4.dp)
-                )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+                Text(trend.currentValue, color = theme.ink, fontSize = 24.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
+                Text(trend.unit, color = statusColor, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
             }
-            
             if (trend.label == "STEPS") {
-                BarChart(
-                    data = trend.dataPoints,
-                    color = statusColor,
-                    modifier = Modifier.fillMaxWidth().height(60.dp)
-                )
+                BarChart(trend.dataPoints, statusColor, Modifier.fillMaxWidth().height(60.dp))
             } else {
-                Sparkline(
-                    data = trend.dataPoints,
-                    color = statusColor,
-                    modifier = Modifier.fillMaxWidth().height(60.dp)
-                )
+                Sparkline(trend.dataPoints, statusColor, Modifier.fillMaxWidth().height(60.dp))
             }
-            
-            if (trend.insight != null) {
-                Text(
-                    text = trend.insight,
-                    color = theme.ink.copy(alpha = 0.8f),
-                    fontSize = 9.sp,
-                    fontFamily = FontFamily.Monospace,
-                    lineHeight = 12.sp,
-                    modifier = Modifier.background(statusColor.copy(alpha = 0.1f)).padding(4.dp)
-                )
+            if (footnote != null) {
+                Text(footnote, color = theme.inkMuted, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
             }
-
             AnimatedVisibility(visible = isExpanded) {
                 Column {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    HorizontalDivider(color = statusColor.copy(alpha = 0.2f))
+                    trend.insight?.let { insight ->
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(insight, color = theme.ink, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
-                    
-                    Text(
-                        "ANALYSIS: Correlation detected between ${trend.label} and recent Mission adherence. Suggesting neural load optimization.",
-                        color = theme.inkMuted,
-                        fontSize = 8.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
                     Button(
                         onClick = { onNavigateToGuide("Analyze my ${trend.label} trend (${trend.currentValue} ${trend.unit}). How does this correlate with my active Directives?") },
-                        modifier = Modifier.fillMaxWidth().height(32.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = statusColor.copy(alpha = 0.1f)),
                         border = BorderStroke(1.dp, statusColor.copy(alpha = 0.5f)),
                         shape = RoundedCornerShape(2.dp),
-                        contentPadding = PaddingValues(0.dp)
+                        contentPadding = PaddingValues(horizontal = 8.dp)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Psychology, contentDescription = null, modifier = Modifier.size(14.dp), tint = statusColor)
-                            Spacer(Modifier.width(6.dp))
-                            Text("ASK_NEON_GUIDE", color = statusColor, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                        }
+                        Icon(Icons.Default.Psychology, contentDescription = "Ask Neon Guide", modifier = Modifier.size(16.dp), tint = statusColor)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Ask Neon Guide", color = statusColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-fun NutritionMacrosCard(
-    macros: com.neon.ascent.core.domain.workout.rules.Macros,
-    neonCyan: Color,
-    neonMagenta: Color,
-    initiallyExpanded: Boolean = false
-) {
-    val theme = LocalNeonTheme.current
-    ExpandableCyberFrame(
-        label = "BIOMETRIC_NUTRITION_UPLINK",
-        borderColor = neonCyan,
-        initiallyExpanded = initiallyExpanded
-    ) {
-        Column {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text("DAILY_TARGET", color = theme.inkMuted, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
-                    Text("${macros.calories}", color = theme.ink, fontSize = 28.sp, fontWeight = FontWeight.Black)
-                    Text("KCAL", color = neonCyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                }
-                
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    MacroSubStat("PRO", "${macros.protein}g", neonCyan)
-                    MacroSubStat("CHO", "${macros.carbs}g", theme.ink)
-                    MacroSubStat("FAT", "${macros.fat}g", neonMagenta)
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Visual breakdown bar
-            Row(modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp))) {
-                val total = (macros.protein * 4 + macros.carbs * 4 + macros.fat * 9).toFloat()
-                Box(Modifier.weight(macros.protein * 4 / total).fillMaxHeight().background(neonCyan))
-                Box(Modifier.weight(macros.carbs * 4 / total).fillMaxHeight().background(theme.ink.copy(alpha = 0.6f)))
-                Box(Modifier.weight(macros.fat * 9 / total).fillMaxHeight().background(neonMagenta))
             }
         }
     }
@@ -1807,105 +1270,42 @@ fun BodyLogCard(
     samples: List<BodySampleEntity>,
     measurementUnit: String = "Metric",
     neonCyan: Color,
-    onLogBodyClick: () -> Unit,
-    initiallyExpanded: Boolean = false
+    onWeightClick: () -> Unit,
+    onBodyFatClick: () -> Unit,
+    onWaistClick: () -> Unit,
+    onBloodPressureClick: () -> Unit
 ) {
-    val theme = LocalNeonTheme.current
     val isImperial = measurementUnit.equals("Imperial", ignoreCase = true)
-
-    // Compute compact last readings
     val lastWeight = samples.filter { it.metric == "WEIGHT" }.maxByOrNull { it.loggedAt }
     val lastBf = samples.filter { it.metric == "BF_PCT" }.maxByOrNull { it.loggedAt }
     val lastWaist = samples.filter { it.metric == "TAPE" && it.site?.contains("WAIST") == true }.maxByOrNull { it.loggedAt }
     val lastBpSys = samples.filter { it.metric == "BP_SYS" && it.position == "SITTING" }.maxByOrNull { it.loggedAt }
     val lastBpDia = samples.filter { it.metric == "BP_DIA" && it.position == "SITTING" }.maxByOrNull { it.loggedAt }
-
     val weightStr = lastWeight?.let {
-        if (isImperial) {
-            val lbs = it.value * 2.20462262
-            String.format(Locale.US, "%.1f LBS", lbs)
-        } else {
-            String.format(Locale.US, "%.1f KG", it.value)
-        }
-    } ?: "NOT_LOGGED"
+        if (isImperial) String.format(Locale.US, "%.1f lb", it.value * 2.20462262)
+        else String.format(Locale.US, "%.1f kg", it.value)
+    } ?: "Not logged"
     val bfStr = lastBf?.let {
-        val methodSuffix = it.method?.let { m -> " ($m)" } ?: ""
+        val methodSuffix = it.method?.let { method -> " ($method)" } ?: ""
         String.format(Locale.US, "%.1f%%%s", it.value, methodSuffix)
-    } ?: "NOT_LOGGED"
-    val waistStr = lastWaist?.let { String.format(Locale.US, "%.1f CM", it.value) } ?: "NOT_LOGGED"
+    } ?: "Not logged"
+    val waistStr = lastWaist?.let {
+        val shown = waistDisplayValue(it.value, isImperial)
+        if (isImperial) String.format(Locale.US, "%.1f in", shown) else String.format(Locale.US, "%.1f cm", shown)
+    } ?: "Not logged"
     val bpStr = if (lastBpSys != null && lastBpDia != null) {
-        "${lastBpSys.value.toInt()}/${lastBpDia.value.toInt()} SITTING"
+        "${lastBpSys.value.toInt()}/${lastBpDia.value.toInt()} sitting"
     } else {
-        "NOT_LOGGED"
+        "Not logged"
     }
-
-    ExpandableCyberFrame(
-        label = "BODY_LOG // COMPOSITION_&_METRICS",
-        borderColor = neonCyan,
-        initiallyExpanded = initiallyExpanded
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                BodyCompactField("WEIGHT", weightStr, Modifier.weight(1f), neonCyan)
-                BodyCompactField("BODY_FAT", bfStr, Modifier.weight(1f), neonCyan)
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                BodyCompactField("WAIST", waistStr, Modifier.weight(1f), neonCyan)
-                BodyCompactField(
-                    "BP (SIT)",
-                    bpStr,
-                    Modifier.weight(1f).clickable { onLogBodyClick() },
-                    neonCyan
-                )
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Button(
-                    onClick = onLogBodyClick,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(36.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = neonCyan),
-                    shape = RoundedCornerShape(2.dp)
-                ) {
-                    Text(
-                        text = "LOG_BLOOD_PRESSURE",
-                        color = Color.Black,
-                        fontWeight = FontWeight.Black,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 10.sp
-                    )
-                }
-
-                Button(
-                    onClick = onLogBodyClick,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(36.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = theme.overlay, contentColor = neonCyan),
-                    shape = RoundedCornerShape(2.dp),
-                    border = BorderStroke(1.dp, neonCyan.copy(alpha = 0.5f))
-                ) {
-                    Text(
-                        text = "LOG_ALL_BODY",
-                        color = neonCyan,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 10.sp
-                    )
-                }
-            }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            BodyCompactField("Weight", weightStr, Modifier.weight(1f), neonCyan, "Log weight", onWeightClick)
+            BodyCompactField("Body fat", bfStr, Modifier.weight(1f), neonCyan, "Log body fat", onBodyFatClick)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            BodyCompactField("Waist", waistStr, Modifier.weight(1f), neonCyan, "Log waist", onWaistClick)
+            BodyCompactField("Blood pressure", bpStr, Modifier.weight(1f), neonCyan, "Log blood pressure", onBloodPressureClick)
         }
     }
 }
@@ -1915,619 +1315,66 @@ private fun BodyCompactField(
     label: String,
     value: String,
     modifier: Modifier = Modifier,
-    color: Color
+    color: Color,
+    clickLabel: String,
+    onClick: () -> Unit
 ) {
     val theme = LocalNeonTheme.current
     Column(
         modifier = modifier
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(2.dp))
             .border(1.dp, color.copy(alpha = 0.2f), RoundedCornerShape(2.dp))
             .background(color.copy(alpha = 0.04f))
-            .padding(horizontal = 8.dp, vertical = 6.dp)
+            .clickable(onClickLabel = clickLabel, onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.Center
     ) {
-        Text(
-            text = label,
-            color = color.copy(alpha = 0.7f),
-            fontSize = 8.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Monospace
-        )
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = value,
-            color = theme.ink,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Black,
-            fontFamily = FontFamily.Monospace,
-            maxLines = 1
-        )
+        Text(label, color = color, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+        Text(value, color = theme.ink, fontSize = 14.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace, maxLines = 1)
     }
 }
 
 @Composable
-fun MacroSubStat(label: String, value: String, color: Color) {
-    val theme = LocalNeonTheme.current
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, color = color, fontSize = 8.sp, fontWeight = FontWeight.Black)
-        Text(value, color = theme.ink, fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
-    }
-}
-
-@Composable
-fun BarChart(
-    data: List<Float>,
-    color: Color,
-    modifier: Modifier = Modifier
-) {
+fun BarChart(data: List<Float>, color: Color, modifier: Modifier = Modifier) {
     Canvas(modifier = modifier) {
         if (data.isEmpty()) return@Canvas
-        
         val max = data.maxOrNull()?.coerceAtLeast(1f) ?: 1f
-        val width = size.width
-        val height = size.height
-        val barWidth = (width / data.size) * 0.8f
-        val spacing = (width / data.size) * 0.2f
-        
+        val barWidth = (size.width / data.size) * 0.8f
+        val spacing = (size.width / data.size) * 0.2f
         data.forEachIndexed { index, value ->
-            val barHeight = (value / max) * height
+            val barHeight = (value / max) * size.height
             drawRect(
                 color = color.copy(alpha = 0.6f),
-                topLeft = Offset(x = index * (barWidth + spacing), y = height - barHeight),
-                size = Size(width = barWidth, height = barHeight)
-            )
-            // Cap
-            drawRect(
-                color = color,
-                topLeft = Offset(x = index * (barWidth + spacing), y = height - barHeight),
-                size = Size(width = barWidth, height = 2.dp.toPx())
+                topLeft = Offset(index * (barWidth + spacing), size.height - barHeight),
+                size = Size(barWidth, barHeight)
             )
         }
     }
 }
 
 @Composable
-fun Sparkline(
-    data: List<Float>,
-    color: Color,
-    modifier: Modifier = Modifier
-) {
+fun Sparkline(data: List<Float>, color: Color, modifier: Modifier = Modifier) {
     Canvas(modifier = modifier) {
         if (data.size < 2) return@Canvas
-        
         val min = data.minOrNull() ?: 0f
         val max = data.maxOrNull() ?: 1f
         val range = (max - min).coerceAtLeast(1f)
-        
-        val width = size.width
-        val height = size.height
-        val stepX = width / (data.size - 1)
-        
+        val stepX = size.width / (data.size - 1)
         val points = data.mapIndexed { index, value ->
-            Offset(
-                x = index * stepX,
-                y = height - ((value - min) / range * height)
-            )
+            Offset(index * stepX, size.height - ((value - min) / range * size.height))
         }
-        
         val path = Path().apply {
             moveTo(points.first().x, points.first().y)
-            for (i in 1 until points.size) {
-                lineTo(points[i].x, points[i].y)
-            }
+            for (index in 1 until points.size) lineTo(points[index].x, points[index].y)
         }
-        
-        drawPath(
-            path = path,
-            color = color,
-            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-        )
-        
-        // Fill area under sparkline
+        drawPath(path, color, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
         val fillPath = Path().apply {
             addPath(path)
-            lineTo(width, height)
-            lineTo(0f, height)
+            lineTo(size.width, size.height)
+            lineTo(0f, size.height)
             close()
         }
-        
-        drawPath(
-            path = fillPath,
-            brush = Brush.verticalGradient(
-                colors = listOf(color.copy(alpha = 0.3f), Color.Transparent)
-            )
-        )
-        
-        // Draw grid lines
-        repeat(4) { i ->
-            val y = (height / 3) * i
-            drawLine(
-                color = color.copy(alpha = 0.05f),
-                start = Offset(0f, y),
-                end = Offset(width, y),
-                strokeWidth = 1f
-            )
-        }
+        drawPath(fillPath, brush = Brush.verticalGradient(listOf(color.copy(alpha = 0.3f), Color.Transparent)))
     }
 }
-
-@Composable
-fun BiohackingTelemetryHud(
-    neonCyan: Color,
-    neonMagenta: Color,
-    isCyber: Boolean,
-    activeDiet: Diet?,
-    isHigherCarbDay: Boolean,
-    activeSupplementStack: List<Supplement>,
-    supplementOverrides: Map<String, SupplementOverride>,
-    activeProtocols: List<BiohackingProtocol> = emptyList(),
-    protocolOverrides: Map<String, BiohackingProtocolOverride> = emptyMap(),
-    onOpenDailyOriginSheet: () -> Unit,
-    onNavigateToSelfMap: () -> Unit,
-    onNavigateToCodexDiet: () -> Unit,
-    onNavigateToCodexSupplements: () -> Unit,
-    onNavigateToCodexProtocols: () -> Unit = {},
-    selfMapViewModel: SelfMapViewModel = hiltViewModel()
-) {
-    val selfMapState by selfMapViewModel.uiState.collectAsState()
-    val (_, bandColor) = getLoadBandLabel(selfMapState.coreAttachmentLoad)
-
-    if (isCyber) {
-        CyberFrame(
-            label = "TELEMETRY_HUD // QUICK_ACCESS",
-            borderColor = neonCyan
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp, horizontal = 4.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // 1. Day Card Tile
-                    HudTile(
-                        modifier = Modifier.weight(1f),
-                        title = "DAY_CARD",
-                        subtitle = "AGGREGATION",
-                        accentColor = neonCyan,
-                        onClick = onOpenDailyOriginSheet
-                    )
-
-                    VerticalDivider(
-                        modifier = Modifier
-                            .height(32.dp)
-                            .padding(horizontal = 2.dp),
-                        color = neonCyan.copy(alpha = 0.3f)
-                    )
-
-                    // 2. Self Map Tile
-                    HudTile(
-                        modifier = Modifier.weight(1f),
-                        title = "SELF_MAP",
-                        subtitle = "${selfMapState.coreAttachmentLoad.toInt()}% LOAD",
-                        subtitleColor = bandColor,
-                        accentColor = neonCyan,
-                        onClick = onNavigateToSelfMap
-                    )
-
-                    VerticalDivider(
-                        modifier = Modifier
-                            .height(32.dp)
-                            .padding(horizontal = 2.dp),
-                        color = neonCyan.copy(alpha = 0.3f)
-                    )
-
-                    // 3. Active Diet Tile
-                    val dietTitle = activeDiet?.name?.uppercase() ?: "NO DIET"
-                    val dietSubtitle = if (isHigherCarbDay && activeDiet != null) "⚡ REFEED" else dietTitle
-                    HudTile(
-                        modifier = Modifier.weight(1f),
-                        title = "ACTIVE_DIET",
-                        subtitle = dietSubtitle,
-                        subtitleColor = if (isHigherCarbDay && activeDiet != null) neonMagenta else Color.White,
-                        accentColor = neonCyan,
-                        onClick = onNavigateToCodexDiet
-                    )
-
-                    VerticalDivider(
-                        modifier = Modifier
-                            .height(32.dp)
-                            .padding(horizontal = 2.dp),
-                        color = neonCyan.copy(alpha = 0.3f)
-                    )
-
-                    // 4. Active Supplement Stack Tile
-                    val stackSubtitle = if (activeSupplementStack.isEmpty()) "NONE" else "${activeSupplementStack.size} ACTIVE"
-                    HudTile(
-                        modifier = Modifier.weight(1f),
-                        title = "STACK",
-                        subtitle = stackSubtitle,
-                        subtitleColor = if (activeSupplementStack.isNotEmpty()) neonCyan else Color.Gray,
-                        accentColor = neonCyan,
-                        onClick = onNavigateToCodexSupplements
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-                HorizontalDivider(color = neonCyan.copy(alpha = 0.2f))
-                Spacer(modifier = Modifier.height(4.dp))
-
-                ActiveSupplementStackSummaryContent(
-                    activeSupplementStack = activeSupplementStack,
-                    supplementOverrides = supplementOverrides,
-                    isCyber = true,
-                    neonCyan = neonCyan,
-                    neonMagenta = neonMagenta,
-                    onNavigateToCodexSupplements = onNavigateToCodexSupplements
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-                HorizontalDivider(color = neonCyan.copy(alpha = 0.15f))
-                Spacer(modifier = Modifier.height(4.dp))
-
-                ActiveProtocolsSummaryContent(
-                    activeProtocols = activeProtocols,
-                    protocolOverrides = protocolOverrides,
-                    isCyber = true,
-                    neonCyan = neonCyan,
-                    neonMagenta = neonMagenta,
-                    onNavigateToCodexProtocols = onNavigateToCodexProtocols
-                )
-            }
-        }
-    } else {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    HudTile(
-                        modifier = Modifier.weight(1f),
-                        title = "Day Card",
-                        subtitle = "Aggregation",
-                        accentColor = MaterialTheme.colorScheme.primary,
-                        onClick = onOpenDailyOriginSheet
-                    )
-
-                    VerticalDivider(
-                        modifier = Modifier
-                            .height(32.dp)
-                            .padding(horizontal = 2.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant
-                    )
-
-                    HudTile(
-                        modifier = Modifier.weight(1f),
-                        title = "Self Map",
-                        subtitle = "${selfMapState.coreAttachmentLoad.toInt()}% Load",
-                        subtitleColor = bandColor,
-                        accentColor = MaterialTheme.colorScheme.primary,
-                        onClick = onNavigateToSelfMap
-                    )
-
-                    VerticalDivider(
-                        modifier = Modifier
-                            .height(32.dp)
-                            .padding(horizontal = 2.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant
-                    )
-
-                    HudTile(
-                        modifier = Modifier.weight(1f),
-                        title = "Active Diet",
-                        subtitle = activeDiet?.name ?: "No Diet",
-                        accentColor = MaterialTheme.colorScheme.primary,
-                        onClick = onNavigateToCodexDiet
-                    )
-
-                    VerticalDivider(
-                        modifier = Modifier
-                            .height(32.dp)
-                            .padding(horizontal = 2.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant
-                    )
-
-                    HudTile(
-                        modifier = Modifier.weight(1f),
-                        title = "Stack",
-                        subtitle = if (activeSupplementStack.isEmpty()) "None" else "${activeSupplementStack.size} Active",
-                        accentColor = MaterialTheme.colorScheme.primary,
-                        onClick = onNavigateToCodexSupplements
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Spacer(modifier = Modifier.height(4.dp))
-
-                ActiveSupplementStackSummaryContent(
-                    activeSupplementStack = activeSupplementStack,
-                    supplementOverrides = supplementOverrides,
-                    isCyber = false,
-                    neonCyan = MaterialTheme.colorScheme.primary,
-                    neonMagenta = MaterialTheme.colorScheme.secondary,
-                    onNavigateToCodexSupplements = onNavigateToCodexSupplements
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Spacer(modifier = Modifier.height(4.dp))
-
-                ActiveProtocolsSummaryContent(
-                    activeProtocols = activeProtocols,
-                    protocolOverrides = protocolOverrides,
-                    isCyber = false,
-                    neonCyan = MaterialTheme.colorScheme.primary,
-                    neonMagenta = MaterialTheme.colorScheme.secondary,
-                    onNavigateToCodexProtocols = onNavigateToCodexProtocols
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ActiveSupplementStackSummaryContent(
-    activeSupplementStack: List<Supplement>,
-    supplementOverrides: Map<String, SupplementOverride>,
-    isCyber: Boolean,
-    neonCyan: Color,
-    neonMagenta: Color,
-    onNavigateToCodexSupplements: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(6.dp))
-            .clickable { onNavigateToCodexSupplements() }
-            .padding(horizontal = 6.dp, vertical = 2.dp)
-    ) {
-        if (activeSupplementStack.isEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = if (isCyber) "ACTIVE STACK: NONE SELECTED" else "Active Stack: None selected",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (isCyber) Color.Gray else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = if (isCyber) "CATALOG ›" else "Catalog ›",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = neonCyan
-                )
-            }
-        } else {
-            val namesText = activeSupplementStack.joinToString(", ") { supp ->
-                val override = supplementOverrides[supp.id]
-                if (override?.isPaused == true) "${supp.name} (PAUSED)" else supp.name
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = if (isCyber) "STACK (${activeSupplementStack.size}): $namesText" else "Stack (${activeSupplementStack.size}): $namesText",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (isCyber) Color.White else MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = if (isCyber) "CODEX ›" else "Codex ›",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = neonCyan
-                )
-            }
-
-            val scheduleNotes = activeSupplementStack.mapNotNull { supp ->
-                val override = supplementOverrides[supp.id]
-                val note = listOfNotNull(override?.scheduleNote, override?.customDoseNote)
-                    .filter { it.isNotBlank() }
-                    .joinToString(" - ")
-                if (note.isNotBlank() && override?.isPaused != true) {
-                    "${supp.name}: $note"
-                } else null
-            }
-
-            if (scheduleNotes.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "⏰ REMINDERS: " + scheduleNotes.joinToString(" | "),
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
-                    color = if (isCyber) neonCyan else MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            // Synergy Hint
-            val stackIds = activeSupplementStack.map { it.id }.toSet()
-            val synergyHint = when {
-                (stackIds.contains("caffeine") || stackIds.contains("caffeine_l_theanine_stack")) && stackIds.contains("l_theanine") ->
-                    "⚡ SYNERGY: Caffeine + L-Theanine (Smoother focus & reduced jitter)"
-                stackIds.contains("magnesium") && stackIds.contains("glycine") ->
-                    "🌙 SLEEP SYNERGY: Magnesium + Glycine (Sleep architecture & relaxation)"
-                stackIds.contains("vitamin_d3") && stackIds.contains("vitamin_k2") ->
-                    "🦴 SYNERGY: Vitamin D3 + K2 (Bone matrix & calcium utilization)"
-                else -> null
-            }
-
-            if (synergyHint != null) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = synergyHint,
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
-                    color = if (isCyber) neonMagenta else MaterialTheme.colorScheme.secondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ActiveProtocolsSummaryContent(
-    activeProtocols: List<BiohackingProtocol>,
-    protocolOverrides: Map<String, BiohackingProtocolOverride>,
-    isCyber: Boolean,
-    neonCyan: Color,
-    neonMagenta: Color,
-    onNavigateToCodexProtocols: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(6.dp))
-            .clickable { onNavigateToCodexProtocols() }
-            .padding(horizontal = 6.dp, vertical = 2.dp)
-    ) {
-        if (activeProtocols.isEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = if (isCyber) "ACTIVE PROTOCOLS: NONE SELECTED" else "Active Protocols: None selected",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (isCyber) Color.Gray else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = if (isCyber) "CATALOG ›" else "Catalog ›",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = neonCyan
-                )
-            }
-        } else {
-            val namesText = activeProtocols.joinToString(", ") { protocol ->
-                val override = protocolOverrides[protocol.id]
-                if (override?.isPaused == true) "${protocol.name} (PAUSED)" else protocol.name
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = if (isCyber) "PROTOCOLS (${activeProtocols.size}): $namesText" else "Protocols (${activeProtocols.size}): $namesText",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (isCyber) Color.White else MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = if (isCyber) "CODEX ›" else "Codex ›",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = neonCyan
-                )
-            }
-
-            val activeTodayProtocols = activeProtocols.filter { protocol ->
-                val override = protocolOverrides[protocol.id]
-                override?.isPaused != true
-            }
-
-            if (activeTodayProtocols.isNotEmpty()) {
-                val todayText = activeTodayProtocols.take(3).joinToString(", ") { p ->
-                    val override = protocolOverrides[p.id]
-                    val freq = override?.preferredFrequency ?: p.typicalParameters.take(25)
-                    if (freq.isNotBlank()) "${p.name} ($freq)" else p.name
-                }
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = if (isCyber) "⚡ TODAY ACTIVE: $todayText" else "⚡ Today Active: $todayText",
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
-                    color = neonMagenta,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            val stackingHints = activeTodayProtocols.flatMap { it.stackingNotes }
-            if (stackingHints.isNotEmpty()) {
-                val hint = stackingHints.first()
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = if (isCyber) "💡 SYNERGY HINT: ${hint.title} — ${hint.description}" else "💡 Synergy Hint: ${hint.title} — ${hint.description}",
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
-                    color = if (isCyber) neonCyan else MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun HudTile(
-    title: String,
-    subtitle: String,
-    accentColor: Color,
-    modifier: Modifier = Modifier,
-    subtitleColor: Color = Color.White,
-    onClick: () -> Unit
-) {
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(6.dp))
-            .clickable { onClick() }
-            .padding(vertical = 4.dp, horizontal = 2.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = title,
-                color = accentColor,
-                fontWeight = FontWeight.Bold,
-                fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.width(2.dp))
-            Text(
-                text = "→",
-                color = accentColor.copy(alpha = 0.7f),
-                fontSize = 10.sp,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold
-            )
-        }
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = subtitle,
-            color = subtitleColor,
-            fontSize = 10.sp,
-            fontFamily = FontFamily.Monospace,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-

@@ -1,9 +1,12 @@
 package com.neon.ascent.feature.biohacking.ui.sheet
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -23,6 +26,13 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+
+enum class BodyLogAnchor {
+    Weight,
+    BodyFat,
+    Waist,
+    BloodPressure
+}
 
 data class BodyLogInputState(
     val date: LocalDate = LocalDate.now(),
@@ -47,12 +57,13 @@ data class BodyLogInputState(
     val note: String = ""
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun BodyLogSheet(
     onDismiss: () -> Unit,
     onSave: (BodyLogInputState) -> Unit,
     measurementUnit: String = "Metric",
+    initialAnchor: BodyLogAnchor? = null,
     showShareToHcFooter: Boolean = false,
     onRequestHcBodyPerms: (() -> Unit)? = null
 ) {
@@ -62,6 +73,20 @@ fun BodyLogSheet(
     var state by remember { mutableStateOf(BodyLogInputState()) }
 
     val isImperial = measurementUnit.equals("Imperial", ignoreCase = true)
+    val weightRequester = remember { BringIntoViewRequester() }
+    val bodyFatRequester = remember { BringIntoViewRequester() }
+    val waistRequester = remember { BringIntoViewRequester() }
+    val bloodPressureRequester = remember { BringIntoViewRequester() }
+
+    LaunchedEffect(initialAnchor) {
+        when (initialAnchor) {
+            BodyLogAnchor.Weight -> weightRequester.bringIntoView()
+            BodyLogAnchor.BodyFat -> bodyFatRequester.bringIntoView()
+            BodyLogAnchor.Waist -> waistRequester.bringIntoView()
+            BodyLogAnchor.BloodPressure -> bloodPressureRequester.bringIntoView()
+            null -> Unit
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -120,7 +145,13 @@ fun BodyLogSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             // WEIGHT + CONDITION
-            Text(if (isImperial) "WEIGHT (LBS)" else "WEIGHT (KG)", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(
+                if (isImperial) "WEIGHT (LBS)" else "WEIGHT (KG)",
+                color = cyan,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.bringIntoViewRequester(weightRequester)
+            )
             Spacer(modifier = Modifier.height(6.dp))
             BodyInputField(
                 label = if (isImperial) "WEIGHT (LBS)" else "WEIGHT (KG)",
@@ -146,7 +177,13 @@ fun BodyLogSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             // BODY FAT % + METHOD
-            Text("BODY_FAT_%", color = magenta, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(
+                "BODY_FAT_%",
+                color = magenta,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.bringIntoViewRequester(bodyFatRequester)
+            )
             Spacer(modifier = Modifier.height(6.dp))
             BodyInputField(
                 label = "BF %",
@@ -172,7 +209,13 @@ fun BodyLogSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             // BLOOD PRESSURE (SYS / DIA + POSITION + ARM)
-            Text("BLOOD_PRESSURE", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(
+                "BLOOD_PRESSURE",
+                color = cyan,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.bringIntoViewRequester(bloodPressureRequester)
+            )
             Spacer(modifier = Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 BodyInputField(
@@ -218,7 +261,13 @@ fun BodyLogSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             // TAPE SITES (Short list: Neck, Chest, Waist, Hips, Bicep, Thigh, Calf, Forearm)
-            Text("TAPE (CM)", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(
+                if (isImperial) "TAPE (IN)" else "TAPE (CM)",
+                color = cyan,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.bringIntoViewRequester(waistRequester)
+            )
             Spacer(modifier = Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 BodyInputField(

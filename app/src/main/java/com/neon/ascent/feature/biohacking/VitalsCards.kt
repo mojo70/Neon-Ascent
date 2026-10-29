@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neon.ascent.ui.CyberCutShape
+import com.neon.ascent.core.common.LocalNeonTheme
 import com.neon.ascent.core.domain.health.models.VitalsSnapshot
 import kotlin.math.sqrt
 
@@ -27,6 +28,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.style.TextOverflow
 import com.neon.ascent.core.domain.health.ChargeConfidence
 import com.neon.ascent.core.domain.health.NeonCharge
+import com.neon.ascent.feature.biohacking.ui.labs.chargeGaugeOrEmpty
 
 @Composable
 fun VitalsStack(
@@ -83,6 +85,9 @@ fun VitalsStack(
 
         FuelCard(
             targetKcal = macros?.calories,
+            proteinGrams = macros?.protein,
+            carbGrams = macros?.carbs,
+            fatGrams = macros?.fat,
             burnedKcal = snapshot?.calories?.toInt(),
             consumedKcal = snapshot?.caloriesConsumed,
             hasNutritionPermission = hasNutritionPermission,
@@ -108,6 +113,8 @@ fun NeonChargeCard(
     neonMagenta: Color,
     onChargeClick: (() -> Unit)? = null
 ) {
+    val ink = LocalNeonTheme.current.ink
+    val gauge = chargeGaugeOrEmpty(charge)
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -129,105 +136,118 @@ fun NeonChargeCard(
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold
                 )
-                Text(
-                    "[CONFIDENCE: ${charge?.confidence?.name ?: "LOW"}]",
-                    color = when (charge?.confidence) {
-                        ChargeConfidence.HIGH -> Color(0xFF00FF9C)
-                        ChargeConfidence.MED -> Color(0xFFFF8C00)
-                        else -> Color.Gray
-                    },
-                    fontSize = 9.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold
-                )
+                if (gauge.hasCharge && gauge.confidence != null) {
+                    Text(
+                        "[CONFIDENCE: ${gauge.confidence.name}]",
+                        color = when (gauge.confidence) {
+                            ChargeConfidence.HIGH -> Color(0xFF00FF9C)
+                            ChargeConfidence.MED -> Color(0xFFFF8C00)
+                            ChargeConfidence.LOW -> Color.Gray
+                        },
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                val rawValPct = (charge?.value ?: 62) / 100f
+            if (!gauge.hasCharge || charge == null) {
+                Text(
+                    text = "Charge not in yet",
+                    color = ink,
+                    fontSize = 18.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Black
+                )
+            } else {
+                val rawValPct = charge.value / 100f
                 val valPct by animateFloatAsState(
                     targetValue = rawValPct,
                     animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing),
                     label = "NeonChargeAnim"
                 )
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(72.dp)) {
-                        Canvas(modifier = Modifier.size(72.dp)) {
-                            drawArc(
-                                color = Color.White.copy(alpha = 0.1f),
-                                startAngle = 135f,
-                                sweepAngle = 270f,
-                                useCenter = false,
-                                style = Stroke(width = 6.dp.toPx(), cap = StrokeCap.Round)
-                            )
-                            drawArc(
-                                color = if (valPct > 0.6f) Color(0xFF00FF9C) else if (valPct > 0.3f) Color(0xFFFF8C00) else neonMagenta,
-                                startAngle = 135f,
-                                sweepAngle = 270f * valPct,
-                                useCenter = false,
-                                style = Stroke(width = 6.dp.toPx(), cap = StrokeCap.Round)
+                val trackColor = ink.copy(alpha = 0.1f)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(72.dp)) {
+                            Canvas(modifier = Modifier.size(72.dp)) {
+                                drawArc(
+                                    color = trackColor,
+                                    startAngle = 135f,
+                                    sweepAngle = 270f,
+                                    useCenter = false,
+                                    style = Stroke(width = 6.dp.toPx(), cap = StrokeCap.Round)
+                                )
+                                drawArc(
+                                    color = if (valPct > 0.6f) Color(0xFF00FF9C) else if (valPct > 0.3f) Color(0xFFFF8C00) else neonMagenta,
+                                    startAngle = 135f,
+                                    sweepAngle = 270f * valPct,
+                                    useCenter = false,
+                                    style = Stroke(width = 6.dp.toPx(), cap = StrokeCap.Round)
+                                )
+                            }
+                            Text(
+                                text = "${charge.value}%",
+                                color = ink,
+                                fontSize = 18.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Black
                             )
                         }
-                        Text(
-                            text = "${(valPct * 100).toInt()}%",
-                            color = Color.White,
-                            fontSize = 18.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Black
-                        )
+
+                        val hasClearance = charge.drivers.any { it.first == "SLEEP" }
+                        if (hasClearance) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            val seedVal = charge.wakeSeed
+                            val band = when (seedVal) {
+                                in 80..100 -> "CLEAR"
+                                in 65..79 -> "WATCH"
+                                in 50..64 -> "HOLD"
+                                else -> "GROUND"
+                            }
+                            val lowSuffix = if (charge.confidence == ChargeConfidence.LOW) " · LOW" else ""
+                            Text(
+                                text = "SEED $seedVal $band · FROZEN$lowSuffix",
+                                color = neonCyan,
+                                fontSize = 12.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
 
-                    val hasClearance = charge != null && charge.drivers.any { it.first == "SLEEP" }
-                    if (hasClearance) {
-                        Spacer(modifier = Modifier.height(6.dp))
-                        val seedVal = charge.wakeSeed
-                        val band = when (seedVal) {
-                            in 80..100 -> "CLEAR"
-                            in 65..79 -> "WATCH"
-                            in 50..64 -> "HOLD"
-                            else -> "GROUND"
-                        }
-                        val lowSuffix = if (charge.confidence == ChargeConfidence.LOW) " · LOW" else ""
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "SEED $seedVal $band · FROZEN$lowSuffix",
-                            color = neonCyan,
-                            fontSize = 8.sp,
+                            "PRIMARY DRIVERS:",
+                            color = Color.Gray,
+                            fontSize = 12.sp,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold
                         )
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "PRIMARY DRIVERS:",
-                        color = Color.Gray,
-                        fontSize = 9.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    val nonSleepDrivers = charge?.drivers?.filter { (tag, _) ->
-                        tag != "SLEEP" && tag != "HRV_STRESS" && tag != "RHR_STRESS"
-                    } ?: emptyList()
-                    val displayDrivers = if (nonSleepDrivers.isNotEmpty()) nonSleepDrivers else (charge?.drivers ?: listOf("COLD_START" to "Default baseline (62%)"))
-                    displayDrivers.take(3).forEach { (tag, desc) ->
-                        val lineText = when (tag) {
-                            "HR_LOAD" -> "• HR_LOAD $desc"
-                            "STEPS_DRAIN", "WORKOUT_DRAIN" -> "• $desc"
-                            else -> "• $tag: $desc"
+                        Spacer(modifier = Modifier.height(4.dp))
+                        val nonSleepDrivers = charge.drivers.filter { (tag, _) ->
+                            tag != "SLEEP" && tag != "HRV_STRESS" && tag != "RHR_STRESS"
                         }
-                        Text(
-                            text = lineText,
-                            color = Color.White.copy(alpha = 0.85f),
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        val displayDrivers = if (nonSleepDrivers.isNotEmpty()) nonSleepDrivers else charge.drivers
+                        displayDrivers.take(3).forEach { (tag, desc) ->
+                            val lineText = when (tag) {
+                                "HR_LOAD" -> "• HR_LOAD $desc"
+                                "STEPS_DRAIN", "WORKOUT_DRAIN" -> "• $desc"
+                                else -> "• $tag: $desc"
+                            }
+                            Text(
+                                text = lineText,
+                                color = ink,
+                                fontSize = 12.sp,
+                                fontFamily = FontFamily.Monospace,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
             }
@@ -237,7 +257,7 @@ fun NeonChargeCard(
             Text(
                 "NEON_MODEL · NOT_GARMIN",
                 color = Color.DarkGray,
-                fontSize = 8.sp,
+                fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold
             )
@@ -591,6 +611,9 @@ fun MiniSparkline(data: List<Float>, color: Color, modifier: Modifier = Modifier
 @Composable
 fun FuelCard(
     targetKcal: Int?,
+    proteinGrams: Int?,
+    carbGrams: Int?,
+    fatGrams: Int?,
     burnedKcal: Int?,
     consumedKcal: Double?,
     hasNutritionPermission: Boolean,
@@ -598,6 +621,7 @@ fun FuelCard(
     neonMagenta: Color,
     onRequestNutritionPermission: () -> Unit
 ) {
+    val ink = LocalNeonTheme.current.ink
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = CyberCutShape,
@@ -640,7 +664,7 @@ fun FuelCard(
                     label = "TARGET",
                     value = targetKcal?.toString() ?: "--",
                     unit = "KCAL",
-                    color = Color.White
+                    color = ink
                 )
                 FuelMetricItem(
                     label = "EATEN",
@@ -669,6 +693,17 @@ fun FuelCard(
                 )
             }
 
+            if (proteinGrams != null || carbGrams != null || fatGrams != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "P ${proteinGrams ?: "--"} g · C ${carbGrams ?: "--"} g · F ${fatGrams ?: "--"} g",
+                    color = ink,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
@@ -679,8 +714,8 @@ fun FuelCard(
                 } else {
                     "SOURCE: HEALTH CONNECT"
                 },
-                color = if (!hasNutritionPermission) Color(0xFFFF8C00) else Color.DarkGray,
-                fontSize = 8.sp,
+                color = if (!hasNutritionPermission) Color(0xFFFF8C00) else ink.copy(alpha = 0.7f),
+                fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace,
                 modifier = Modifier.then(
                     if (!hasNutritionPermission) Modifier.clickable { onRequestNutritionPermission() } else Modifier
@@ -701,8 +736,8 @@ fun FuelMetricItem(
     Column(modifier = if (onClick != null) Modifier.clickable { onClick() } else Modifier) {
         Text(
             label,
-            color = Color.White.copy(alpha = 0.6f),
-            fontSize = 9.sp,
+            color = LocalNeonTheme.current.ink.copy(alpha = 0.6f),
+            fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             fontFamily = FontFamily.Monospace
         )
