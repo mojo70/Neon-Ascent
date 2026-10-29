@@ -34,6 +34,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
@@ -209,6 +210,7 @@ class WorkoutViewModel @Inject constructor(
     private var stretchTimerJob: kotlinx.coroutines.Job? = null
     private var sessionJob: kotlinx.coroutines.Job? = null
     private var zoomUpdateJob: kotlinx.coroutines.Job? = null
+    private var sequencerJob: kotlinx.coroutines.Job? = null
 
     private val startingStrengthEngine by lazy { 
         StartingStrengthEngine(_uiState.value.userProfile?.unitSystem ?: UnitSystem.IMPERIAL) 
@@ -338,6 +340,7 @@ class WorkoutViewModel @Inject constructor(
             launch {
                 workoutPreferencesDataStore.cyberCrappRotationMode.collect { mode ->
                     _uiState.update { it.copy(cyberCrappRotationMode = mode) }
+                    updateSequencerState()
                 }
             }
 
@@ -359,10 +362,7 @@ class WorkoutViewModel @Inject constructor(
 
             launch {
                 try {
-                    val sessions = repository.getAllSessions().first()
-                    val routines = repository.getAllRoutines().first()
-                    val rotationMode = _uiState.value.cyberCrappRotationMode
-                    val nextRoutine = WorkoutRotationResolver.resolveNextRoutine(sessions, routines, WorkoutProtocol.CYBER_CRAPP, rotationMode)
+                    val nextRoutine = resolveCyberCrappNextRoutine()
                     if (nextRoutine != null) {
                         syncTrainingTasks(nextRoutine)
                     }
@@ -998,14 +998,17 @@ class WorkoutViewModel @Inject constructor(
         val sourceList = if (state.allRoutines.isNotEmpty()) state.allRoutines else state.routines
         return sourceList
             .filter { it.protocol == protocol }
-            .sortedWith(compareBy<WorkoutRoutine> { routine ->
-                when {
-                    routine.id.lowercase().endsWith("_a") || routine.name.contains("Push", ignoreCase = true) -> 0
-                    routine.id.lowercase().endsWith("_b") || routine.name.contains("Pull", ignoreCase = true) -> 1
-                    routine.id.lowercase().endsWith("_c") || routine.name.contains("Legs", ignoreCase = true) -> 2
-                    else -> 3
-                }
-            }.thenBy { it.id })
+            .sortedWith(
+                compareBy<WorkoutRoutine> { routine ->
+                    when (WorkoutRotationResolver.dayTypeForRoutine(routine)) {
+                        ProtocolDayType.CC_A -> 0
+                        ProtocolDayType.CC_B -> 1
+                        ProtocolDayType.CC_C -> 2
+                        else -> 3
+                    }
+                }.thenBy { routine -> if (WorkoutRotationResolver.isRoutineVariantB(routine)) 1 else 0 }
+                    .thenBy { it.id }
+            )
     }
 
     private fun loadRoutines() {
@@ -1029,11 +1032,33 @@ class WorkoutViewModel @Inject constructor(
         val state = _uiState.value
         val profile = state.userProfile ?: return
         if (!profile.sequencerEnabled) {
+            sequencerJob?.cancel()
             _uiState.update { it.copy(nextSequencedRoutine = null) }
             return
         }
 
         val activeProtocol = profile.activeProtocol
+        if (activeProtocol == WorkoutProtocol.CYBER_CRAPP) {
+            // Straight vs A/B is decided from finished sessions, not rotationIndex.
+            // rotationIndex walks every routine whose id ends in _b, so Pull B and Legs B
+            // get inserted into the strength cycle.
+            sequencerJob?.cancel()
+            sequencerJob = viewModelScope.launch {
+                val nextRoutine = resolveCyberCrappNextRoutine()
+                if (!isActive) return@launch
+                _uiState.update { current ->
+                    if (current.userProfile?.activeProtocol != WorkoutProtocol.CYBER_CRAPP ||
+                        current.userProfile?.sequencerEnabled != true
+                    ) {
+                        current
+                    } else {
+                        current.copy(nextSequencedRoutine = nextRoutine)
+                    }
+                }
+            }
+            return
+        }
+
         val nextRoutine = if (activeProtocol != null) {
             val protocolRoutines = getProtocolRoutines(activeProtocol)
             if (protocolRoutines.isNotEmpty()) {
@@ -1045,6 +1070,28 @@ class WorkoutViewModel @Inject constructor(
         } else null
 
         _uiState.update { it.copy(nextSequencedRoutine = nextRoutine) }
+    }
+
+    /**
+     * Next CyberCrapp routine from finished sessions only.
+     * A session row is written when the workout starts, with duration 0, so counting those
+     * would advance the rotation before the workout is logged.
+     */
+    private suspend fun resolveCyberCrappNextRoutine(): WorkoutRoutine? {
+        val sessions = repository.getAllSessions().first().filter { it.durationSeconds > 0 }
+        val state = _uiState.value
+        val routines = if (state.allRoutines.isNotEmpty()) {
+            state.allRoutines
+        } else {
+            repository.getAllRoutines().first()
+        }
+        val rotationMode = workoutPreferencesDataStore.cyberCrappRotationMode.first()
+        return WorkoutRotationResolver.resolveNextRoutine(
+            sessions,
+            routines,
+            WorkoutProtocol.CYBER_CRAPP,
+            rotationMode
+        )
     }
 
     private fun loadAugments() {
@@ -1654,6 +1701,7 @@ class WorkoutViewModel @Inject constructor(
         _uiState.update { it.copy(cyberCrappRotationMode = mode) }
         viewModelScope.launch {
             workoutPreferencesDataStore.setCyberCrappRotationMode(mode)
+            updateSequencerState()
         }
     }
 
@@ -2623,14 +2671,8 @@ class WorkoutViewModel @Inject constructor(
             val activeCycle = userProfile?.let { repository.getActiveCycle(it.userId).first() }
             val engine = getEngine(fullRoutine.protocol)
             val dayType = when {
-                fullRoutine.protocol == WorkoutProtocol.CYBER_CRAPP -> {
-                    when {
-                        fullRoutine.id.lowercase().endsWith("_a") || fullRoutine.name.contains("Push", ignoreCase = true) -> ProtocolDayType.CC_A
-                        fullRoutine.id.lowercase().endsWith("_b") || fullRoutine.name.contains("Pull", ignoreCase = true) -> ProtocolDayType.CC_B
-                        fullRoutine.id.lowercase().endsWith("_c") || fullRoutine.name.contains("Legs", ignoreCase = true) -> ProtocolDayType.CC_C
-                        else -> ProtocolDayType.CC_A
-                    }
-                }
+                fullRoutine.protocol == WorkoutProtocol.CYBER_CRAPP ->
+                    WorkoutRotationResolver.dayTypeForRoutine(fullRoutine) ?: ProtocolDayType.CC_A
                 engine != null && activeCycle != null && activeCycle.protocol == fullRoutine.protocol -> {
                     (engine as? StartingStrengthEngine)?.let { ss ->
                         ss.getNextDayType(null)
@@ -3760,10 +3802,7 @@ class WorkoutViewModel @Inject constructor(
 
             // 2. Sync training tasks with next rotation step
             try {
-                val sessions = repository.getAllSessions().first()
-                val routines = repository.getAllRoutines().first()
-                val rotationMode = _uiState.value.cyberCrappRotationMode
-                val nextRoutine = WorkoutRotationResolver.resolveNextRoutine(sessions, routines, WorkoutProtocol.CYBER_CRAPP, rotationMode)
+                val nextRoutine = resolveCyberCrappNextRoutine()
                 if (nextRoutine != null) {
                     syncTrainingTasks(nextRoutine)
                 }
@@ -3859,6 +3898,7 @@ class WorkoutViewModel @Inject constructor(
             ) }
             activeSessionController.resetSession()
             sessionJob?.cancel()
+            updateSequencerState()
         }
     }
 

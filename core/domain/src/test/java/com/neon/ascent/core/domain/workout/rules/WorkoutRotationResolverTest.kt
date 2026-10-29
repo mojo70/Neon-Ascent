@@ -238,4 +238,48 @@ class WorkoutRotationResolverTest {
         // Since last session was Push A2, next day type is Pull A
         assertEquals("routine_cybercrapp_b", nextAfterPushA2?.id)
     }
+
+    @Test
+    fun `STRAIGHT mode after Pull returns Legs A even when Pull B is listed first`() {
+        val pullSession = WorkoutSession(
+            id = "s_pull",
+            date = Instant.now(),
+            protocol = WorkoutProtocol.CYBER_CRAPP,
+            protocolDayType = ProtocolDayType.CC_B,
+            durationSeconds = 3600,
+            notes = "Completed routine_cybercrapp_b"
+        )
+
+        val routinesWithVariantFirst = listOf(routinePullB, routineLegsB, routinePushB, routinePushA, routinePullA, routineLegsA)
+        val next = WorkoutRotationResolver.resolveNextRoutine(
+            listOf(pullSession),
+            routinesWithVariantFirst,
+            WorkoutProtocol.CYBER_CRAPP,
+            CyberCrappRotationMode.STRAIGHT
+        )
+
+        assertEquals("routine_cybercrapp_c", next?.id)
+        assertEquals("CyberCrapp C (Legs)", next?.name)
+    }
+
+    @Test
+    fun `variant routine ids keep their day type and are not all Pull`() {
+        assertEquals(ProtocolDayType.CC_A, WorkoutRotationResolver.dayTypeForRoutine(routinePushA))
+        assertEquals(ProtocolDayType.CC_A, WorkoutRotationResolver.dayTypeForRoutine(routinePushB))
+        assertEquals(ProtocolDayType.CC_B, WorkoutRotationResolver.dayTypeForRoutine(routinePullA))
+        assertEquals(ProtocolDayType.CC_B, WorkoutRotationResolver.dayTypeForRoutine(routinePullB))
+        assertEquals(ProtocolDayType.CC_C, WorkoutRotationResolver.dayTypeForRoutine(routineLegsA))
+        assertEquals(ProtocolDayType.CC_C, WorkoutRotationResolver.dayTypeForRoutine(routineLegsB))
+
+        assertEquals(false, WorkoutRotationResolver.isRoutineVariantB(routinePullA))
+        assertEquals(true, WorkoutRotationResolver.isRoutineVariantB(routinePullB))
+        assertEquals(true, WorkoutRotationResolver.isRoutineVariantB(routineLegsB))
+        assertEquals(false, WorkoutRotationResolver.isSessionVariantB(
+            WorkoutSession(
+                id = "straight_pull",
+                protocol = WorkoutProtocol.CYBER_CRAPP,
+                notes = "Completed routine_cybercrapp_b"
+            )
+        ))
+    }
 }

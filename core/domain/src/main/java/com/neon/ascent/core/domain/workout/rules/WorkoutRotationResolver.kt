@@ -10,6 +10,9 @@ object WorkoutRotationResolver {
 
     /**
      * Resolves the next routine in the rotation based on completed session history and rotation mode.
+     *
+     * Straight mode stays on the A/B/C strength cycle (Push A, Pull A, Legs A).
+     * A/B mode keeps that same day order and alternates the variant inside each day.
      */
     fun resolveNextRoutine(
         sessions: List<WorkoutSession>,
@@ -61,6 +64,7 @@ object WorkoutRotationResolver {
 
     /**
      * Resolves the day type letter ("A", "B", or "C") for the next session.
+     * A/B/C here is Push/Pull/Legs, not the exercise-variant suffix.
      */
     fun resolveNextDayTypeLetter(
         sessions: List<WorkoutSession>,
@@ -69,16 +73,18 @@ object WorkoutRotationResolver {
         rotationMode: CyberCrappRotationMode = CyberCrappRotationMode.STRAIGHT
     ): String {
         val nextRoutine = resolveNextRoutine(sessions, routines, protocol, rotationMode)
-        return when {
-            nextRoutine?.id?.lowercase()?.endsWith("_a") == true || nextRoutine?.name?.contains("Push", ignoreCase = true) == true -> "A"
-            nextRoutine?.id?.lowercase()?.endsWith("_b") == true || nextRoutine?.name?.contains("Pull", ignoreCase = true) == true -> "B"
-            nextRoutine?.id?.lowercase()?.endsWith("_c") == true || nextRoutine?.name?.contains("Legs", ignoreCase = true) == true -> "C"
+        return when (nextRoutine?.let { dayTypeForRoutine(it) }) {
+            ProtocolDayType.CC_A -> "A"
+            ProtocolDayType.CC_B -> "B"
+            ProtocolDayType.CC_C -> "C"
             else -> "A"
         }
     }
 
     fun isSessionVariantB(session: WorkoutSession): Boolean {
         val notes = session.notes?.lowercase() ?: ""
+        // Do not treat a trailing "_b" as variant B. The straight Pull routine id is
+        // routine_cybercrapp_b, so any note that quotes that id would look like a B variant.
         return notes.contains("variant_b") ||
                notes.contains("push_b") ||
                notes.contains("pull_b") ||
@@ -86,8 +92,47 @@ object WorkoutRotationResolver {
                notes.contains("push b") ||
                notes.contains("pull b") ||
                notes.contains("legs b") ||
-               notes.contains("(b)") ||
-               notes.endsWith("_b")
+               notes.contains("(b)")
+    }
+
+    /**
+     * Push / Pull / Legs slot for a CyberCrapp routine.
+     *
+     * The straight Pull routine is `routine_cybercrapp_b`. Variant routines also end in `_b`
+     * (`routine_cybercrapp_pull_b`, `routine_cybercrapp_legs_b`), so the id suffix is not the day.
+     */
+    fun dayTypeForRoutine(routine: WorkoutRoutine): ProtocolDayType? {
+        val id = routine.id.lowercase()
+        val name = routine.name.lowercase()
+        return when {
+            id.contains("legs") || name.contains("legs") || id == "routine_cybercrapp_c" || id.endsWith("_c") || name.contains("squat") ->
+                ProtocolDayType.CC_C
+            id.contains("pull") || name.contains("pull") || id == "routine_cybercrapp_b" ->
+                ProtocolDayType.CC_B
+            id.contains("push") || name.contains("push") || id == "routine_cybercrapp_a" || id.endsWith("_a") ->
+                ProtocolDayType.CC_A
+            else -> null
+        }
+    }
+
+    fun isRoutineVariantB(routine: WorkoutRoutine): Boolean {
+        val id = routine.id.lowercase()
+        val name = routine.name.lowercase()
+        if (id == "routine_cybercrapp_a" || id == "routine_cybercrapp_b" || id == "routine_cybercrapp_c") {
+            return false
+        }
+        return id.contains("push_b") ||
+            id.contains("pull_b") ||
+            id.contains("legs_b") ||
+            id.contains("_a_b") ||
+            id.contains("_b_b") ||
+            id.contains("_c_b") ||
+            name.contains("push b") ||
+            name.contains("pull b") ||
+            name.contains("legs b") ||
+            name.contains("push (b)") ||
+            name.contains("pull (b)") ||
+            name.contains("legs (b)")
     }
 
     private fun findRoutineForDayTypeAndVariant(
@@ -96,47 +141,13 @@ object WorkoutRotationResolver {
         isVariantB: Boolean
     ): WorkoutRoutine? {
         return routines.find { routine ->
-            val id = routine.id.lowercase()
-            val name = routine.name.lowercase()
-
-            val matchesDayType = when (dayType) {
-                ProtocolDayType.CC_A -> id.contains("push") || name.contains("push") || id == "routine_cybercrapp_a" || id.endsWith("_a")
-                ProtocolDayType.CC_B -> id.contains("pull") || name.contains("pull") || id == "routine_cybercrapp_b"
-                ProtocolDayType.CC_C -> id.contains("legs") || name.contains("legs") || id == "routine_cybercrapp_c" || id.endsWith("_c") || name.contains("squat")
-                else -> id.contains("push") || name.contains("push")
-            }
-
-            if (!matchesDayType) return@find false
-
-            val matchesVariantB = when (dayType) {
-                ProtocolDayType.CC_A -> id.contains("push_b") || id.contains("_a_b") || name.contains("push b") || name.contains("push (b)") || (id != "routine_cybercrapp_a" && id.endsWith("_b"))
-                ProtocolDayType.CC_B -> id.contains("pull_b") || id.contains("_b_b") || name.contains("pull b") || name.contains("pull (b)")
-                ProtocolDayType.CC_C -> id.contains("legs_b") || id.contains("_c_b") || name.contains("legs b") || name.contains("legs (b)")
-                else -> false
-            }
-
-            if (isVariantB) matchesVariantB else !matchesVariantB
+            dayTypeForRoutine(routine) == dayType && isRoutineVariantB(routine) == isVariantB
         }
     }
 
     private fun findRoutineForDayType(routines: List<WorkoutRoutine>, dayType: ProtocolDayType): WorkoutRoutine? {
-        val matchSuffix = when (dayType) {
-            ProtocolDayType.CC_A -> "_a"
-            ProtocolDayType.CC_B -> "_b"
-            ProtocolDayType.CC_C -> "_c"
-            else -> "_a"
-        }
-        val matchKeyword = when (dayType) {
-            ProtocolDayType.CC_A -> "push"
-            ProtocolDayType.CC_B -> "pull"
-            ProtocolDayType.CC_C -> "legs"
-            else -> "push"
-        }
-        return routines.find {
-            it.id.lowercase().endsWith(matchSuffix) ||
-            it.name.lowercase().contains(" ($matchKeyword)") ||
-            it.name.lowercase().contains(matchKeyword)
-        }
+        val matches = routines.filter { dayTypeForRoutine(it) == dayType }
+        return matches.firstOrNull { !isRoutineVariantB(it) } ?: matches.firstOrNull()
     }
 
     fun resolveDayTypeFromSession(session: WorkoutSession): ProtocolDayType? {
@@ -144,9 +155,12 @@ object WorkoutRotationResolver {
 
         val notes = session.notes?.lowercase() ?: ""
         return when {
-            notes.contains("cybercrapp_a") || notes.contains("push") -> ProtocolDayType.CC_A
-            notes.contains("cybercrapp_b") || notes.contains("pull") -> ProtocolDayType.CC_B
-            notes.contains("cybercrapp_c") || notes.contains("legs") || notes.contains("squat") -> ProtocolDayType.CC_C
+            notes.contains("legs_b") || notes.contains("legs b") || notes.contains("cybercrapp_c") || notes.contains("legs") || notes.contains("squat") ->
+                ProtocolDayType.CC_C
+            notes.contains("pull_b") || notes.contains("pull b") || notes.contains("cybercrapp_b") || notes.contains("pull") ->
+                ProtocolDayType.CC_B
+            notes.contains("push_b") || notes.contains("push b") || notes.contains("cybercrapp_a") || notes.contains("push") ->
+                ProtocolDayType.CC_A
             else -> null
         }
     }

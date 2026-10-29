@@ -82,4 +82,41 @@ class WorkoutViewModelRotationTest {
         assertEquals("routine_cybercrapp_c", nextRoutine?.id)
         assertEquals("CyberCrapp C (Legs)", nextRoutine?.name)
     }
+
+    @Test
+    fun `STRAIGHT mode after a logged Pull does not queue Pull B`() {
+        val pullB = WorkoutRoutine(
+            id = "routine_cybercrapp_pull_b",
+            name = "CyberCrapp Pull B",
+            protocol = WorkoutProtocol.CYBER_CRAPP
+        )
+        val pushB = WorkoutRoutine(
+            id = "routine_cybercrapp_push_b",
+            name = "CyberCrapp Push B",
+            protocol = WorkoutProtocol.CYBER_CRAPP
+        )
+        val legsB = WorkoutRoutine(
+            id = "routine_cybercrapp_legs_b",
+            name = "CyberCrapp Legs B",
+            protocol = WorkoutProtocol.CYBER_CRAPP
+        )
+        val completedPull = WorkoutSession(
+            id = "s_pull_today",
+            date = Instant.now(),
+            protocol = WorkoutProtocol.CYBER_CRAPP,
+            protocolDayType = ProtocolDayType.CC_B,
+            durationSeconds = 4200,
+            notes = "Completed routine_cybercrapp_b"
+        )
+
+        val nextRoutine = WorkoutRotationResolver.resolveNextRoutine(
+            listOf(completedPull),
+            listOf(pullB, pushB, legsB) + allRoutines,
+            WorkoutProtocol.CYBER_CRAPP,
+            com.neon.ascent.core.domain.workout.models.CyberCrappRotationMode.STRAIGHT
+        )
+
+        assertEquals("routine_cybercrapp_c", nextRoutine?.id)
+        assertEquals("CyberCrapp C (Legs)", nextRoutine?.name)
+    }
 }
