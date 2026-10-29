@@ -1630,10 +1630,13 @@ class WorkoutViewModel @Inject constructor(
             return
         }
 
-        // 3. Normal schedule reminders
+        // 3. Normal schedule reminders.
+        // CyberCrapp days rotate from the last workout, so a weekday is not pinned
+        // to Push B, Pull B, or any other catalog routine.
         val protocolRoutines = getProtocolRoutines(protocol)
+        val sequenceByWeekday = protocol != WorkoutProtocol.CYBER_CRAPP
         profile.scheduledDays.forEachIndexed { scheduledIndex, scheduled ->
-            val assignedRoutine = if (protocolRoutines.isNotEmpty()) {
+            val assignedRoutine = if (sequenceByWeekday && protocolRoutines.isNotEmpty()) {
                 protocolRoutines[scheduledIndex % protocolRoutines.size]
             } else null
             

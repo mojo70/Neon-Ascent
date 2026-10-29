@@ -111,7 +111,12 @@ fun WorkoutSettingsScreen(
                                     Spacer(Modifier.width(16.dp))
                                     Column {
                                         Text("Protocol Managed", color = Color.White, fontWeight = FontWeight.Bold)
-                                        Text("Rotation index: ${tempProfile.rotationIndex}", color = Color.Gray, fontSize = 12.sp)
+                                        Text(
+                                            uiState.nextSequencedRoutine?.name?.let { "Next session: $it" }
+                                                ?: "Next session follows your last workout.",
+                                            color = Color.Gray,
+                                            fontSize = 12.sp
+                                        )
                                     }
                                 }
 
@@ -152,9 +157,9 @@ fun WorkoutSettingsScreen(
                                     }
                                     Text(
                                         text = if (uiState.cyberCrappRotationMode == CyberCrappRotationMode.STRAIGHT)
-                                            "Straight — strength focus, same lifts"
+                                            "Straight keeps the same Push, Pull, and Legs lifts."
                                         else
-                                            "A/B — lower overuse risk, alternating variants",
+                                            "A/B keeps those three days and alternates each variant.",
                                         color = Color.Gray,
                                         fontSize = 11.sp,
                                         modifier = Modifier.padding(top = 4.dp)
@@ -202,40 +207,66 @@ fun WorkoutSettingsScreen(
             item {
                 SettingsCategoryHeader("WORKOUT SCHEDULES", Color(0xFFFFB703))
 
+                val activeProtocol = tempProfile.activeProtocol
+                val cyberCrappManaged = activeProtocol == WorkoutProtocol.CYBER_CRAPP
                 Text(
-                    "View and configure weekly workout schedules for active protocols and routines.",
+                    if (cyberCrappManaged) {
+                        "Set the days you train. CyberCrapp chooses the session from your last workout."
+                    } else {
+                        "View and configure weekly workout schedules for active protocols and routines."
+                    },
                     color = Color.Gray,
                     fontSize = 11.sp,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
-                // 1. Overall Profile Schedule
                 ScheduleItemCard(
-                    title = "Overall Profile Schedule",
-                    subtitle = "Weekly Target Schedule",
+                    title = "Training days",
+                    subtitle = if (cyberCrappManaged) {
+                        "Profile schedule. Sessions rotate on these days."
+                    } else {
+                        "Weekly target schedule"
+                    },
                     scheduledDays = tempProfile.scheduledDays,
                     onEdit = {
                         editingScheduleTarget = ScheduleTarget.Profile
                     }
                 )
 
-                Spacer(Modifier.height(12.dp))
-
-                // 2. Active Protocol Sub-Routine Schedules
-                Text(
-                    "ACTIVE PROTOCOL & SUB-ROUTINE SCHEDULES",
-                    color = Color.Gray,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-
-                val activeProtocol = tempProfile.activeProtocol
-                val activeRoutines = uiState.allRoutines.filter { r ->
-                    r.isAddedToLibrary || (activeProtocol != null && r.protocol == activeProtocol)
+                if (cyberCrappManaged) {
+                    Spacer(Modifier.height(12.dp))
+                    CyberCrappSessionSummary(
+                        straight = uiState.cyberCrappRotationMode == CyberCrappRotationMode.STRAIGHT
+                    )
                 }
 
-                if (activeRoutines.isEmpty()) {
+                val individualRoutines = WorkoutSchedulePolicy.routinesWithIndividualSchedules(
+                    routines = uiState.allRoutines,
+                    activeProtocol = activeProtocol
+                )
+
+                if (individualRoutines.isNotEmpty()) {
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        if (cyberCrappManaged) "OTHER ROUTINES" else "ACTIVE PROTOCOL & SUB-ROUTINE SCHEDULES",
+                        color = Color.Gray,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    individualRoutines.forEach { routine ->
+                        ScheduleItemCard(
+                            title = routine.name,
+                            subtitle = routine.protocol.displayName,
+                            scheduledDays = routine.scheduledDays,
+                            onEdit = {
+                                editingScheduleTarget = ScheduleTarget.Routine(routine)
+                            }
+                        )
+                        Spacer(Modifier.height(6.dp))
+                    }
+                } else if (!cyberCrappManaged) {
+                    Spacer(Modifier.height(12.dp))
                     Surface(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                         color = Color(0xFF1C1C1E),
@@ -247,18 +278,6 @@ fun WorkoutSettingsScreen(
                             fontSize = 12.sp,
                             modifier = Modifier.padding(12.dp)
                         )
-                    }
-                } else {
-                    activeRoutines.forEach { routine ->
-                        ScheduleItemCard(
-                            title = routine.name,
-                            subtitle = routine.protocol.displayName,
-                            scheduledDays = routine.scheduledDays,
-                            onEdit = {
-                                editingScheduleTarget = ScheduleTarget.Routine(routine)
-                            }
-                        )
-                        Spacer(Modifier.height(6.dp))
                     }
                 }
             }
@@ -627,6 +646,34 @@ fun StepInput(
 sealed interface ScheduleTarget {
     object Profile : ScheduleTarget
     data class Routine(val routine: WorkoutRoutine) : ScheduleTarget
+}
+
+@Composable
+private fun CyberCrappSessionSummary(straight: Boolean) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = Color(0xFF1C1C1E),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                "PUSH \u2192 PULL \u2192 LEGS",
+                color = Color.White,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                if (straight) {
+                    "One rotation. Straight repeats the same lifts for each day. The B variants are not separate sessions."
+                } else {
+                    "One rotation. A/B swaps the variant inside Push, Pull, and Legs. Those variants are not extra days on the calendar."
+                },
+                color = Color.Gray,
+                fontSize = 11.sp
+            )
+        }
+    }
 }
 
 @Composable

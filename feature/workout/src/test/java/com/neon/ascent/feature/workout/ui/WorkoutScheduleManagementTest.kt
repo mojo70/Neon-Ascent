@@ -5,6 +5,7 @@ import com.neon.ascent.core.domain.workout.models.UserWorkoutProfile
 import com.neon.ascent.core.domain.workout.models.WorkoutProtocol
 import com.neon.ascent.core.domain.workout.models.WorkoutRoutine
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -58,4 +59,51 @@ class WorkoutScheduleManagementTest {
         assertEquals(1, updatedProfile.scheduledDays[0].dayOfWeek)
         assertEquals(4, updatedProfile.scheduledDays[1].dayOfWeek)
     }
+
+    @Test
+    fun `CyberCrapp system sessions and B variants are not individually scheduled`() {
+        val routines = listOf(
+            systemRoutine("routine_cybercrapp_a", "CyberCrapp A (Push)"),
+            systemRoutine("routine_cybercrapp_b", "CyberCrapp B (Pull)"),
+            systemRoutine("routine_cybercrapp_c", "CyberCrapp C (Legs)"),
+            systemRoutine("routine_cybercrapp_push_b", "CyberCrapp Push B"),
+            systemRoutine("routine_cybercrapp_pull_b", "CyberCrapp Pull B"),
+            systemRoutine("routine_cybercrapp_legs_b", "CyberCrapp Legs B"),
+            WorkoutRoutine(
+                id = "custom_arms",
+                name = "Arm Pump",
+                protocol = WorkoutProtocol.GENERAL,
+                isSystem = false,
+                isAddedToLibrary = true
+            )
+        )
+
+        val shown = WorkoutSchedulePolicy.routinesWithIndividualSchedules(
+            routines,
+            WorkoutProtocol.CYBER_CRAPP
+        )
+
+        assertEquals(listOf("Arm Pump"), shown.map { it.name })
+        assertFalse(shown.any { it.id.contains("cybercrapp") })
+    }
+
+    @Test
+    fun `CyberCrapp routines can be scheduled when that protocol is not active`() {
+        val pull = systemRoutine("routine_cybercrapp_b", "CyberCrapp B (Pull)").copy(isAddedToLibrary = true)
+
+        val shown = WorkoutSchedulePolicy.routinesWithIndividualSchedules(
+            listOf(pull),
+            activeProtocol = null
+        )
+
+        assertEquals(listOf("CyberCrapp B (Pull)"), shown.map { it.name })
+    }
+
+    private fun systemRoutine(id: String, name: String) = WorkoutRoutine(
+        id = id,
+        name = name,
+        protocol = WorkoutProtocol.CYBER_CRAPP,
+        isSystem = true,
+        isAddedToLibrary = false
+    )
 }
