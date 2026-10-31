@@ -113,7 +113,7 @@ import com.neon.ascent.feature.biohacking.ui.labs.LabsTodaySection
 import com.neon.ascent.feature.biohacking.ui.labs.labsSectionForFocus
 import com.neon.ascent.feature.biohacking.ui.labs.showsPregnancyCheck
 import com.neon.ascent.feature.biohacking.ui.labs.waistDisplayValue
-import com.neon.ascent.feature.biohacking.ui.sheet.BodyLogAnchor
+import com.neon.ascent.feature.biohacking.ui.sheet.BodyLogMode
 import com.neon.ascent.feature.biohacking.ui.sheet.BodyLogSheet
 import com.neon.ascent.feature.health.data.services.LiveBiometricService
 import com.neon.ascent.feature.health.domain.uplink.UplinkProvider
@@ -210,7 +210,7 @@ fun BiohackingScreen(
     var selectedSector by remember { mutableStateOf("CORE_CHASSIS") }
     var showEffectivenessLogger by remember { mutableStateOf(false) }
     var showBodyLogSheet by remember { mutableStateOf(false) }
-    var bodyLogAnchor by remember { mutableStateOf<BodyLogAnchor?>(null) }
+    var bodyLogMode by remember { mutableStateOf<BodyLogMode?>(null) }
     var showChargeSheet by remember { mutableStateOf(false) }
     var showDailyOriginSheet by remember { mutableStateOf(false) }
     var showPrivacySheet by remember { mutableStateOf(false) }
@@ -265,8 +265,8 @@ fun BiohackingScreen(
     }
     LaunchedEffect(Unit) { viewModel.checkAndTriggerBodyBackfill() }
 
-    fun openBodyLog(anchor: BodyLogAnchor) {
-        bodyLogAnchor = anchor
+    fun openBodyLog(mode: BodyLogMode) {
+        bodyLogMode = mode
         showBodyLogSheet = true
     }
 
@@ -278,7 +278,27 @@ fun BiohackingScreen(
                 showBodyLogSheet = false
             },
             measurementUnit = measurementUnit,
-            initialAnchor = bodyLogAnchor,
+            mode = bodyLogMode ?: BodyLogMode.WEIGHT,
+            samples = bodySamples,
+            currentEnergy = uiState.energyScore,
+            currentMood = uiState.moodScore,
+            currentFocus = uiState.focusScore,
+            currentStress = uiState.stressLevel,
+            currentObjective = uiState.primaryObjective,
+            currentContraindications = uiState.contraindications,
+            onSaveHowIFeel = { energy, mood, focus, stress, objective, contraindications ->
+                viewModel.updateData {
+                    it.copy(
+                        energyScore = energy,
+                        moodScore = mood,
+                        focusScore = focus,
+                        stressLevel = stress,
+                        primaryObjective = objective,
+                        contraindications = contraindications
+                    )
+                }
+                showBodyLogSheet = false
+            },
             showShareToHcFooter = neonRowsCount > 0,
             onRequestHcBodyPerms = {
                 scope.launch {
@@ -412,20 +432,25 @@ fun BiohackingScreen(
                         fontWeight = FontWeight.Black,
                         fontFamily = FontFamily.Monospace
                     )
-                    LabsTextButton("Log body", neonCyan) { openBodyLog(BodyLogAnchor.Weight) }
-                    LabsTextButton("Log blood pressure", neonCyan) { openBodyLog(BodyLogAnchor.BloodPressure) }
-                    LabsTextButton("Log how I feel", neonCyan) {
-                        checkInExpanded = true
-                        scope.launch { checkInRequester.bringIntoView() }
-                    }
+                    LabsTextButton("Log body", neonCyan) { openBodyLog(BodyLogMode.WEIGHT) }
+                    LabsTextButton("Log blood pressure", neonCyan) { openBodyLog(BodyLogMode.BLOOD_PRESSURE) }
+                    LabsTextButton("Log how I feel", neonCyan) { openBodyLog(BodyLogMode.HOW_I_FEEL) }
+                    FeelingCompactCard(
+                        energy = uiState.energyScore,
+                        mood = uiState.moodScore,
+                        focus = uiState.focusScore,
+                        stress = uiState.stressLevel,
+                        neonCyan = neonCyan,
+                        onClick = { openBodyLog(BodyLogMode.HOW_I_FEEL) }
+                    )
                     BodyLogCard(
                         samples = bodySamples,
                         measurementUnit = measurementUnit,
                         neonCyan = neonCyan,
-                        onWeightClick = { openBodyLog(BodyLogAnchor.Weight) },
-                        onBodyFatClick = { openBodyLog(BodyLogAnchor.BodyFat) },
-                        onWaistClick = { openBodyLog(BodyLogAnchor.Waist) },
-                        onBloodPressureClick = { openBodyLog(BodyLogAnchor.BloodPressure) }
+                        onWeightClick = { openBodyLog(BodyLogMode.WEIGHT) },
+                        onBodyFatClick = { openBodyLog(BodyLogMode.BODY_FAT) },
+                        onWaistClick = { openBodyLog(BodyLogMode.WAIST) },
+                        onBloodPressureClick = { openBodyLog(BodyLogMode.BLOOD_PRESSURE) }
                     )
                 }
 
@@ -1266,6 +1291,45 @@ fun TrendCard(
 }
 
 @Composable
+private fun FeelingCompactCard(
+    energy: Int,
+    mood: Int,
+    focus: Int,
+    stress: Int,
+    neonCyan: Color,
+    onClick: () -> Unit
+) {
+    val theme = LocalNeonTheme.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(2.dp))
+            .border(1.dp, neonCyan.copy(alpha = 0.2f), RoundedCornerShape(2.dp))
+            .background(neonCyan.copy(alpha = 0.04f))
+            .clickable(onClickLabel = "Log how I feel", onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = "HOW I FEEL (TODAY)",
+            color = neonCyan,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Monospace
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("ENERGY $energy/10", color = theme.ink, fontSize = 11.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
+            Text("MOOD $mood/10", color = theme.ink, fontSize = 11.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
+            Text("FOCUS $focus/10", color = theme.ink, fontSize = 11.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
+            Text("STRESS $stress/10", color = theme.ink, fontSize = 11.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
+        }
+    }
+}
+
+@Composable
 fun BodyLogCard(
     samples: List<BodySampleEntity>,
     measurementUnit: String = "Metric",
@@ -1279,8 +1343,8 @@ fun BodyLogCard(
     val lastWeight = samples.filter { it.metric == "WEIGHT" }.maxByOrNull { it.loggedAt }
     val lastBf = samples.filter { it.metric == "BF_PCT" }.maxByOrNull { it.loggedAt }
     val lastWaist = samples.filter { it.metric == "TAPE" && it.site?.contains("WAIST") == true }.maxByOrNull { it.loggedAt }
-    val lastBpSys = samples.filter { it.metric == "BP_SYS" && it.position == "SITTING" }.maxByOrNull { it.loggedAt }
-    val lastBpDia = samples.filter { it.metric == "BP_DIA" && it.position == "SITTING" }.maxByOrNull { it.loggedAt }
+    val lastBpSys = samples.filter { it.metric == "BP_SYS" }.maxByOrNull { it.loggedAt }
+    val lastBpDia = samples.filter { it.metric == "BP_DIA" }.maxByOrNull { it.loggedAt }
     val weightStr = lastWeight?.let {
         if (isImperial) String.format(Locale.US, "%.1f lb", it.value * 2.20462262)
         else String.format(Locale.US, "%.1f kg", it.value)
@@ -1294,7 +1358,8 @@ fun BodyLogCard(
         if (isImperial) String.format(Locale.US, "%.1f in", shown) else String.format(Locale.US, "%.1f cm", shown)
     } ?: "Not logged"
     val bpStr = if (lastBpSys != null && lastBpDia != null) {
-        "${lastBpSys.value.toInt()}/${lastBpDia.value.toInt()} sitting"
+        val pos = lastBpSys.position?.lowercase() ?: ""
+        "${lastBpSys.value.toInt()}/${lastBpDia.value.toInt()} $pos".trim()
     } else {
         "Not logged"
     }
