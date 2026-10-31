@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.neon.ascent.core.domain.labs.models.Diet
+import com.neon.ascent.core.domain.labs.models.DietOverrides
 
 val OUTCOME_DOMAIN_FILTERS = listOf(
     "ALL",
@@ -61,8 +62,20 @@ fun DietArchivePanel(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
             .padding(vertical = 8.dp)
     ) {
+        // Active Diet Framework Summary Banner
+        ActiveDietSummaryCard(
+            activeDiet = uiState.activeDiet,
+            overrides = uiState.dietOverrides,
+            isCyber = isCyber,
+            cyan = cyan,
+            magenta = magenta
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
         // Outcome Domain Filters Header
         Text(
             text = if (isCyber) "FILTER // OUTCOME_DOMAIN" else "Filter by Outcome Domain",
@@ -704,5 +717,110 @@ fun DietDetailSection(
         )
         Spacer(modifier = Modifier.height(4.dp))
         content()
+    }
+}
+
+@Composable
+fun ActiveDietSummaryCard(
+    activeDiet: Diet?,
+    overrides: DietOverrides,
+    isCyber: Boolean,
+    cyan: Color,
+    magenta: Color
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        color = if (isCyber) Color(0xFF0F121C) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        border = BorderStroke(1.dp, if (activeDiet != null) cyan else Color.Gray.copy(alpha = 0.3f)),
+        shape = RoundedCornerShape(6.dp)
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (isCyber) "ACTIVE_DIET_FRAMEWORK" else "Active Diet Framework",
+                    color = cyan,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default
+                )
+                if (activeDiet != null) {
+                    Surface(
+                        color = cyan.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(2.dp),
+                        border = BorderStroke(1.dp, cyan)
+                    ) {
+                        Text(
+                            text = "LIVE IN LABS",
+                            color = cyan,
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            if (activeDiet != null) {
+                Text(
+                    text = activeDiet.name,
+                    color = if (isCyber) Color.White else MaterialTheme.colorScheme.onSurface,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Black,
+                    fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Category: ${activeDiet.dietCategory}",
+                    color = Color.Gray,
+                    fontSize = 11.sp,
+                    fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default
+                )
+
+                if (overrides.preferredProteinGramsPerKg != null || overrides.preferredModestCarbTargetGrams != null || overrides.notes != null) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "PARAMETER OVERRIDES:",
+                        color = magenta,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    overrides.preferredProteinGramsPerKg?.let {
+                        Text("• Custom Protein Target: ${it} g/kg", color = Color.LightGray, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                    }
+                    overrides.preferredModestCarbTargetGrams?.let {
+                        Text("• Custom Net Carb Target: ~${it} g", color = Color.LightGray, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                    }
+                    overrides.notes?.let {
+                        Text("• Notes: $it", color = Color.LightGray, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Daily targets (TDEE, Protein, Carbs, Fats) are evaluated on the LABS cockpit screen.",
+                    color = cyan.copy(alpha = 0.8f),
+                    fontSize = 10.sp,
+                    fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default
+                )
+            } else {
+                Text(
+                    text = if (isCyber) "NO_ACTIVE_DIET // SELECT_FROM_CATALOG" else "No active diet framework selected.",
+                    color = Color.Gray,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default
+                )
+            }
+        }
     }
 }

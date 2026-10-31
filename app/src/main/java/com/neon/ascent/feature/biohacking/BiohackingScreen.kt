@@ -5,6 +5,8 @@
 
 package com.neon.ascent.feature.biohacking
 
+import com.neon.ascent.feature.codex.ui.CodexStackSubPanel
+
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -150,6 +152,7 @@ fun BiohackingScreen(
     onRelink: (UplinkProvider) -> Unit = {},
     onNavigateToSelfMap: () -> Unit = {},
     onNavigateToChronicle: (() -> Unit)? = null,
+    onNavigateToCodexStack: ((CodexStackSubPanel) -> Unit)? = null,
     viewModel: BiohackingViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -406,9 +409,15 @@ fun BiohackingScreen(
                     protocolOverrides = protocolOverrides,
                     onOpenDayCard = { showDailyOriginSheet = true },
                     onOpenSelfMap = onNavigateToSelfMap,
-                    onNavigateToCodexDiet = { onNavigateToGuide("Codex Diet Panel") },
-                    onNavigateToCodexSupplements = { onNavigateToGuide("Codex Supplement Panel") },
-                    onNavigateToCodexProtocols = { onNavigateToGuide("Codex Protocol Panel") },
+                    onNavigateToCodexDiet = {
+                        onNavigateToCodexStack?.invoke(CodexStackSubPanel.DIET) ?: onNavigateToGuide("Codex Diet Panel")
+                    },
+                    onNavigateToCodexSupplements = {
+                        onNavigateToCodexStack?.invoke(CodexStackSubPanel.SUPPLEMENTS) ?: onNavigateToGuide("Codex Supplement Panel")
+                    },
+                    onNavigateToCodexProtocols = {
+                        onNavigateToCodexStack?.invoke(CodexStackSubPanel.PROTOCOLS) ?: onNavigateToGuide("Codex Protocol Panel")
+                    },
                     onNavigateToOps = onNavigateToOps,
                     onRequestNutritionPermission = { viewModel.relink(UplinkProvider.HEALTH_CONNECT) },
                     onChargeClick = {

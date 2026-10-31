@@ -235,6 +235,8 @@ fun AppNavigation(
             val forgeIndex = if (isReligionShortcutEnabled) 5 else 4
             val opsIndex = if (isReligionShortcutEnabled) 6 else 5
 
+            val codexViewModel: CodexViewModel = hiltViewModel()
+
             Scaffold(
                 containerColor = theme.canvas,
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -271,7 +273,8 @@ fun AppNavigation(
                                 onForgeClick = { navController.navigate(Screen.AscensionForge()) },
                                 onRequestNutritionPermission = {
                                     biohackingViewModel.relink(UplinkProvider.HEALTH_CONNECT)
-                                }
+                                },
+                                viewModel = codexViewModel
                             )
                         }
                         isReligionShortcutEnabled && page == altarIndex -> com.neon.ascent.feature.altar.AltarScreen(
@@ -352,6 +355,12 @@ fun AppNavigation(
                             },
                             onNavigateToGuide = { message ->
                                 pendingGuideMessage = message
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(codexIndex) // CODEX
+                                }
+                            },
+                            onNavigateToCodexStack = { subPanel ->
+                                codexViewModel.selectStackSubPanelAndWing(subPanel)
                                 coroutineScope.launch {
                                     pagerState.animateScrollToPage(codexIndex) // CODEX
                                 }

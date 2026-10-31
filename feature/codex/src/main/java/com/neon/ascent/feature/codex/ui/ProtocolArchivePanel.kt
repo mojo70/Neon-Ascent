@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -60,8 +61,21 @@ fun ProtocolArchivePanel(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
             .padding(vertical = 8.dp)
     ) {
+        // Active Biohacking Set Summary Banner
+        ActiveProtocolsSummaryCard(
+            activeProtocols = uiState.activeProtocols,
+            protocolOverrides = uiState.protocolOverrides,
+            isCyber = isCyber,
+            cyan = cyan,
+            magenta = magenta,
+            amber = amber
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
         // Outcome Domain Filter Bar Header
         Text(
             text = if (isCyber) "FILTER // OUTCOME_DOMAIN" else "Filter by Outcome Domain",
@@ -645,4 +659,117 @@ private fun DetailSectionTitle(
         fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default,
         modifier = Modifier.padding(bottom = 2.dp)
     )
+}
+
+@Composable
+fun ActiveProtocolsSummaryCard(
+    activeProtocols: List<BiohackingProtocol>,
+    protocolOverrides: Map<String, BiohackingProtocolOverride>,
+    isCyber: Boolean,
+    cyan: Color,
+    magenta: Color,
+    amber: Color
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        color = if (isCyber) Color(0xFF0F121C) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        border = BorderStroke(1.dp, if (activeProtocols.isNotEmpty()) cyan else Color.Gray.copy(alpha = 0.3f)),
+        shape = RoundedCornerShape(6.dp)
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (isCyber) "ACTIVE_BIOHACKING_SET" else "Active Biohacking Set",
+                    color = cyan,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default
+                )
+                Surface(
+                    color = magenta.copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(2.dp),
+                    border = BorderStroke(1.dp, magenta)
+                ) {
+                    Text(
+                        text = "NON-WORKOUT PROTOCOLS",
+                        color = magenta,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            if (activeProtocols.isNotEmpty()) {
+                activeProtocols.forEach { protocol ->
+                    val override = protocolOverrides[protocol.id]
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "• ${protocol.name}",
+                                color = if (isCyber) Color.White else MaterialTheme.colorScheme.onSurface,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (override?.isPaused == true) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "[PAUSED]",
+                                    color = amber,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+                        override?.preferredFrequency?.let { freq ->
+                            if (freq.isNotBlank()) {
+                                Text(
+                                    text = freq,
+                                    color = Color.Gray,
+                                    fontSize = 10.sp,
+                                    fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                Text(
+                    text = if (isCyber) "NO_ACTIVE_BIOHACKING_PROTOCOLS // ACTIVATE_BELOW" else "No active biohacking protocols.",
+                    color = Color.Gray,
+                    fontSize = 12.sp,
+                    fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Workout lifting protocols (CyberCrapp, Linear, Wave) remain in Physical Ops.",
+                color = Color.Gray.copy(alpha = 0.8f),
+                fontSize = 9.sp,
+                fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default
+            )
+        }
+    }
 }

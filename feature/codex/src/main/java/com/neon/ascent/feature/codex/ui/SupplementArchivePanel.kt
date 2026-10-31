@@ -3,6 +3,7 @@ package com.neon.ascent.feature.codex.ui
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -28,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -91,8 +93,21 @@ fun SupplementArchivePanel(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
             .padding(vertical = 8.dp)
     ) {
+        // Active Supplement Stack Summary Banner
+        ActiveStackSummaryCard(
+            activeStack = uiState.activeSupplementStack,
+            overrides = uiState.supplementOverrides,
+            isCyber = isCyber,
+            cyan = cyan,
+            magenta = magenta,
+            amber = amber
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
         // Collapsible Search Header Bar
         Row(
             modifier = Modifier
@@ -504,7 +519,9 @@ private fun SupplementCard(
                 text = "Dose: ${override?.customDoseNote ?: supplement.typicalDose}",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 11.sp,
-                fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default
+                fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -883,4 +900,127 @@ private fun DetailSectionTitle(title: String, isCyber: Boolean, cyan: Color) {
         fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default,
         modifier = Modifier.padding(vertical = 2.dp)
     )
+}
+
+@Composable
+fun ActiveStackSummaryCard(
+    activeStack: List<Supplement>,
+    overrides: Map<String, SupplementOverride>,
+    isCyber: Boolean,
+    cyan: Color,
+    magenta: Color,
+    amber: Color
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        color = if (isCyber) Color(0xFF0F121C) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        border = BorderStroke(1.dp, if (activeStack.isNotEmpty()) cyan else Color.Gray.copy(alpha = 0.3f)),
+        shape = RoundedCornerShape(6.dp)
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (isCyber) "ACTIVE_SUPPLEMENT_STACK [${activeStack.size}]" else "Active Supplement Stack (${activeStack.size})",
+                    color = cyan,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default
+                )
+                Surface(
+                    color = cyan.copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(2.dp),
+                    border = BorderStroke(1.dp, cyan)
+                ) {
+                    Text(
+                        text = "LIVE IN LABS",
+                        color = cyan,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            if (activeStack.isNotEmpty()) {
+                activeStack.forEach { supplement ->
+                    val override = overrides[supplement.id]
+                    val isPaused = override?.isPaused == true
+                    val doseText = override?.customDoseNote ?: supplement.typicalDose
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 3.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(
+                                    text = "• ${supplement.name}",
+                                    color = if (isCyber) Color.White else MaterialTheme.colorScheme.onSurface,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                if (supplement.status.equals("Prescription", ignoreCase = true)) {
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("[Rx]", color = magenta, fontSize = 9.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                                } else if (supplement.isResearchChemical) {
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("[RESEARCH]", color = amber, fontSize = 9.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                                }
+                                if (isPaused) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("[PAUSED]", color = amber, fontSize = 9.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                                }
+                            }
+                        }
+                        if (doseText.isNotBlank()) {
+                            Text(
+                                text = doseText,
+                                color = Color.Gray,
+                                fontSize = 10.sp,
+                                fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(start = 12.dp, top = 2.dp)
+                            )
+                        }
+                    }
+                }
+            } else {
+                Text(
+                    text = if (isCyber) "NO_SUPPLEMENTS_IN_ACTIVE_STACK // ADD_FROM_CATALOG" else "No supplements in active stack.",
+                    color = Color.Gray,
+                    fontSize = 12.sp,
+                    fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Live daily stack checklist and synergy analysis evaluated in LABS.",
+                color = Color.Gray.copy(alpha = 0.8f),
+                fontSize = 9.sp,
+                fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default
+            )
+        }
+    }
 }

@@ -36,6 +36,7 @@ class HealthPreferencesDataStore @Inject constructor(
         val REST_TIMER_MODE = stringPreferencesKey("rest_timer_mode")
         val CODEX_PERIOD = stringPreferencesKey("codex_period")
         val CODEX_WING = stringPreferencesKey("codex_wing")
+        val CODEX_STACK_SUB_PANEL = stringPreferencesKey("codex_stack_sub_panel")
         val CODEX_LAST_EXERCISE_ID = stringPreferencesKey("codex_last_exercise_id")
         val HAS_BACKFILLED_BODY_DATA = booleanPreferencesKey("has_backfilled_body_data")
         val LAST_BODY_BACKFILL_HISTORY_STATE = booleanPreferencesKey("last_body_backfill_history_state")
@@ -191,6 +192,14 @@ class HealthPreferencesDataStore @Inject constructor(
 
     suspend fun setCodexWing(wing: String) {
         dataStore.edit { it[Keys.CODEX_WING] = wing }
+    }
+
+    val codexStackSubPanel: Flow<String> = dataStore.data.map { prefs ->
+        prefs[Keys.CODEX_STACK_SUB_PANEL] ?: "SERUM"
+    }
+
+    suspend fun setCodexStackSubPanel(subPanel: String) {
+        dataStore.edit { it[Keys.CODEX_STACK_SUB_PANEL] = subPanel }
     }
 
     val codexLastExerciseId: Flow<String?> = dataStore.data.map { prefs ->

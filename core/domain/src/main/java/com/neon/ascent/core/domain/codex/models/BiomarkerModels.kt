@@ -68,4 +68,35 @@ object BiomarkerKeys {
         WBC to "WBC Count",
         BIO_AGE to "Biological Age"
     )
+
+    data class ReferenceRange(
+        val min: Double?,
+        val max: Double?,
+        val unit: String,
+        val displayText: String
+    )
+
+    val REFERENCE_RANGES: Map<String, ReferenceRange> = mapOf(
+        TOTAL_T to ReferenceRange(300.0, 1000.0, "ng/dL", "300 – 1000 ng/dL"),
+        FREE_T to ReferenceRange(5.0, 21.0, "pg/mL", "5.0 – 21.0 pg/mL"),
+        SHBG to ReferenceRange(10.0, 50.0, "nmol/L", "10 – 50 nmol/L"),
+        E2 to ReferenceRange(10.0, 40.0, "pg/mL", "10 – 40 pg/mL"),
+        A1C to ReferenceRange(null, 5.7, "%", "< 5.7 %"),
+        LDL to ReferenceRange(null, 100.0, "mg/dL", "< 100 mg/dL"),
+        HDL to ReferenceRange(40.0, null, "mg/dL", "> 40 mg/dL"),
+        TRIG to ReferenceRange(null, 150.0, "mg/dL", "< 150 mg/dL"),
+        TC to ReferenceRange(null, 200.0, "mg/dL", "< 200 mg/dL"),
+        TSH to ReferenceRange(0.4, 4.0, "mIU/L", "0.4 – 4.0 mIU/L"),
+        FT3 to ReferenceRange(2.0, 4.4, "pg/mL", "2.0 – 4.4 pg/mL"),
+        FT4 to ReferenceRange(0.8, 1.8, "ng/dL", "0.8 – 1.8 ng/dL"),
+        FERRITIN to ReferenceRange(30.0, 400.0, "ng/mL", "30 – 400 ng/mL"),
+        VIT_D to ReferenceRange(30.0, 100.0, "ng/mL", "30 – 100 ng/mL"),
+        HSCRP to ReferenceRange(null, 1.0, "mg/L", "< 1.0 mg/L"),
+        GLUCOSE to ReferenceRange(70.0, 99.0, "mg/dL", "70 – 99 mg/dL"),
+        ALT to ReferenceRange(7.0, 56.0, "U/L", "7 – 56 U/L"),
+        AST to ReferenceRange(10.0, 40.0, "U/L", "10 – 40 U/L"),
+        CREATININE to ReferenceRange(0.7, 1.3, "mg/dL", "0.7 – 1.3 mg/dL"),
+        HGB to ReferenceRange(13.8, 17.2, "g/dL", "13.8 – 17.2 g/dL"),
+        WBC to ReferenceRange(4.5, 11.0, "k/uL", "4.5 – 11.0 k/uL")
+    )
 }

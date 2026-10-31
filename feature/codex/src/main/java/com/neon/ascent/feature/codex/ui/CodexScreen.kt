@@ -58,6 +58,11 @@ import coil.compose.AsyncImage
 import kotlin.math.abs
 import com.neon.ascent.core.common.NeonCyan
 import com.neon.ascent.core.common.NeonPink
+import com.neon.ascent.core.domain.labs.models.Diet
+import com.neon.ascent.core.domain.labs.models.BiohackingProtocol
+import com.neon.ascent.core.domain.labs.models.BiohackingProtocolOverride
+import com.neon.ascent.core.domain.labs.models.Supplement
+import com.neon.ascent.core.domain.labs.models.SupplementOverride
 import com.neon.ascent.core.domain.goals.models.AscensionDirective
 import com.neon.ascent.core.domain.goals.models.PriorityTier
 import java.time.LocalDate
@@ -260,16 +265,31 @@ fun CodexScreen(
                                 )
                             }
                         )
-                        CodexWing.SERUM -> SerumWing(
+                        CodexWing.STACK -> StackWing(
                             uiState = uiState,
                             isLoading = uiState.isLoading,
+                            onSubPanelSelected = { viewModel.selectStackSubPanel(it) },
                             onMarkerSelected = { viewModel.selectMarker(it) },
-                            onAddSample = { key, name, value, unit, date, notes ->
-                                viewModel.addBiomarkerSample(key, name, value, unit, date, notes)
-                            }
+                            onAddBiomarkerSample = { key, name, value, unit, date, notes, source ->
+                                viewModel.addBiomarkerSample(key, name, value, unit, date, notes, source)
+                            },
+                            onDietFilterSelected = { viewModel.selectOutcomeDomainFilter(it) },
+                            onDietSelected = { viewModel.selectDietDetail(it) },
+                            onSetActiveDiet = { viewModel.setActiveDiet(it) },
+                            onDismissDietDetail = { viewModel.selectDietDetail(null) },
+                            onProtocolFilterSelected = { viewModel.selectProtocolOutcomeDomainFilter(it) },
+                            onProtocolSelected = { viewModel.selectProtocolDetail(it) },
+                            onToggleActiveProtocol = { viewModel.toggleActiveProtocol(it) },
+                            onUpdateProtocolOverride = { id, override -> viewModel.updateProtocolOverride(id, override) },
+                            onDismissProtocolDetail = { viewModel.selectProtocolDetail(null) },
+                            onSupplementFilterSelected = { viewModel.selectSupplementOutcomeDomainFilter(it) },
+                            onSupplementSearchQueryChanged = { viewModel.selectSupplementSearchQuery(it) },
+                            onSupplementSelected = { viewModel.selectSupplementDetail(it) },
+                            onToggleActiveStack = { viewModel.toggleSupplementInActiveStack(it) },
+                            onUpdateSupplementOverride = { id, override -> viewModel.updateSupplementOverride(id, override) },
+                            onDismissSupplementDetail = { viewModel.selectSupplementDetail(null) }
                         )
                         CodexWing.CHRONICLE -> chronicleContent()
-                        CodexWing.SELF_MAP -> SelfMapWing()
                     }
                 }
 
@@ -1039,11 +1059,119 @@ fun VitalsWing(
 }
 
 @Composable
+fun StackWing(
+    uiState: CodexUiState,
+    isLoading: Boolean = false,
+    onSubPanelSelected: (CodexStackSubPanel) -> Unit,
+    onMarkerSelected: (String) -> Unit,
+    onAddBiomarkerSample: (String, String, Double, String, java.time.Instant, String?, String) -> Unit,
+    onDietFilterSelected: (String) -> Unit,
+    onDietSelected: (Diet) -> Unit,
+    onSetActiveDiet: (String?) -> Unit,
+    onDismissDietDetail: () -> Unit,
+    onProtocolFilterSelected: (String) -> Unit,
+    onProtocolSelected: (BiohackingProtocol) -> Unit,
+    onToggleActiveProtocol: (String) -> Unit,
+    onUpdateProtocolOverride: (String, BiohackingProtocolOverride?) -> Unit,
+    onDismissProtocolDetail: () -> Unit,
+    onSupplementFilterSelected: (String) -> Unit,
+    onSupplementSearchQueryChanged: (String) -> Unit,
+    onSupplementSelected: (Supplement) -> Unit,
+    onToggleActiveStack: (String) -> Unit,
+    onUpdateSupplementOverride: (String, SupplementOverride?) -> Unit,
+    onDismissSupplementDetail: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isCyber = LocalNeonTheme.current.mode == VisualMode.CYBER
+
+    Column(modifier = modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 6.dp)
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(4.dp))
+                .padding(2.dp)
+                .semantics { contentDescription = "STACK_SUB_PANEL_SWITCHER" },
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            CodexStackSubPanel.entries.forEach { subPanel ->
+                val isSelected = uiState.activeStackSubPanel == subPanel
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(28.dp)
+                        .background(
+                            if (isSelected) MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f) else Color.Transparent,
+                            RoundedCornerShape(2.dp)
+                        )
+                        .border(
+                            width = if (isSelected) 1.dp else 0.dp,
+                            color = if (isSelected) MaterialTheme.colorScheme.secondary else Color.Transparent,
+                            shape = RoundedCornerShape(2.dp)
+                        )
+                        .clickable(
+                            onClick = { onSubPanelSelected(subPanel) },
+                            onClickLabel = "SWITCH_TO_${subPanel.name}"
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = subPanel.label,
+                        color = if (isSelected) MaterialTheme.colorScheme.secondary else Color.Gray,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+        }
+
+        Box(modifier = Modifier.weight(1f)) {
+            when (uiState.activeStackSubPanel) {
+                CodexStackSubPanel.SERUM -> SerumWing(
+                    uiState = uiState,
+                    isLoading = isLoading,
+                    onMarkerSelected = onMarkerSelected,
+                    onAddSample = onAddBiomarkerSample
+                )
+                CodexStackSubPanel.DIET -> DietArchivePanel(
+                    uiState = uiState,
+                    isCyber = isCyber,
+                    onFilterSelected = onDietFilterSelected,
+                    onDietSelected = onDietSelected,
+                    onSetActiveDiet = onSetActiveDiet,
+                    onDismissDetail = onDismissDietDetail
+                )
+                CodexStackSubPanel.PROTOCOLS -> ProtocolArchivePanel(
+                    uiState = uiState,
+                    isCyber = isCyber,
+                    onFilterSelected = onProtocolFilterSelected,
+                    onProtocolSelected = onProtocolSelected,
+                    onToggleActiveProtocol = onToggleActiveProtocol,
+                    onUpdateOverride = onUpdateProtocolOverride,
+                    onDismissDetail = onDismissProtocolDetail
+                )
+                CodexStackSubPanel.SUPPLEMENTS -> SupplementArchivePanel(
+                    uiState = uiState,
+                    isCyber = isCyber,
+                    onFilterSelected = onSupplementFilterSelected,
+                    onSearchQueryChanged = onSupplementSearchQueryChanged,
+                    onSupplementSelected = onSupplementSelected,
+                    onToggleActiveStack = onToggleActiveStack,
+                    onUpdateOverride = onUpdateSupplementOverride,
+                    onDismissDetail = onDismissSupplementDetail
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun SerumWing(
     uiState: CodexUiState,
     isLoading: Boolean = false,
     onMarkerSelected: (String) -> Unit,
-    onAddSample: (String, String, Double, String, Instant, String?) -> Unit
+    onAddSample: (String, String, Double, String, Instant, String?, String) -> Unit
 ) {
     if (isLoading) {
         LoadingWing("EXTRACTING_SERUM_DATA")
@@ -1062,26 +1190,112 @@ fun SerumWing(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            SectionHeader("BIOMARKER_ARCHIVE")
+            SectionHeader("SERUM // BLOODWORK")
             IconButton(onClick = { showAddDialog = true }) {
                 Icon(Icons.Default.Add, contentDescription = "ADD_SAMPLE", tint = MaterialTheme.colorScheme.primary)
             }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Bio-Age Snapshot Card if bio_age marker exists
+        val bioAgeStatus = uiState.latestBiomarkers.find { it.latest.markerKey == BiomarkerKeys.BIO_AGE }
+        if (bioAgeStatus != null) {
+            val latestAge = bioAgeStatus.latest.value
+            val delta = bioAgeStatus.delta
+
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp)
+                    .clickable { onMarkerSelected(BiomarkerKeys.BIO_AGE) },
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f)),
+                shape = RoundedCornerShape(4.dp)
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "BIOLOGICAL_AGE // ONNX_TRACE",
+                            color = MaterialTheme.colorScheme.secondary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        if (delta != null) {
+                            val color = if (delta <= 0) MaterialTheme.colorScheme.primary else Color(0xFFFF006E)
+                            val sign = if (delta > 0) "+" else ""
+                            Text(
+                                text = "$sign${"%.1f".format(delta)} yrs",
+                                color = color,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            text = "%.1f".format(latestAge),
+                            color = Color.White,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Black,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "YRS",
+                            color = MaterialTheme.colorScheme.secondary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.padding(bottom = 2.dp)
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
         }
 
         if (uiState.latestBiomarkers.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp)
-                    .background(cardSurfaceColor(), RoundedCornerShape(4.dp)),
+                    .padding(vertical = 24.dp)
+                    .background(cardSurfaceColor(), RoundedCornerShape(4.dp))
+                    .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                    .padding(24.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    "No biomarker data. Initiate entry in SERUM.",
-                    color = Color.Gray,
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "NO_SERUM_DATA // INITIATE_DRAW_ENTRY",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Record lab bloodwork draws (Testosterone, A1C, Lipids, Metabolic) to enable longitudinal trends.",
+                        color = Color.Gray,
+                        fontSize = 10.sp,
+                        textAlign = TextAlign.Center,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = { showAddDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("RECORD LAB DRAW", color = Color.Black, fontWeight = FontWeight.Black, fontSize = 11.sp)
+                    }
+                }
             }
         } else {
             uiState.latestBiomarkers.forEach { status ->
@@ -1095,8 +1309,8 @@ fun SerumWing(
     if (showAddDialog) {
         AddBiomarkerDialog(
             onDismiss = { showAddDialog = false },
-            onSave = { key, name, value, unit, date, notes ->
-                onAddSample(key, name, value, unit, date, notes)
+            onSave = { key, name, value, unit, date, notes, source ->
+                onAddSample(key, name, value, unit, date, notes, source)
                 showAddDialog = false
             }
         )
@@ -1106,6 +1320,8 @@ fun SerumWing(
 @Composable
 fun MarkerRow(status: BiomarkerStatus, onClick: (String) -> Unit) {
     val latest = status.latest
+    val refRange = BiomarkerKeys.REFERENCE_RANGES[latest.markerKey]
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -1120,17 +1336,35 @@ fun MarkerRow(status: BiomarkerStatus, onClick: (String) -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(latest.displayName.uppercase(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
-                Text("${latest.value} ${latest.unit}", color = MaterialTheme.colorScheme.primary, fontSize = 14.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(latest.displayName.uppercase(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                    if (latest.source.isNotBlank() && latest.source != "MANUAL") {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            "[${latest.source.uppercase()}]",
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                            fontSize = 8.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("${latest.value} ${latest.unit}", color = MaterialTheme.colorScheme.primary, fontSize = 14.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
+                    if (refRange != null) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Ref: ${refRange.displayText}", color = Color.Gray, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                    }
+                }
             }
 
             if (status.delta != null) {
                 val delta = status.delta!!
-                val color = if (delta > 0) MaterialTheme.colorScheme.primary else Color(0xFFFF006E)
+                val color = if (delta >= 0) MaterialTheme.colorScheme.primary else Color(0xFFFF006E)
                 val sign = if (delta > 0) "+" else ""
                 Text(
                     text = "$sign${"%.2f".format(delta)}",
-                    color = color.copy(alpha = 0.6f),
+                    color = color.copy(alpha = 0.8f),
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace,
                     modifier = Modifier.padding(horizontal = 8.dp)
@@ -1151,7 +1385,7 @@ fun MarkerRow(status: BiomarkerStatus, onClick: (String) -> Unit) {
                             val y = size.height - ((sample.value.toFloat() - min) / range * size.height)
                             if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
                         }
-                        drawPath(path, Color(0xFF00CCFF).copy(alpha = 0.4f), style = Stroke(1.dp.toPx()))
+                        drawPath(path, Color(0xFF00CCFF).copy(alpha = 0.6f), style = Stroke(1.5.dp.toPx()))
                     }
                 }
             }
@@ -1203,7 +1437,7 @@ fun MarkerDossierPane(
         ) {
             if (history.size >= 2) {
                 SectionHeader("HISTORICAL_TRACE")
-                MarkerChart(history)
+                MarkerChart(history, marker?.markerKey)
             }
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -1231,34 +1465,115 @@ fun MarkerDossierPane(
 }
 
 @Composable
-fun MarkerChart(history: List<BiomarkerSample>) {
+fun MarkerChart(history: List<BiomarkerSample>, markerKey: String? = null) {
     val data = history.reversed()
     val primaryColor = MaterialTheme.colorScheme.primary
-    Canvas(
+    val refRange = markerKey?.let { BiomarkerKeys.REFERENCE_RANGES[it] }
+
+    val formatter = DateTimeFormatter.ofPattern("M/d")
+    val latestSample = data.lastOrNull()
+    val minVal = data.minOfOrNull { it.value }?.toFloat() ?: 0f
+    val maxVal = data.maxOfOrNull { it.value }?.toFloat() ?: 100f
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(200.dp)
             .background(cardSurfaceColor(), RoundedCornerShape(4.dp))
-            .padding(16.dp)
+            .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(4.dp))
+            .padding(12.dp)
     ) {
-        val width = size.width
-        val height = size.height
-        val maxVal = data.maxOf { it.value }.toFloat()
-        val minVal = data.minOf { it.value }.toFloat()
-        val range = (maxVal - minVal).coerceAtLeast(1f)
-
-        val path = Path()
-        data.forEachIndexed { index, sample ->
-            val x = index * (width / (data.size - 1).coerceAtLeast(1))
-            val y = height - ((sample.value.toFloat() - minVal) / range * height)
-            if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        // Header: Last Value + Unit
+        if (latestSample != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${latestSample.value} ${latestSample.unit}",
+                    color = primaryColor,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Black,
+                    fontFamily = FontFamily.Monospace
+                )
+                if (refRange != null) {
+                    Text(
+                        text = "RANGE: ${refRange.displayText}",
+                        color = Color.Gray,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
         }
-        drawPath(path, Color(0xFF00CCFF), style = Stroke(width = 2.dp.toPx()))
 
-        data.forEachIndexed { index, sample ->
-            val x = index * (width / (data.size - 1).coerceAtLeast(1))
-            val y = height - ((sample.value.toFloat() - minVal) / range * height)
-            drawCircle(primaryColor, 3.dp.toPx(), Offset(x, y))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp)
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val width = size.width
+                val height = size.height
+                val range = (maxVal - minVal).coerceAtLeast(1f)
+
+                // Reference Band Shading if min and max range exist
+                val refMinVal = refRange?.min
+                val refMaxVal = refRange?.max
+                if (refMinVal != null && refMaxVal != null) {
+                    val rMin = refMinVal.toFloat()
+                    val rMax = refMaxVal.toFloat()
+                    if (rMax >= minVal && rMin <= maxVal) {
+                        val topY = height - ((rMax - minVal) / range * height).coerceIn(0f, height)
+                        val bottomY = height - ((rMin - minVal) / range * height).coerceIn(0f, height)
+                        drawRect(
+                            color = primaryColor.copy(alpha = 0.08f),
+                            topLeft = Offset(0f, topY.coerceAtMost(bottomY)),
+                            size = Size(width, (bottomY - topY).coerceAtLeast(2f))
+                        )
+                    }
+                }
+
+                // Reference Line Grid
+                val gridColor = Color.White.copy(alpha = 0.05f)
+                drawLine(gridColor, Offset(0f, 0f), Offset(width, 0f))
+                drawLine(gridColor, Offset(0f, height / 2f), Offset(width, height / 2f))
+                drawLine(gridColor, Offset(0f, height), Offset(width, height))
+
+                // Trend Line & Points
+                val path = Path()
+                data.forEachIndexed { index, sample ->
+                    val x = index * (width / (data.size - 1).coerceAtLeast(1))
+                    val y = height - ((sample.value.toFloat() - minVal) / range * height)
+                    if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                }
+                drawPath(path, Color(0xFF00CCFF), style = Stroke(width = 2.dp.toPx()))
+
+                data.forEachIndexed { index, sample ->
+                    val x = index * (width / (data.size - 1).coerceAtLeast(1))
+                    val y = height - ((sample.value.toFloat() - minVal) / range * height)
+                    drawCircle(primaryColor, 3.dp.toPx(), Offset(x, y))
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // Y and X Axis Ticks
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            val firstDate = data.firstOrNull()?.drawnAt?.atZone(java.time.ZoneId.systemDefault())?.toLocalDate()?.format(formatter) ?: ""
+            val midDate = data.getOrNull(data.size / 2)?.drawnAt?.atZone(java.time.ZoneId.systemDefault())?.toLocalDate()?.format(formatter) ?: ""
+            val lastDate = data.lastOrNull()?.drawnAt?.atZone(java.time.ZoneId.systemDefault())?.toLocalDate()?.format(formatter) ?: ""
+
+            Text(firstDate, color = Color.Gray, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+            if (data.size > 2) {
+                Text(midDate, color = Color.Gray, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+            }
+            Text(lastDate, color = Color.Gray, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
         }
     }
 }
@@ -1271,7 +1586,7 @@ fun SampleRow(sample: BiomarkerSample, formatter: DateTimeFormatter, onDelete: (
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 8.dp)
+                .padding(vertical = 4.dp)
                 .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(4.dp))
                 .padding(12.dp)
                 .combinedClickable(
@@ -1282,7 +1597,24 @@ fun SampleRow(sample: BiomarkerSample, formatter: DateTimeFormatter, onDelete: (
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text(sample.drawnAt.atZone(java.time.ZoneId.systemDefault()).toLocalDate().format(formatter), color = Color.Gray, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        sample.drawnAt.atZone(java.time.ZoneId.systemDefault()).toLocalDate().format(formatter),
+                        color = Color.Gray,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    if (sample.source.isNotBlank()) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            "[${sample.source.uppercase()}]",
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                            fontSize = 8.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(2.dp))
                 Text("${sample.value} ${sample.unit}", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
             }
             sample.notes?.let { notes ->
@@ -1304,12 +1636,13 @@ fun SampleRow(sample: BiomarkerSample, formatter: DateTimeFormatter, onDelete: (
 @Composable
 fun AddBiomarkerDialog(
     onDismiss: () -> Unit,
-    onSave: (String, String, Double, String, Instant, String?) -> Unit
+    onSave: (String, String, Double, String, Instant, String?, String) -> Unit
 ) {
     var key by remember { mutableStateOf("") }
     var name by remember { mutableStateOf("") }
     var value by remember { mutableStateOf("") }
     var unit by remember { mutableStateOf("") }
+    var source by remember { mutableStateOf("MANUAL") }
     var notes by remember { mutableStateOf("") }
     val seedData = BiomarkerKeys.SEED_DATA
 
@@ -1321,16 +1654,17 @@ fun AddBiomarkerDialog(
         ) {
             Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
                 Text("ADD_BIOMARKER_DRAW", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Black, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 // Suggestions
                 Text("SUGGESTIONS", color = Color.Gray, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
-                LazyRow(modifier = Modifier.padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyRow(modifier = Modifier.padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(seedData.toList()) { (k, n) ->
                         Surface(
                             onClick = {
                                 key = k
                                 name = n
+                                BiomarkerKeys.REFERENCE_RANGES[k]?.unit?.let { unit = it }
                             },
                             shape = RoundedCornerShape(2.dp),
                             color = if (key == k) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent,
@@ -1363,6 +1697,22 @@ fun AddBiomarkerDialog(
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
+
+                // Source Chips
+                Text("SOURCE", color = Color.Gray, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                Row(modifier = Modifier.padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("MANUAL", "QUEST", "LABCORP").forEach { s ->
+                        Surface(
+                            onClick = { source = s },
+                            shape = RoundedCornerShape(2.dp),
+                            color = if (source == s) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent,
+                            border = BorderStroke(1.dp, if (source == s) MaterialTheme.colorScheme.primary else Color.DarkGray)
+                        ) {
+                            Text(s, color = Color.White, fontSize = 9.sp, modifier = Modifier.padding(6.dp))
+                        }
+                    }
+                }
+
                 OutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
@@ -1370,16 +1720,24 @@ fun AddBiomarkerDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
                 Button(
                     onClick = {
                         val dVal = value.toDoubleOrNull() ?: 0.0
-                        onSave(key.ifBlank { name.lowercase().replace(" ", "_") }, name, dVal, unit, Instant.now(), notes.ifBlank { null })
+                        onSave(
+                            key.ifBlank { name.lowercase().replace(" ", "_") },
+                            name,
+                            dVal,
+                            unit,
+                            Instant.now(),
+                            notes.ifBlank { null },
+                            source
+                        )
                     },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.background)
                 ) {
-                    Text("UPLOAD_BIO_DATA", fontWeight = FontWeight.Black)
+                    Text("RECORD_LAB_DRAW", fontWeight = FontWeight.Black)
                 }
             }
         }

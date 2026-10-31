@@ -64,7 +64,14 @@ import java.time.temporal.TemporalAdjusters
 import javax.inject.Inject
 
 enum class CodexWing {
-    OPS_LOG, VITALS, SERUM, CHRONICLE, SELF_MAP
+    OPS_LOG, VITALS, STACK, CHRONICLE
+}
+
+enum class CodexStackSubPanel(val label: String) {
+    SERUM("SERUM"),
+    DIET("DIET"),
+    PROTOCOLS("PROTOCOLS"),
+    SUPPLEMENTS("SUPPLEMENTS")
 }
 
 enum class CodexPeriod(val label: String, val days: Int?) {
@@ -77,6 +84,7 @@ enum class CodexPeriod(val label: String, val days: Int?) {
 
 data class CodexUiState(
     val activeWing: CodexWing = CodexWing.OPS_LOG,
+    val activeStackSubPanel: CodexStackSubPanel = CodexStackSubPanel.SERUM,
     val selectedPeriod: CodexPeriod = CodexPeriod.THIRTY_DAYS,
     val sessionCount: Int = 0,
     val weekCount: Int = 0,
@@ -439,18 +447,33 @@ class CodexViewModel @Inject constructor(
             combine(
                 dataStore.codexPeriod,
                 dataStore.codexWing,
+                dataStore.codexStackSubPanel,
                 dataStore.codexLastExerciseId
-            ) { periodName, wingName, lastExerciseId ->
-                Triple(periodName, wingName, lastExerciseId)
-            }.collect { (periodName, wingName, lastExerciseId) ->
+            ) { periodName, wingName, subPanelName, lastExerciseId ->
+                listOf(periodName, wingName, subPanelName, lastExerciseId)
+            }.collect { params ->
+                val periodName = params[0] as String
+                val wingName = params[1] as String
+                val subPanelName = params[2] as String
+                val lastExerciseId = params[3] as String?
+
                 val period = CodexPeriod.entries.find { 
                     it.name.equals(periodName, ignoreCase = true) || it.label.equals(periodName, ignoreCase = true) 
                 } ?: CodexPeriod.THIRTY_DAYS
-                val wing = runCatching { CodexWing.valueOf(wingName) }.getOrDefault(CodexWing.OPS_LOG)
+                val wing = when (wingName) {
+                    "STACK" -> CodexWing.STACK
+                    "SERUM" -> CodexWing.STACK
+                    "OPS_LOG" -> CodexWing.OPS_LOG
+                    "VITALS" -> CodexWing.VITALS
+                    "CHRONICLE" -> CodexWing.CHRONICLE
+                    else -> runCatching { CodexWing.valueOf(wingName) }.getOrDefault(CodexWing.OPS_LOG)
+                }
+                val subPanel = runCatching { CodexStackSubPanel.valueOf(subPanelName) }.getOrDefault(CodexStackSubPanel.SERUM)
                 
                 _uiState.update { it.copy(
                     selectedPeriod = period,
                     activeWing = wing,
+                    activeStackSubPanel = if (wingName == "SERUM") CodexStackSubPanel.SERUM else subPanel,
                     selectedExerciseId = lastExerciseId
                 ) }
 
@@ -502,6 +525,19 @@ class CodexViewModel @Inject constructor(
         }
     }
 
+    fun selectStackSubPanel(subPanel: CodexStackSubPanel) {
+        viewModelScope.launch {
+            dataStore.setCodexStackSubPanel(subPanel.name)
+        }
+    }
+
+    fun selectStackSubPanelAndWing(subPanel: CodexStackSubPanel) {
+        viewModelScope.launch {
+            dataStore.setCodexWing(CodexWing.STACK.name)
+            dataStore.setCodexStackSubPanel(subPanel.name)
+        }
+    }
+
     fun selectPeriod(period: CodexPeriod) {
         viewModelScope.launch {
             dataStore.setCodexPeriod(period.name)
@@ -532,7 +568,8 @@ class CodexViewModel @Inject constructor(
         value: Double,
         unit: String,
         date: Instant,
-        notes: String?
+        notes: String?,
+        source: String = "MANUAL"
     ) {
         viewModelScope.launch {
             val sample = BiomarkerSample(
@@ -542,7 +579,7 @@ class CodexViewModel @Inject constructor(
                 value = value,
                 unit = unit,
                 drawnAt = date,
-                source = "MANUAL",
+                source = source.ifBlank { "MANUAL" },
                 notes = notes
             )
             biomarkerRepository.saveSample(sample)
