@@ -8,6 +8,7 @@ data class LiveBiometrics(
     val heartRate: Int? = null,
     val stepsToday: Long? = null,
     val caloriesToday: Double? = null,
+    val caloriesConsumedToday: Double? = null,
     val heartRateVariability: Double? = null,
     val oxygenSaturation: Double? = null,
     val respiratoryRate: Double? = null,

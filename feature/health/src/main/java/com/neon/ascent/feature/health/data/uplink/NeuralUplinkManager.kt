@@ -97,7 +97,7 @@ class NeuralUplinkManager @Inject constructor(
             VitalsSnapshot(
                 steps = deep?.stepsToday ?: hcLive?.stepsToday ?: garminLive?.stepsToday,
                 calories = deep?.caloriesToday ?: hcLive?.caloriesToday ?: garminLive?.caloriesToday,
-                caloriesConsumed = deep?.caloriesConsumedToday,
+                caloriesConsumed = deep?.caloriesConsumedToday ?: hcLive?.caloriesConsumedToday,
                 distance = deep?.vo2Max, // Placeholder if needed
                 sleepDurationMinutes = deep?.sleepDurationMinutes,
                 sleepScore = deep?.sleepScore,

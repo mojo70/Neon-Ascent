@@ -32,7 +32,7 @@ class HealthRepository @Inject constructor(
 ) {
     private val healthConnectClient by lazy { HealthConnectClient.getOrCreate(context) }
 
-    val permissions = setOf(
+    val corePermissions = setOf(
         HealthPermission.getReadPermission(StepsRecord::class),
         HealthPermission.getReadPermission(HeartRateRecord::class),
         HealthPermission.getReadPermission(SleepSessionRecord::class),
@@ -40,7 +40,10 @@ class HealthRepository @Inject constructor(
         HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
         HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
         HealthPermission.getReadPermission(DistanceRecord::class),
-        HealthPermission.getReadPermission(RestingHeartRateRecord::class),
+        HealthPermission.getReadPermission(RestingHeartRateRecord::class)
+    )
+
+    val permissions = corePermissions + setOf(
         HealthPermission.getReadPermission(NutritionRecord::class)
     )
 
@@ -59,7 +62,7 @@ class HealthRepository @Inject constructor(
 
     suspend fun hasAllPermissions(): Boolean {
         return try {
-            healthConnectClient.permissionController.getGrantedPermissions().containsAll(permissions)
+            healthConnectClient.permissionController.getGrantedPermissions().containsAll(corePermissions)
         } catch (e: Exception) {
             false
         }

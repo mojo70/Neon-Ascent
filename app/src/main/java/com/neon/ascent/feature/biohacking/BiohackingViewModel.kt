@@ -353,6 +353,13 @@ class BiohackingViewModel @Inject constructor(
                 fetchTrends(days)
             }
         }
+        viewModelScope.launch {
+            try {
+                uplinkManager.fetchAllDeepMetrics()
+            } catch (e: Exception) {
+                android.util.Log.e("BiohackingVM", "Error fetching deep metrics on init", e)
+            }
+        }
         loadBioMacros()
     }
 
@@ -533,6 +540,7 @@ class BiohackingViewModel @Inject constructor(
 
                 android.util.Log.i("BiohackingVM", "Health Connect linked successfully. Triggering sync.")
                 Toast.makeText(context, "Neural Link established: Health Connect connected.", Toast.LENGTH_SHORT).show()
+                uplinkManager.fetchAllDeepMetrics()
                 triggerManualSync()
             } else {
                 android.util.Log.w("BiohackingVM", "Permissions still missing after flow. Check logcat for missing keys.")

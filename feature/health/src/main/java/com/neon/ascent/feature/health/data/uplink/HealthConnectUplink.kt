@@ -45,6 +45,7 @@ class HealthConnectUplink @Inject constructor(
                     heartRate = metrics.heartRate,
                     stepsToday = metrics.stepsToday,
                     caloriesToday = metrics.caloriesToday,
+                    caloriesConsumedToday = metrics.caloriesConsumedToday,
                     heartRateVariability = metrics.heartRateVariability,
                     timestamp = System.currentTimeMillis()
                 )

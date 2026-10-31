@@ -75,6 +75,7 @@ data class LiveMetrics(
     val heartRate: Int? = null,
     val stepsToday: Long? = null,
     val caloriesToday: Double? = null,
+    val caloriesConsumedToday: Double? = null,
     val heartRateVariability: Double? = null,
     val restingHeartRate: Int? = null
 )

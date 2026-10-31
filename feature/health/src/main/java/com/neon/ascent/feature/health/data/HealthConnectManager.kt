@@ -512,6 +512,10 @@ class HealthConnectManager @Inject constructor(
                         calories = aggregateActiveCaloriesKcal(startOfDay, now)
                     }
 
+                    val consumedKcal = if (hasNutritionPermission()) {
+                        aggregateNutritionKcal(startOfDay, now)
+                    } else null
+
                     val recentHR = latestHeartRate(now.minusSeconds(300), now)
                     val recentHRV = latestHrvRmssd(now.minusSeconds(3600), now)
                     val rhr = latestRestingHr(startOfDay, now)
@@ -520,6 +524,7 @@ class HealthConnectManager @Inject constructor(
                         heartRate = recentHR,
                         stepsToday = if (steps > 0) steps else null,
                         caloriesToday = if (calories > 0.0) calories else null,
+                        caloriesConsumedToday = consumedKcal,
                         heartRateVariability = recentHRV,
                         restingHeartRate = rhr
                     ))
