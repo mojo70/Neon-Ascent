@@ -1,8 +1,11 @@
 package com.neon.ascent.feature.codex
 
 import com.neon.ascent.core.domain.labs.models.CYBER_CYCLICAL_DIET
+import com.neon.ascent.core.domain.labs.models.LabsFocus
 import com.neon.ascent.core.domain.labs.models.MEDITERRANEAN_DIET
+import com.neon.ascent.core.domain.labs.models.OutcomeDomain
 import com.neon.ascent.core.domain.labs.models.SEED_DIETS
+import com.neon.ascent.core.domain.labs.models.rankItems
 import com.neon.ascent.feature.codex.ui.CodexUiState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -52,5 +55,20 @@ class CodexDietArchiveTest {
         // Clear detail selection
         state = state.copy(selectedDietDetail = null)
         assertNull(state.selectedDietDetail)
+    }
+
+    @Test
+    fun `labs focus ranks diets with primary matches first`() {
+        val focus = LabsFocus(
+            primary = OutcomeDomain.PHYSICAL_PERFORMANCE_RECOVERY,
+            supporting = setOf(OutcomeDomain.SLEEP_ARCHITECTURE)
+        )
+        val state = CodexUiState(
+            allDiets = SEED_DIETS,
+            labsFocus = focus
+        )
+
+        val ranked = state.labsFocus.rankItems(state.allDiets) { it.primaryOutcomeDomains }
+        assertTrue(ranked.first().primaryOutcomeDomains.contains("Physical Performance / Recovery"))
     }
 }

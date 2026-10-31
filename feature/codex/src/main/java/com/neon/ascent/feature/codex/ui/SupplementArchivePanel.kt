@@ -33,8 +33,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.neon.ascent.core.domain.labs.models.FocusMatchLevel
 import com.neon.ascent.core.domain.labs.models.Supplement
 import com.neon.ascent.core.domain.labs.models.SupplementOverride
+import com.neon.ascent.core.domain.labs.models.matchLevel
+import com.neon.ascent.core.domain.labs.models.rankItems
 
 @Composable
 fun SupplementArchivePanel(
@@ -66,9 +69,11 @@ fun SupplementArchivePanel(
     val filteredSupplements = remember(
         uiState.allSupplements,
         uiState.selectedSupplementOutcomeDomainFilter,
-        searchQuery
+        searchQuery,
+        uiState.labsFocus
     ) {
-        uiState.allSupplements.filter { supplement ->
+        val ranked = uiState.labsFocus.rankItems(uiState.allSupplements) { it.primaryOutcomeDomains }
+        ranked.filter { supplement ->
             val matchesDomain = if (uiState.selectedSupplementOutcomeDomainFilter == "ALL") {
                 true
             } else {
@@ -348,6 +353,7 @@ fun SupplementArchivePanel(
                         supplement = supplement,
                         isInStack = isInStack,
                         override = override,
+                        labsFocus = uiState.labsFocus,
                         isCyber = isCyber,
                         cyan = cyan,
                         magenta = magenta,
@@ -386,6 +392,7 @@ private fun SupplementCard(
     supplement: Supplement,
     isInStack: Boolean,
     override: SupplementOverride?,
+    labsFocus: com.neon.ascent.core.domain.labs.models.LabsFocus = com.neon.ascent.core.domain.labs.models.LabsFocus(),
     isCyber: Boolean,
     cyan: Color,
     magenta: Color,
@@ -394,6 +401,7 @@ private fun SupplementCard(
     onToggleStack: () -> Unit
 ) {
     val isPaused = override?.isPaused == true
+    val match = labsFocus.matchLevel(supplement.primaryOutcomeDomains)
 
     Card(
         modifier = Modifier
@@ -418,13 +426,38 @@ private fun SupplementCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = supplement.name,
-                        color = if (isCyber) Color.White else MaterialTheme.colorScheme.onSurface,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = supplement.name,
+                            color = if (isCyber) Color.White else MaterialTheme.colorScheme.onSurface,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default
+                        )
+
+                        if (match == FocusMatchLevel.PRIMARY || match == FocusMatchLevel.SUPPORTING) {
+                            val badgeText = if (match == FocusMatchLevel.PRIMARY) "PRIMARY" else "SUPPORTING"
+                            val badgeColor = if (match == FocusMatchLevel.PRIMARY) magenta else cyan
+                            Surface(
+                                color = badgeColor.copy(alpha = 0.15f),
+                                shape = RoundedCornerShape(4.dp),
+                                border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.6f))
+                            ) {
+                                Text(
+                                    text = badgeText,
+                                    color = badgeColor,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
 
                     if (supplement.aliases.isNotEmpty()) {
                         Text(

@@ -3,6 +3,8 @@ package com.neon.ascent.core.domain.backup.models
 import com.neon.ascent.core.domain.labs.models.DietOverrides
 import com.neon.ascent.core.domain.labs.models.SupplementOverride
 import com.neon.ascent.core.domain.labs.models.BiohackingProtocolOverride
+import com.neon.ascent.core.domain.labs.models.LabsFocus
+import com.neon.ascent.core.domain.labs.models.OutcomeDomain
 
 enum class BackupFrequency {
     DAILY,
@@ -73,7 +75,7 @@ data class RestoreResult(
 )
 
 data class NeonAscentBackupPayload(
-    val version: Int = 10,
+    val version: Int = 11,
     val exportedAt: String,
     val appVersion: String = "1.0",
     val workoutPayload: WorkoutBackupSection? = null,
@@ -92,8 +94,29 @@ data class NeonAscentBackupPayload(
     val libraryPayload: LibraryBackupSection? = null,
     val dietPayload: DietBackupSection? = null,
     val supplementPayload: SupplementBackupSection? = null,
-    val biohackingProtocolPayload: BiohackingProtocolBackupSection? = null
+    val biohackingProtocolPayload: BiohackingProtocolBackupSection? = null,
+    val labsFocusPayload: LabsFocusBackupSection? = null
 )
+
+data class LabsFocusBackupSection(
+    val primaryDomainKey: String? = null,
+    val supportingDomainKeys: Set<String> = emptySet()
+)
+
+fun LabsFocus.toDto(): LabsFocusBackupSection = LabsFocusBackupSection(
+    primaryDomainKey = primary?.name,
+    supportingDomainKeys = supporting.map { it.name }.toSet()
+)
+
+fun LabsFocusBackupSection.toDomain(): LabsFocus {
+    val primary = primaryDomainKey?.let {
+        try { OutcomeDomain.valueOf(it) } catch (_: Exception) { null }
+    }
+    val supporting = supportingDomainKeys.mapNotNull { key ->
+        try { OutcomeDomain.valueOf(key) } catch (_: Exception) { null }
+    }.toSet()
+    return LabsFocus.createSanitized(primary = primary, supporting = supporting)
+}
 
 data class BiohackingProtocolBackupSection(
     val activeProtocolIds: Set<String> = emptySet(),

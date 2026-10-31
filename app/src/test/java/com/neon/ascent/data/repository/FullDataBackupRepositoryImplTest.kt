@@ -854,6 +854,7 @@ class FullDataBackupRepositoryImplTest {
             supplementRepository = com.neon.ascent.core.data.repository.SupplementRepositoryImpl(FakeSupplementDao(), com.neon.ascent.core.data.datastore.SupplementPreferencesDataStore(testContext)),
             biohackingProtocolPreferencesDataStore = com.neon.ascent.core.data.datastore.BiohackingProtocolPreferencesDataStore(testContext),
             biohackingProtocolRepository = com.neon.ascent.core.data.repository.BiohackingProtocolRepositoryImpl(FakeBiohackingProtocolDao(), com.neon.ascent.core.data.datastore.BiohackingProtocolPreferencesDataStore(testContext)),
+            labsFocusPreferencesDataStore = com.neon.ascent.core.data.datastore.LabsFocusPreferencesDataStore(testContext),
             riteSessionDao = fakeRiteSessionDao,
             libraryDao = fakeLibraryDao,
             context = testContext
@@ -1026,7 +1027,7 @@ class FullDataBackupRepositoryImplTest {
 
         // Export payload
         val exportedJson = repository.exportBackupJson(BackupScope())
-        assertTrue(exportedJson.contains("\"version\": 10"))
+        assertTrue(exportedJson.contains("\"version\": 11"))
         assertTrue(exportedJson.contains("\"settingsPayload\""))
         assertTrue(exportedJson.contains("\"operativeProfile\""))
         assertTrue(exportedJson.contains("V_Test"))
@@ -1107,7 +1108,7 @@ class FullDataBackupRepositoryImplTest {
         val json = repository.exportBackupJson(BackupScope())
         assertTrue("JSON should contain goalsPayload", json.contains("goalsPayload"))
         assertTrue("JSON should contain selfMapPayload", json.contains("selfMapPayload"))
-        assertTrue("JSON should contain version 10", json.contains("\"version\": 10"))
+        assertTrue("JSON should contain version 11", json.contains("\"version\": 11"))
 
         // Reset fake DAOs to test restore
         ascensionDao.directives.clear()
@@ -1508,7 +1509,7 @@ class FullDataBackupRepositoryImplTest {
         coreDatabase.fakeLibraryDao.insertHighlight(highlight)
 
         val exportedJson = repository.exportBackupJson(BackupScope())
-        assertTrue("JSON should contain version 10", exportedJson.contains("\"version\": 10"))
+        assertTrue("JSON should contain version 11", exportedJson.contains("\"version\": 11"))
         assertTrue("JSON should contain ritesPayload", exportedJson.contains("ritesPayload"))
         assertTrue("JSON should contain libraryPayload", exportedJson.contains("libraryPayload"))
         assertTrue("JSON should contain preferencesPayload", exportedJson.contains("preferencesPayload"))
@@ -1732,9 +1733,9 @@ class FullDataBackupRepositoryImplTest {
         )
         chronicleRepository.saveEntry(entry)
 
-        // Act - export payload v10
+        // Act - export payload v11
         val exportedJson = repository.exportBackupJson(BackupScope())
-        assertTrue("JSON should contain version 10", exportedJson.contains("\"version\": 10"))
+        assertTrue("JSON should contain version 11", exportedJson.contains("\"version\": 11"))
         assertTrue("JSON should contain chronicle entry", exportedJson.contains("Daily Origin Day Card reflection note for backup v6"))
         assertTrue("JSON should contain dayLinks or localDate", exportedJson.contains("2026-10-23"))
 
@@ -1773,7 +1774,7 @@ class FullDataBackupRepositoryImplTest {
 
         val exportedJson = repository.exportBackupJson(BackupScope())
 
-        assertTrue("JSON should contain version 10", exportedJson.contains("\"version\": 10"))
+        assertTrue("JSON should contain version 11", exportedJson.contains("\"version\": 11"))
         assertTrue("JSON should contain dietPayload", exportedJson.contains("dietPayload"))
         assertTrue("JSON should contain activeDietId", exportedJson.contains("\"activeDietId\": \"cyber_cyclical_diet\""))
         assertTrue("JSON should contain preferredProteinGramsPerKg", exportedJson.contains("\"preferredProteinGramsPerKg\": 2.0"))
@@ -1814,7 +1815,7 @@ class FullDataBackupRepositoryImplTest {
 
         val exportedJson = repository.exportBackupJson(BackupScope())
 
-        assertTrue("JSON should contain version 10", exportedJson.contains("\"version\": 10"))
+        assertTrue("JSON should contain version 11", exportedJson.contains("\"version\": 11"))
         assertTrue("JSON should contain supplementPayload", exportedJson.contains("supplementPayload"))
         assertTrue("JSON should contain caffeine", exportedJson.contains("caffeine"))
         assertTrue("JSON should contain l_theanine", exportedJson.contains("l_theanine"))
@@ -1857,7 +1858,7 @@ class FullDataBackupRepositoryImplTest {
 
         val exportedJson = repository.exportBackupJson(BackupScope())
 
-        assertTrue("JSON should contain version 10", exportedJson.contains("\"version\": 10"))
+        assertTrue("JSON should contain version 11", exportedJson.contains("\"version\": 11"))
         assertTrue("JSON should contain biohackingProtocolPayload", exportedJson.contains("biohackingProtocolPayload"))
         assertTrue("JSON should contain finnish_sauna", exportedJson.contains("finnish_sauna"))
         assertTrue("JSON should contain cold_water_immersion", exportedJson.contains("cold_water_immersion"))
@@ -2003,6 +2004,58 @@ class FullDataBackupRepositoryImplTest {
         assertEquals(true, s2?.isLengthenedPartial)
         assertEquals(true, s2?.isLoadedStretch)
         assertEquals(10, s2?.stretchDurationSeconds)
+    }
+
+    @Test
+    fun exportAndRestore_labsFocus_roundTripsCorrectly() = runBlocking {
+        val labsFocusDataStore = com.neon.ascent.core.data.datastore.LabsFocusPreferencesDataStore(testContext)
+        val sampleFocus = com.neon.ascent.core.domain.labs.models.LabsFocus(
+            primary = com.neon.ascent.core.domain.labs.models.OutcomeDomain.LONGEVITY_HEALTHSPAN,
+            supporting = setOf(
+                com.neon.ascent.core.domain.labs.models.OutcomeDomain.SLEEP_ARCHITECTURE,
+                com.neon.ascent.core.domain.labs.models.OutcomeDomain.ATTENTION_FOCUS
+            )
+        )
+        labsFocusDataStore.setLabsFocus(sampleFocus)
+
+        val exportedJson = repository.exportBackupJson(BackupScope())
+        assertTrue(exportedJson.contains("\"version\":11") || exportedJson.contains("\"version\": 11"))
+        assertTrue(exportedJson.contains("labsFocusPayload"))
+        assertTrue(exportedJson.contains("LONGEVITY_HEALTHSPAN"))
+
+        // Reset LabsFocus
+        labsFocusDataStore.setLabsFocus(com.neon.ascent.core.domain.labs.models.LabsFocus())
+        val reset = labsFocusDataStore.labsFocus.first()
+        assertNull(reset.primary)
+        assertTrue(reset.supporting.isEmpty())
+
+        // Restore backup
+        val restoreResult = repository.restoreBackupJson(exportedJson, RestoreMode.REPLACE)
+        assertTrue(restoreResult.success)
+
+        val restored = labsFocusDataStore.labsFocus.first()
+        assertEquals(com.neon.ascent.core.domain.labs.models.OutcomeDomain.LONGEVITY_HEALTHSPAN, restored.primary)
+        assertEquals(
+            setOf(
+                com.neon.ascent.core.domain.labs.models.OutcomeDomain.SLEEP_ARCHITECTURE,
+                com.neon.ascent.core.domain.labs.models.OutcomeDomain.ATTENTION_FOCUS
+            ),
+            restored.supporting
+        )
+    }
+
+    @Test
+    fun exportAndRestore_emptyLabsFocus_restoresAsEmpty() = runBlocking {
+        val labsFocusDataStore = com.neon.ascent.core.data.datastore.LabsFocusPreferencesDataStore(testContext)
+        labsFocusDataStore.setLabsFocus(com.neon.ascent.core.domain.labs.models.LabsFocus())
+
+        val exportedJson = repository.exportBackupJson(BackupScope())
+        val restoreResult = repository.restoreBackupJson(exportedJson, RestoreMode.REPLACE)
+        assertTrue(restoreResult.success)
+
+        val restored = labsFocusDataStore.labsFocus.first()
+        assertNull(restored.primary)
+        assertTrue(restored.supporting.isEmpty())
     }
 }
 

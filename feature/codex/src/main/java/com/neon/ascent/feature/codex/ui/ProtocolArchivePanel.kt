@@ -29,6 +29,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.neon.ascent.core.domain.labs.models.BiohackingProtocol
 import com.neon.ascent.core.domain.labs.models.BiohackingProtocolOverride
+import com.neon.ascent.core.domain.labs.models.FocusMatchLevel
+import com.neon.ascent.core.domain.labs.models.matchLevel
+import com.neon.ascent.core.domain.labs.models.rankItems
 
 @Composable
 fun ProtocolArchivePanel(
@@ -48,11 +51,12 @@ fun ProtocolArchivePanel(
         uiState.activeProtocols.map { it.id }.toSet()
     }
 
-    val filteredProtocols = remember(uiState.allProtocols, uiState.selectedProtocolOutcomeDomainFilter) {
+    val filteredProtocols = remember(uiState.allProtocols, uiState.selectedProtocolOutcomeDomainFilter, uiState.labsFocus) {
+        val ranked = uiState.labsFocus.rankItems(uiState.allProtocols) { it.primaryOutcomeDomains }
         if (uiState.selectedProtocolOutcomeDomainFilter == "ALL") {
-            uiState.allProtocols
+            ranked
         } else {
-            uiState.allProtocols.filter { protocol ->
+            ranked.filter { protocol ->
                 protocol.primaryOutcomeDomains.contains(uiState.selectedProtocolOutcomeDomainFilter)
             }
         }
@@ -150,6 +154,7 @@ fun ProtocolArchivePanel(
                         protocol = protocol,
                         isActive = isActive,
                         override = override,
+                        labsFocus = uiState.labsFocus,
                         isCyber = isCyber,
                         cyan = cyan,
                         magenta = magenta,
@@ -188,6 +193,7 @@ private fun ProtocolCard(
     protocol: BiohackingProtocol,
     isActive: Boolean,
     override: BiohackingProtocolOverride?,
+    labsFocus: com.neon.ascent.core.domain.labs.models.LabsFocus = com.neon.ascent.core.domain.labs.models.LabsFocus(),
     isCyber: Boolean,
     cyan: Color,
     magenta: Color,
@@ -195,6 +201,7 @@ private fun ProtocolCard(
     onClick: () -> Unit,
     onToggleActive: () -> Unit
 ) {
+    val match = labsFocus.matchLevel(protocol.primaryOutcomeDomains)
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -221,14 +228,40 @@ private fun ProtocolCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = if (isCyber) protocol.name.uppercase() else protocol.name,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isCyber) Color.White else MaterialTheme.colorScheme.onSurface,
-                    fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default,
-                    modifier = Modifier.weight(1f)
-                )
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = if (isCyber) protocol.name.uppercase() else protocol.name,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isCyber) Color.White else MaterialTheme.colorScheme.onSurface,
+                        fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+
+                    if (match == FocusMatchLevel.PRIMARY || match == FocusMatchLevel.SUPPORTING) {
+                        val badgeText = if (match == FocusMatchLevel.PRIMARY) "PRIMARY" else "SUPPORTING"
+                        val badgeColor = if (match == FocusMatchLevel.PRIMARY) magenta else cyan
+                        Surface(
+                            color = badgeColor.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(4.dp),
+                            border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.6f))
+                        ) {
+                            Text(
+                                text = badgeText,
+                                color = badgeColor,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
 
                 Spacer(modifier = Modifier.width(8.dp))
 

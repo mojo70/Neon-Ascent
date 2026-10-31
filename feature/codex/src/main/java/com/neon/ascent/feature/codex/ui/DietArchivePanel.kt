@@ -26,6 +26,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.neon.ascent.core.domain.labs.models.Diet
 import com.neon.ascent.core.domain.labs.models.DietOverrides
+import com.neon.ascent.core.domain.labs.models.FocusMatchLevel
+import com.neon.ascent.core.domain.labs.models.matchLevel
+import com.neon.ascent.core.domain.labs.models.rankItems
 
 val OUTCOME_DOMAIN_FILTERS = listOf(
     "ALL",
@@ -51,10 +54,12 @@ fun DietArchivePanel(
     val cyan = if (isCyber) Color(0xFF00F5FF) else MaterialTheme.colorScheme.primary
     val magenta = if (isCyber) Color(0xFFFF0088) else MaterialTheme.colorScheme.secondary
 
+    val rankedDiets = uiState.labsFocus.rankItems(uiState.allDiets) { it.primaryOutcomeDomains }
+
     val filteredDiets = if (uiState.selectedOutcomeDomainFilter == "ALL") {
-        uiState.allDiets
+        rankedDiets
     } else {
-        uiState.allDiets.filter { diet ->
+        rankedDiets.filter { diet ->
             diet.primaryOutcomeDomains.contains(uiState.selectedOutcomeDomainFilter)
         }
     }
@@ -147,6 +152,7 @@ fun DietArchivePanel(
                     DietCatalogItemCard(
                         diet = diet,
                         isActive = isActive,
+                        labsFocus = uiState.labsFocus,
                         isCyber = isCyber,
                         cyan = cyan,
                         magenta = magenta,
@@ -184,12 +190,14 @@ fun DietArchivePanel(
 fun DietCatalogItemCard(
     diet: Diet,
     isActive: Boolean,
+    labsFocus: com.neon.ascent.core.domain.labs.models.LabsFocus = com.neon.ascent.core.domain.labs.models.LabsFocus(),
     isCyber: Boolean,
     cyan: Color,
     magenta: Color,
     onCardClick: () -> Unit,
     onToggleActive: () -> Unit
 ) {
+    val match = labsFocus.matchLevel(diet.primaryOutcomeDomains)
     if (isCyber) {
         Surface(
             modifier = Modifier
@@ -237,6 +245,25 @@ fun DietCatalogItemCard(
                                 Text(
                                     text = "ACTIVE",
                                     color = cyan,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                        if (match == FocusMatchLevel.PRIMARY || match == FocusMatchLevel.SUPPORTING) {
+                            val badgeText = if (match == FocusMatchLevel.PRIMARY) "PRIMARY FOCUS" else "SUPPORTING FOCUS"
+                            val badgeColor = if (match == FocusMatchLevel.PRIMARY) magenta else cyan
+                            Surface(
+                                color = badgeColor.copy(alpha = 0.15f),
+                                shape = RoundedCornerShape(4.dp),
+                                border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.6f))
+                            ) {
+                                Text(
+                                    text = badgeText,
+                                    color = badgeColor,
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = FontFamily.Monospace,

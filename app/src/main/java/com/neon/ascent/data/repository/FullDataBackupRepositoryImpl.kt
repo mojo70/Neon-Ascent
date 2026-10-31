@@ -105,6 +105,7 @@ class FullDataBackupRepositoryImpl @Inject constructor(
     private val supplementRepository: com.neon.ascent.core.domain.repository.SupplementRepository,
     private val biohackingProtocolPreferencesDataStore: com.neon.ascent.core.data.datastore.BiohackingProtocolPreferencesDataStore,
     private val biohackingProtocolRepository: com.neon.ascent.core.domain.repository.BiohackingProtocolRepository,
+    private val labsFocusPreferencesDataStore: com.neon.ascent.core.data.datastore.LabsFocusPreferencesDataStore,
     private val riteSessionDao: RiteSessionDao,
     private val libraryDao: LibraryDao,
     @ApplicationContext private val context: Context
@@ -1081,8 +1082,11 @@ class FullDataBackupRepositoryImpl @Inject constructor(
             overrides = protocolOverridesMap.mapValues { it.value.toDto() }
         )
 
+        val labsFocus = labsFocusPreferencesDataStore.labsFocus.firstOrNull() ?: com.neon.ascent.core.domain.labs.models.LabsFocus()
+        val labsFocusSection = labsFocus.toDto()
+
         val payload = NeonAscentBackupPayload(
-            version = 10,
+            version = 11,
             exportedAt = now,
             appVersion = "1.0",
             workoutPayload = workoutSection,
@@ -1101,12 +1105,13 @@ class FullDataBackupRepositoryImpl @Inject constructor(
             libraryPayload = librarySection,
             dietPayload = dietSection,
             supplementPayload = supplementSection,
-            biohackingProtocolPayload = protocolSection
+            biohackingProtocolPayload = protocolSection,
+            labsFocusPayload = labsFocusSection
         )
 
         healthPreferencesDataStore.updateLastSyncTime()
         userPreferencesRepository.setLastBackupTimestamp(System.currentTimeMillis())
-        userPreferencesRepository.setLastBackupVersion(10)
+        userPreferencesRepository.setLastBackupVersion(11)
 
         return gson.toJson(payload)
     }
@@ -2290,6 +2295,14 @@ class FullDataBackupRepositoryImpl @Inject constructor(
                 biohackingProtocolPreferencesDataStore.setActiveProtocolIds(proto.activeProtocolIds)
                 val mappedOverrides = proto.overrides.mapValues { it.value.toDomain() }
                 biohackingProtocolPreferencesDataStore.updateAllOverrides(mappedOverrides)
+            }
+
+            payload.labsFocusPayload?.let { focusSection ->
+                labsFocusPreferencesDataStore.setLabsFocus(focusSection.toDomain())
+            } ?: run {
+                if (mode == RestoreMode.REPLACE) {
+                    labsFocusPreferencesDataStore.setLabsFocus(com.neon.ascent.core.domain.labs.models.LabsFocus())
+                }
             }
 
             var ritesRestored = 0

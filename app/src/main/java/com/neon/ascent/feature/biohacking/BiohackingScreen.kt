@@ -187,6 +187,7 @@ fun BiohackingScreen(
     val supplementOverrides by viewModel.supplementOverrides.collectAsState()
     val activeProtocols by viewModel.activeProtocols.collectAsState()
     val protocolOverrides by viewModel.protocolOverrides.collectAsState()
+    val labsFocus by viewModel.labsFocus.collectAsState()
     val isHigherCarbDay by viewModel.isHigherCarbDay.collectAsState()
     val bodySamples by viewModel.recentBodySamples.collectAsState()
     val neonRowsCount by viewModel.neonBodyRowsCount.collectAsState()
@@ -407,6 +408,8 @@ fun BiohackingScreen(
                     supplementOverrides = supplementOverrides,
                     activeProtocols = activeProtocols,
                     protocolOverrides = protocolOverrides,
+                    labsFocus = labsFocus,
+                    onUpdateLabsFocus = { viewModel.setLabsFocus(it) },
                     onOpenDayCard = { showDailyOriginSheet = true },
                     onOpenSelfMap = onNavigateToSelfMap,
                     onNavigateToCodexDiet = {

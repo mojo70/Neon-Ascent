@@ -38,6 +38,7 @@ import com.neon.ascent.core.domain.goals.models.PriorityTier
 import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.core.domain.labs.models.Diet
 import com.neon.ascent.core.domain.labs.models.DietOverrides
+import com.neon.ascent.core.domain.labs.models.LabsFocus
 import com.neon.ascent.core.domain.labs.models.Supplement
 import com.neon.ascent.core.domain.labs.models.SupplementOverride
 import com.neon.ascent.core.domain.labs.models.BiohackingProtocol
@@ -45,6 +46,7 @@ import com.neon.ascent.core.domain.labs.models.BiohackingProtocolOverride
 import com.neon.ascent.core.domain.repository.DietRepository
 import com.neon.ascent.core.domain.repository.SupplementRepository
 import com.neon.ascent.core.domain.repository.BiohackingProtocolRepository
+import com.neon.ascent.core.domain.repository.LabsFocusRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import android.content.Context
@@ -163,7 +165,10 @@ data class CodexUiState(
     val activeProtocols: List<BiohackingProtocol> = emptyList(),
     val protocolOverrides: Map<String, BiohackingProtocolOverride> = emptyMap(),
     val selectedProtocolOutcomeDomainFilter: String = "ALL",
-    val selectedProtocolDetail: BiohackingProtocol? = null
+    val selectedProtocolDetail: BiohackingProtocol? = null,
+
+    // Labs Focus Lens
+    val labsFocus: LabsFocus = LabsFocus()
 )
 
 enum class VitalsGroup(val label: String) {
@@ -350,6 +355,7 @@ class CodexViewModel @Inject constructor(
     private val dietRepository: DietRepository,
     private val supplementRepository: SupplementRepository,
     private val biohackingProtocolRepository: BiohackingProtocolRepository,
+    private val labsFocusRepository: LabsFocusRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -441,6 +447,12 @@ class CodexViewModel @Inject constructor(
         viewModelScope.launch {
             biohackingProtocolRepository.observeOverrides().collect { overrides ->
                 _uiState.update { it.copy(protocolOverrides = overrides) }
+            }
+        }
+
+        viewModelScope.launch {
+            labsFocusRepository.observeLabsFocus().collect { focus ->
+                _uiState.update { it.copy(labsFocus = focus) }
             }
         }
         viewModelScope.launch {

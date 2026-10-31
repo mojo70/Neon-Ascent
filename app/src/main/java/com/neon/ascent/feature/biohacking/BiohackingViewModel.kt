@@ -72,9 +72,11 @@ import com.neon.ascent.core.domain.labs.models.Supplement
 import com.neon.ascent.core.domain.labs.models.SupplementOverride
 import com.neon.ascent.core.domain.labs.models.BiohackingProtocol
 import com.neon.ascent.core.domain.labs.models.BiohackingProtocolOverride
+import com.neon.ascent.core.domain.labs.models.LabsFocus
 import com.neon.ascent.core.domain.repository.DietRepository
 import com.neon.ascent.core.domain.repository.SupplementRepository
 import com.neon.ascent.core.domain.repository.BiohackingProtocolRepository
+import com.neon.ascent.core.domain.repository.LabsFocusRepository
 import kotlinx.coroutines.flow.combine
 
 @HiltViewModel
@@ -100,6 +102,7 @@ class BiohackingViewModel @Inject constructor(
     private val dietRepository: DietRepository,
     private val supplementRepository: SupplementRepository,
     private val biohackingProtocolRepository: BiohackingProtocolRepository,
+    private val labsFocusRepository: LabsFocusRepository,
     val modelDownloadManager: ModelDownloadManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -121,6 +124,15 @@ class BiohackingViewModel @Inject constructor(
 
     val protocolOverrides: StateFlow<Map<String, BiohackingProtocolOverride>> = biohackingProtocolRepository.observeOverrides()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    val labsFocus: StateFlow<LabsFocus> = labsFocusRepository.observeLabsFocus()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LabsFocus())
+
+    fun setLabsFocus(focus: LabsFocus) {
+        viewModelScope.launch {
+            labsFocusRepository.setLabsFocus(focus)
+        }
+    }
 
     val isTrainingToday: StateFlow<Boolean> = combine(
         workoutRepository.getAllSessions(),

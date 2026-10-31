@@ -125,4 +125,10 @@ abstract class DataModule {
     abstract fun bindSanctuaryRepository(
         sanctuaryRepositoryImpl: com.neon.ascent.core.data.repository.SanctuaryRepositoryImpl
     ): com.neon.ascent.core.domain.sanctuary.repository.SanctuaryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindLabsFocusRepository(
+        labsFocusRepositoryImpl: com.neon.ascent.core.data.repository.LabsFocusRepositoryImpl
+    ): com.neon.ascent.core.domain.repository.LabsFocusRepository
 }

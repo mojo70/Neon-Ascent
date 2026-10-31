@@ -28,8 +28,12 @@ import com.neon.ascent.core.domain.health.models.VitalsSnapshot
 import com.neon.ascent.core.domain.labs.models.BiohackingProtocol
 import com.neon.ascent.core.domain.labs.models.BiohackingProtocolOverride
 import com.neon.ascent.core.domain.labs.models.Diet
+import com.neon.ascent.core.domain.labs.models.FocusMatchLevel
+import com.neon.ascent.core.domain.labs.models.LabsFocus
 import com.neon.ascent.core.domain.labs.models.Supplement
 import com.neon.ascent.core.domain.labs.models.SupplementOverride
+import com.neon.ascent.core.domain.labs.models.matchLevel
+import com.neon.ascent.core.domain.labs.models.rankItems
 import com.neon.ascent.core.domain.workout.models.RecoveryScore
 import com.neon.ascent.core.domain.workout.rules.Macros
 import com.neon.ascent.feature.biohacking.VitalsStack
@@ -54,6 +58,8 @@ fun LabsTodaySection(
     supplementOverrides: Map<String, SupplementOverride>,
     activeProtocols: List<BiohackingProtocol>,
     protocolOverrides: Map<String, BiohackingProtocolOverride>,
+    labsFocus: LabsFocus = LabsFocus(),
+    onUpdateLabsFocus: (LabsFocus) -> Unit = {},
     onOpenDayCard: () -> Unit,
     onOpenSelfMap: () -> Unit,
     onNavigateToCodexDiet: () -> Unit,
@@ -103,48 +109,84 @@ fun LabsTodaySection(
             onChargeClick = onChargeClick
         )
 
+        LabsFocusCard(
+            focus = labsFocus,
+            onUpdateFocus = onUpdateLabsFocus,
+            neonCyan = neonCyan,
+            neonMagenta = neonMagenta
+        )
+
+        val dietMatch = activeDiet?.let { labsFocus.matchLevel(it.primaryOutcomeDomains) } ?: FocusMatchLevel.NONE
+        val dietMatchDetail = when (dietMatch) {
+            FocusMatchLevel.PRIMARY -> "Focus match (Primary)"
+            FocusMatchLevel.SUPPORTING -> "Focus match (Supporting)"
+            FocusMatchLevel.NONE -> null
+        }
+        val dietDetail = listOfNotNull(
+            if (activeDiet != null && isHigherCarbDay) "Refeed" else null,
+            dietMatchDetail
+        ).joinToString(" · ").ifEmpty { null }
+
         CatalogRow(
             label = "Diet",
             value = activeDiet?.name ?: "No diet selected",
-            detail = if (activeDiet != null && isHigherCarbDay) "Refeed" else null,
+            detail = dietDetail,
             action = if (activeDiet == null) "Open catalog" else null,
             accent = neonCyan,
             detailColor = neonMagenta,
             onClick = onNavigateToCodexDiet
         )
         HorizontalDivider(color = neonCyan.copy(alpha = 0.2f))
-        val stackNames = activeSupplementStack.joinToString(", ") { supplement ->
+
+        val rankedStack = labsFocus.rankItems(activeSupplementStack) { it.primaryOutcomeDomains }
+        val stackNames = rankedStack.joinToString(", ") { supplement ->
             val paused = supplementOverrides[supplement.id]?.isPaused == true
-            if (paused) "${supplement.name} (paused)" else supplement.name
+            val match = labsFocus.matchLevel(supplement.primaryOutcomeDomains)
+            val prefix = when (match) {
+                FocusMatchLevel.PRIMARY -> "★ "
+                FocusMatchLevel.SUPPORTING -> "✦ "
+                FocusMatchLevel.NONE -> ""
+            }
+            val baseName = if (paused) "${supplement.name} (paused)" else supplement.name
+            "$prefix$baseName"
         }
         CatalogRow(
             label = "Stack",
-            value = if (activeSupplementStack.isEmpty()) {
+            value = if (rankedStack.isEmpty()) {
                 "No stack selected"
             } else {
-                "${activeSupplementStack.size} · $stackNames"
+                "${rankedStack.size} · $stackNames"
             },
-            detail = supplementSynergyLine(activeSupplementStack.map { it.id }.toSet()),
+            detail = supplementSynergyLine(rankedStack.map { it.id }.toSet()),
             action = null,
             accent = neonCyan,
             detailColor = neonMagenta,
             onClick = onNavigateToCodexSupplements
         )
         HorizontalDivider(color = neonCyan.copy(alpha = 0.2f))
-        val protocolNames = activeProtocols.joinToString(", ") { protocol ->
+
+        val rankedProtocols = labsFocus.rankItems(activeProtocols) { it.primaryOutcomeDomains }
+        val protocolNames = rankedProtocols.joinToString(", ") { protocol ->
             val paused = protocolOverrides[protocol.id]?.isPaused == true
-            if (paused) "${protocol.name} (paused)" else protocol.name
+            val match = labsFocus.matchLevel(protocol.primaryOutcomeDomains)
+            val prefix = when (match) {
+                FocusMatchLevel.PRIMARY -> "★ "
+                FocusMatchLevel.SUPPORTING -> "✦ "
+                FocusMatchLevel.NONE -> ""
+            }
+            val baseName = if (paused) "${protocol.name} (paused)" else protocol.name
+            "$prefix$baseName"
         }
-        val anyActiveToday = activeProtocols.any { protocolOverrides[it.id]?.isPaused != true }
+        val anyActiveToday = rankedProtocols.any { protocolOverrides[it.id]?.isPaused != true }
         CatalogRow(
             label = "Protocols",
-            value = if (activeProtocols.isEmpty()) {
+            value = if (rankedProtocols.isEmpty()) {
                 "No protocol selected"
             } else {
-                "${activeProtocols.size} · $protocolNames"
+                "${rankedProtocols.size} · $protocolNames"
             },
             detail = when {
-                activeProtocols.isEmpty() -> null
+                rankedProtocols.isEmpty() -> null
                 anyActiveToday -> "Active today"
                 else -> "None active today"
             },

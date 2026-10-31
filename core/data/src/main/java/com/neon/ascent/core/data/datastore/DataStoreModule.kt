@@ -41,4 +41,10 @@ object DataStoreModule {
     fun provideSupplementPreferencesDataStore(
         @ApplicationContext context: Context
     ): SupplementPreferencesDataStore = SupplementPreferencesDataStore(context)
+
+    @Provides
+    @Singleton
+    fun provideLabsFocusPreferencesDataStore(
+        @ApplicationContext context: Context
+    ): LabsFocusPreferencesDataStore = LabsFocusPreferencesDataStore(context)
 }
