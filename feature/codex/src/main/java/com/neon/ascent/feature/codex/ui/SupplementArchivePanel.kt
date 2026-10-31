@@ -2,6 +2,7 @@ package com.neon.ascent.feature.codex.ui
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,8 +14,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,6 +39,7 @@ fun SupplementArchivePanel(
     uiState: CodexUiState,
     isCyber: Boolean,
     onFilterSelected: (String) -> Unit,
+    onSearchQueryChanged: (String) -> Unit = {},
     onSupplementSelected: (Supplement) -> Unit,
     onToggleActiveStack: (String) -> Unit,
     onUpdateOverride: (String, SupplementOverride?) -> Unit,
@@ -47,13 +53,38 @@ fun SupplementArchivePanel(
         uiState.activeSupplementStack.map { it.id }.toSet()
     }
 
-    val filteredSupplements = remember(uiState.allSupplements, uiState.selectedSupplementOutcomeDomainFilter) {
-        if (uiState.selectedSupplementOutcomeDomainFilter == "ALL") {
-            uiState.allSupplements
-        } else {
-            uiState.allSupplements.filter { supplement ->
+    var searchQuery by remember(uiState.supplementSearchQuery) {
+        mutableStateOf(uiState.supplementSearchQuery)
+    }
+
+    var isSearchExpanded by remember {
+        mutableStateOf(uiState.supplementSearchQuery.isNotEmpty())
+    }
+
+    val filteredSupplements = remember(
+        uiState.allSupplements,
+        uiState.selectedSupplementOutcomeDomainFilter,
+        searchQuery
+    ) {
+        uiState.allSupplements.filter { supplement ->
+            val matchesDomain = if (uiState.selectedSupplementOutcomeDomainFilter == "ALL") {
+                true
+            } else {
                 supplement.primaryOutcomeDomains.contains(uiState.selectedSupplementOutcomeDomainFilter)
             }
+
+            val matchesQuery = if (searchQuery.isBlank()) {
+                true
+            } else {
+                val q = searchQuery.trim().lowercase()
+                supplement.name.lowercase().contains(q) ||
+                    supplement.aliases.any { it.lowercase().contains(q) } ||
+                    supplement.mechanismTags.any { it.lowercase().contains(q) } ||
+                    supplement.primaryOutcomeDomains.any { it.lowercase().contains(q) } ||
+                    supplement.status.lowercase().contains(q)
+            }
+
+            matchesDomain && matchesQuery
         }
     }
 
@@ -62,6 +93,170 @@ fun SupplementArchivePanel(
             .fillMaxWidth()
             .padding(vertical = 8.dp)
     ) {
+        // Collapsible Search Header Bar
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { isSearchExpanded = !isSearchExpanded }
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Search",
+                    tint = if (isCyber) cyan else MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = if (isCyber) "SEARCH // TYPE_AHEAD_INDEX" else "Search Supplements",
+                    color = if (isCyber) cyan else MaterialTheme.colorScheme.onSurface,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default
+                )
+                if (!isSearchExpanded && searchQuery.isNotEmpty()) {
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = cyan.copy(alpha = 0.2f)
+                    ) {
+                        Text(
+                            text = "\"$searchQuery\"",
+                            fontSize = 10.sp,
+                            fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default,
+                            color = cyan,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
+
+            IconButton(
+                onClick = { isSearchExpanded = !isSearchExpanded },
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    imageVector = if (isSearchExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = if (isSearchExpanded) "Collapse search" else "Expand search",
+                    tint = if (isCyber) cyan else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        // Expanded Search Field & Type-Ahead Suggestions
+        AnimatedVisibility(visible = isSearchExpanded) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { query ->
+                        searchQuery = query
+                        onSearchQueryChanged(query)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    placeholder = {
+                        Text(
+                            text = if (isCyber) "TYPE TO SEARCH (NAME, ALIAS, MECHANISM)..." else "Search by name, alias, mechanism...",
+                            fontSize = 12.sp,
+                            fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = if (isCyber) cyan else MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(
+                                onClick = {
+                                    searchQuery = ""
+                                    onSearchQueryChanged("")
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "Clear search",
+                                    tint = if (isCyber) cyan else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                        fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default,
+                        fontSize = 13.sp
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = cyan,
+                        unfocusedBorderColor = if (isCyber) cyan.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outline,
+                        focusedContainerColor = if (isCyber) Color(0xFF0D1117) else MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = if (isCyber) Color(0xFF0D1117) else MaterialTheme.colorScheme.surface
+                    )
+                )
+
+                // Type-Ahead Quick Selection Suggestions
+                if (searchQuery.isNotBlank() && filteredSupplements.isNotEmpty()) {
+                    Text(
+                        text = if (isCyber) "TYPE_AHEAD SUGGESTIONS [${filteredSupplements.size}]" else "Quick Select (${filteredSupplements.size} found)",
+                        color = magenta,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        filteredSupplements.take(8).forEach { supplement ->
+                            AssistChip(
+                                onClick = { onSupplementSelected(supplement) },
+                                label = {
+                                    Text(
+                                        text = supplement.name,
+                                        fontSize = 11.sp,
+                                        fontFamily = if (isCyber) FontFamily.Monospace else FontFamily.Default,
+                                        maxLines = 1
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.PlayArrow,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(12.dp),
+                                        tint = cyan
+                                    )
+                                },
+                                colors = AssistChipDefaults.assistChipColors(
+                                    containerColor = cyan.copy(alpha = 0.15f),
+                                    labelColor = if (isCyber) Color.White else MaterialTheme.colorScheme.onSurface
+                                ),
+                                border = AssistChipDefaults.assistChipBorder(
+                                    enabled = true,
+                                    borderColor = cyan.copy(alpha = 0.5f)
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
         // Outcome Domain Filter Bar Header
         Text(
             text = if (isCyber) "FILTER // OUTCOME_DOMAIN" else "Filter by Outcome Domain",

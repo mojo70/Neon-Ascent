@@ -927,6 +927,7 @@ fun VitalsWing(
                     uiState = uiState,
                     isCyber = isCyber,
                     onFilterSelected = { viewModel.selectSupplementOutcomeDomainFilter(it) },
+                    onSearchQueryChanged = { viewModel.selectSupplementSearchQuery(it) },
                     onSupplementSelected = { viewModel.selectSupplementDetail(it) },
                     onToggleActiveStack = { viewModel.toggleSupplementInActiveStack(it) },
                     onUpdateOverride = { id, override -> viewModel.updateSupplementOverride(id, override) },

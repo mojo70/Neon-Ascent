@@ -147,6 +147,7 @@ data class CodexUiState(
     val activeSupplementStack: List<Supplement> = emptyList(),
     val supplementOverrides: Map<String, SupplementOverride> = emptyMap(),
     val selectedSupplementOutcomeDomainFilter: String = "ALL",
+    val supplementSearchQuery: String = "",
     val selectedSupplementDetail: Supplement? = null,
 
     // Biohacking Protocol Archive State
@@ -610,6 +611,10 @@ class CodexViewModel @Inject constructor(
 
     fun selectSupplementOutcomeDomainFilter(domain: String) {
         _uiState.update { it.copy(selectedSupplementOutcomeDomainFilter = domain) }
+    }
+
+    fun selectSupplementSearchQuery(query: String) {
+        _uiState.update { it.copy(supplementSearchQuery = query) }
     }
 
     fun selectSupplementDetail(supplement: Supplement?) {

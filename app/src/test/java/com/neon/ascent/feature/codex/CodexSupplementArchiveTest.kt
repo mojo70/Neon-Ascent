@@ -43,6 +43,44 @@ class CodexSupplementArchiveTest {
     }
 
     @Test
+    fun `type ahead search query filtering matches name alias and mechanism`() {
+        val all = SEED_SUPPLEMENTS
+
+        // Search by name
+        val tirzMatches = all.filter { s ->
+            s.name.contains("Tirzepatide", ignoreCase = true) || s.aliases.any { it.contains("Tirzepatide", ignoreCase = true) }
+        }
+        assertTrue(tirzMatches.any { it.id == "tirzepatide" })
+
+        // Search by brand alias
+        val mounjaroMatches = all.filter { s ->
+            s.aliases.any { it.contains("Mounjaro", ignoreCase = true) }
+        }
+        assertTrue(mounjaroMatches.any { it.id == "tirzepatide" })
+
+        val ozempicMatches = all.filter { s ->
+            s.aliases.any { it.contains("Ozempic", ignoreCase = true) }
+        }
+        assertTrue(ozempicMatches.any { it.id == "semaglutide" })
+
+        // Search by mechanism tag
+        val adaptogenMatches = all.filter { s ->
+            s.mechanismTags.any { it.contains("Adaptogen", ignoreCase = true) }
+        }
+        assertTrue(adaptogenMatches.any { it.id == "rhodiola_rosea" })
+        assertTrue(adaptogenMatches.any { it.id == "bacopa_monnieri" })
+    }
+
+    @Test
+    fun `codex ui state holds supplement search query state`() {
+        var state = CodexUiState(allSupplements = SEED_SUPPLEMENTS)
+        assertEquals("", state.supplementSearchQuery)
+
+        state = state.copy(supplementSearchQuery = "Semaglutide")
+        assertEquals("Semaglutide", state.supplementSearchQuery)
+    }
+
+    @Test
     fun `supplement overrides state mapping`() {
         val overridesMap = mapOf(
             "caffeine" to SupplementOverride(customDoseNote = "100 mg AM", isPaused = false),
