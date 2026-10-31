@@ -119,4 +119,10 @@ abstract class DataModule {
     abstract fun bindBiohackingProtocolRepository(
         biohackingProtocolRepositoryImpl: com.neon.ascent.core.data.repository.BiohackingProtocolRepositoryImpl
     ): com.neon.ascent.core.domain.repository.BiohackingProtocolRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSanctuaryRepository(
+        sanctuaryRepositoryImpl: com.neon.ascent.core.data.repository.SanctuaryRepositoryImpl
+    ): com.neon.ascent.core.domain.sanctuary.repository.SanctuaryRepository
 }

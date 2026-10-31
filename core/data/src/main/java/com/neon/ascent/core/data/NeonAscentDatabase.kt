@@ -40,10 +40,12 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_63_64
 import com.neon.ascent.core.data.local.migration.MIGRATION_64_65
 
 import com.neon.ascent.core.data.local.dao.DietDao
+import com.neon.ascent.core.data.local.dao.SanctuaryDao
 import com.neon.ascent.core.data.local.migration.MIGRATION_65_66
 import com.neon.ascent.core.data.local.migration.MIGRATION_68_69
 import com.neon.ascent.core.data.local.migration.MIGRATION_69_70
 import com.neon.ascent.core.data.local.migration.MIGRATION_70_71
+import com.neon.ascent.core.data.local.migration.MIGRATION_71_72
 
 @Database(
     entities = [
@@ -101,9 +103,10 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_70_71
         DeloadWindowEntity::class,
         DietEntity::class,
         SupplementEntity::class,
-        BiohackingProtocolEntity::class
+        BiohackingProtocolEntity::class,
+        SanctuaryPassageEntity::class
     ],
-    version = 71,
+    version = 72,
     exportSchema = true
 )
 @TypeConverters(
@@ -143,4 +146,5 @@ abstract class NeonAscentDatabase : RoomDatabase() {
     abstract fun dietDao(): DietDao
     abstract fun supplementDao(): com.neon.ascent.core.data.local.dao.SupplementDao
     abstract fun biohackingProtocolDao(): com.neon.ascent.core.data.local.dao.BiohackingProtocolDao
+    abstract fun sanctuaryDao(): SanctuaryDao
 }

@@ -45,6 +45,7 @@ fun AltarScreen(
     var showRebirthOverlay by remember { mutableStateOf(false) }
     var showTonguesProtocol by remember { mutableStateOf(false) }
     var showAdvancedNodes by remember { mutableStateOf(false) }
+    var showSanctuarySheet by remember { mutableStateOf(false) }
 
     val prayer = uiState.currentPrayer
     val isTrue = uiState.isTrueTextMode
@@ -194,13 +195,30 @@ fun AltarScreen(
                             fontFamily = FontFamily.Monospace
                         )
                         Spacer(Modifier.height(14.dp))
-                        Text(
-                            text = prayer?.scriptureTranslation ?: "KING JAMES",
-                            color = theme.inkMuted,
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace,
-                            letterSpacing = 1.5.sp
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = prayer?.scriptureTranslation ?: "KING JAMES",
+                                color = theme.inkMuted,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                letterSpacing = 1.5.sp
+                            )
+
+                            Text(
+                                text = "[ SANCTUARY SCRIPTURE SEED ]",
+                                color = lightMint,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier
+                                    .clickable { showSanctuarySheet = true }
+                                    .padding(vertical = 2.dp)
+                            )
+                        }
                     }
                 }
 
@@ -638,6 +656,12 @@ fun AltarScreen(
                 showTonguesProtocol = false
             },
             onDismiss = { showTonguesProtocol = false }
+        )
+    }
+
+    if (showSanctuarySheet) {
+        com.neon.ascent.feature.sanctuary.SanctuarySheet(
+            onDismissRequest = { showSanctuarySheet = false }
         )
     }
 }

@@ -496,6 +496,7 @@ class FullDataBackupRepositoryImplTest {
         override fun dietDao(): DietDao = throw NotImplementedError()
         override fun supplementDao(): com.neon.ascent.core.data.local.dao.SupplementDao = throw NotImplementedError()
         override fun biohackingProtocolDao(): com.neon.ascent.core.data.local.dao.BiohackingProtocolDao = throw NotImplementedError()
+        override fun sanctuaryDao(): com.neon.ascent.core.data.local.dao.SanctuaryDao = throw NotImplementedError()
     }
 
     private class TestAppDatabase : AppDatabase() {
