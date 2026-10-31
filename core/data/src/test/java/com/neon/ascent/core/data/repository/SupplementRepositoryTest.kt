@@ -74,8 +74,8 @@ class FakeSupplementPreferencesDataStore : SupplementPreferencesDataStore(
 class SupplementRepositoryTest {
 
     @Test
-    fun `seed supplements completeness - contains 98 entries from database MD`() {
-        assertEquals(98, SEED_SUPPLEMENTS.size)
+    fun `seed supplements completeness - contains 100 entries from database MD`() {
+        assertEquals(100, SEED_SUPPLEMENTS.size)
 
         val ids = SEED_SUPPLEMENTS.map { it.id }.toSet()
         assertTrue(ids.contains("caffeine"))
@@ -95,6 +95,8 @@ class SupplementRepositoryTest {
         assertTrue(ids.contains("bpc_157"))
         assertTrue(ids.contains("semax"))
         assertTrue(ids.contains("retatrutide"))
+        assertTrue(ids.contains("tirzepatide"))
+        assertTrue(ids.contains("semaglutide"))
         assertTrue(ids.contains("methylphenidate"))
     }
 
@@ -156,6 +158,14 @@ class SupplementRepositoryTest {
         val rapamycin = SEED_SUPPLEMENTS.first { it.id == "rapamycin" }
         assertEquals("Prescription", rapamycin.status)
         assertFalse(rapamycin.isResearchChemical)
+
+        val tirzepatide = SEED_SUPPLEMENTS.first { it.id == "tirzepatide" }
+        assertEquals("Prescription", tirzepatide.status)
+        assertFalse(tirzepatide.isResearchChemical)
+
+        val semaglutide = SEED_SUPPLEMENTS.first { it.id == "semaglutide" }
+        assertEquals("Prescription", semaglutide.status)
+        assertFalse(semaglutide.isResearchChemical)
     }
 
     @Test
@@ -165,7 +175,7 @@ class SupplementRepositoryTest {
         val repo = SupplementRepositoryImpl(fakeDao, fakePrefs)
 
         val all = repo.observeAll().first()
-        assertEquals(98, all.size)
+        assertEquals(100, all.size)
 
         val caffeine = repo.observeById("caffeine").first()
         assertNotNull(caffeine)
@@ -187,7 +197,7 @@ class SupplementRepositoryTest {
 
         repo.seedDefaultSupplements()
 
-        assertEquals(98, fakeDao.getSupplementCount())
+        assertEquals(100, fakeDao.getSupplementCount())
 
         val caffeineEntity = fakeDao.getSupplementByIdSync("caffeine")
         assertNotNull(caffeineEntity)

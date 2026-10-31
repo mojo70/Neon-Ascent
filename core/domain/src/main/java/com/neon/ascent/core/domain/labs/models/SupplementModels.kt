@@ -367,6 +367,52 @@ val SEED_SUPPLEMENTS: List<Supplement> = listOf(
         isResearchChemical = false
     ),
     Supplement(
+        id = "tirzepatide",
+        name = "Tirzepatide (Mounjaro, Zepbound)",
+        aliases = listOf("Mounjaro", "Zepbound", "LY3298176"),
+        status = "Prescription",
+        primaryOutcomeDomains = listOf("Physical Performance / Recovery", "Foundational / Nutrient Status"),
+        mechanismTags = listOf("Peptide / Endocrine modulator", "Mitochondrial / Energy metabolism"),
+        evidenceGrade = "A",
+        bestContexts = "Type 2 diabetes, chronic weight management, metabolic dysfunction",
+        typicalDose = "2.5–15 mg weekly subcutaneous injection (titrated from 2.5 mg)",
+        onset = "Weeks",
+        keyLinks = listOf("https://pubmed.ncbi.nlm.nih.gov/34215024/", "https://pubmed.ncbi.nlm.nih.gov/35658024/"),
+        safetyNotes = "FDA-approved dual GLP-1 and GIP receptor agonist. Requires clinical prescription and gradual dose escalation. Common GI side effects (nausea, constipation, diarrhea). Risk of pancreatitis and hypoglycemia with insulin secretagogues.",
+        isResearchChemical = false,
+        stackingNotes = listOf(
+            SupplementStackingNote(
+                title = "Metabolic & Lean Mass Preservation Stacking",
+                description = "Pair with high protein intake and resistance training to preserve lean body mass during rapid fat loss.",
+                evidenceGradeTag = "Grade A",
+                relatedCompound = "creatine_monohydrate"
+            )
+        )
+    ),
+    Supplement(
+        id = "semaglutide",
+        name = "Semaglutide (Ozempic, Wegovy, Rybelsus)",
+        aliases = listOf("Ozempic", "Wegovy", "Rybelsus"),
+        status = "Prescription",
+        primaryOutcomeDomains = listOf("Physical Performance / Recovery", "Foundational / Nutrient Status"),
+        mechanismTags = listOf("Peptide / Endocrine modulator", "Mitochondrial / Energy metabolism"),
+        evidenceGrade = "A",
+        bestContexts = "Type 2 diabetes, chronic weight management, cardiovascular risk reduction",
+        typicalDose = "0.25–2.4 mg weekly subcutaneous (or 3–14 mg daily oral Rybelsus)",
+        onset = "Weeks",
+        keyLinks = listOf("https://pubmed.ncbi.nlm.nih.gov/33704259/", "https://pubmed.ncbi.nlm.nih.gov/33567185/"),
+        safetyNotes = "FDA-approved GLP-1 receptor agonist. Requires prescription and dose titration. Common GI side effects. Monitor for delayed gastric emptying and pancreatitis.",
+        isResearchChemical = false,
+        stackingNotes = listOf(
+            SupplementStackingNote(
+                title = "Lean Mass & Micronutrient Support",
+                description = "Ensure adequate protein and resistance training alongside essential vitamins/minerals during ongoing caloric restriction.",
+                evidenceGradeTag = "Grade A",
+                relatedCompound = "multivitamin_multimineral"
+            )
+        )
+    ),
+    Supplement(
         id = "retatrutide",
         name = "Retatrutide (LY3437943)",
         aliases = listOf("LY3437943"),

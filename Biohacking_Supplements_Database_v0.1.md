@@ -234,6 +234,28 @@ Each entry follows:
 
 ## 6. Peptides & Investigational Compounds
 
+### Tirzepatide (Mounjaro, Zepbound)
+- **Status**: Prescription (FDA-approved)  
+- **Primary outcome domains**: Physical Performance / Recovery (body composition), Foundational / Nutrient Status (glycemic/metabolic)  
+- **Mechanism tags**: Dual GLP-1 / GIP receptor agonist  
+- **Best evidence contexts**: Type 2 diabetes, chronic weight management, metabolic dysfunction  
+- **Evidence grade**: A for metabolic outcomes and weight loss  
+- **Typical dose**: 2.5–15 mg weekly subcutaneous injection (titrated from 2.5 mg starting dose)  
+- **Onset**: Weeks  
+- **Key notes**: FDA-approved dual GLP-1/GIP receptor agonist showing significant weight reduction (~20%+) and glycemic control in clinical trials (SURPASS/SURMOUNT).  
+- **Safety**: Requires clinical prescription and dose titration. Common GI side effects (nausea, constipation, diarrhea). Monitor for pancreatitis.
+
+### Semaglutide (Ozempic, Wegovy, Rybelsus)
+- **Status**: Prescription (FDA-approved)  
+- **Primary outcome domains**: Physical Performance / Recovery (body composition), Foundational / Nutrient Status (glycemic/metabolic)  
+- **Mechanism tags**: GLP-1 receptor agonist  
+- **Best evidence contexts**: Type 2 diabetes, chronic weight management, cardiovascular risk reduction  
+- **Evidence grade**: A for glycemic control, weight loss, and cardiovascular risk reduction  
+- **Typical dose**: 0.25–2.4 mg weekly subcutaneous (or 3–14 mg daily oral Rybelsus)  
+- **Onset**: Weeks  
+- **Key notes**: FDA-approved GLP-1 receptor agonist with extensive clinical trial data (STEP/SUSTAIN/SELECT) demonstrating weight reduction and cardiovascular risk reduction.  
+- **Safety**: Requires prescription and gradual dose escalation. Common GI adverse effects. Monitor for pancreatitis and diabetic retinopathy complications.
+
 ### Retatrutide (LY3437943)
 - **Status**: Investigational (Phase 3; not approved)  
 - **Primary outcome domains**: Physical Performance / Recovery (body composition), Foundational / Nutrient Status (glycemic/metabolic)  
