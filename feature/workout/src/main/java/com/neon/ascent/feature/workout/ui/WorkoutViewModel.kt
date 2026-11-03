@@ -4367,7 +4367,7 @@ class WorkoutViewModel @Inject constructor(
             var globalTimestamp = java.time.Instant.now()
             val newSets = mutableListOf<SetLog>()
 
-            if (isCC) {
+            if (isCC && oldSets.isEmpty()) {
                 // For CyberCrapp, rebuild the standard structure: 2 Warmups + 1 Rest-Pause Cluster (3 mini-sets)
                 // or 3 Normal Sets if Deload
                 
@@ -4419,7 +4419,7 @@ class WorkoutViewModel @Inject constructor(
                     ).also { newSets.add(it) }
                 }
             } else {
-                // If old sets existed, preserve the count/types, otherwise add 3 standard sets
+                // If old sets existed, preserve the count/types, otherwise add 3 standard sets (or CC defaults above)
                 val baseSets = if (oldSets.isNotEmpty()) oldSets else listOf(
                     SetLog(id = UUID.randomUUID().toString(), workoutLogId = updatedLog.id, weight = 0f, reps = 0, type = SetType.NORMAL),
                     SetLog(id = UUID.randomUUID().toString(), workoutLogId = updatedLog.id, weight = 0f, reps = 0, type = SetType.NORMAL),
@@ -4435,7 +4435,9 @@ class WorkoutViewModel @Inject constructor(
                         reps = 0,
                         type = oldSet.type,
                         goalReps = setGoal,
-                        timestamp = globalTimestamp
+                        clusterMiniSetIndex = oldSet.clusterMiniSetIndex,
+                        timestamp = globalTimestamp,
+                        rir = oldSet.rir
                     ).also { newSets.add(it) }
                 }
             }
