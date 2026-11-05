@@ -95,9 +95,6 @@ class ActiveSessionController @Inject constructor(
     }
 
     fun startDurationTimer(initialDurationSeconds: Long = 0) {
-        if (initialDurationSeconds > 0 && workoutDurationJob?.isActive == true && _state.value.workoutDurationSeconds > 0) {
-            return
-        }
         workoutDurationJob?.cancel()
         _state.update { it.copy(workoutDurationSeconds = initialDurationSeconds, isPaused = false) }
         workoutDurationJob = scope.launch {

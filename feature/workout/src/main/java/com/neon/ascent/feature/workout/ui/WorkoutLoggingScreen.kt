@@ -63,6 +63,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import coil.compose.AsyncImage
 import coil.decode.GifDecoder
 import coil.decode.ImageDecoderDecoder
+import kotlinx.coroutines.launch
+import java.time.Instant
 import coil.request.ImageRequest
 import android.os.Build
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -94,6 +96,7 @@ fun WorkoutLoggingScreen(
     var showAugmentScheduleDialogFor by remember { mutableStateOf<WorkoutAugment?>(null) }
     var showAugmentDossierFor by remember { mutableStateOf<WorkoutAugment?>(null) }
     var showRestTimerAdjustment by remember { mutableStateOf(false) }
+    var showDurationBottomSheet by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -342,6 +345,7 @@ fun WorkoutLoggingScreen(
                                     onPauseToggle = {
                                         if (uiState.isPaused) viewModel.resumeWorkout() else viewModel.pauseWorkout()
                                     },
+                                    onDurationClick = { showDurationBottomSheet = true },
                                     onDiscard = { viewModel.discardWorkout() },
                                     onViewInCodex = { onViewInCodex("") },
                                     protocol = uiState.session?.protocol,
@@ -650,6 +654,14 @@ fun WorkoutLoggingScreen(
                 uiState = uiState,
                 viewModel = viewModel,
                 onDismiss = { showRestTimerAdjustment = false }
+            )
+        }
+
+        if (showDurationBottomSheet) {
+            WorkoutDurationBottomSheet(
+                uiState = uiState,
+                viewModel = viewModel,
+                onDismiss = { showDurationBottomSheet = false }
             )
         }
 
@@ -1375,6 +1387,7 @@ fun ActiveWorkoutHeader(
     onFinish: () -> Unit,
     isPaused: Boolean,
     onPauseToggle: () -> Unit,
+    onDurationClick: () -> Unit,
     onDiscard: () -> Unit,
     onViewInCodex: () -> Unit = {},
     protocol: WorkoutProtocol? = null,
@@ -1525,7 +1538,8 @@ fun ActiveWorkoutHeader(
                 fontWeight = FontWeight.Black,
                 fontFamily = FontFamily.Monospace,
                 maxLines = 1,
-                softWrap = false
+                softWrap = false,
+                modifier = Modifier.clickable { onDurationClick() }
             )
             
             val buttonWidth = if (zoom >= 1.75f) 56.dp else 72.dp
@@ -8468,6 +8482,193 @@ fun BarbellLoadingAnimation(modifier: Modifier = Modifier) {
             }
             Spacer(modifier = Modifier.height(40.dp))
             Text("RACKING WEIGHTS...", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace, letterSpacing = 2.sp)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WorkoutDurationBottomSheet(
+    uiState: WorkoutUiState,
+    viewModel: WorkoutViewModel,
+    onDismiss: () -> Unit
+) {
+    val theme = LocalNeonTheme.current
+    var currentMinutes by remember { mutableLongStateOf(uiState.workoutDurationSeconds / 60) }
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = currentMinutes.toInt().coerceAtLeast(0))
+    val scope = rememberCoroutineScope()
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = theme.surfaceRaised,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = theme.inkMuted) }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp)
+                .navigationBarsPadding(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                "Duration",
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+            
+            Spacer(modifier = Modifier.height(20.dp))
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Duration", color = theme.inkMuted, fontSize = 16.sp)
+                Text(
+                    "${currentMinutes}m",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Surface(
+                color = theme.surface,
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color(0xFF007AFF).copy(alpha = 0.3f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(160.dp)
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                            .padding(horizontal = 16.dp)
+                            .background(Color(0xFF007AFF).copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                    )
+
+                    val maxMinutes = 300
+                    val minutesList = remember { (0..maxMinutes).toList() }
+
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(vertical = 58.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        items(minutesList.size) { index ->
+                            val minute = minutesList[index]
+                            val isSelected = minute == currentMinutes.toInt()
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(44.dp)
+                                    .clickable {
+                                        currentMinutes = minute.toLong()
+                                        scope.launch { listState.animateScrollToItem(index) }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "$minute min",
+                                    color = if (isSelected) MaterialTheme.colorScheme.onSurface else theme.inkMuted,
+                                    fontSize = if (isSelected) 18.sp else 14.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+                    }
+
+                    LaunchedEffect(listState) {
+                        snapshotFlow { listState.firstVisibleItemIndex }
+                            .collect { index ->
+                                val minutesList = (0..300).toList()
+                                if (index in minutesList.indices) {
+                                    currentMinutes = minutesList[index].toLong()
+                                }
+                            }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            val startTimeText = remember(uiState.session?.date) {
+                val date = uiState.session?.date ?: Instant.now()
+                val formatter = java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy, h:mm a", java.util.Locale.getDefault())
+                    .withZone(java.time.ZoneId.systemDefault())
+                formatter.format(date)
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Start time", color = theme.inkMuted, fontSize = 14.sp)
+                Text(startTimeText, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Button(
+                onClick = {
+                    if (uiState.isPaused) {
+                        viewModel.resumeWorkout()
+                    } else {
+                        viewModel.pauseWorkout()
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF)),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Icon(
+                    if (uiState.isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    if (uiState.isPaused) "Resume Workout Timer" else "Pause Workout Timer",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Button(
+                onClick = {
+                    viewModel.updateWorkoutDuration(currentMinutes * 60)
+                    onDismiss()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(46.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = theme.surface),
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(1.dp, Color(0xFF007AFF))
+            ) {
+                Text(
+                    "Set Duration",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+            }
         }
     }
 }

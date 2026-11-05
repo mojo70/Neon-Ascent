@@ -2955,12 +2955,45 @@ class WorkoutViewModel @Inject constructor(
         activeSessionController.setActiveSessionError(null)
     }
 
+    private var pauseStartTime: Instant? = null
+
     fun pauseWorkout() {
+        pauseStartTime = Instant.now()
         activeSessionController.pauseWorkout()
     }
 
     fun resumeWorkout() {
+        val pStart = pauseStartTime
+        if (pStart != null) {
+            val pausedSecs = java.time.Duration.between(pStart, Instant.now()).seconds
+            if (pausedSecs > 0) {
+                val session = _uiState.value.session
+                if (session != null) {
+                    val updatedSession = session.copy(date = session.date.plusSeconds(pausedSecs))
+                    _uiState.update { it.copy(session = updatedSession) }
+                    viewModelScope.launch {
+                        repository.saveSession(updatedSession)
+                    }
+                }
+            }
+        }
+        pauseStartTime = null
         activeSessionController.resumeWorkout()
+    }
+
+    fun updateWorkoutDuration(newDurationSeconds: Long) {
+        val session = _uiState.value.session
+        val newDate = Instant.now().minusSeconds(newDurationSeconds)
+        if (session != null) {
+            val updatedSession = session.copy(date = newDate, durationSeconds = newDurationSeconds)
+            _uiState.update { it.copy(session = updatedSession, workoutDurationSeconds = newDurationSeconds) }
+            viewModelScope.launch {
+                repository.saveSession(updatedSession)
+            }
+        } else {
+            _uiState.update { it.copy(workoutDurationSeconds = newDurationSeconds) }
+        }
+        activeSessionController.startDurationTimer(newDurationSeconds)
     }
 
     fun discardWorkout() {
