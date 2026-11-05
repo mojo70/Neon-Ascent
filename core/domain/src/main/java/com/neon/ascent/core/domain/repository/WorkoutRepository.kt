@@ -19,7 +19,9 @@ interface WorkoutRepository {
     
     fun getLogsForSession(sessionId: String): Flow<List<Pair<WorkoutLog, List<SetLog>>>>
     suspend fun saveWorkoutLog(log: WorkoutLog)
+    suspend fun saveWorkoutLogs(logs: List<WorkoutLog>)
     suspend fun saveSetLog(set: SetLog)
+    suspend fun saveSetLogs(sets: List<SetLog>)
     
     fun getUserProfile(userId: String): Flow<UserWorkoutProfile?>
     suspend fun saveUserProfile(profile: UserWorkoutProfile)

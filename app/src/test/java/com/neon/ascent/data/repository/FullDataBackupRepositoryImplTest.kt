@@ -89,8 +89,16 @@ class FullDataBackupRepositoryImplTest {
             logs[log.id] = log
         }
 
+        override suspend fun upsertWorkoutLogs(logs: List<WorkoutLogEntity>) {
+            logs.forEach { this.logs[it.id] = it }
+        }
+
         override suspend fun upsertSetLog(set: SetLogEntity) {
             sets[set.id] = set
+        }
+
+        override suspend fun upsertSetLogs(sets: List<SetLogEntity>) {
+            sets.forEach { this.sets[it.id] = it }
         }
 
         override fun getLogsForSession(sessionId: String): Flow<List<WorkoutLogWithSets>> {
@@ -204,6 +212,16 @@ class FullDataBackupRepositoryImplTest {
 
         override fun getAllSessionsWithDetails(): Flow<List<WorkoutSessionWithLogs>> {
             val result = sessions.values.map { session ->
+                val sessionLogs = logs.values.filter { it.sessionId == session.id }.map { log ->
+                    WorkoutLogWithSets(log, sets.values.filter { it.workoutLogId == log.id })
+                }
+                WorkoutSessionWithLogs(session, sessionLogs)
+            }
+            return flowOf(result)
+        }
+
+        override fun getRecentSessionsWithDetails(limit: Int): Flow<List<WorkoutSessionWithLogs>> {
+            val result = sessions.values.sortedByDescending { it.date }.take(limit).map { session ->
                 val sessionLogs = logs.values.filter { it.sessionId == session.id }.map { log ->
                     WorkoutLogWithSets(log, sets.values.filter { it.workoutLogId == log.id })
                 }

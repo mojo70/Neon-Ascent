@@ -9,6 +9,7 @@ import com.neon.ascent.core.domain.workout.rules.CyberCrappRules
 import com.neon.ascent.core.domain.workout.rules.MacroCalculator
 import com.neon.ascent.core.domain.workout.rules.RecoveryEngine
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import android.content.Context
@@ -34,6 +35,9 @@ class WorkoutRepositoryImpl @Inject constructor(
 
     override suspend fun saveSession(session: WorkoutSession) {
         workoutDao.upsertSession(session.toEntity())
+        // Starting a session writes durationSeconds=0. A full vault export here contends with
+        // the following log/set inserts and can freeze the logging screen for seconds.
+        if (session.durationSeconds <= 0L) return
         try {
             val workerClass = Class.forName("com.neon.ascent.data.backup.FullBackupWorker")
                 .asSubclass(ListenableWorker::class.java)
@@ -101,8 +105,18 @@ class WorkoutRepositoryImpl @Inject constructor(
         workoutDao.upsertWorkoutLog(log.toEntity())
     }
 
+    override suspend fun saveWorkoutLogs(logs: List<WorkoutLog>) {
+        if (logs.isEmpty()) return
+        workoutDao.upsertWorkoutLogs(logs.map { it.toEntity() })
+    }
+
     override suspend fun saveSetLog(set: SetLog) {
         workoutDao.upsertSetLog(set.toEntity())
+    }
+
+    override suspend fun saveSetLogs(sets: List<SetLog>) {
+        if (sets.isEmpty()) return
+        workoutDao.upsertSetLogs(sets.map { it.toEntity() })
     }
 
     override fun getUserProfile(userId: String): Flow<UserWorkoutProfile?> =
@@ -2904,12 +2918,16 @@ class WorkoutRepositoryImpl @Inject constructor(
         workoutDao.getActiveSession().map { it?.toDomain() }
 
     override fun getRecoveryScore(): Flow<RecoveryScore> =
-        getFullHistory().map { history ->
-            val recentSessions = history.take(5)
-            val allProgressionStates = workoutDao.getExerciseDefinitions().first().map {
-                workoutDao.getProgressionState(it.id).first()?.toDomain() ?: ProgressionState(it.id)
+        combine(
+            workoutDao.getRecentSessionsWithDetails(10),
+            workoutDao.getStalledProgressionStates()
+        ) { sessions, stalled ->
+            val recentSessions = sessions.map { sessionWithLogs ->
+                sessionWithLogs.session.toDomain() to sessionWithLogs.logs.map { logWithSets ->
+                    logWithSets.log.toDomain() to logWithSets.sets.map { it.toDomain() }
+                }
             }
-            RecoveryEngine.calculateScore(recentSessions, allProgressionStates)
+            RecoveryEngine.calculateScore(recentSessions, stalled.map { it.toDomain() })
         }
 
     override fun getProgressionState(exerciseId: String): Flow<ProgressionState?> =

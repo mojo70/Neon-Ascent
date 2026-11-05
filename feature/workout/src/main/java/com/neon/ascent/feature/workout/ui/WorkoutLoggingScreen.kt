@@ -1,5 +1,11 @@
 package com.neon.ascent.feature.workout.ui
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.BorderStroke
@@ -370,7 +376,9 @@ fun WorkoutLoggingScreen(
                             }
 
                             Box(modifier = Modifier.weight(1f)) {
-                                if (uiState.layoutMode == WorkoutLayoutMode.FOCUS) {
+                                if (uiState.isLoading && uiState.logs.isEmpty()) {
+                                    BarbellLoadingAnimation(modifier = Modifier.fillMaxSize())
+                                } else if (uiState.layoutMode == WorkoutLayoutMode.FOCUS) {
                                     FocusWorkoutContent(
                                         uiState = uiState,
                                         viewModel = viewModel,
@@ -6123,8 +6131,7 @@ fun ClusterLoggingDialog(
                                 },
                                 placeholder = miniSetPlaceholder,
                                 modifier = Modifier.width(80.dp),
-                                keyboardType = KeyboardType.Number,
-                                enabled = !uiState.isResting
+                                keyboardType = KeyboardType.Number
                             )
 
                             Spacer(modifier = Modifier.width(16.dp))
@@ -8422,6 +8429,45 @@ fun SoftDeloadOfferSheet(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+fun BarbellLoadingAnimation(modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "barbell_bounce")
+    val offsetY by infiniteTransition.animateFloat(
+        initialValue = -20f,
+        targetValue = 20f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "bounce"
+    )
+    val theme = LocalNeonTheme.current
+
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                modifier = Modifier.offset(y = offsetY.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                // Bar
+                Box(modifier = Modifier.width(120.dp).height(4.dp).background(theme.inkMuted))
+                // Left Plates
+                Row(modifier = Modifier.align(Alignment.CenterStart).padding(start = 10.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Box(modifier = Modifier.width(8.dp).height(40.dp).background(MaterialTheme.colorScheme.primary))
+                    Box(modifier = Modifier.width(8.dp).height(40.dp).background(MaterialTheme.colorScheme.primary))
+                }
+                // Right Plates
+                Row(modifier = Modifier.align(Alignment.CenterEnd).padding(end = 10.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Box(modifier = Modifier.width(8.dp).height(40.dp).background(MaterialTheme.colorScheme.primary))
+                    Box(modifier = Modifier.width(8.dp).height(40.dp).background(MaterialTheme.colorScheme.primary))
+                }
+            }
+            Spacer(modifier = Modifier.height(40.dp))
+            Text("RACKING WEIGHTS...", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace, letterSpacing = 2.sp)
         }
     }
 }

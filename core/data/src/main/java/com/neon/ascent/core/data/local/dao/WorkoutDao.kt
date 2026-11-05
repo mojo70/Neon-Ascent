@@ -32,7 +32,13 @@ interface WorkoutDao {
     suspend fun upsertWorkoutLog(log: WorkoutLogEntity)
 
     @Upsert
+    suspend fun upsertWorkoutLogs(logs: List<WorkoutLogEntity>)
+
+    @Upsert
     suspend fun upsertSetLog(set: SetLogEntity)
+
+    @Upsert
+    suspend fun upsertSetLogs(sets: List<SetLogEntity>)
 
     @Transaction
     @Query("SELECT * FROM workout_logs WHERE sessionId = :sessionId ORDER BY `order` ASC")
@@ -236,6 +242,10 @@ interface WorkoutDao {
     @Transaction
     @Query("SELECT * FROM workout_sessions ORDER BY date DESC")
     fun getAllSessionsWithDetails(): Flow<List<WorkoutSessionWithLogs>>
+
+    @Transaction
+    @Query("SELECT * FROM workout_sessions ORDER BY date DESC LIMIT :limit")
+    fun getRecentSessionsWithDetails(limit: Int): Flow<List<WorkoutSessionWithLogs>>
 
     @Transaction
     @Query("SELECT * FROM workout_sessions WHERE id = :sessionId")
