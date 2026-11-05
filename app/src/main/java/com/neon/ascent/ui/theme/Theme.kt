@@ -41,16 +41,16 @@ private val SteveScheme = lightColorScheme(
 )
 
 private val PilotScheme = darkColorScheme(
-    primary = Color(0xFFD32F2F),
-    secondary = Color(0xFFB71C1C),
+    primary = Color(0xFFFF1744),
+    secondary = Color(0xFFD50000),
     background = Color(0xFF050505),
     surface = Color(0xFF0F0F0F),
-    onPrimary = Color(0xFFE0E0E0),
-    onSecondary = Color(0xFFE0E0E0),
-    onBackground = Color(0xFFE0E0E0),
-    onSurface = Color(0xFFE0E0E0),
-    error = Color(0xFFB71C1C),
-    outline = Color(0xFFD32F2F)
+    onPrimary = Color(0xFFFF5252),
+    onSecondary = Color(0xFFFF5252),
+    onBackground = Color(0xFFFF5252),
+    onSurface = Color(0xFFFF5252),
+    error = Color(0xFFD50000),
+    outline = Color(0xFFFF1744)
 )
 
 @Composable

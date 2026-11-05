@@ -26,6 +26,28 @@ fun HolographicAvatar(
     modifier: Modifier = Modifier,
     onLevelUp: (SpecialType, Int) -> Unit = { _, _ -> }
 ) {
+    val theme = LocalNeonTheme.current
+
+    val strengthColor = getThemeAwareColor(SpecialType.STRENGTH, theme)
+    val perceptionColor = getThemeAwareColor(SpecialType.PERCEPTION, theme)
+    val enduranceColor = getThemeAwareColor(SpecialType.ENDURANCE, theme)
+    val charismaColor = getThemeAwareColor(SpecialType.CHARISMA, theme)
+    val intelligenceColor = getThemeAwareColor(SpecialType.INTELLIGENCE, theme)
+    val agilityColor = getThemeAwareColor(SpecialType.AGILITY, theme)
+    val luckColor = getThemeAwareColor(SpecialType.LUCK, theme)
+
+    val colorMap = remember(theme.mode) {
+        mapOf(
+            SpecialType.STRENGTH to strengthColor,
+            SpecialType.PERCEPTION to perceptionColor,
+            SpecialType.ENDURANCE to enduranceColor,
+            SpecialType.CHARISMA to charismaColor,
+            SpecialType.INTELLIGENCE to intelligenceColor,
+            SpecialType.AGILITY to agilityColor,
+            SpecialType.LUCK to luckColor
+        )
+    }
+
     val levelUpService = rememberLevelUpService()
     val previousValues = remember { mutableStateMapOf<SpecialType, Int>() }
 
@@ -50,39 +72,48 @@ fun HolographicAvatar(
         label = "globalIntensity"
     )
 
+    val dominantType = specialAttributes.maxByOrNull { it.value.percentile ?: 0 }?.key ?: SpecialType.INTELLIGENCE
+    val dominantColor = colorMap[dominantType] ?: theme.accent
+
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         // Base holographic figure
         Canvas(modifier = Modifier.fillMaxSize()) {
-            drawBaseHologram(globalIntensity)
+            drawBaseHologram(globalIntensity, dominantColor)
         }
 
         // Multi-attribute reactive particles
         MultiAttributeParticleSystem(
             attributes = specialAttributes,
+            colorMap = colorMap,
             globalIntensity = globalIntensity,
             modifier = Modifier.fillMaxSize()
         )
 
         // Center Icon Placeholder (Reactive to dominant attribute)
-        val dominantType = specialAttributes.maxByOrNull { it.value.percentile ?: 0 }?.key ?: SpecialType.INTELLIGENCE
-        val neonColor = getNeonColorForAttribute(dominantType)
-        
         Text(
             text = dominantType.getIcon(),
             style = MaterialTheme.typography.displayLarge.copy(fontSize = 60.sp),
-            color = neonColor.copy(alpha = 0.4f + globalIntensity * 0.6f)
+            color = dominantColor.copy(alpha = 0.4f + globalIntensity * 0.6f)
         )
     }
 }
 
-private fun DrawScope.drawBaseHologram(intensity: Float) {
+private fun getThemeAwareColor(type: SpecialType, theme: NeonThemeData): Color {
+    return when (theme.mode) {
+        VisualMode.PILOT -> theme.accent
+        VisualMode.STEVE -> theme.ink
+        VisualMode.CYBER -> getNeonColorForAttribute(type)
+    }
+}
+
+private fun DrawScope.drawBaseHologram(intensity: Float, accentColor: Color) {
     val center = Offset(size.width / 2, size.height / 2)
     val radius = size.minDimension / 3
 
     // Inner glow
     drawCircle(
         brush = Brush.radialGradient(
-            colors = listOf(NeonCyan.copy(alpha = 0.2f * intensity), Color.Transparent),
+            colors = listOf(accentColor.copy(alpha = 0.2f * intensity), Color.Transparent),
             center = center,
             radius = radius * 1.5f
         ),
@@ -92,7 +123,7 @@ private fun DrawScope.drawBaseHologram(intensity: Float) {
 
     // Scanning ring
     drawCircle(
-        color = NeonCyan.copy(alpha = 0.3f),
+        color = accentColor.copy(alpha = 0.3f),
         radius = radius,
         center = center,
         style = Stroke(width = 2.dp.toPx())
@@ -102,6 +133,7 @@ private fun DrawScope.drawBaseHologram(intensity: Float) {
 @Composable
 private fun MultiAttributeParticleSystem(
     attributes: Map<SpecialType, SpecialAttribute>,
+    colorMap: Map<SpecialType, Color>,
     globalIntensity: Float,
     modifier: Modifier = Modifier
 ) {
@@ -114,7 +146,8 @@ private fun MultiAttributeParticleSystem(
                 // Pick a type to represent based on its percentile weight
                 val types = attributes.keys.toList().ifEmpty { listOf(SpecialType.INTELLIGENCE) }
                 val randomType = types.random()
-                particles.add(AttributeParticle.random(randomType))
+                val particleColor = colorMap[randomType] ?: Color.Red
+                particles.add(AttributeParticle.random(particleColor))
             }
             delay(16)
         }
@@ -139,7 +172,7 @@ private data class AttributeParticle(
     val color: Color
 ) {
     companion object {
-        fun random(type: SpecialType): AttributeParticle {
+        fun random(color: Color): AttributeParticle {
             return AttributeParticle(
                 x = Random.nextFloat() * 800f - 200f,
                 y = Random.nextFloat() * 600f,
@@ -147,7 +180,7 @@ private data class AttributeParticle(
                 vy = -Random.nextFloat() * 2.5f - 0.5f,
                 alpha = Random.nextFloat() * 0.8f + 0.4f,
                 size = Random.nextFloat() * 4f + 2f,
-                color = getNeonColorForAttribute(type)
+                color = color
             )
         }
     }

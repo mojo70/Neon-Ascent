@@ -105,6 +105,9 @@ fun HolographicAvatarHub(
     var showEoELogSheet by remember { mutableStateOf(false) }
 
     val theme = LocalNeonTheme.current
+    val visualMode = LocalVisualMode.current
+    val neonGreen = if (visualMode == VisualMode.STEVE) theme.ink else if (visualMode == VisualMode.PILOT) theme.accent else Color(0xFF00FF9C)
+    val neonCyan = if (visualMode == VisualMode.STEVE) theme.ink else if (visualMode == VisualMode.PILOT) theme.accent else Color(0xFF00FFFF)
 
     if (hubViewMode == AvatarHubMode.CONVERSATIONAL_INTAKE) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -228,7 +231,7 @@ fun HolographicAvatarHub(
         "OVERDRIVE" -> Color(0xFF00CCFF)
         "THROTTLE" -> Color(0xFFFFB000)
         "GROUNDED" -> Color(0xFFFF0055)
-        else -> Color(0xFF00FF9C)
+        else -> neonGreen
     }
 
     LaunchedEffect(userCharacter?.netrunnerName) {
@@ -284,7 +287,7 @@ fun HolographicAvatarHub(
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color(0xFF00FF9C),
+                            tint = neonGreen,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -295,7 +298,7 @@ fun HolographicAvatarHub(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .neonBorder(Color(0xFF00FF9C), cornerRadius = 18.dp)
+                            .neonBorder(neonGreen, cornerRadius = 18.dp)
                     ) {
                         AvatarImage(userCharacter, modifier = Modifier.fillMaxSize(), alpha = 1f)
                     }
@@ -310,8 +313,8 @@ fun HolographicAvatarHub(
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = Color(0xFF00FF9C),
-                                    unfocusedBorderColor = Color(0xFF00FF9C).copy(alpha = 0.5f),
+                                    focusedBorderColor = neonGreen,
+                                    unfocusedBorderColor = neonGreen.copy(alpha = 0.5f),
                                     focusedTextColor = theme.ink
                                 ),
                                 textStyle = MaterialTheme.typography.labelLarge.copy(fontFamily = FontFamily.Monospace),
@@ -320,7 +323,7 @@ fun HolographicAvatarHub(
                                         viewModel.updateNetrunnerName(editedName)
                                         isEditingName = false 
                                     }) {
-                                        Text("SYNC", color = Color(0xFF00FF9C), fontSize = 10.sp)
+                                        Text("SYNC", color = neonGreen, fontSize = 10.sp)
                                     }
                                 }
                             )
@@ -331,7 +334,7 @@ fun HolographicAvatarHub(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 style = MaterialTheme.typography.titleSmall.copy(
-                                    color = Color(0xFF00FF9C),
+                                    color = neonGreen,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Black,
                                     letterSpacing = 1.sp
@@ -421,14 +424,14 @@ fun HolographicAvatarHub(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(Color(0xFF00FF9C).copy(alpha = 0.15f))
-                                .border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                                .background(neonGreen.copy(alpha = 0.15f))
+                                .border(1.dp, neonGreen.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
                                 .clickable { hubViewMode = AvatarHubMode.SELF_MAP }
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = "SELF MAP",
-                                color = Color(0xFF00FF9C),
+                                color = neonGreen,
                                 fontSize = 8.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace
@@ -485,14 +488,14 @@ fun HolographicAvatarHub(
                             .size(36.dp)
                             .clip(CircleShape)
                             .background(Color.Black.copy(alpha = 0.4f))
-                            .border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.4f), CircleShape)
+                            .border(1.dp, neonGreen.copy(alpha = 0.4f), CircleShape)
                             .clickable { showSnapshotPreview = true },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             Icons.Default.Share,
                             contentDescription = "Share",
-                            tint = Color(0xFF00FF9C),
+                            tint = neonGreen,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -572,7 +575,7 @@ fun HolographicAvatarHub(
                         value = liveMetrics?.heartRateVariability?.let { "${it.toInt()} ms" } ?: "SYNCING...",
                         trend = if (liveMetrics?.heartRateVariability != null) "OPTIMAL" else "CALIBRATING",
                         trendDirection = if (liveMetrics?.heartRateVariability != null) 1 else 0,
-                        color = Color(0xFF00FF9C),
+                        color = neonGreen,
                         onClick = { onNavigateToBiohacking("hrv") }
                     )
                     val sanctumScore = deepMetrics?.sanctumResult?.score
@@ -680,7 +683,7 @@ fun HolographicAvatarHub(
             CyberFrame(
                 label = "S.P.E.C.I.A.L._BIO_METRICS",
                 accentColor = Color(0xFFFF006E),
-                borderColor = Color(0xFF00FF9C).copy(alpha = 0.6f),
+                borderColor = neonGreen.copy(alpha = 0.6f),
                 modifier = Modifier.weight(0.8f)
             ) {
                 Row(
@@ -723,7 +726,7 @@ fun HolographicAvatarHub(
                         
                         Text(
                             text = "RANK: ${runnerTitle.uppercase()} // HR: ${liveMetrics?.heartRate ?: 0} BPM",
-                            color = Color(0xFF00FF9C).copy(alpha = 0.6f),
+                            color = neonGreen.copy(alpha = 0.6f),
                             fontSize = 9.sp,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold
@@ -819,7 +822,7 @@ fun HolographicAvatarHub(
                         items(state.recentLogMessages.take(5)) { log ->
                             Text(
                                 text = "> $log",
-                                color = Color(0xFF00FF9C).copy(alpha = 0.8f),
+                                color = neonGreen.copy(alpha = 0.8f),
                                 fontSize = 9.sp,
                                 fontFamily = FontFamily.Monospace
                             )
@@ -838,7 +841,7 @@ fun HolographicAvatarHub(
             ModalBottomSheet(
                 onDismissRequest = { showAttributeSheet = false },
                 sheetState = sheetState,
-                containerColor = Color(0xFF0A080C),
+                containerColor = if (visualMode == VisualMode.STEVE || visualMode == VisualMode.PILOT) theme.surface else Color(0xFF0A080C),
                 scrimColor = Color.Black.copy(alpha = 0.7f)
             ) {
                 SpecialAttributeSheet(
@@ -880,6 +883,9 @@ fun EnergyBar(
     onClick: (() -> Unit)? = null
 ) {
     val theme = LocalNeonTheme.current
+    val visualMode = LocalVisualMode.current
+    val neonGreen = if (visualMode == VisualMode.STEVE) theme.ink else if (visualMode == VisualMode.PILOT) theme.accent else Color(0xFF00FF9C)
+    val neonCyan = if (visualMode == VisualMode.STEVE) theme.ink else if (visualMode == VisualMode.PILOT) theme.accent else Color(0xFF00FFFF)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -910,6 +916,9 @@ fun EnergyBar(
 @Composable
 fun MemorySlotsDisplay(character: UserCharacter?) {
     val theme = LocalNeonTheme.current
+    val visualMode = LocalVisualMode.current
+    val neonGreen = if (visualMode == VisualMode.STEVE) theme.ink else if (visualMode == VisualMode.PILOT) theme.accent else Color(0xFF00FF9C)
+    val neonCyan = if (visualMode == VisualMode.STEVE) theme.ink else if (visualMode == VisualMode.PILOT) theme.accent else Color(0xFF00FFFF)
     val totalRam = character?.ramSlots ?: 8
     val usedRam = character?.usedRam ?: 0
     val totalHacks = character?.quickhackSlots ?: 4
@@ -958,18 +967,22 @@ fun MemorySlotsDisplay(character: UserCharacter?) {
 
 @Composable
 fun HolographicAdvicePanel(message: String, intensity: Float) {
+    val theme = LocalNeonTheme.current
+    val visualMode = LocalVisualMode.current
+    val neonGreen = if (visualMode == VisualMode.STEVE) theme.ink else if (visualMode == VisualMode.PILOT) theme.accent else Color(0xFF00FF9C)
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(60.dp)
-            .background(Color(0xFF00FF9C).copy(alpha = 0.05f))
-            .border(1.dp, Color(0xFF00FF9C).copy(alpha = 0.2f))
+            .background(neonGreen.copy(alpha = 0.05f))
+            .border(1.dp, neonGreen.copy(alpha = 0.2f))
             .padding(8.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = message,
-            color = Color(0xFF00FF9C),
+            color = neonGreen,
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
             textAlign = TextAlign.Center,
@@ -980,6 +993,10 @@ fun HolographicAdvicePanel(message: String, intensity: Float) {
 
 @Composable
 fun HologramDisplay(character: UserCharacter?, onPartClick: (String) -> Unit) {
+    val theme = LocalNeonTheme.current
+    val visualMode = LocalVisualMode.current
+    val neonGreen = if (visualMode == VisualMode.STEVE) theme.ink else if (visualMode == VisualMode.PILOT) theme.accent else Color(0xFF00FF9C)
+
     val infiniteTransition = rememberInfiniteTransition(label = "HologramAnim")
     val scanY by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -1005,7 +1022,7 @@ fun HologramDisplay(character: UserCharacter?, onPartClick: (String) -> Unit) {
         Canvas(modifier = Modifier.fillMaxSize().graphicsLayer { alpha = flickerAlpha }) {
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(Color(0xFF00FF9C).copy(alpha = 0.15f), Color.Transparent),
+                    colors = listOf(neonGreen.copy(alpha = 0.15f), Color.Transparent),
                     center = center,
                     radius = size.minDimension / 1.5f
                 )
@@ -1013,7 +1030,7 @@ fun HologramDisplay(character: UserCharacter?, onPartClick: (String) -> Unit) {
 
             val y = size.height * scanY
             drawLine(
-                color = Color(0xFF00FF9C).copy(alpha = 0.5f),
+                color = neonGreen.copy(alpha = 0.5f),
                 start = Offset(0f, y),
                 end = Offset(size.width, y),
                 strokeWidth = 2.dp.toPx()
@@ -1049,6 +1066,10 @@ fun HologramDisplay(character: UserCharacter?, onPartClick: (String) -> Unit) {
 
 @Composable
 fun CyberwareLabelOverlay(item: String) {
+    val theme = LocalNeonTheme.current
+    val visualMode = LocalVisualMode.current
+    val neonCyan = if (visualMode == VisualMode.STEVE) theme.ink else if (visualMode == VisualMode.PILOT) theme.accent else Color(0xFF00FFFF)
+
     val alignment = when {
         item.contains("NEURAL") || item.contains("KIROSHI") || item.contains("SYNAPTIC") -> Alignment.TopStart
         item.contains("HEART") || item.contains("LUNGS") || item.contains("CORE") -> Alignment.CenterEnd
@@ -1058,15 +1079,15 @@ fun CyberwareLabelOverlay(item: String) {
     
     Box(modifier = Modifier.fillMaxSize().padding(12.dp), contentAlignment = alignment) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(4.dp).background(Color(0xFF00FFFF)))
+            Box(Modifier.size(4.dp).background(neonCyan))
             Spacer(Modifier.width(4.dp))
             Text(
                 text = item,
-                color = Color(0xFF00FFFF),
+                color = neonCyan,
                 fontSize = 7.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.background(Color.Black.copy(alpha = 0.7f)).padding(horizontal = 4.dp, vertical = 1.dp)
+                modifier = Modifier.background(theme.canvas.copy(alpha = 0.7f)).padding(horizontal = 4.dp, vertical = 1.dp)
             )
         }
     }
@@ -1075,6 +1096,9 @@ fun CyberwareLabelOverlay(item: String) {
 @Composable
 fun AttributeRadarChart(stats: Map<String, Int>, modifier: Modifier) {
     val theme = LocalNeonTheme.current
+    val visualMode = LocalVisualMode.current
+    val neonGreen = if (visualMode == VisualMode.STEVE) theme.ink else if (visualMode == VisualMode.PILOT) theme.accent else Color(0xFF00FF9C)
+    val neonCyan = if (visualMode == VisualMode.STEVE) theme.ink else if (visualMode == VisualMode.PILOT) theme.accent else Color(0xFF00FFFF)
     Canvas(modifier = modifier) {
         val center = Offset(size.width / 2, size.height / 2)
         val radius = size.minDimension / 2
@@ -1224,6 +1248,9 @@ fun HeartbeatTrace(bpm: Int?, modifier: Modifier = Modifier) {
 fun SnapshotPreviewDialog(character: UserCharacter?, viewModel: DashboardViewModel, onDismiss: () -> Unit) {
     val snapshotSaying by viewModel.snapshotSaying.collectAsState()
     val theme = LocalNeonTheme.current
+    val visualMode = LocalVisualMode.current
+    val neonGreen = if (visualMode == VisualMode.STEVE) theme.ink else if (visualMode == VisualMode.PILOT) theme.accent else Color(0xFF00FF9C)
+    val neonCyan = if (visualMode == VisualMode.STEVE) theme.ink else if (visualMode == VisualMode.PILOT) theme.accent else Color(0xFF00FFFF)
 
     Dialog(onDismissRequest = onDismiss) {
         Column(
@@ -1314,6 +1341,9 @@ fun SpecialAttributeSheet(
     onDismiss: () -> Unit
 ) {
     val theme = LocalNeonTheme.current
+    val visualMode = LocalVisualMode.current
+    val neonGreen = if (visualMode == VisualMode.STEVE) theme.ink else if (visualMode == VisualMode.PILOT) theme.accent else Color(0xFF00FF9C)
+    val neonCyan = if (visualMode == VisualMode.STEVE) theme.ink else if (visualMode == VisualMode.PILOT) theme.accent else Color(0xFF00FFFF)
     val detail = AttributeData.attributes[attribute.type.name]
     val accentColor = detail?.accentColor ?: theme.accent
 
@@ -1471,6 +1501,9 @@ fun QuickGameCard(
     onClick: () -> Unit = {}
 ) {
     val theme = LocalNeonTheme.current
+    val visualMode = LocalVisualMode.current
+    val neonGreen = if (visualMode == VisualMode.STEVE) theme.ink else if (visualMode == VisualMode.PILOT) theme.accent else Color(0xFF00FF9C)
+    val neonCyan = if (visualMode == VisualMode.STEVE) theme.ink else if (visualMode == VisualMode.PILOT) theme.accent else Color(0xFF00FFFF)
     Box(
         modifier = Modifier
             .width(200.dp)
@@ -1511,6 +1544,9 @@ fun QuickGameCard(
 @Composable
 fun ProtocolCard(protocol: Protocol, onClick: () -> Unit) {
     val theme = LocalNeonTheme.current
+    val visualMode = LocalVisualMode.current
+    val neonGreen = if (visualMode == VisualMode.STEVE) theme.ink else if (visualMode == VisualMode.PILOT) theme.accent else Color(0xFF00FF9C)
+    val neonCyan = if (visualMode == VisualMode.STEVE) theme.ink else if (visualMode == VisualMode.PILOT) theme.accent else Color(0xFF00FFFF)
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -1602,6 +1638,9 @@ fun StatusCard(
     onClick: () -> Unit
 ) {
     val theme = LocalNeonTheme.current
+    val visualMode = LocalVisualMode.current
+    val neonGreen = if (visualMode == VisualMode.STEVE) theme.ink else if (visualMode == VisualMode.PILOT) theme.accent else Color(0xFF00FF9C)
+    val neonCyan = if (visualMode == VisualMode.STEVE) theme.ink else if (visualMode == VisualMode.PILOT) theme.accent else Color(0xFF00FFFF)
     val animatedColor by animateColorAsState(
         targetValue = color,
         animationSpec = tween(1000),
@@ -1685,6 +1724,9 @@ fun SpecialLetterHex(
     modifier: Modifier = Modifier
 ) {
     val theme = LocalNeonTheme.current
+    val visualMode = LocalVisualMode.current
+    val neonGreen = if (visualMode == VisualMode.STEVE) theme.ink else if (visualMode == VisualMode.PILOT) theme.accent else Color(0xFF00FF9C)
+    val neonCyan = if (visualMode == VisualMode.STEVE) theme.ink else if (visualMode == VisualMode.PILOT) theme.accent else Color(0xFF00FFFF)
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         val types = listOf(
             SpecialType.STRENGTH,
