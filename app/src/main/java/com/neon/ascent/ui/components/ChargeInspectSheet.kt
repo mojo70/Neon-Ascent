@@ -23,7 +23,8 @@ import com.neon.ascent.core.domain.health.NeonCharge
 fun ChargeInspectSheet(
     charge: NeonCharge?,
     onDismiss: () -> Unit,
-    isLabsView: Boolean = false
+    isLabsView: Boolean = false,
+    onSaveFeltCharge: ((Int) -> Unit)? = null
 ) {
     val theme = LocalNeonTheme.current
     val cyan = Color(0xFF00F5FF)
@@ -218,6 +219,60 @@ fun ChargeInspectSheet(
                             color = theme.ink.copy(alpha = 0.7f),
                             fontSize = 12.sp,
                             fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+
+                if (onSaveFeltCharge != null) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider(color = theme.ink.copy(alpha = 0.15f))
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "RECORD FELT CHARGE (OPTIONAL // 0-100):",
+                        color = cyan,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    val sliderState = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(chargeVal.toFloat()) }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Slider(
+                            value = sliderState.value,
+                            onValueChange = { sliderState.value = it },
+                            valueRange = 0f..100f,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = "${sliderState.value.toInt()}%",
+                            color = theme.ink,
+                            fontSize = 14.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            onSaveFeltCharge(sliderState.value.toInt())
+                            onDismiss()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = cyan,
+                            contentColor = theme.canvas
+                        ),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            text = "SAVE FELT CHARGE",
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }

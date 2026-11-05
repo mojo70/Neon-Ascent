@@ -9,6 +9,7 @@ import com.neon.ascent.core.data.local.dao.AscensionDao
 import com.neon.ascent.core.data.local.dao.BiomarkerDao
 import com.neon.ascent.core.data.local.dao.BodySampleDao
 import com.neon.ascent.core.data.local.dao.DailyVitalRollupDao
+import com.neon.ascent.core.data.local.dao.NeonChargeLabelDao
 import com.neon.ascent.core.data.local.dao.DopamineMenuDao
 import com.neon.ascent.core.data.local.dao.GoalDao
 import com.neon.ascent.core.data.local.dao.NeuralMemoryDao
@@ -108,6 +109,7 @@ class FullDataBackupRepositoryImpl @Inject constructor(
     private val labsFocusPreferencesDataStore: com.neon.ascent.core.data.datastore.LabsFocusPreferencesDataStore,
     private val riteSessionDao: RiteSessionDao,
     private val libraryDao: LibraryDao,
+    private val neonChargeLabelDao: NeonChargeLabelDao,
     @ApplicationContext private val context: Context
 ) : FullDataBackupRepository {
 
@@ -1085,8 +1087,47 @@ class FullDataBackupRepositoryImpl @Inject constructor(
         val labsFocus = labsFocusPreferencesDataStore.labsFocus.firstOrNull() ?: com.neon.ascent.core.domain.labs.models.LabsFocus()
         val labsFocusSection = labsFocus.toDto()
 
+        val chargeLabels = neonChargeLabelDao.getRecentLabels(120).map { entity ->
+            NeonChargeLabelDto(
+                date = entity.date,
+                wakeSeed = entity.wakeSeed,
+                hoursAwake = entity.hoursAwake,
+                sessionDrainRaw = entity.sessionDrainRaw,
+                stepDrainRaw = entity.stepDrainRaw,
+                hrLoadMin = entity.hrLoadMin,
+                napMin = entity.napMin,
+                protocolFlags = entity.protocolFlags,
+                activeKcal = entity.activeKcal,
+                priorDayResidual = entity.priorDayResidual,
+                feltCharge = entity.feltCharge,
+                feltSource = entity.feltSource,
+                labelWeight = entity.labelWeight,
+                nextClearance = entity.nextClearance,
+                isQuarantined = entity.isQuarantined,
+                quarantineExpiresAt = entity.quarantineExpiresAt,
+                confirmed = entity.confirmed,
+                updatedAt = entity.updatedAt
+            )
+        }
+
+        val activeCalib = neonChargeLabelDao.getActiveCalibration()
+        val chargeCalibrationDto = activeCalib?.let { calib ->
+            NeonChargeCalibrationDto(
+                isPromoted = calib.isPromoted,
+                kPassive = calib.kPassive,
+                sessionMult = calib.sessionMult,
+                stepMult = calib.stepMult,
+                hrMult = calib.hrMult,
+                effectiveN = calib.effectiveN,
+                fitDate = calib.fitDate,
+                inSampleMae = calib.inSampleMae,
+                looMae = calib.looMae,
+                isResetToPrior = calib.isResetToPrior
+            )
+        }
+
         val payload = NeonAscentBackupPayload(
-            version = 11,
+            version = 13,
             exportedAt = now,
             appVersion = "1.0",
             workoutPayload = workoutSection,
@@ -1106,12 +1147,14 @@ class FullDataBackupRepositoryImpl @Inject constructor(
             dietPayload = dietSection,
             supplementPayload = supplementSection,
             biohackingProtocolPayload = protocolSection,
-            labsFocusPayload = labsFocusSection
+            labsFocusPayload = labsFocusSection,
+            neonChargeLabelsPayload = chargeLabels.ifEmpty { null },
+            neonChargeCalibrationPayload = chargeCalibrationDto
         )
 
         healthPreferencesDataStore.updateLastSyncTime()
         userPreferencesRepository.setLastBackupTimestamp(System.currentTimeMillis())
-        userPreferencesRepository.setLastBackupVersion(11)
+        userPreferencesRepository.setLastBackupVersion(13)
 
         return gson.toJson(payload)
     }
@@ -2302,6 +2345,56 @@ class FullDataBackupRepositoryImpl @Inject constructor(
             } ?: run {
                 if (mode == RestoreMode.REPLACE) {
                     labsFocusPreferencesDataStore.setLabsFocus(com.neon.ascent.core.domain.labs.models.LabsFocus())
+                }
+            }
+
+            payload.neonChargeLabelsPayload?.let { labels ->
+                for (dto in labels) {
+                    neonChargeLabelDao.upsert(
+                        NeonChargeLabelEntity(
+                            date = dto.date,
+                            wakeSeed = dto.wakeSeed,
+                            hoursAwake = dto.hoursAwake,
+                            sessionDrainRaw = dto.sessionDrainRaw,
+                            stepDrainRaw = dto.stepDrainRaw,
+                            hrLoadMin = dto.hrLoadMin,
+                            napMin = dto.napMin,
+                            protocolFlags = dto.protocolFlags,
+                            activeKcal = dto.activeKcal,
+                            priorDayResidual = dto.priorDayResidual,
+                            feltCharge = dto.feltCharge,
+                            feltSource = dto.feltSource,
+                            labelWeight = dto.labelWeight,
+                            nextClearance = dto.nextClearance,
+                            isQuarantined = dto.isQuarantined,
+                            quarantineExpiresAt = dto.quarantineExpiresAt,
+                            confirmed = dto.confirmed,
+                            updatedAt = dto.updatedAt
+                        )
+                    )
+                }
+            }
+
+            payload.neonChargeCalibrationPayload?.let { calibDto ->
+                neonChargeLabelDao.upsertCalibration(
+                    NeonChargeCalibrationEntity(
+                        id = "active_calibration",
+                        isPromoted = calibDto.isPromoted,
+                        kPassive = calibDto.kPassive,
+                        sessionMult = calibDto.sessionMult,
+                        stepMult = calibDto.stepMult,
+                        hrMult = calibDto.hrMult,
+                        effectiveN = calibDto.effectiveN,
+                        fitDate = calibDto.fitDate,
+                        inSampleMae = calibDto.inSampleMae,
+                        looMae = calibDto.looMae,
+                        isResetToPrior = calibDto.isResetToPrior,
+                        updatedAt = System.currentTimeMillis()
+                    )
+                )
+            } ?: run {
+                if (mode == RestoreMode.REPLACE) {
+                    neonChargeLabelDao.resetCalibration()
                 }
             }
 

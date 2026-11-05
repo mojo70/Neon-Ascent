@@ -486,9 +486,28 @@ class FullDataBackupRepositoryImplTest {
         override suspend fun insertQuote(quote: LibraryQuoteEntity) {}
     }
 
+    private class FakeTestNeonChargeLabelDao : NeonChargeLabelDao {
+        val labels = mutableMapOf<String, NeonChargeLabelEntity>()
+        var calibration: NeonChargeCalibrationEntity? = null
+        private val mlSnapshots = mutableMapOf<String, NeonChargeMlSnapshotEntity>()
+        override suspend fun upsert(label: NeonChargeLabelEntity) { labels[label.date] = label }
+        override suspend fun getLabelForDate(date: String): NeonChargeLabelEntity? = labels[date]
+        override fun observeLabelForDate(date: String) = flowOf(labels[date])
+        override suspend fun getRecentLabels(limit: Int): List<NeonChargeLabelEntity> = labels.values.toList()
+        override suspend fun deleteLabel(date: String) { labels.remove(date) }
+        override suspend fun upsertCalibration(calibration: NeonChargeCalibrationEntity) { this.calibration = calibration }
+        override suspend fun getActiveCalibration(): NeonChargeCalibrationEntity? = calibration
+        override fun observeActiveCalibration() = flowOf(calibration)
+        override suspend fun resetCalibration() { calibration = null }
+        override suspend fun upsertMlSnapshot(snapshot: NeonChargeMlSnapshotEntity) { mlSnapshots[snapshot.snapshotId] = snapshot }
+        override suspend fun getMlSnapshots(limit: Int): List<NeonChargeMlSnapshotEntity> = mlSnapshots.values.toList()
+        override suspend fun pruneMlSnapshots(keep: Int) {}
+    }
+
     private class TestNeonAscentDatabase(
         val fakeLibraryDao: FakeLibraryDao = FakeLibraryDao(),
-        val fakeRiteSessionDao: FakeRiteSessionDao = FakeRiteSessionDao()
+        val fakeRiteSessionDao: FakeRiteSessionDao = FakeRiteSessionDao(),
+        val fakeNeonChargeLabelDao: FakeTestNeonChargeLabelDao = FakeTestNeonChargeLabelDao()
     ) : NeonAscentDatabase() {
         var clearAllTablesCalled = false
         override fun clearAllTables() { clearAllTablesCalled = true }
@@ -515,6 +534,7 @@ class FullDataBackupRepositoryImplTest {
         override fun supplementDao(): com.neon.ascent.core.data.local.dao.SupplementDao = throw NotImplementedError()
         override fun biohackingProtocolDao(): com.neon.ascent.core.data.local.dao.BiohackingProtocolDao = throw NotImplementedError()
         override fun sanctuaryDao(): com.neon.ascent.core.data.local.dao.SanctuaryDao = throw NotImplementedError()
+        override fun neonChargeLabelDao(): NeonChargeLabelDao = fakeNeonChargeLabelDao
     }
 
     private class TestAppDatabase : AppDatabase() {
@@ -875,6 +895,7 @@ class FullDataBackupRepositoryImplTest {
             labsFocusPreferencesDataStore = com.neon.ascent.core.data.datastore.LabsFocusPreferencesDataStore(testContext),
             riteSessionDao = fakeRiteSessionDao,
             libraryDao = fakeLibraryDao,
+            neonChargeLabelDao = coreDatabase.neonChargeLabelDao(),
             context = testContext
         )
     }
@@ -1045,7 +1066,7 @@ class FullDataBackupRepositoryImplTest {
 
         // Export payload
         val exportedJson = repository.exportBackupJson(BackupScope())
-        assertTrue(exportedJson.contains("\"version\": 11"))
+        assertTrue(exportedJson.contains("\"version\": 13"))
         assertTrue(exportedJson.contains("\"settingsPayload\""))
         assertTrue(exportedJson.contains("\"operativeProfile\""))
         assertTrue(exportedJson.contains("V_Test"))
@@ -1126,7 +1147,7 @@ class FullDataBackupRepositoryImplTest {
         val json = repository.exportBackupJson(BackupScope())
         assertTrue("JSON should contain goalsPayload", json.contains("goalsPayload"))
         assertTrue("JSON should contain selfMapPayload", json.contains("selfMapPayload"))
-        assertTrue("JSON should contain version 11", json.contains("\"version\": 11"))
+        assertTrue("JSON should contain version 11", json.contains("\"version\": 13"))
 
         // Reset fake DAOs to test restore
         ascensionDao.directives.clear()
@@ -1527,7 +1548,7 @@ class FullDataBackupRepositoryImplTest {
         coreDatabase.fakeLibraryDao.insertHighlight(highlight)
 
         val exportedJson = repository.exportBackupJson(BackupScope())
-        assertTrue("JSON should contain version 11", exportedJson.contains("\"version\": 11"))
+        assertTrue("JSON should contain version 11", exportedJson.contains("\"version\": 13"))
         assertTrue("JSON should contain ritesPayload", exportedJson.contains("ritesPayload"))
         assertTrue("JSON should contain libraryPayload", exportedJson.contains("libraryPayload"))
         assertTrue("JSON should contain preferencesPayload", exportedJson.contains("preferencesPayload"))
@@ -1753,7 +1774,7 @@ class FullDataBackupRepositoryImplTest {
 
         // Act - export payload v11
         val exportedJson = repository.exportBackupJson(BackupScope())
-        assertTrue("JSON should contain version 11", exportedJson.contains("\"version\": 11"))
+        assertTrue("JSON should contain version 11", exportedJson.contains("\"version\": 13"))
         assertTrue("JSON should contain chronicle entry", exportedJson.contains("Daily Origin Day Card reflection note for backup v6"))
         assertTrue("JSON should contain dayLinks or localDate", exportedJson.contains("2026-10-23"))
 
@@ -1792,7 +1813,7 @@ class FullDataBackupRepositoryImplTest {
 
         val exportedJson = repository.exportBackupJson(BackupScope())
 
-        assertTrue("JSON should contain version 11", exportedJson.contains("\"version\": 11"))
+        assertTrue("JSON should contain version 11", exportedJson.contains("\"version\": 13"))
         assertTrue("JSON should contain dietPayload", exportedJson.contains("dietPayload"))
         assertTrue("JSON should contain activeDietId", exportedJson.contains("\"activeDietId\": \"cyber_cyclical_diet\""))
         assertTrue("JSON should contain preferredProteinGramsPerKg", exportedJson.contains("\"preferredProteinGramsPerKg\": 2.0"))
@@ -1833,7 +1854,7 @@ class FullDataBackupRepositoryImplTest {
 
         val exportedJson = repository.exportBackupJson(BackupScope())
 
-        assertTrue("JSON should contain version 11", exportedJson.contains("\"version\": 11"))
+        assertTrue("JSON should contain version 11", exportedJson.contains("\"version\": 13"))
         assertTrue("JSON should contain supplementPayload", exportedJson.contains("supplementPayload"))
         assertTrue("JSON should contain caffeine", exportedJson.contains("caffeine"))
         assertTrue("JSON should contain l_theanine", exportedJson.contains("l_theanine"))
@@ -1876,7 +1897,7 @@ class FullDataBackupRepositoryImplTest {
 
         val exportedJson = repository.exportBackupJson(BackupScope())
 
-        assertTrue("JSON should contain version 11", exportedJson.contains("\"version\": 11"))
+        assertTrue("JSON should contain version 11", exportedJson.contains("\"version\": 13"))
         assertTrue("JSON should contain biohackingProtocolPayload", exportedJson.contains("biohackingProtocolPayload"))
         assertTrue("JSON should contain finnish_sauna", exportedJson.contains("finnish_sauna"))
         assertTrue("JSON should contain cold_water_immersion", exportedJson.contains("cold_water_immersion"))
@@ -2037,7 +2058,7 @@ class FullDataBackupRepositoryImplTest {
         labsFocusDataStore.setLabsFocus(sampleFocus)
 
         val exportedJson = repository.exportBackupJson(BackupScope())
-        assertTrue(exportedJson.contains("\"version\":11") || exportedJson.contains("\"version\": 11"))
+        assertTrue(exportedJson.contains("\"version\":13") || exportedJson.contains("\"version\": 13"))
         assertTrue(exportedJson.contains("labsFocusPayload"))
         assertTrue(exportedJson.contains("LONGEVITY_HEALTHSPAN"))
 
@@ -2074,6 +2095,66 @@ class FullDataBackupRepositoryImplTest {
         val restored = labsFocusDataStore.labsFocus.first()
         assertNull(restored.primary)
         assertTrue(restored.supporting.isEmpty())
+    }
+
+    @Test
+    fun exportAndRestore_neonChargeCalibrationAndLabels_roundTripsCorrectly() = runBlocking {
+        val dao = coreDatabase.neonChargeLabelDao()
+        val label = NeonChargeLabelEntity(
+            date = "2026-11-04",
+            wakeSeed = 75,
+            hoursAwake = 10.0,
+            sessionDrainRaw = 20.0,
+            stepDrainRaw = 10.0,
+            hrLoadMin = 15,
+            napMin = 0,
+            protocolFlags = "CYBER_CRAPP",
+            feltCharge = 30,
+            feltSource = "EXPLICIT",
+            labelWeight = 1.0,
+            isQuarantined = false,
+            confirmed = true
+        )
+        dao.upsert(label)
+
+        val calib = NeonChargeCalibrationEntity(
+            id = "active_calibration",
+            isPromoted = true,
+            kPassive = 0.09,
+            sessionMult = 1.1,
+            stepMult = 1.0,
+            hrMult = 1.05,
+            effectiveN = 14,
+            fitDate = System.currentTimeMillis(),
+            inSampleMae = 2.5,
+            looMae = 3.0,
+            isResetToPrior = false
+        )
+        dao.upsertCalibration(calib)
+
+        val exportedJson = repository.exportBackupJson(BackupScope())
+        assertTrue(exportedJson.contains("neonChargeLabelsPayload") || exportedJson.contains("neonChargeCalibrationPayload"))
+
+        // Clear DAO
+        dao.deleteLabel("2026-11-04")
+        dao.resetCalibration()
+        assertNull(dao.getLabelForDate("2026-11-04"))
+        assertNull(dao.getActiveCalibration())
+
+        // Restore
+        val restoreResult = repository.restoreBackupJson(exportedJson, RestoreMode.REPLACE)
+        assertTrue(restoreResult.success)
+
+        val restoredLabel = dao.getLabelForDate("2026-11-04")
+        assertNotNull(restoredLabel)
+        assertEquals(75, restoredLabel?.wakeSeed)
+        assertEquals(30, restoredLabel?.feltCharge)
+
+        val restoredCalib = dao.getActiveCalibration()
+        assertNotNull(restoredCalib)
+        assertTrue(restoredCalib!!.isPromoted)
+        assertEquals(0.09, restoredCalib.kPassive, 0.001)
+        assertEquals(14, restoredCalib.effectiveN)
     }
 }
 

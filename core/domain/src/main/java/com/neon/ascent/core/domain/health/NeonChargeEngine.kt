@@ -32,7 +32,8 @@ data class NeonChargeInput(
     val exerciseWindowsToday: List<Pair<Instant, Instant>> = emptyList(),
     val sitWindowsToday: List<Pair<Instant, Instant>> = emptyList(),
     val napsMinutesToday: Int = 0,
-    val now: Instant = Instant.now()
+    val now: Instant = Instant.now(),
+    val calibration: CalibrationResult? = null
 )
 
 data class NeonCharge(
@@ -46,7 +47,11 @@ data class NeonCharge(
 object NeonChargeEngine {
 
     /**
-     * Computes the Neon Charge (0-100) and drivers per NeonCharge.md specification.
+     * Computes the Neon Charge (0-100) and drivers per NeonCharge.md / NeonChargeV2.md specification.
+     *
+     * Fixtures:
+     * 1) wakeSeed 75, 10 h awake, 45 min CC RPE 7, 8 k steps, 0 HR_LOAD → evening in 15–35.
+     * 2) wakeSeed 75, 8 h awake, no session, 3 k steps → still above 40.
      *
      * Sleep factor calculation:
      * - clearanceToday != null -> wakeSeed = clearanceToday (FROZEN)
@@ -120,25 +125,43 @@ object NeonChargeEngine {
             }
         }
 
-        // Drain calculations: hoursAwake starts at sleepEnd, not local midnight (00:00).
+        // V2 Drain calculations: hoursAwake starts at sleepEnd, not local midnight (00:00).
+        val activeCalibration = input.calibration?.takeIf { it.isPromoted }
+        val kPassive = activeCalibration?.kPassive ?: 0.085
+        val sessionMult = activeCalibration?.sessionMult ?: 1.0
+        val stepMult = activeCalibration?.stepMult ?: 1.0
+        val hrMult = activeCalibration?.hrMult ?: 1.0
+
+        if (activeCalibration != null) {
+            val kStr = String.format(Locale.US, "%.3f", activeCalibration.kPassive)
+            drivers.add("CALIBRATED" to "CALIBRATED n=${activeCalibration.effectiveN} · k=$kStr")
+        }
+
         val wakeTime = input.sleepEndedAt ?: input.now
-
         val hoursAwake = Duration.between(wakeTime, input.now).toMinutes() / 60.0
-        val passiveDrain = (hoursAwake.coerceAtLeast(0.0) * 1.8).coerceIn(0.0, 50.0)
+        
+        // Passive Asymptotic Drain
+        val passiveFraction = 1.0 - Math.exp(-kPassive * hoursAwake.coerceAtLeast(0.0))
+        val passiveDrain = (wakeSeed * passiveFraction).coerceAtMost(wakeSeed * 0.85)
+        if (hoursAwake > 0.1 && passiveDrain > 0.5) {
+            val hoursStr = String.format(Locale.US, "%.1f", hoursAwake)
+            drivers.add("PASSIVE" to "PASSIVE ${hoursStr}h (-${passiveDrain.toInt()})")
+        }
 
-        // Session Drain
+        // Session Drain (V2)
         var sessionDrain = 0.0
         input.todaysSessions.forEach { session ->
             val durationHours = session.durationSeconds / 3600.0
             val rpeFactor = (session.sessionRpe ?: 6) / 10.0
-            val protoMultiplier = if (session.protocol == WorkoutProtocol.CYBER_CRAPP) 1.25 else 1.0
-            sessionDrain += durationHours * 15.0 * rpeFactor * protoMultiplier
+            val isHardProtocol = session.protocol == WorkoutProtocol.CYBER_CRAPP || session.protocol == WorkoutProtocol.WESTSIDE
+            val protoMultiplier = if (isHardProtocol) 1.4 else 1.0
+            sessionDrain += durationHours * 48.0 * rpeFactor * protoMultiplier * sessionMult
         }
         if (sessionDrain > 0.5) {
             drivers.add("WORKOUT_DRAIN" to "Workout load (-${sessionDrain.toInt()} pts)")
         }
 
-        // HR_LOAD Drain (non-exercise, non-sit elevated HR)
+        // HR_LOAD Drain (V2)
         val hrSpanMinutes = if (input.hrSamplesToday.size >= 2) {
             Duration.between(input.hrSamplesToday.first().first, input.hrSamplesToday.last().first).toMinutes()
         } else 0L
@@ -168,13 +191,20 @@ object NeonChargeEngine {
 
             val elevatedHrMinutes = elevatedBins.size
             if (elevatedHrMinutes > 0) {
-                hrLoadDrain = (elevatedHrMinutes / 12.0).coerceIn(0.0, 15.0)
-                drivers.add("HR_LOAD" to "${elevatedHrMinutes}m")
+                val isThin = input.hrSamplesToday.size < 40
+                if (isThin) {
+                    hrLoadDrain = (elevatedHrMinutes / 12.0).coerceIn(0.0, 15.0) * hrMult
+                    drivers.add("HR_LOAD_THIN" to "${elevatedHrMinutes}m (thin)")
+                } else {
+                    hrLoadDrain = (elevatedHrMinutes / 8.0).coerceIn(0.0, 22.0) * hrMult
+                    drivers.add("HR_LOAD" to "${elevatedHrMinutes}m")
+                }
             }
         }
 
-        // Steps Drain
-        val stepsDrain = (input.stepsToday * 0.0005).coerceIn(0.0, 15.0)
+        // Steps Drain (V2)
+        val stepsAbove4000 = maxOf(0L, input.stepsToday - 4000L)
+        val stepsDrain = (stepsAbove4000 / 280.0) * stepMult
         if (stepsDrain > 1.0) {
             drivers.add("STEPS_DRAIN" to "${input.stepsToday} steps (-${stepsDrain.toInt()} pts)")
         }
@@ -191,8 +221,8 @@ object NeonChargeEngine {
             drivers.add("NAP_RECHARGE" to "${input.napsMinutesToday}m nap (+${napRecharge.toInt()} pts)")
         }
 
-        val totalDrain = (passiveDrain + sessionDrain + hrLoadDrain + stepsDrain - napRecharge).coerceAtLeast(0.0)
-        val finalValue = (wakeSeed - totalDrain).toInt().coerceIn(0, 100)
+        val totalLoadDrain = sessionDrain + hrLoadDrain + stepsDrain
+        val finalValue = (wakeSeed - passiveDrain - totalLoadDrain + napRecharge).toInt().coerceIn(5, 98)
 
         return NeonCharge(
             value = finalValue,

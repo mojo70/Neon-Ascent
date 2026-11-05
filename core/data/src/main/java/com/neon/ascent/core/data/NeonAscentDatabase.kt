@@ -42,10 +42,13 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_64_65
 import com.neon.ascent.core.data.local.dao.DietDao
 import com.neon.ascent.core.data.local.dao.SanctuaryDao
 import com.neon.ascent.core.data.local.migration.MIGRATION_65_66
+import com.neon.ascent.core.data.local.dao.NeonChargeLabelDao
+import com.neon.ascent.core.data.local.entity.NeonChargeLabelEntity
 import com.neon.ascent.core.data.local.migration.MIGRATION_68_69
 import com.neon.ascent.core.data.local.migration.MIGRATION_69_70
 import com.neon.ascent.core.data.local.migration.MIGRATION_70_71
 import com.neon.ascent.core.data.local.migration.MIGRATION_71_72
+import com.neon.ascent.core.data.local.migration.MIGRATION_72_73
 
 @Database(
     entities = [
@@ -104,9 +107,12 @@ import com.neon.ascent.core.data.local.migration.MIGRATION_71_72
         DietEntity::class,
         SupplementEntity::class,
         BiohackingProtocolEntity::class,
-        SanctuaryPassageEntity::class
+        SanctuaryPassageEntity::class,
+        NeonChargeLabelEntity::class,
+        NeonChargeCalibrationEntity::class,
+        NeonChargeMlSnapshotEntity::class
     ],
-    version = 72,
+    version = 75,
     exportSchema = true
 )
 @TypeConverters(
@@ -147,4 +153,5 @@ abstract class NeonAscentDatabase : RoomDatabase() {
     abstract fun supplementDao(): com.neon.ascent.core.data.local.dao.SupplementDao
     abstract fun biohackingProtocolDao(): com.neon.ascent.core.data.local.dao.BiohackingProtocolDao
     abstract fun sanctuaryDao(): SanctuaryDao
+    abstract fun neonChargeLabelDao(): NeonChargeLabelDao
 }

@@ -60,10 +60,14 @@ import javax.inject.Singleton
  * Open-fail does not delete user data.
  */
 import com.neon.ascent.core.data.local.dao.DietDao
+import com.neon.ascent.core.data.local.dao.NeonChargeLabelDao
 import com.neon.ascent.core.data.local.dao.SupplementDao
 import com.neon.ascent.core.data.local.migration.MIGRATION_65_66
 import com.neon.ascent.core.data.local.migration.MIGRATION_66_67
 import com.neon.ascent.core.data.local.migration.MIGRATION_67_68
+import com.neon.ascent.core.data.local.migration.MIGRATION_72_73
+import com.neon.ascent.core.data.local.migration.MIGRATION_73_74
+import com.neon.ascent.core.data.local.migration.MIGRATION_74_75
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -135,7 +139,7 @@ object DatabaseModule {
             MIGRATION_57_58, MIGRATION_58_59, MIGRATION_59_60,
             MIGRATION_60_61, MIGRATION_61_62, MIGRATION_62_63,
             MIGRATION_63_64, MIGRATION_64_65, MIGRATION_65_66,
-            MIGRATION_66_67, MIGRATION_67_68, com.neon.ascent.core.data.local.migration.MIGRATION_68_69, com.neon.ascent.core.data.local.migration.MIGRATION_69_70, com.neon.ascent.core.data.local.migration.MIGRATION_70_71, com.neon.ascent.core.data.local.migration.MIGRATION_71_72
+            MIGRATION_66_67, MIGRATION_67_68, com.neon.ascent.core.data.local.migration.MIGRATION_68_69, com.neon.ascent.core.data.local.migration.MIGRATION_69_70, com.neon.ascent.core.data.local.migration.MIGRATION_70_71, com.neon.ascent.core.data.local.migration.MIGRATION_71_72, MIGRATION_72_73, MIGRATION_73_74, MIGRATION_74_75
         )
         .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
         .build()
@@ -244,5 +248,10 @@ object DatabaseModule {
     @Provides
     fun provideSanctuaryDao(database: NeonAscentDatabase): com.neon.ascent.core.data.local.dao.SanctuaryDao {
         return database.sanctuaryDao()
+    }
+
+    @Provides
+    fun provideNeonChargeLabelDao(database: NeonAscentDatabase): NeonChargeLabelDao {
+        return database.neonChargeLabelDao()
     }
 }

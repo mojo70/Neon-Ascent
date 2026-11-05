@@ -75,7 +75,7 @@ data class RestoreResult(
 )
 
 data class NeonAscentBackupPayload(
-    val version: Int = 11,
+    val version: Int = 13,
     val exportedAt: String,
     val appVersion: String = "1.0",
     val workoutPayload: WorkoutBackupSection? = null,
@@ -95,7 +95,43 @@ data class NeonAscentBackupPayload(
     val dietPayload: DietBackupSection? = null,
     val supplementPayload: SupplementBackupSection? = null,
     val biohackingProtocolPayload: BiohackingProtocolBackupSection? = null,
-    val labsFocusPayload: LabsFocusBackupSection? = null
+    val labsFocusPayload: LabsFocusBackupSection? = null,
+    val neonChargeLabelsPayload: List<NeonChargeLabelDto>? = null,
+    val neonChargeCalibrationPayload: NeonChargeCalibrationDto? = null
+)
+
+data class NeonChargeLabelDto(
+    val date: String,
+    val wakeSeed: Int,
+    val hoursAwake: Double,
+    val sessionDrainRaw: Double,
+    val stepDrainRaw: Double,
+    val hrLoadMin: Int,
+    val napMin: Int,
+    val protocolFlags: String,
+    val activeKcal: Double? = null,
+    val priorDayResidual: Double? = null,
+    val feltCharge: Int? = null,
+    val feltSource: String = "EXPLICIT",
+    val labelWeight: Double = 1.0,
+    val nextClearance: Int? = null,
+    val isQuarantined: Boolean = false,
+    val quarantineExpiresAt: Long? = null,
+    val confirmed: Boolean = true,
+    val updatedAt: Long = System.currentTimeMillis()
+)
+
+data class NeonChargeCalibrationDto(
+    val isPromoted: Boolean,
+    val kPassive: Double,
+    val sessionMult: Double,
+    val stepMult: Double,
+    val hrMult: Double,
+    val effectiveN: Int,
+    val fitDate: Long,
+    val inSampleMae: Double,
+    val looMae: Double,
+    val isResetToPrior: Boolean = false
 )
 
 data class LabsFocusBackupSection(

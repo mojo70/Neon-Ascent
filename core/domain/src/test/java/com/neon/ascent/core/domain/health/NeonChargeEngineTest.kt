@@ -46,7 +46,7 @@ class NeonChargeEngineTest {
 
         val charge = NeonChargeEngine.calculateCharge(input)
 
-        assertEquals(72, charge.wakeSeed)
+        assertEquals(80, charge.wakeSeed)
         assertTrue(charge.drivers.any { it.first == "SLEEP" && it.second.contains("SANCTUM 80") })
     }
 
@@ -54,7 +54,7 @@ class NeonChargeEngineTest {
     fun `falls back to sleep minutes when sanctumScore is null`() {
         val now = Instant.now()
         val input = NeonChargeInput(
-            sleepMinutesLastNight = 450L,
+            sleepMinutesLastNight = 480L,
             sanctumScore = null,
             sleepEndedAt = now.minusSeconds(3600),
             rhrToday = null,
@@ -67,8 +67,8 @@ class NeonChargeEngineTest {
 
         val charge = NeonChargeEngine.calculateCharge(input)
 
-        assertEquals(72, charge.wakeSeed)
-        assertTrue(charge.drivers.any { it.first == "SLEEP" && it.second.contains("SLEEP 7h") })
+        assertEquals(100, charge.wakeSeed)
+        assertTrue(charge.drivers.any { it.first == "SLEEP" && it.second.contains("SLEEP 8h") })
     }
 
     @Test
@@ -94,7 +94,7 @@ class NeonChargeEngineTest {
     }
 
     @Test
-    fun `360 min sleep with z0 returns wakeSeed 57 not 72`() {
+    fun `360 min sleep with z0 returns wakeSeed 81`() {
         val now = Instant.now()
         val input = NeonChargeInput(
             sleepMinutesLastNight = 360L,
@@ -110,7 +110,7 @@ class NeonChargeEngineTest {
 
         val charge = NeonChargeEngine.calculateCharge(input)
 
-        assertEquals(57, charge.wakeSeed)
+        assertEquals(81, charge.wakeSeed)
         assertEquals(ChargeConfidence.LOW, charge.confidence)
         assertTrue(charge.drivers.any { it.first == "SLEEP" && it.second.contains("SLEEP 6h") })
     }
@@ -139,9 +139,9 @@ class NeonChargeEngineTest {
     @Test
     fun `hr load calculated and formatted when coverage and baseline pass`() {
         val now = Instant.now()
-        val start = now.minusSeconds(7200) // 2 hour span
-        val hrSamples = (0..24).map { i ->
-            start.plusSeconds(i * 300L) to 110 // HR 110 > 55+25=80 & >= 100
+        val start = now.minusSeconds(14400) // 4 hour span
+        val hrSamples = (0..39).map { i ->
+            start.plusSeconds(i * 300L) to 110 // HR 110 > 55+25=80 & >= 100, size 40 >= 40
         }
 
         val input = NeonChargeInput(
@@ -209,9 +209,9 @@ class NeonChargeEngineTest {
 
         val charge = NeonChargeEngine.calculateCharge(input)
 
-        assertEquals(72, charge.wakeSeed)
-        // 20 min awake = 0.33 hours -> passive drain ~0.93 points -> charge value should be ~71%
-        assertTrue("Charge at 07:36 after 07:16 wake must be close to wakeSeed 72, got ${charge.value}", charge.value >= 70)
+        assertEquals(80, charge.wakeSeed)
+        // 20 min awake = 0.33 hours -> passive drain ~2 points -> charge value should be ~77-78%
+        assertTrue("Charge at 07:36 after 07:16 wake must be close to wakeSeed 80, got ${charge.value}", charge.value >= 75)
     }
 
     @Test
