@@ -82,8 +82,9 @@ fun CyberCutFrame(
     content: @Composable () -> Unit
 ) {
     val theme = LocalNeonTheme.current
+    val isSteve = theme.mode == VisualMode.STEVE
     val finalBorder = borderColor ?: theme.hairline
-    val finalBg = backgroundColor ?: theme.overlay
+    val finalBg = backgroundColor ?: if (isSteve) theme.surface else theme.overlay
 
     Box(
         modifier = modifier

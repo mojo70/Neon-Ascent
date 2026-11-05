@@ -108,18 +108,17 @@ fun FocusSetLogRow(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val tagBg = if (theme.mode == VisualMode.STEVE) theme.surfaceRaised else if (set.type == SetType.WARMUP) Color(0xFFFFA500).copy(alpha = 0.2f) else primaryColor.copy(alpha = 0.2f)
+                val tagColor = if (theme.mode == VisualMode.STEVE) theme.ink else if (set.type == SetType.WARMUP) Color(0xFFFFA500) else primaryColor
                 Box(
                     modifier = Modifier
                         .clickable { onSetLabelClick() }
-                        .background(
-                            if (set.type == SetType.WARMUP) Color(0xFFFFA500).copy(alpha = 0.2f) else primaryColor.copy(alpha = 0.2f),
-                            RoundedCornerShape(6.dp)
-                        )
+                        .background(tagBg, RoundedCornerShape(6.dp))
                         .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
                     Text(
                         text = setLabel,
-                        color = if (set.type == SetType.WARMUP) Color(0xFFFFA500) else primaryColor,
+                        color = tagColor,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Black,
                         fontFamily = FontFamily.Monospace

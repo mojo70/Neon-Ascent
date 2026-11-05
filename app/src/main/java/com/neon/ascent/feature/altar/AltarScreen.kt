@@ -86,7 +86,7 @@ fun AltarScreen(
 
     val theme = LocalNeonTheme.current
     val bgGradient = theme.canvas
-    val cardBg = theme.overlay
+    val cardBg = if (theme.mode == VisualMode.STEVE) theme.surface else theme.overlay
     val cardBorder = theme.hairline
     val neonMint = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00FF9C)
     val lightMint = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF50FAC2)

@@ -115,11 +115,16 @@ fun PhysicalOpCard(
     onClick: () -> Unit
 ) {
     val theme = LocalNeonTheme.current
+    val isSteve = theme.mode == VisualMode.STEVE
+    val finalBg = if (isSteve) theme.surface else theme.overlay
+    val finalBorder = if (isSteve) theme.hairline else color.copy(alpha = 0.2f)
+    val finalTitleColor = if (isSteve) theme.ink else color
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(theme.overlay, CyberCutShape)
-            .border(1.dp, color.copy(alpha = 0.2f), CyberCutShape)
+            .background(finalBg, CyberCutShape)
+            .border(1.dp, finalBorder, CyberCutShape)
             .clickable { onClick() }
             .padding(20.dp)
     ) {
@@ -127,7 +132,7 @@ fun PhysicalOpCard(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = color,
+                tint = if (isSteve) theme.ink else color,
                 modifier = Modifier.size(32.dp)
             )
             
@@ -136,7 +141,7 @@ fun PhysicalOpCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    color = color,
+                    color = finalTitleColor,
                     fontSize = 14.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold

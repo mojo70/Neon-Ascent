@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neon.ascent.core.common.LocalNeonTheme
+import com.neon.ascent.core.common.VisualMode
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 
 @Composable
@@ -28,6 +29,7 @@ fun FocusIncrementToolbar(
     modifier: Modifier = Modifier
 ) {
     val theme = LocalNeonTheme.current
+    val isSteve = theme.mode == VisualMode.STEVE
     val haptic = LocalHapticFeedback.current
     val primaryColor = MaterialTheme.colorScheme.primary
 
@@ -55,20 +57,16 @@ fun FocusIncrementToolbar(
         listOf(-10f, -5f, -2.5f, 2.5f, 5f, 10f).forEach { delta ->
             val label = if (delta > 0) "+${if (delta % 1 == 0f) delta.toInt() else delta}" else "${if (delta % 1 == 0f) delta.toInt() else delta}"
             val isPositive = delta > 0
+            val pillBg = if (isPositive) primaryColor.copy(alpha = 0.15f) else (if (isSteve) theme.surfaceRaised else Color.Red.copy(alpha = 0.15f))
+            val pillBorder = if (isPositive) primaryColor.copy(alpha = 0.5f) else (if (isSteve) theme.hairline else Color.Red.copy(alpha = 0.5f))
+            val pillText = if (isPositive) primaryColor else (if (isSteve) theme.ink else Color(0xFFFF6666))
             
             Box(
                 modifier = Modifier
                     .height(36.dp)
                     .defaultMinSize(minWidth = 44.dp)
-                    .background(
-                        if (isPositive) primaryColor.copy(alpha = 0.15f) else Color.Red.copy(alpha = 0.15f),
-                        RoundedCornerShape(6.dp)
-                    )
-                    .border(
-                        1.dp,
-                        if (isPositive) primaryColor.copy(alpha = 0.5f) else Color.Red.copy(alpha = 0.5f),
-                        RoundedCornerShape(6.dp)
-                    )
+                    .background(pillBg, RoundedCornerShape(6.dp))
+                    .border(1.dp, pillBorder, RoundedCornerShape(6.dp))
                     .clickable {
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         onAdjustWeight(delta)
@@ -78,7 +76,7 @@ fun FocusIncrementToolbar(
             ) {
                 Text(
                     text = label,
-                    color = if (isPositive) primaryColor else Color(0xFFFF6666),
+                    color = pillText,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Black,
                     fontFamily = FontFamily.Monospace
@@ -102,20 +100,16 @@ fun FocusIncrementToolbar(
         listOf(-1, 1).forEach { delta ->
             val label = if (delta > 0) "+$delta" else "$delta"
             val isPositive = delta > 0
+            val pillBg = if (isPositive) primaryColor.copy(alpha = 0.15f) else (if (isSteve) theme.surfaceRaised else Color.Red.copy(alpha = 0.15f))
+            val pillBorder = if (isPositive) primaryColor.copy(alpha = 0.5f) else (if (isSteve) theme.hairline else Color.Red.copy(alpha = 0.5f))
+            val pillText = if (isPositive) primaryColor else (if (isSteve) theme.ink else Color(0xFFFF6666))
 
             Box(
                 modifier = Modifier
                     .height(36.dp)
                     .defaultMinSize(minWidth = 44.dp)
-                    .background(
-                        if (isPositive) primaryColor.copy(alpha = 0.15f) else Color.Red.copy(alpha = 0.15f),
-                        RoundedCornerShape(6.dp)
-                    )
-                    .border(
-                        1.dp,
-                        if (isPositive) primaryColor.copy(alpha = 0.5f) else Color.Red.copy(alpha = 0.5f),
-                        RoundedCornerShape(6.dp)
-                    )
+                    .background(pillBg, RoundedCornerShape(6.dp))
+                    .border(1.dp, pillBorder, RoundedCornerShape(6.dp))
                     .clickable {
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         onAdjustReps(delta)
@@ -125,7 +119,7 @@ fun FocusIncrementToolbar(
             ) {
                 Text(
                     text = label,
-                    color = if (isPositive) primaryColor else Color(0xFFFF6666),
+                    color = pillText,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Black,
                     fontFamily = FontFamily.Monospace

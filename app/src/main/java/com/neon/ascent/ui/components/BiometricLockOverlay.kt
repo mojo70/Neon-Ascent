@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import com.neon.ascent.core.common.LocalNeonTheme
+import com.neon.ascent.core.common.VisualMode
 import com.neon.ascent.ui.CyberFrame
 import com.neon.ascent.util.BiometricAuthManager
 
@@ -77,17 +78,24 @@ fun BiometricLockOverlay(
         triggerAuth()
     }
 
+    val isSteve = theme.mode == VisualMode.STEVE
+    val overlayBg = if (isSteve) Color.White.copy(alpha = 0.95f) else Color.Black.copy(alpha = 0.95f)
+    val textColor = if (isSteve) theme.ink else Color.White
+    val mutedColor = if (isSteve) theme.inkMuted else Color.LightGray
+    val buttonBg = if (isSteve) theme.ink else theme.accentDanger
+    val buttonText = if (isSteve) theme.canvas else Color.Black
+
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.95f))
+            .background(overlayBg)
             .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
         CyberFrame(
             label = "NEURAL_NODE_LOCKED // CLEARANCE_REQUIRED",
-            borderColor = theme.accentDanger,
-            accentColor = theme.accent
+            borderColor = if (isSteve) theme.hairline else theme.accentDanger,
+            accentColor = if (isSteve) theme.ink else theme.accent
         ) {
             Column(
                 modifier = Modifier
@@ -103,7 +111,7 @@ fun BiometricLockOverlay(
                     Icon(
                         imageVector = Icons.Default.Lock,
                         contentDescription = "Locked Node",
-                        tint = theme.accentDanger,
+                        tint = if (isSteve) theme.ink else theme.accentDanger,
                         modifier = Modifier.size(64.dp)
                     )
                 }
@@ -113,7 +121,7 @@ fun BiometricLockOverlay(
                 Text(
                     text = "NEURAL LINK ENCRYPTED",
                     style = MaterialTheme.typography.titleMedium.copy(
-                        color = Color.White,
+                        color = textColor,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 2.sp,
                         fontFamily = FontFamily.Monospace
@@ -126,7 +134,7 @@ fun BiometricLockOverlay(
                 Text(
                     text = "Biometric node lock is active. Authentication required to decrypt system vault and personal telemetry.",
                     style = MaterialTheme.typography.bodyMedium.copy(
-                        color = Color.LightGray,
+                        color = mutedColor,
                         fontFamily = FontFamily.Monospace
                     ),
                     textAlign = TextAlign.Center
@@ -150,8 +158,8 @@ fun BiometricLockOverlay(
                 Button(
                     onClick = { triggerAuth() },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = theme.accentDanger,
-                        contentColor = Color.Black
+                        containerColor = buttonBg,
+                        contentColor = buttonText
                     ),
                     shape = MaterialTheme.shapes.extraSmall,
                     modifier = Modifier.fillMaxWidth()

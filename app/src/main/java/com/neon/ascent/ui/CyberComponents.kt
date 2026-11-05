@@ -392,9 +392,10 @@ fun CyberFrame(
     content: @Composable () -> Unit
 ) {
     val theme = LocalNeonTheme.current
-    val finalAccent = accentColor ?: theme.accentDanger
-    val finalBorder = borderColor ?: theme.accent
-    val finalBg = backgroundColor ?: theme.overlay
+    val isSteve = theme.mode == VisualMode.STEVE
+    val finalAccent = accentColor ?: if (isSteve) theme.ink else theme.accentDanger
+    val finalBorder = borderColor ?: if (isSteve) theme.hairline else theme.accent
+    val finalBg = backgroundColor ?: if (isSteve) theme.surface else theme.overlay
 
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
@@ -450,9 +451,10 @@ fun ExpandableCyberFrame(
 ) {
     var expanded by remember(initiallyExpanded) { mutableStateOf(initiallyExpanded) }
     val theme = LocalNeonTheme.current
-    val finalAccent = accentColor ?: theme.accentDanger
-    val finalBorder = borderColor ?: theme.accent
-    val finalBg = backgroundColor ?: theme.overlay
+    val isSteve = theme.mode == VisualMode.STEVE
+    val finalAccent = accentColor ?: if (isSteve) theme.ink else theme.accentDanger
+    val finalBorder = borderColor ?: if (isSteve) theme.hairline else theme.accent
+    val finalBg = backgroundColor ?: if (isSteve) theme.surface else theme.overlay
 
     Column(modifier = modifier.fillMaxWidth()) {
         Row(

@@ -1544,11 +1544,14 @@ fun ActiveWorkoutHeader(
             
             val buttonWidth = if (zoom >= 1.75f) 56.dp else 72.dp
             val buttonText = if (zoom >= 1.75f) "OK" else "Finish"
+            val isSteve = theme.mode == VisualMode.STEVE
+            val finishContainer = if (isSteve) theme.ink else Color(0xFF007AFF)
+            val finishTextColor = if (isSteve) theme.canvas else MaterialTheme.colorScheme.onSurface
             
             Spacer(modifier = Modifier.width(if (zoom >= 1.5f) 4.dp else 8.dp))
             Button(
                 onClick = onFinish,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF)),
+                colors = ButtonDefaults.buttonColors(containerColor = finishContainer),
                 shape = RoundedCornerShape(6.dp),
                 contentPadding = PaddingValues(horizontal = if (zoom >= 1.5f) 6.dp else 10.dp, vertical = 0.dp),
                 modifier = Modifier
@@ -1558,7 +1561,7 @@ fun ActiveWorkoutHeader(
             ) {
                 Text(
                     buttonText,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = finishTextColor,
                     fontWeight = FontWeight.Bold,
                     fontSize = if (zoom >= 1.5f) 12.sp else 13.sp,
                     maxLines = 1,
@@ -3320,7 +3323,7 @@ fun RoutineExerciseItem(
                         SetType.STRETCH -> "STR"
                         SetType.MAX_EFFORT -> "ME"
                     }
-                    val color = when (set.type) {
+                    val color = if (theme.mode == VisualMode.STEVE) theme.ink else when (set.type) {
                         SetType.WARMUP -> Color(0xFFFFA500)
                         SetType.DROP -> Color(0xFF00CCFF)
                         SetType.FAILURE -> Color(0xFFFF4444)
@@ -6009,9 +6012,9 @@ fun ClusterLoggingDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            color = MaterialTheme.colorScheme.background,
+            color = if (theme.mode == VisualMode.STEVE) theme.surface else MaterialTheme.colorScheme.background,
             shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, Color(0xFF00FFAA).copy(alpha = 0.5f))
+            border = BorderStroke(1.dp, if (theme.mode == VisualMode.STEVE) theme.hairline else Color(0xFF00FFAA).copy(alpha = 0.5f))
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Row(
@@ -6022,7 +6025,7 @@ fun ClusterLoggingDialog(
                     Column {
                         Text(
                             "REST-PAUSE CLUSTER",
-                            color = Color(0xFF00FFAA),
+                            color = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00FFAA),
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Black,
                             letterSpacing = 1.sp
@@ -6047,20 +6050,20 @@ fun ClusterLoggingDialog(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color(0xFF00FFAA).copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+                            .background(if (theme.mode == VisualMode.STEVE) theme.surfaceRaised else Color(0xFF00FFAA).copy(alpha = 0.1f), RoundedCornerShape(8.dp))
                             .padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
                             "NEURAL RECOVERY",
-                            color = Color(0xFF00FFAA),
+                            color = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00FFAA),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Black,
                             letterSpacing = 2.sp
                         )
                         Text(
                             "${uiState.restTimeRemaining}s",
-                            color = Color(0xFF00FFAA),
+                            color = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00FFAA),
                             fontSize = 32.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -6070,7 +6073,7 @@ fun ClusterLoggingDialog(
                                 .fillMaxWidth()
                                 .padding(top = 8.dp)
                                 .height(2.dp),
-                            color = Color(0xFF00FFAA),
+                            color = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00FFAA),
                             trackColor = theme.inkMuted.copy(alpha = 0.2f),
                         )
                     }
@@ -6312,15 +6315,19 @@ fun ClusterLoggingDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                val isSteve = theme.mode == VisualMode.STEVE
                 Button(
                     onClick = onDismiss,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FFAA)),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isSteve) theme.ink else Color(0xFF00FFAA),
+                        contentColor = if (isSteve) theme.canvas else MaterialTheme.colorScheme.onPrimary
+                    ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("SYNC DATA", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black, fontSize = 16.sp)
+                    Text("SYNC DATA", fontWeight = FontWeight.Black, fontSize = 16.sp)
                 }
             }
         }
@@ -7387,7 +7394,7 @@ fun RoutinePreviewScreen(
                                     SetType.STRETCH -> "STRETCH"
                                     else -> "SET ${index + 1}"
                                 }
-                                val typeColor = when (set.type) {
+                                val typeColor = if (theme.mode == VisualMode.STEVE) theme.ink else when (set.type) {
                                     SetType.WARMUP -> Color(0xFFFFA500)
                                     SetType.REST_PAUSE -> Color(0xFF00FFAA)
                                     SetType.POWER -> Color(0xFFFFD700)

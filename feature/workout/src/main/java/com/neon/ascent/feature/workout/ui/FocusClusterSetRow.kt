@@ -52,7 +52,7 @@ fun FocusClusterSetRow(
     val weightPlaceholder = previousWeight?.let { if (it % 1 == 0f) it.toInt().toString() else it.toString() } ?: "0"
 
     val primaryColor = MaterialTheme.colorScheme.primary
-    val rpColor = Color(0xFF00FFAA)
+    val rpColor = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00FFAA)
 
     val containerBg = if (isCompleted) {
         if (theme.mode == VisualMode.STEVE) Color(0xFF1B5E20).copy(alpha = 0.25f)

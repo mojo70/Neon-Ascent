@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neon.ascent.ui.CyberCutShape
 import com.neon.ascent.core.common.LocalNeonTheme
+import com.neon.ascent.core.common.LocalVisualMode
+import com.neon.ascent.core.common.VisualMode
 import com.neon.ascent.core.domain.health.models.VitalsSnapshot
 import kotlin.math.sqrt
 
@@ -113,15 +115,24 @@ fun NeonChargeCard(
     neonMagenta: Color,
     onChargeClick: (() -> Unit)? = null
 ) {
-    val ink = LocalNeonTheme.current.ink
+    val theme = LocalNeonTheme.current
+    val isSteve = theme.mode == VisualMode.STEVE
+    val ink = theme.ink
+    val cardBg = if (isSteve) theme.surface else Color.Black.copy(alpha = 0.4f)
+    val cardBorder = if (isSteve) theme.hairline else neonCyan.copy(alpha = 0.4f)
+    val titleColor = if (isSteve) theme.ink else neonCyan
+    val textColor = if (isSteve) theme.ink else Color.White
+    val mutedColor = if (isSteve) theme.inkMuted else Color.Gray
+    val faintColor = if (isSteve) theme.inkFaint else Color.DarkGray
+
     val gauge = chargeGaugeOrEmpty(charge)
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onChargeClick?.invoke() },
         shape = CyberCutShape,
-        colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.4f)),
-        border = BorderStroke(1.dp, neonCyan.copy(alpha = 0.4f))
+        colors = CardDefaults.cardColors(containerColor = cardBg),
+        border = BorderStroke(1.dp, cardBorder)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -131,7 +142,7 @@ fun NeonChargeCard(
             ) {
                 Text(
                     "NEON_CHARGE",
-                    color = neonCyan,
+                    color = titleColor,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold
@@ -140,9 +151,9 @@ fun NeonChargeCard(
                     Text(
                         "[CONFIDENCE: ${gauge.confidence.name}]",
                         color = when (gauge.confidence) {
-                            ChargeConfidence.HIGH -> Color(0xFF00FF9C)
-                            ChargeConfidence.MED -> Color(0xFFFF8C00)
-                            ChargeConfidence.LOW -> Color.Gray
+                            ChargeConfidence.HIGH -> if (isSteve) theme.ink else Color(0xFF00FF9C)
+                            ChargeConfidence.MED -> if (isSteve) theme.ink else Color(0xFFFF8C00)
+                            ChargeConfidence.LOW -> faintColor
                         },
                         fontSize = 12.sp,
                         fontFamily = FontFamily.Monospace,
@@ -181,7 +192,7 @@ fun NeonChargeCard(
                                     style = Stroke(width = 6.dp.toPx(), cap = StrokeCap.Round)
                                 )
                                 drawArc(
-                                    color = if (valPct > 0.6f) Color(0xFF00FF9C) else if (valPct > 0.3f) Color(0xFFFF8C00) else neonMagenta,
+                                    color = if (isSteve) ink else (if (valPct > 0.6f) Color(0xFF00FF9C) else if (valPct > 0.3f) Color(0xFFFF8C00) else neonMagenta),
                                     startAngle = 135f,
                                     sweepAngle = 270f * valPct,
                                     useCenter = false,
@@ -210,7 +221,7 @@ fun NeonChargeCard(
                             val lowSuffix = if (charge.confidence == ChargeConfidence.LOW) " · LOW" else ""
                             Text(
                                 text = "SEED $seedVal $band · FROZEN$lowSuffix",
-                                color = neonCyan,
+                                color = titleColor,
                                 fontSize = 12.sp,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold
@@ -223,7 +234,7 @@ fun NeonChargeCard(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             "PRIMARY DRIVERS:",
-                            color = Color.Gray,
+                            color = faintColor,
                             fontSize = 12.sp,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold
@@ -256,7 +267,7 @@ fun NeonChargeCard(
 
             Text(
                 "NEON_MODEL · NOT_GARMIN",
-                color = Color.DarkGray,
+                color = faintColor,
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold
@@ -272,16 +283,24 @@ fun WeeklyCompoundsCard(
     neonCyan: Color,
     onDeepLink: () -> Unit
 ) {
+    val theme = LocalNeonTheme.current
+    val isSteve = theme.mode == VisualMode.STEVE
+    val cardBg = if (isSteve) theme.surface else Color.Black.copy(alpha = 0.4f)
+    val cardBorder = if (isSteve) theme.hairline else neonCyan.copy(alpha = 0.3f)
+    val titleColor = if (isSteve) theme.ink else neonCyan
+    val textColor = if (isSteve) theme.ink else Color.White
+    val mutedColor = if (isSteve) theme.inkMuted else Color.Gray
+
     Card(
         modifier = Modifier.fillMaxWidth().clickable { onDeepLink() },
         shape = CyberCutShape,
-        colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.4f)),
-        border = BorderStroke(1.dp, neonCyan.copy(alpha = 0.3f))
+        colors = CardDefaults.cardColors(containerColor = cardBg),
+        border = BorderStroke(1.dp, cardBorder)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 "WEEKLY_COMPOUNDS",
-                color = neonCyan,
+                color = titleColor,
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold
@@ -292,14 +311,14 @@ fun WeeklyCompoundsCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = "$completed / $scheduled",
-                    color = Color.White,
+                    color = textColor,
                     fontSize = 24.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Black
                 )
                 Text(
                     " heavy days",
-                    color = Color.Gray,
+                    color = mutedColor,
                     fontSize = 14.sp,
                     fontFamily = FontFamily.Monospace
                 )
@@ -313,12 +332,12 @@ fun WeeklyCompoundsCard(
                         Box(
                             modifier = Modifier
                                 .size(16.dp)
-                                .border(1.dp, if (isDone) neonCyan else Color.DarkGray, RoundedCornerShape(2.dp))
-                                .background(if (isDone) neonCyan.copy(alpha = 0.2f) else Color.Transparent),
+                                .border(1.dp, if (isDone) (if (isSteve) theme.ink else neonCyan) else (if (isSteve) theme.hairline else Color.DarkGray), RoundedCornerShape(2.dp))
+                                .background(if (isDone) (if (isSteve) theme.ink.copy(alpha = 0.1f) else neonCyan.copy(alpha = 0.2f)) else Color.Transparent),
                             contentAlignment = Alignment.Center
                         ) {
                             if (isDone) {
-                                Text("✓", color = neonCyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Text("✓", color = if (isSteve) theme.ink else neonCyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }

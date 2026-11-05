@@ -354,12 +354,12 @@ fun BiohackingScreen(
                     Surface(
                         modifier = Modifier.padding(16.dp),
                         shape = CyberCutShape,
-                        color = theme.overlay,
-                        border = BorderStroke(1.dp, neonCyan)
+                        color = if (visualMode == VisualMode.STEVE) theme.surface else theme.overlay,
+                        border = BorderStroke(1.dp, if (visualMode == VisualMode.STEVE) theme.hairline else neonCyan)
                     ) {
                         Text(
                             text = data.visuals.message,
-                            color = neonCyan,
+                            color = if (visualMode == VisualMode.STEVE) theme.ink else neonCyan,
                             fontSize = 12.sp,
                             fontFamily = FontFamily.Monospace,
                             modifier = Modifier.padding(16.dp)

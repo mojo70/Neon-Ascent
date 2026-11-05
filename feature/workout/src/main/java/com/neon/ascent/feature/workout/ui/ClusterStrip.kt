@@ -127,7 +127,8 @@ fun ClusterSetRow(
                                     if (stretch != null) Spacer(Modifier.width(6.dp))
                                 }
                                 if (stretch != null) {
-                                    Text("S:${stretch.reps}s", color = Color(0xFFFF006E), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+val stretchColor = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFFFF006E)
+                                    Text("S:${stretch.reps}s", color = stretchColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -152,9 +153,10 @@ fun ClusterSetRow(
                     .padding(vertical = 4.dp),
                 contentAlignment = Alignment.Center
             ) {
+val totalRepsColor = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00FFAA)
                 Text(
                     if (totalReps > 0) totalReps.toString() else "-",
-                    color = Color(0xFF00FFAA),
+                    color = totalRepsColor,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center
