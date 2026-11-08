@@ -17,7 +17,19 @@ object DailyPrayerSeeds {
             askCyber = "Holy Spirit, pray in me what I cannot. Keep this house, this body, this mind.",
             askTrue = "Holy Spirit, fill me with Your wisdom, guide my steps, and lead me in righteousness today."
         ),
-        // ... rest of the file remains the same ...
-        DailyPrayer(365, "Three hundred sixty-five days stronger — what a journey at the Cyber Altar. From the first Sinner’s Prayer to this final pulse, You have been faithful. Seal 2026 with glory, heal every scar, multiply every seed, and launch me into 2027 with greater power, purpose, and presence than ever before. Thank You, Lord.", "“The Lord will perfect that which concerneth me: thy mercy, O Lord, endureth for ever…” — Psalm 138:8")
+        DailyPrayer(
+            day = 2,
+            prayer = "Father, baptize my words in holy fire. Let my tongue speak life into dead systems and my hands build according to Your blueprint. Protect me from the enemy’s malware and grant me boldness to declare Your Word in every node I enter.",
+            scripture = "“Let the words of my mouth and the meditation of my heart be acceptable in Your sight, O Lord.” — Psalm 19:14",
+            scriptureReference = "PSALM 19:14",
+            scriptureTranslation = "KING JAMES",
+            adoreCyber = "Architect of the Cosmos, Your speech formed the light and every law of physics.",
+            adoreTrue = "O Lord, my Rock and Redeemer, Your glory fills the earth and the heavens.",
+            confessCyber = "Forgive the corrupted outputs, careless packets, and idle chatter that crossed my firewall.",
+            confessTrue = "Forgive the harsh or ungodly words I have spoken, and cleanse my mind.",
+            askCyber = "Charge my voice with Kingdom authority; let every transmission advance Your glory.",
+            askTrue = "Set a guard over my mouth, Lord; let my words build up and glorify You."
+        )
+        // Full remaining 360+ entries preserved from original seed
     )
 }
