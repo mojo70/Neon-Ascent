@@ -791,6 +791,54 @@ class CodexViewModel @Inject constructor(
         }
     }
 
+    fun updateBloodPressureSample(
+        sampleId: String,
+        systolicMmHg: Double,
+        diastolicMmHg: Double,
+        position: String,
+        date: LocalDate,
+        time: LocalTime = LocalTime.now(),
+        note: String? = null
+    ) {
+        viewModelScope.launch {
+            val allSamples = bodySampleDao.getSamplesBetween(0, Long.MAX_VALUE)
+            val oldSys = allSamples.find { it.id == sampleId }
+            if (oldSys != null) {
+                val matchingDia = allSamples.find { it.localDate == oldSys.localDate && it.metric == "BP_DIA" && Math.abs(it.loggedAt - oldSys.loggedAt) < 60000 }
+                bodySampleDao.deleteSample(sampleId)
+                if (matchingDia != null) {
+                    bodySampleDao.deleteSample(matchingDia.id)
+                }
+                recalculateRollupForDate(oldSys.localDate)
+            }
+            val zone = ZoneId.systemDefault()
+            val loggedAt = date.atTime(time).atZone(zone).toInstant().toEpochMilli()
+            val sysSample = BodySampleEntity(
+                localDate = date.toString(),
+                loggedAt = loggedAt,
+                metric = "BP_SYS",
+                value = systolicMmHg,
+                unit = "MMHG",
+                position = position,
+                source = "NEON",
+                note = note
+            )
+            val diaSample = BodySampleEntity(
+                localDate = date.toString(),
+                loggedAt = loggedAt,
+                metric = "BP_DIA",
+                value = diastolicMmHg,
+                unit = "MMHG",
+                position = position,
+                source = "NEON",
+                note = note
+            )
+            bodySampleDao.upsertSamples(listOf(sysSample, diaSample))
+            recalculateRollupForDate(date.toString())
+            loadVitalsData(_uiState.value.selectedPeriod, _uiState.value.vitalsType)
+        }
+    }
+
     fun deleteBodySample(sampleId: String) {
         viewModelScope.launch {
             val sample = bodySampleDao.getSamplesBetween(0, Long.MAX_VALUE).find { it.id == sampleId }

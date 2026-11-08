@@ -232,6 +232,9 @@ fun CodexScreen(
                             onBfMethodSelected = { viewModel.selectBfMethod(it) },
                             onBpPositionSelected = { viewModel.selectBpPosition(it) },
                             onDeleteSample = { viewModel.deleteBodySample(it) },
+                            onUpdateBpSample = { id, sys, dia, pos, date, time, note ->
+                                viewModel.updateBloodPressureSample(id, sys, dia, pos, date, time, note)
+                            },
                             onRequestNutritionPermission = { onRequestNutritionPermission?.invoke() },
                             onAddWeightSample = { valKg, date, time, note ->
                                 viewModel.addBodySample(
@@ -551,6 +554,7 @@ fun VitalsWing(
     onBfMethodSelected: (String) -> Unit = {},
     onBpPositionSelected: (String) -> Unit = {},
     onDeleteSample: (String) -> Unit = {},
+    onUpdateBpSample: (String, Double, Double, String, LocalDate, LocalTime, String?) -> Unit = { _, _, _, _, _, _, _ -> },
     onAddWeightSample: (Double, LocalDate, LocalTime, String?) -> Unit = { _, _, _, _ -> },
     onAddBfSample: (Double, String, LocalDate, LocalTime, String?) -> Unit = { _, _, _, _, _ -> },
     onAddBpSample: (Double, Double, String, LocalDate, LocalTime, String?) -> Unit = { _, _, _, _, _, _ -> },
@@ -561,6 +565,7 @@ fun VitalsWing(
         return
     }
     var showRecordDialog by remember { mutableStateOf(false) }
+    var selectedEditingBpEntry by remember { mutableStateOf<BodyEntryItem?>(null) }
     val isImperial = uiState.userProfile?.unitSystem == UnitSystem.IMPERIAL
     val isCyber = LocalNeonTheme.current.mode == VisualMode.CYBER
 
@@ -872,10 +877,72 @@ fun VitalsWing(
                             Text("NOT_LOGGED", color = Color.Gray, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                         }
                     } else {
-                        BloodPressureDualChart(
-                            data = uiState.bpDualPoints,
-                            customTitle = "BP_${uiState.selectedBpPosition}_TIMELINE"
-                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            BloodPressureDualChart(
+                                data = uiState.bpDualPoints,
+                                customTitle = "BP_${uiState.selectedBpPosition}_TIMELINE"
+                            )
+
+                            var showDoctorTextLog by remember { mutableStateOf(false) }
+                            val cyanColor = Color(0xFF00CCFF)
+
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { showDoctorTextLog = !showDoctorTextLog },
+                                color = cardSurfaceColor(),
+                                shape = RoundedCornerShape(4.dp),
+                                border = BorderStroke(1.dp, cyanColor.copy(alpha = 0.3f))
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Icon(
+                                                imageVector = if (showDoctorTextLog) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                                contentDescription = "Toggle Doctor Log",
+                                                tint = cyanColor,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Text(
+                                                text = "BLOOD PRESSURE LOGS",
+                                                color = cyanColor,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                fontFamily = FontFamily.Monospace
+                                            )
+                                        }
+                                        Text(
+                                            text = "${uiState.bodyEntries.size} ENTRIES",
+                                            color = Color.Gray,
+                                            fontSize = 10.sp,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
+
+                                    AnimatedVisibility(visible = showDoctorTextLog) {
+                                        Column(modifier = Modifier.padding(top = 12.dp)) {
+                                            if (uiState.bodyEntries.isEmpty()) {
+                                                Text("No entries recorded.", color = Color.Gray, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                            } else {
+                                                uiState.bodyEntries.forEach { entry ->
+                                                    BodyEntryRow(
+                                                        entry = entry,
+                                                        onDelete = { onDeleteSample(entry.id) },
+                                                        onEdit = { editingEntry ->
+                                                            selectedEditingBpEntry = editingEntry
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 } else {
                     if (uiState.vitalsData.isEmpty()) {
@@ -1054,6 +1121,16 @@ fun VitalsWing(
             onSaveWeight = onAddWeightSample,
             onSaveBf = onAddBfSample,
             onSaveBp = onAddBpSample
+        )
+    }
+
+    if (selectedEditingBpEntry != null) {
+        EditBloodPressureDialog(
+            entry = selectedEditingBpEntry!!,
+            onDismiss = { selectedEditingBpEntry = null },
+            onSave = { sys, dia, pos, date, time, note ->
+                onUpdateBpSample(selectedEditingBpEntry!!.id, sys, dia, pos, date, time, note)
+            }
         )
     }
 }
@@ -2695,11 +2772,13 @@ fun BloodPressureDualChart(
 @Composable
 fun BodyEntryRow(
     entry: BodyEntryItem,
-    onDelete: (String) -> Unit
+    onDelete: (String) -> Unit,
+    onEdit: ((BodyEntryItem) -> Unit)? = null
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val formatter = remember { DateTimeFormatter.ofPattern("EEE, MMM d, yyyy") }
     val dateStr = entry.date.format(formatter)
+    val isToday = entry.date == LocalDate.now()
 
     Surface(
         modifier = Modifier
@@ -2764,6 +2843,15 @@ fun BodyEntryRow(
                     )
                 }
                 DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    if (isToday && onEdit != null) {
+                        DropdownMenuItem(
+                            text = { Text("EDIT_ENTRY", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp, fontFamily = FontFamily.Monospace) },
+                            onClick = {
+                                onEdit(entry)
+                                showMenu = false
+                            }
+                        )
+                    }
                     DropdownMenuItem(
                         text = { Text("DELETE_ENTRY", color = Color.Red, fontSize = 11.sp, fontFamily = FontFamily.Monospace) },
                         onClick = {
@@ -2771,6 +2859,109 @@ fun BodyEntryRow(
                             showMenu = false
                         }
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun EditBloodPressureDialog(
+    entry: BodyEntryItem,
+    onDismiss: () -> Unit,
+    onSave: (Double, Double, String, LocalDate, LocalTime, String?) -> Unit
+) {
+    var sysVal by remember { mutableStateOf(entry.primaryValue.toInt().toString()) }
+    var diaVal by remember { mutableStateOf((entry.secondaryValue ?: 80.0).toInt().toString()) }
+    var posture by remember { mutableStateOf("SITTING") }
+    var note by remember { mutableStateOf(entry.subtitle ?: "") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(8.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(18.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = "EDIT BLOOD PRESSURE ENTRY",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 14.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = sysVal,
+                        onValueChange = { sysVal = it },
+                        label = { Text("SYSTOLIC (mmHg)", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+                    )
+                    OutlinedTextField(
+                        value = diaVal,
+                        onValueChange = { diaVal = it },
+                        label = { Text("DIASTOLIC (mmHg)", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                Text("POSTURE", color = Color.Gray, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                Row(modifier = Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("SITTING", "STANDING").forEach { p ->
+                        val isSel = posture == p
+                        FilterChip(
+                            selected = isSel,
+                            onClick = { posture = p },
+                            label = { Text(p, fontSize = 9.sp, fontFamily = FontFamily.Monospace) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                selectedLabelColor = MaterialTheme.colorScheme.primary
+                            )
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { note = it },
+                    label = { Text("NOTE (OPTIONAL)", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
+                    modifier = Modifier.fillMaxWidth(),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) {
+                        Text("CANCEL", color = Color.Gray, fontFamily = FontFamily.Monospace)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            val sys = sysVal.toDoubleOrNull()
+                            val dia = diaVal.toDoubleOrNull()
+                            if (sys != null && dia != null) {
+                                onSave(sys, dia, posture, entry.date, LocalTime.now(), note.ifBlank { null })
+                                onDismiss()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("SAVE_ENTRY", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                    }
                 }
             }
         }
