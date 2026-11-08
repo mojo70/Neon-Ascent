@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.neon.ascent.util.AmbientAudioPlayer
+import com.neon.ascent.util.StilljackSoundType
 import com.neon.ascent.core.data.repository.RitesRepository
 import java.time.Instant
 import javax.inject.Inject
@@ -21,9 +22,9 @@ data class StilljackUiState(
     val remainingSeconds: Int = 600,
     val isRunning: Boolean = false,
     val noiseEnabled: Boolean = true,
-    val startGongEnabled: Boolean = true,
-    val midGongEnabled: Boolean = true,
-    val endGongEnabled: Boolean = true
+    val startSound: StilljackSoundType = StilljackSoundType.GONG,
+    val midSound: StilljackSoundType = StilljackSoundType.GONG,
+    val endSound: StilljackSoundType = StilljackSoundType.GONG
 )
 
 @HiltViewModel
@@ -47,16 +48,37 @@ class StilljackViewModel @Inject constructor(
         _uiState.update { it.copy(noiseEnabled = !it.noiseEnabled) }
     }
 
-    fun toggleStartGong() {
-        _uiState.update { it.copy(startGongEnabled = !it.startGongEnabled) }
+    fun cycleStartSound() {
+        _uiState.update {
+            val next = when (it.startSound) {
+                StilljackSoundType.OFF -> StilljackSoundType.GONG
+                StilljackSoundType.GONG -> StilljackSoundType.BELL
+                StilljackSoundType.BELL -> StilljackSoundType.OFF
+            }
+            it.copy(startSound = next)
+        }
     }
 
-    fun toggleMidGong() {
-        _uiState.update { it.copy(midGongEnabled = !it.midGongEnabled) }
+    fun cycleMidSound() {
+        _uiState.update {
+            val next = when (it.midSound) {
+                StilljackSoundType.OFF -> StilljackSoundType.GONG
+                StilljackSoundType.GONG -> StilljackSoundType.BELL
+                StilljackSoundType.BELL -> StilljackSoundType.OFF
+            }
+            it.copy(midSound = next)
+        }
     }
 
-    fun toggleEndGong() {
-        _uiState.update { it.copy(endGongEnabled = !it.endGongEnabled) }
+    fun cycleEndSound() {
+        _uiState.update {
+            val next = when (it.endSound) {
+                StilljackSoundType.OFF -> StilljackSoundType.GONG
+                StilljackSoundType.GONG -> StilljackSoundType.BELL
+                StilljackSoundType.BELL -> StilljackSoundType.OFF
+            }
+            it.copy(endSound = next)
+        }
     }
 
     fun startStilljack() {
@@ -69,8 +91,8 @@ class StilljackViewModel @Inject constructor(
             ambientPlayer.startWhiteNoise()
         }
 
-        if (_uiState.value.startGongEnabled) {
-            ambientPlayer.playGong()
+        if (_uiState.value.startSound != StilljackSoundType.OFF) {
+            ambientPlayer.playSound(_uiState.value.startSound)
         }
 
         timerJob = viewModelScope.launch {
@@ -79,14 +101,14 @@ class StilljackViewModel @Inject constructor(
                 _uiState.update { it.copy(remainingSeconds = it.remainingSeconds - 1) }
 
                 // Mid-point check
-                if (_uiState.value.midGongEnabled && 
+                if (_uiState.value.midSound != StilljackSoundType.OFF &&
                     _uiState.value.remainingSeconds == _uiState.value.totalSeconds / 2) {
-                    ambientPlayer.playGong()
+                    ambientPlayer.playSound(_uiState.value.midSound)
                 }
             }
             
-            if (_uiState.value.endGongEnabled) {
-                ambientPlayer.playGong()
+            if (_uiState.value.endSound != StilljackSoundType.OFF) {
+                ambientPlayer.playSound(_uiState.value.endSound)
             }
             
             ambientPlayer.stopWhiteNoise()

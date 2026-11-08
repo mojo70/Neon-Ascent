@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.neon.ascent.core.common.*
+import com.neon.ascent.util.StilljackSoundType
 import com.neon.ascent.ui.CyberActionButton
 import com.neon.ascent.ui.CyberCutShape
 import com.neon.ascent.ui.GlitchText
@@ -222,19 +223,19 @@ fun StilljackScreen(
                             onClick = viewModel::toggleNoise
                         )
                         StilljackAudioToggleRow(
-                            label = "START GONG",
-                            enabled = state.startGongEnabled,
-                            onClick = viewModel::toggleStartGong
+                            label = "START SOUND",
+                            soundType = state.startSound,
+                            onClick = viewModel::cycleStartSound
                         )
                         StilljackAudioToggleRow(
-                            label = "MID GONG",
-                            enabled = state.midGongEnabled,
-                            onClick = viewModel::toggleMidGong
+                            label = "MID SOUND",
+                            soundType = state.midSound,
+                            onClick = viewModel::cycleMidSound
                         )
                         StilljackAudioToggleRow(
-                            label = "END GONG",
-                            enabled = state.endGongEnabled,
-                            onClick = viewModel::toggleEndGong
+                            label = "END SOUND",
+                            soundType = state.endSound,
+                            onClick = viewModel::cycleEndSound
                         )
                     }
 
@@ -478,6 +479,64 @@ private fun StilljackAudioToggleRow(
             Text(
                 text = if (enabled) "ON" else "OFF",
                 color = if (enabled) theme.accent else theme.ink.copy(alpha = 0.35f),
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 1.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun StilljackAudioToggleRow(
+    label: String,
+    soundType: StilljackSoundType,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val theme = LocalNeonTheme.current
+    val isEnabled = soundType != StilljackSoundType.OFF
+    val displayText = when (soundType) {
+        StilljackSoundType.OFF -> "OFF"
+        StilljackSoundType.GONG -> "GONG"
+        StilljackSoundType.BELL -> "BELL"
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .clip(CyberCutShape)
+            .background(
+                if (isEnabled) theme.accent.copy(alpha = 0.15f) else theme.surface.copy(alpha = 0.7f)
+            )
+            .neonBorder(
+                color = if (isEnabled) theme.accent else theme.ink.copy(alpha = 0.15f),
+                width = 1.dp,
+                glowIntensity = if (isEnabled) 0.5f else 0.05f,
+                cornerRadius = 0.dp
+            )
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                color = if (isEnabled) theme.ink else theme.ink.copy(alpha = 0.45f),
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.5.sp
+            )
+            Text(
+                text = displayText,
+                color = if (isEnabled) theme.accent else theme.ink.copy(alpha = 0.35f),
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Black,

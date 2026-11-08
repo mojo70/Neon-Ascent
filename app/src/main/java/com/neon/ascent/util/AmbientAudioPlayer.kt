@@ -37,12 +37,18 @@ class AmbientAudioPlayer @Inject constructor(
         .build()
 
     private var gongSoundId: Int = -1
+    private var bellSoundId: Int = -1
 
     init {
         val resId = context.resources.getIdentifier("gong", "raw", context.packageName)
         if (resId != 0) {
             gongSoundId = soundPool.load(context, resId, 1)
             android.util.Log.d("AmbientAudioPlayer", "SoundPool loading gong from resId: $resId")
+        }
+        val bellResId = context.resources.getIdentifier("big_bell", "raw", context.packageName)
+        if (bellResId != 0) {
+            bellSoundId = soundPool.load(context, bellResId, 1)
+            android.util.Log.d("AmbientAudioPlayer", "SoundPool loading bell from resId: $bellResId")
         }
     }
 
@@ -104,4 +110,26 @@ class AmbientAudioPlayer @Inject constructor(
             synthPlayer.playTone(android.media.ToneGenerator.TONE_CDMA_HIGH_L, 1000)
         }
     }
+
+    fun playBell() {
+        if (bellSoundId != -1) {
+            android.util.Log.d("AmbientAudioPlayer", "SoundPool playing bell...")
+            soundPool.play(bellSoundId, 1.0f, 1.0f, 1, 0, 1.0f)
+        } else {
+            android.util.Log.w("AmbientAudioPlayer", "Bell sound not loaded, using synth fallback")
+            synthPlayer.playTone(android.media.ToneGenerator.TONE_CDMA_HIGH_L, 1000)
+        }
+    }
+
+    fun playSound(type: StilljackSoundType) {
+        when (type) {
+            StilljackSoundType.GONG -> playGong()
+            StilljackSoundType.BELL -> playBell()
+            StilljackSoundType.OFF -> {}
+        }
+    }
+}
+
+enum class StilljackSoundType {
+    OFF, GONG, BELL
 }
