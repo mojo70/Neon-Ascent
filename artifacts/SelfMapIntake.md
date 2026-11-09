@@ -1,7 +1,7 @@
 # Neon Ascent – Self Map Intake (LardAss Slice 1)
 
 **Status**: Design lock  
-**Updated**: November 8, 2026  
+**Updated**: November 8, 2026 (conversational terminal lock)  
 **Repo**: `mojo70/Neon-Ascent`  
 **Studio pack**: `SelfMapIntakeGeminiPrompts.md` (local only)  
 **Depends on**: `SelfMap.md` (V1 shipped, V2 section), existing Self Map canvas + repository, AiPersonality.md (OPERATOR-adjacent tone)
@@ -47,27 +47,25 @@ Entry → Load context (current items, categories, pre-seed)
 | Proposals | Structured only. Optional short rationale grounded in user utterance or existing items. Importance 0.4–0.9. |
 | Tone | Curious, non-judgmental, meta-aware. Short, operational, light cyber. No Faith Lens, no Socrates, no moralizing. |
 | Reject memory | Session rejects are not re-proposed. |
+| UI surface | Conversational terminal: scrolling message thread is the primary canvas. Proposals appear as compact inline cards inside the chat. Terminal-style input is the clear bottom focus. Phase is a light header crumb only. No separate proposal section or large Next Phase button. |
 
 ---
 
 ## Intake surface behavior
 
-### Chat mode (default)
+### Chat mode (default) — conversational terminal
 
-- Opens as chat (full screen or terminal-style sheet on the Avatar / Self Map entry).
-- Header shows mode switch: “Switch to Form”.
+- Opens as a terminal-style sheet or full screen on the Avatar / Self Map entry.
+- Header: small “SELF MAP // TERMINAL”, light phase crumb (e.g. 1/5), “Switch to Form” secondary.
+- Main surface is a scrolling message thread (Guide → user → Guide + inline proposals).
 - Agent loads current non-archived items and categories first.
-- One question at a time. Base sequence (skippable, can shorten if coverage exists):
-  1. “Tell me a little about who you are right now.”
-  2. People who matter most (suggest 2–4, propose importance).
-  3. Stuff or roles you’d miss if gone.
-  4. Ideas, values, or opinions that feel like part of you.
-  5. Confirm or adjust pre-seeded Body & Senses items.
-- AI proposes structured items: name, category enum, suggested importance (0.4–0.9), short note, optional rationale.
-- User actions per proposal: accept, accept-and-edit, reject, “more like this”, “skip category”.
-- On accept: insert via existing `SelfMapRepository`. Canvas updates immediately.
-- Rejected items stay in session state and are not re-proposed.
-- Session state persisted so interruption resumes at the same step with the same accepted/rejected set.
+- One focused question at a time (base sequence, skippable, can shorten if coverage high).
+- After user reply (or opening question), Guide emits 1–2 structured proposals as compact inline cards inside the thread: name, category, importance 0.4–0.9, short note, optional rationale.
+- User actions on each card: accept, accept-and-edit, reject, “more like this”. Rejected items collapse or leave the thread and are not re-proposed this session.
+- Bottom terminal-style input is always primary (“> Reply to Guide…”). User can type free text at any time to refine or continue.
+- On accept: insert via `SelfMapRepository`, brief confirmation line in thread, canvas updates immediately.
+- Session state persisted so interruption resumes at the same step with the same accepted/rejected set and visible history.
+- Dual visual mode (CYBER / STEVE / PILOT) respected. No large progress bar. No wizard “Next Phase” button.
 
 ### Form mode (manual or switched)
 
