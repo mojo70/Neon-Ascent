@@ -1,7 +1,7 @@
 # Neon Ascent – Self Map Intake (LardAss Slice 1)
 
 **Status**: Design lock  
-**Updated**: November 8, 2026 (conversational terminal lock)  
+**Updated**: November 8, 2026 (wait-for-user-input lock)  
 **Repo**: `mojo70/Neon-Ascent`  
 **Studio pack**: `SelfMapIntakeGeminiPrompts.md` (local only)  
 **Depends on**: `SelfMap.md` (V1 shipped, V2 section), existing Self Map canvas + repository, AiPersonality.md (OPERATOR-adjacent tone)
@@ -44,7 +44,7 @@ Entry → Load context (current items, categories, pre-seed)
 | Landing | Radial canvas with accepted items placed. |
 | Resume | Persist lightweight session state (step, accepted, rejected set) so interrupted chat resumes. |
 | Context | Load non-archived Self Map items + categories + pre-seed Body & Senses before first proposal. |
-| Proposals | Structured only. Optional short rationale grounded in user utterance or existing items. Importance 0.4–0.9. |
+| Proposals | Structured only. Optional short rationale grounded in the user’s most recent utterance on this step (plus existing map context). Importance 0.4–0.9. No proposals until the user has replied on the current step. |
 | Tone | Curious, non-judgmental, meta-aware. Short, operational, light cyber. No Faith Lens, no Socrates, no moralizing. |
 | Reject memory | Session rejects are not re-proposed. |
 | UI surface | Conversational terminal: scrolling message thread is the primary canvas. Proposals appear as compact inline cards inside the chat. Terminal-style input is the clear bottom focus. Phase is a light header crumb only. No separate proposal section or large Next Phase button. |
@@ -60,7 +60,9 @@ Entry → Load context (current items, categories, pre-seed)
 - Main surface is a scrolling message thread (Guide → user → Guide + inline proposals).
 - Agent loads current non-archived items and categories first.
 - One focused question at a time (base sequence, skippable, can shorten if coverage high).
-- After user reply (or opening question), Guide emits 1–2 structured proposals as compact inline cards inside the thread: name, category, importance 0.4–0.9, short note, optional rationale.
+- Guide asks the question and waits. No proposals are emitted until the user has replied on that step.
+- After a real user reply, Guide emits 1–2 structured proposals as compact inline cards inside the thread: name, category, importance 0.4–0.9, short note, optional rationale grounded in what the user just said.
+- If the user skips or gives almost nothing, Guide asks a short follow-up instead of inventing nodes.
 - User actions on each card: accept, accept-and-edit, reject, “more like this”. Rejected items collapse or leave the thread and are not re-proposed this session.
 - Bottom terminal-style input is always primary (“> Reply to Guide…”). User can type free text at any time to refine or continue.
 - On accept: insert via `SelfMapRepository`, brief confirmation line in thread, canvas updates immediately.
@@ -104,6 +106,7 @@ Entry → Load context (current items, categories, pre-seed)
 ## Guardrails
 
 - User confirms every AI-proposed item.
+- No proposals until the user has replied on the current step. Do not invent nodes from the opening question alone.
 - No invented happiness or emotion scores.
 - Structured proposals only; validate schema before display.
 - Session rejects not re-proposed.
