@@ -1,12 +1,12 @@
 # Neon Ascent – Self Map Intake (LardAss Slice 1)
 
 **Status**: Design lock  
-**Updated**: November 8, 2026 (wait-for-user-input lock)  
+**Updated**: November 8, 2026 (LardAss deterministic shell lock)  
 **Repo**: `mojo70/Neon-Ascent`  
 **Studio pack**: `SelfMapIntakeGeminiPrompts.md` (local only)  
-**Depends on**: `SelfMap.md` (V1 shipped, V2 section), existing Self Map canvas + repository, AiPersonality.md (OPERATOR-adjacent tone)
+**Depends on**: `SelfMap.md` (V1 shipped, V2 section), existing Self Map canvas + repository, AiPersonality.md, `LardAss.md`
 
-Codename LardAss Slice 1. Upgrade the existing structured intake into a lightweight local agent that loads current map context, proposes structured items with optional grounded rationale, supports refinement, and resumes cleanly. Chat remains default. Form remains one tap. User still confirms every item. No fifth wing. No cloud.
+Codename LardAss Slice 1. Reference implementation of the LardAss principles (deterministic shell, hard prompt isolation, narrow structured model call, post-validation, eval gate). See `LardAss.md`.
 
 ---
 
@@ -44,7 +44,9 @@ Entry → Load context (current items, categories, pre-seed)
 | Landing | Radial canvas with accepted items placed. |
 | Resume | Persist lightweight session state (step, accepted, rejected set) so interrupted chat resumes. |
 | Context | Load non-archived Self Map items + categories + pre-seed Body & Senses before first proposal. |
-| Proposals | Structured only. Optional short rationale grounded in the user’s most recent utterance on this step (plus existing map context). Importance 0.4–0.9. No proposals until the user has replied on the current step. |
+| Control flow | Deterministic state machine. Guide asks (template or short fixed question) and waits. Model is called only after a non-empty user reply, and only for structured proposal JSON. Introductory sentence is a template. No free-form monologue is possible. |
+| Prompt isolation | Dedicated minimal system prompt for Self Map intake. Never loads CYBR-TES / Socrates base. Never injects Faith Lens. Blocked patterns (CYBR-TES, Runner, protocol, vision/stimulus, etc.) are rejected at validation. |
+| Validation | Schema + grounding required. Rationale must reference the user’s most recent utterance. Off-tone or ungrounded output is discarded; fall back to a follow-up question. |
 | Tone | Curious, non-judgmental, meta-aware. Short, operational, light cyber. No Faith Lens, no Socrates, no moralizing. |
 | Reject memory | Session rejects are not re-proposed. |
 | UI surface | Conversational terminal: scrolling message thread is the primary canvas. Proposals appear as compact inline cards inside the chat. Terminal-style input is the clear bottom focus. Phase is a light header crumb only. No separate proposal section or large Next Phase button. |
