@@ -204,6 +204,9 @@ fun SelfMapConversationalIntakeScreen(
                             },
                             onReject = {
                                 viewModel.rejectProposal(proposal.id)
+                            },
+                            onMoreLikeThis = {
+                                viewModel.requestMoreProposals(proposal.category)
                             }
                         )
                     }
@@ -320,35 +323,43 @@ fun SelfMapConversationalIntakeScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             // --- BOTTOM NAVIGATION ACTION BAR ---
-            Button(
-                onClick = {
-                    if (currentStep + 1 >= totalSteps) {
-                        viewModel.finishConversationalIntake()
-                        onFinishIntake()
-                    } else {
-                        viewModel.nextIntakeStep()
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = cyan,
-                    contentColor = Color.Black
-                ),
-                shape = RoundedCornerShape(4.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = if (currentStep + 1 >= totalSteps) "FINISH & LAND ON RADIAL CANVAS" else "NEXT PHASE [${currentStep + 2}/$totalSteps] ->",
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    letterSpacing = 1.sp
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null
-                )
+                OutlinedButton(
+                    onClick = { viewModel.skipCurrentCategory() },
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Gray),
+                    shape = RoundedCornerShape(4.dp),
+                    modifier = Modifier.weight(1f).height(48.dp)
+                ) {
+                    Text("SKIP CATEGORY", fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                }
+
+                Button(
+                    onClick = {
+                        if (currentStep + 1 >= totalSteps) {
+                            viewModel.finishConversationalIntake()
+                            onFinishIntake()
+                        } else {
+                            viewModel.nextIntakeStep()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = cyan,
+                        contentColor = Color.Black
+                    ),
+                    shape = RoundedCornerShape(4.dp),
+                    modifier = Modifier.weight(2f).height(48.dp)
+                ) {
+                    Text(
+                        text = if (currentStep + 1 >= totalSteps) "FINISH & LAND ON RADIAL CANVAS" else "NEXT PHASE [${currentStep + 2}/$totalSteps] ->",
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                        letterSpacing = 1.sp
+                    )
+                }
             }
         }
     }
@@ -362,7 +373,8 @@ fun SelfMapConversationalIntakeScreen(
 fun ProposalCard(
     proposal: ProposedItemCandidate,
     onAccept: (name: String, cat: SelfMapCategory, importance: Float, note: String?) -> Unit,
-    onReject: () -> Unit
+    onReject: () -> Unit,
+    onMoreLikeThis: () -> Unit
 ) {
     val theme = LocalNeonTheme.current
     val cyan = theme.accent
@@ -427,6 +439,17 @@ fun ProposalCard(
                                 modifier = Modifier.padding(top = 4.dp)
                             )
                         }
+                        if (!proposal.rationale.isNullOrBlank()) {
+                            Text(
+                                text = "Rationale: ${proposal.rationale}",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = Color(0xFF00FF9F).copy(alpha = 0.8f),
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 11.sp
+                                ),
+                                modifier = Modifier.padding(top = 2.dp)
+                            )
+                        }
                     }
 
                     if (!proposal.isAccepted && !proposal.isRejected) {
@@ -444,35 +467,49 @@ fun ProposalCard(
 
                 // Action Buttons
                 if (!proposal.isAccepted && !proposal.isRejected) {
-                    Row(
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Button(
-                            onClick = {
-                                onAccept(nameInput, catInput, importanceInput, noteInput.ifBlank { null })
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF00FF9F),
-                                contentColor = Color.Black
-                            ),
-                            shape = RoundedCornerShape(4.dp),
-                            modifier = Modifier.weight(1f)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("ACCEPT NODE", fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                            Button(
+                                onClick = {
+                                    onAccept(nameInput, catInput, importanceInput, noteInput.ifBlank { null })
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF00FF9F),
+                                    contentColor = Color.Black
+                                ),
+                                shape = RoundedCornerShape(4.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("ACCEPT NODE", fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                            }
+
+                            OutlinedButton(
+                                onClick = onReject,
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = danger),
+                                shape = RoundedCornerShape(4.dp),
+                                modifier = Modifier.weight(0.8f)
+                            ) {
+                                Icon(imageVector = Icons.Default.Close, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("REJECT", fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                            }
                         }
 
                         OutlinedButton(
-                            onClick = onReject,
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = danger),
+                            onClick = onMoreLikeThis,
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = cyan),
                             shape = RoundedCornerShape(4.dp),
-                            modifier = Modifier.weight(0.8f)
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(imageVector = Icons.Default.Close, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("REJECT", fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                            Text("MORE LIKE THIS", fontFamily = FontFamily.Monospace, fontSize = 11.sp)
                         }
                     }
                 } else if (proposal.isAccepted) {

@@ -46,6 +46,8 @@ data class SelfMapUiState(
     val intakeChatMessage: String = "",
     val pendingProposals: List<ProposedItemCandidate> = emptyList(),
     val acceptedProposals: List<ProposedItemCandidate> = emptyList(),
+    val acceptedItemIds: Set<String> = emptySet(),
+    val rejectedSignatures: Set<String> = emptySet(),
     val draftName: String = "",
     val draftCategory: SelfMapCategory = SelfMapCategory.BODY_SENSES,
     val draftImportance: Float = 0.7f,
@@ -65,6 +67,8 @@ class SelfMapViewModel @Inject constructor(
     private val _intakeChatMessage = MutableStateFlow("")
     private val _pendingProposals = MutableStateFlow<List<ProposedItemCandidate>>(emptyList())
     private val _acceptedProposals = MutableStateFlow<List<ProposedItemCandidate>>(emptyList())
+    private val _acceptedItemIds = MutableStateFlow<Set<String>>(emptySet())
+    private val _rejectedSignatures = MutableStateFlow<Set<String>>(emptySet())
     private val _showMoodCheckInSheet = MutableStateFlow(false)
     private val _pendingMoodEoeId = MutableStateFlow<Long?>(null)
     private val _sessionIntakeMode = MutableStateFlow<SelfMapIntakeMode?>(null)
@@ -97,6 +101,8 @@ class SelfMapViewModel @Inject constructor(
         _intakeChatMessage,
         _pendingProposals,
         _acceptedProposals,
+        repository.acceptedItemIds,
+        repository.rejectedSignatures,
         _draftName,
         _draftCategory,
         _draftImportance,
@@ -124,11 +130,13 @@ class SelfMapViewModel @Inject constructor(
         val chatMsg = flows[18] as String
         val pendingProps = flows[19] as List<ProposedItemCandidate>
         val acceptedProps = flows[20] as List<ProposedItemCandidate>
-        val dName = flows[21] as String
-        val dCat = flows[22] as SelfMapCategory
-        val dImp = flows[23] as Float
-        val dNotes = flows[24] as String
-        val isSuggesting = flows[25] as Boolean
+        val acceptedIds = flows[21] as Set<String>
+        val rejectedSigs = flows[22] as Set<String>
+        val dName = flows[23] as String
+        val dCat = flows[24] as SelfMapCategory
+        val dImp = flows[25] as Float
+        val dNotes = flows[26] as String
+        val isSuggesting = flows[27] as Boolean
 
         SelfMapUiState(
             isOnboardingSeen = onboardingSeen,
@@ -153,6 +161,8 @@ class SelfMapViewModel @Inject constructor(
             intakeChatMessage = chatMsg,
             pendingProposals = pendingProps,
             acceptedProposals = acceptedProps,
+            acceptedItemIds = acceptedIds,
+            rejectedSignatures = rejectedSigs,
             draftName = dName,
             draftCategory = dCat,
             draftImportance = dImp,
@@ -169,6 +179,10 @@ class SelfMapViewModel @Inject constructor(
         viewModelScope.launch {
             repository.preseedDefaultItemsIfEmpty()
             val savedStep = repository.intakeStepIndex.first()
+            val savedAccepted = repository.acceptedItemIds.first()
+            val savedRejected = repository.rejectedSignatures.first()
+            _acceptedItemIds.value = savedAccepted
+            _rejectedSignatures.value = savedRejected
             initializeIntakeStep(savedStep)
         }
     }
@@ -195,8 +209,13 @@ class SelfMapViewModel @Inject constructor(
             repository.setIntakeStepIndex(stepIndex)
             _isGeneratingIntake.value = true
             val (msg, proposals) = intakeUseCase.processUserTurn(stepIndex, "")
+            val rejected = repository.rejectedSignatures.first()
+            val filteredProposals = proposals.filter { prop ->
+                val sig = "${prop.name}:${prop.category}"
+                !rejected.contains(sig)
+            }
             _intakeChatMessage.value = msg
-            _pendingProposals.value = proposals
+            _pendingProposals.value = filteredProposals
             _isGeneratingIntake.value = false
         }
     }
@@ -206,8 +225,13 @@ class SelfMapViewModel @Inject constructor(
         viewModelScope.launch {
             _isGeneratingIntake.value = true
             val (msg, proposals) = intakeUseCase.processUserTurn(currentStep, userMessage)
+            val rejected = repository.rejectedSignatures.first()
+            val filteredProposals = proposals.filter { prop ->
+                val sig = "${prop.name}:${prop.category}"
+                !rejected.contains(sig)
+            }
             _intakeChatMessage.value = msg
-            _pendingProposals.value = proposals
+            _pendingProposals.value = filteredProposals
             _isGeneratingIntake.value = false
         }
     }
@@ -232,7 +256,7 @@ class SelfMapViewModel @Inject constructor(
                 importance = finalImp,
                 notes = finalNote
             )
-            repository.insertSelfItem(entity)
+            val insertId = repository.insertSelfItem(entity)
 
             val updatedCandidate = candidate.copy(
                 name = finalName,
@@ -242,6 +266,10 @@ class SelfMapViewModel @Inject constructor(
                 isAccepted = true,
                 isRejected = false
             )
+
+            val currentAccepted = repository.acceptedItemIds.first() + insertId.toString()
+            repository.setAcceptedItemIds(currentAccepted)
+            _acceptedItemIds.value = currentAccepted
 
             _pendingProposals.update { list ->
                 list.map { if (it.id == proposalId) updatedCandidate else it }
@@ -253,8 +281,16 @@ class SelfMapViewModel @Inject constructor(
     }
 
     fun rejectProposal(proposalId: String) {
-        _pendingProposals.update { list ->
-            list.map { if (it.id == proposalId) it.copy(isRejected = true, isAccepted = false) else it }
+        val candidate = _pendingProposals.value.firstOrNull { it.id == proposalId } ?: return
+        val signature = "${candidate.name}:${candidate.category}"
+        viewModelScope.launch {
+            val currentRejected = repository.rejectedSignatures.first() + signature
+            repository.setRejectedSignatures(currentRejected)
+            _rejectedSignatures.value = currentRejected
+
+            _pendingProposals.update { list ->
+                list.map { if (it.id == proposalId) it.copy(isRejected = true, isAccepted = false) else it }
+            }
         }
     }
 
@@ -264,6 +300,23 @@ class SelfMapViewModel @Inject constructor(
             initializeIntakeStep(nextStep)
         } else {
             finishConversationalIntake()
+        }
+    }
+
+    fun skipCurrentCategory() {
+        nextIntakeStep()
+    }
+
+    fun requestMoreProposals(category: SelfMapCategory) {
+        viewModelScope.launch {
+            _isGeneratingIntake.value = true
+            val suggestion = intakeUseCase.suggestItemForCategory(category)
+            val rejected = repository.rejectedSignatures.first()
+            val sig = "${suggestion.name}:${suggestion.category}"
+            if (!rejected.contains(sig)) {
+                _pendingProposals.update { it + suggestion }
+            }
+            _isGeneratingIntake.value = false
         }
     }
 

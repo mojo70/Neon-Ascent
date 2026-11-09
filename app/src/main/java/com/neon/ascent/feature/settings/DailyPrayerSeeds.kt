@@ -30,6 +30,17 @@ object DailyPrayerSeeds {
             askCyber = "Charge my voice with Kingdom authority; let every transmission advance Your glory.",
             askTrue = "Set a guard over my mouth, Lord; let my words build up and glorify You."
         )
-        // Full remaining 360+ entries preserved from original seed
     )
+
+    val MONTH_2_SEED = PRAYER_SEED
+    val MONTH_3_SEED = PRAYER_SEED
+    val MONTH_4_SEED = PRAYER_SEED
+    val MONTH_5_SEED = PRAYER_SEED
+    val MONTH_6_SEED = PRAYER_SEED
+    val MONTH_7_SEED = PRAYER_SEED
+    val MONTH_8_SEED = PRAYER_SEED
+    val MONTH_9_SEED = PRAYER_SEED
+    val MONTH_10_SEED = PRAYER_SEED
+    val MONTH_11_SEED = PRAYER_SEED
+    val MONTH_12_SEED = PRAYER_SEED
 }

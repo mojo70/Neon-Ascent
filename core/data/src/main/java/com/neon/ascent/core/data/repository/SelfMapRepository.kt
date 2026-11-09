@@ -45,6 +45,10 @@ class SelfMapRepository @Inject constructor(
 
     val intakeStepIndex: Flow<Int> = preferencesDataStore.intakeStepIndex
 
+    val acceptedItemIds: Flow<Set<String>> = preferencesDataStore.acceptedItemIds
+
+    val rejectedSignatures: Flow<Set<String>> = preferencesDataStore.rejectedSignatures
+
     val reviewReminderEnabled: Flow<Boolean> = preferencesDataStore.reviewReminderEnabled
 
     val reviewReminderCadenceDays: Flow<Int> = preferencesDataStore.reviewReminderCadenceDays
@@ -131,6 +135,14 @@ class SelfMapRepository @Inject constructor(
 
     suspend fun setIntakeStepIndex(step: Int) {
         preferencesDataStore.setIntakeStepIndex(step)
+    }
+
+    suspend fun setAcceptedItemIds(ids: Set<String>) {
+        preferencesDataStore.setAcceptedItemIds(ids)
+    }
+
+    suspend fun setRejectedSignatures(sigs: Set<String>) {
+        preferencesDataStore.setRejectedSignatures(sigs)
     }
 
     /**

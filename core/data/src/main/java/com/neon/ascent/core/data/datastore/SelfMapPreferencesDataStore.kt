@@ -27,6 +27,8 @@ class SelfMapPreferencesDataStore @Inject constructor(
         val REVIEW_REMINDER_CADENCE_DAYS = intPreferencesKey("self_map_review_reminder_cadence_days")
         val SELF_MAP_INTAKE_MODE = stringPreferencesKey("selfMapIntakeMode")
         val INTAKE_STEP_INDEX = intPreferencesKey("self_map_intake_step_index")
+        val ACCEPTED_ITEM_IDS = stringSetPreferencesKey("self_map_accepted_item_ids")
+        val REJECTED_SIGNATURES = stringSetPreferencesKey("self_map_rejected_signatures")
     }
 
     private val dataStore = context.selfMapDataStore
@@ -72,6 +74,14 @@ class SelfMapPreferencesDataStore @Inject constructor(
         prefs[Keys.INTAKE_STEP_INDEX] ?: 0
     }
 
+    val acceptedItemIds: Flow<Set<String>> = dataStore.data.map { prefs ->
+        prefs[Keys.ACCEPTED_ITEM_IDS] ?: emptySet()
+    }
+
+    val rejectedSignatures: Flow<Set<String>> = dataStore.data.map { prefs ->
+        prefs[Keys.REJECTED_SIGNATURES] ?: emptySet()
+    }
+
     suspend fun setSelfMapIntakeMode(mode: SelfMapIntakeMode) {
         dataStore.edit { prefs ->
             prefs[Keys.SELF_MAP_INTAKE_MODE] = mode.name
@@ -81,6 +91,18 @@ class SelfMapPreferencesDataStore @Inject constructor(
     suspend fun setIntakeStepIndex(step: Int) {
         dataStore.edit { prefs ->
             prefs[Keys.INTAKE_STEP_INDEX] = step
+        }
+    }
+
+    suspend fun setAcceptedItemIds(ids: Set<String>) {
+        dataStore.edit { prefs ->
+            prefs[Keys.ACCEPTED_ITEM_IDS] = ids
+        }
+    }
+
+    suspend fun setRejectedSignatures(sigs: Set<String>) {
+        dataStore.edit { prefs ->
+            prefs[Keys.REJECTED_SIGNATURES] = sigs
         }
     }
 
