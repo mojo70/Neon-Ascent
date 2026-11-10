@@ -1,7 +1,7 @@
 # Neon Ascent – Self Map Intake (LardAss Slice 1)
 
 **Status**: Design lock  
-**Updated**: November 9, 2026 (deterministic extraction primary lock)  
+**Updated**: November 9, 2026 (auto-advance lock)  
 **Repo**: `mojo70/Neon-Ascent`  
 **Studio pack**: `SelfMapIntakeGeminiPrompts.md` (local only)  
 **Depends on**: `SelfMap.md` (V1 shipped, V2 section), existing Self Map canvas + repository, AiPersonality.md, `LardAss.md`
@@ -40,7 +40,7 @@ Entry → Load context (current items, categories, pre-seed)
 | Preference | Settings toggle `selfMapIntakeMode`: `CHAT` (default) \| `FORM` |
 | Returning users | Do not force the conversation. Preference + explicit “Guided start” only. |
 | Confirmation | AI proposes; user confirms every item before insert. |
-| Sequence | One question at a time. Skippable. Can adapt if category already well covered. |
+| Sequence advance | After the user accepts or rejects the proposals on a step, the Guide automatically asks the next focused question in the base sequence (template, short, skippable). No reliance on a “Next Phase” button as the primary path. Optional “Skip this category” and “I’m done” remain available. When the sequence ends or the user says they’re done, land on the radial canvas. |
 | Landing | Radial canvas with accepted items placed. |
 | Resume | Persist lightweight session state (step, accepted, rejected set) so interrupted chat resumes. |
 | Context | Load non-archived Self Map items + categories + pre-seed Body & Senses before first proposal. |
@@ -73,6 +73,9 @@ Entry → Load context (current items, categories, pre-seed)
 - User actions on each card: accept, accept-and-edit, reject, “more like this”. Rejected items collapse or leave the thread and are not re-proposed this session.
 - Bottom terminal-style input is always primary (“> Reply to Guide…”). User can type free text at any time to refine or continue.
 - On accept: insert via `SelfMapRepository`, brief confirmation line in thread, canvas updates immediately.
+- After the user accepts or rejects the proposals on a step, the Guide automatically asks the next focused question in the base sequence (template, short, skippable). No reliance on a “Next Phase” button as the primary path.
+- Optional small “Skip this category” and “I’m done” controls remain available. Default is to continue.
+- When the sequence ends or the user says they’re done, land on the radial canvas with accepted items placed.
 - Session state persisted so interruption resumes at the same step with the same accepted/rejected set and visible history.
 - Dual visual mode (CYBER / STEVE / PILOT) respected. No large progress bar. No wizard “Next Phase” button.
 
