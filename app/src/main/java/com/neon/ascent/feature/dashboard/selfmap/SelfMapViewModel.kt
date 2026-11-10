@@ -222,13 +222,13 @@ class SelfMapViewModel @Inject constructor(
             }
             _intakeChatMessage.value = msg
             _pendingProposals.value = filteredProposals
-            _chatTurns.value = listOf(
-                ChatTurnMessage(
+            _chatTurns.update { current ->
+                current + ChatTurnMessage(
                     sender = MessageSender.GUIDE,
                     text = msg,
                     proposals = filteredProposals
                 )
-            )
+            }
             _isGeneratingIntake.value = false
         }
     }
@@ -295,9 +295,8 @@ class SelfMapViewModel @Inject constructor(
             repository.setAcceptedItemIds(currentAccepted)
             _acceptedItemIds.value = currentAccepted
 
-            _pendingProposals.update { list ->
-                list.map { if (it.id == proposalId) updatedCandidate else it }
-            }
+            val updatedList = _pendingProposals.value.map { if (it.id == proposalId) updatedCandidate else it }
+            _pendingProposals.value = updatedList
             _acceptedProposals.update { list ->
                 list.filterNot { it.id == proposalId } + updatedCandidate
             }
@@ -310,6 +309,13 @@ class SelfMapViewModel @Inject constructor(
                     text = "✓ Inserted '$finalName' into Self Map."
                 )
             }
+
+            // Auto-advance ONLY when every proposal on the current step has been resolved
+            val allResolved = updatedList.isNotEmpty() && updatedList.all { it.isAccepted || it.isRejected }
+            if (allResolved) {
+                kotlinx.coroutines.delay(600L)
+                nextIntakeStep()
+            }
         }
     }
 
@@ -321,13 +327,20 @@ class SelfMapViewModel @Inject constructor(
             repository.setRejectedSignatures(currentRejected)
             _rejectedSignatures.value = currentRejected
 
-            _pendingProposals.update { list ->
-                list.map { if (it.id == proposalId) it.copy(isRejected = true, isAccepted = false) else it }
-            }
+            val updatedList = _pendingProposals.value.map { if (it.id == proposalId) it.copy(isRejected = true, isAccepted = false) else it }
+            _pendingProposals.value = updatedList
+
             _chatTurns.update { turns ->
                 turns.map { turn ->
                     turn.copy(proposals = turn.proposals.map { if (it.id == proposalId) it.copy(isRejected = true, isAccepted = false) else it })
                 }
+            }
+
+            // Auto-advance ONLY when every proposal on the current step has been resolved
+            val allResolved = updatedList.isNotEmpty() && updatedList.all { it.isAccepted || it.isRejected }
+            if (allResolved) {
+                kotlinx.coroutines.delay(500L)
+                nextIntakeStep()
             }
         }
     }
@@ -412,7 +425,11 @@ class SelfMapViewModel @Inject constructor(
         viewModelScope.launch {
             _isSuggestingFromMentor.value = true
             val targetCat = category ?: _draftCategory.value
+            
+            // Reuses isolated deterministic + narrow JSON-only extraction prompt 
+            // inside suggestItemForCategory without jumping to full chat Mode
             val suggestion = intakeUseCase.suggestItemForCategory(targetCat)
+            
             _draftName.value = suggestion.name
             _draftCategory.value = suggestion.category
             _draftImportance.value = suggestion.suggestedImportance

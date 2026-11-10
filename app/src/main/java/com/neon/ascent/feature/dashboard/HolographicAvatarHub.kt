@@ -426,7 +426,13 @@ fun HolographicAvatarHub(
                                 .clip(RoundedCornerShape(4.dp))
                                 .background(neonGreen.copy(alpha = 0.15f))
                                 .border(1.dp, neonGreen.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
-                                .clickable { hubViewMode = AvatarHubMode.SELF_MAP }
+                                .clickable { 
+                                    if (!selfMapUiState.isConversationalIntakeSeen && selfMapUiState.activeSessionIntakeMode == SelfMapIntakeMode.CHAT) {
+                                        hubViewMode = AvatarHubMode.CONVERSATIONAL_INTAKE
+                                    } else {
+                                        hubViewMode = AvatarHubMode.SELF_MAP 
+                                    }
+                                }
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(

@@ -54,7 +54,7 @@ class SelfMapConversationalIntakeUseCase @Inject constructor(
         IntakeStep(
             stepIndex = 1,
             title = "PHASE 2 // PEOPLE & CONNECTIONS",
-            promptQuestion = "Who are the key people that matter most to you right now—family, partner, close allies, or dependents?",
+            promptQuestion = "Who are the people who matter most to you right now? People nodes are usually the attachments that produce the strongest reactions when threatened.",
             targetCategory = SelfMapCategory.PEOPLE,
             defaultProposals = listOf(
                 ProposedItemCandidate(name = "Inner Circle & Family", category = SelfMapCategory.PEOPLE, suggestedImportance = 0.85f, note = "Closest personal relationships", rationale = "High emotional attachment weight"),
@@ -64,7 +64,7 @@ class SelfMapConversationalIntakeUseCase @Inject constructor(
         IntakeStep(
             stepIndex = 2,
             title = "PHASE 3 // STUFF & ROLES",
-            promptQuestion = "What possessions, career roles, or key accomplishments would feel like a major loss if they disappeared?",
+            promptQuestion = "What stuff or roles would you miss if they were gone? These are the identities and possessions the mind often defends.",
             targetCategory = SelfMapCategory.ROLES_ACCOMPLISHMENTS,
             defaultProposals = listOf(
                 ProposedItemCandidate(name = "Primary Profession / Role", category = SelfMapCategory.ROLES_ACCOMPLISHMENTS, suggestedImportance = 0.75f, note = "Core identity role and focus", rationale = "Primary societal and capability anchor"),
@@ -74,7 +74,7 @@ class SelfMapConversationalIntakeUseCase @Inject constructor(
         IntakeStep(
             stepIndex = 3,
             title = "PHASE 4 // IDEAS & VALUES",
-            promptQuestion = "What core values, beliefs, or strong likes/dislikes feel like a foundational part of 'you'?",
+            promptQuestion = "What ideas, values, or opinions feel like part of you? These shape expectations and how you appraise events.",
             targetCategory = SelfMapCategory.IDEAS_LIKES,
             defaultProposals = listOf(
                 ProposedItemCandidate(name = "Core Principles", category = SelfMapCategory.IDEAS_LIKES, suggestedImportance = 0.80f, note = "Guiding ethical compass", rationale = "Internal behavioral governor"),
@@ -84,7 +84,7 @@ class SelfMapConversationalIntakeUseCase @Inject constructor(
         IntakeStep(
             stepIndex = 4,
             title = "PHASE 5 // BODY & SENSES CONFIRMATION",
-            promptQuestion = "Confirm or adjust your pre-seeded Body & Senses items to anchor your map center.",
+            promptQuestion = "Want to confirm or adjust the Body & Senses items already on your map? These sit near the center by default.",
             targetCategory = SelfMapCategory.BODY_SENSES,
             defaultProposals = listOf(
                 ProposedItemCandidate(name = "Body Vessel", category = SelfMapCategory.BODY_SENSES, suggestedImportance = 0.90f, note = "Core physical vessel and anchor", rationale = "Fundamental physical container"),
@@ -114,17 +114,17 @@ class SelfMapConversationalIntakeUseCase @Inject constructor(
             currentStep.promptQuestion
         }
 
-        // Follow-up only for empty / one-word / skip inputs
+        if (userMessage.isBlank()) {
+            return Pair(baseQuestion, emptyList())
+        }
+
+        // Follow-up for skip / short inputs
         val trimmed = userMessage.trim()
         val words = trimmed.split(Regex("\\s+")).filter { it.isNotBlank() }
-        val isSkipOrShort = userMessage.isBlank() || words.size <= 1 || trimmed.lowercase() in listOf("skip", "none", "nothing", "idk", "pass", "no")
+        val isSkipOrShort = words.size <= 1 || trimmed.lowercase() in listOf("skip", "none", "nothing", "idk", "pass", "no")
 
         if (isSkipOrShort) {
-            val followUp = if (userMessage.isBlank()) {
-                baseQuestion
-            } else {
-                "Understood. Would you like to name one specific landmark in ${currentStep.targetCategory.displayName}, or proceed to the next phase?"
-            }
+            val followUp = "Understood. Would you like to name one specific landmark in ${currentStep.targetCategory.displayName}, or proceed to the next phase?"
             return Pair(followUp, emptyList())
         }
 
@@ -132,72 +132,29 @@ class SelfMapConversationalIntakeUseCase @Inject constructor(
         val lowerMsg = userMessage.lowercase()
         val deterministicProposals = mutableListOf<ProposedItemCandidate>()
 
-        if (lowerMsg.contains("family") || lowerMsg.contains("wife") || lowerMsg.contains("kids") || lowerMsg.contains("children") || lowerMsg.contains("son") || lowerMsg.contains("daughter")) {
-            deterministicProposals.add(
-                ProposedItemCandidate(
-                    name = "Family & Kin",
-                    category = SelfMapCategory.PEOPLE,
-                    suggestedImportance = 0.85f,
-                    note = "Core family attachment",
-                    rationale = "Grounded in user mention of family/wife/kids"
+        fun extractIfMatch(keywords: List<String>, name: String, category: SelfMapCategory, importance: Float, note: String) {
+            val matchedWord = keywords.firstOrNull { lowerMsg.contains(it) }
+            if (matchedWord != null) {
+                // Find the word in the original casing for a better quote
+                val originalQuote = userMessage.split(Regex("\\W+")).firstOrNull { it.equals(matchedWord, ignoreCase = true) } ?: matchedWord
+                deterministicProposals.add(
+                    ProposedItemCandidate(
+                        name = name,
+                        category = category,
+                        suggestedImportance = importance,
+                        note = note,
+                        rationale = "You mentioned \"$originalQuote\""
+                    )
                 )
-            )
+            }
         }
-        if (lowerMsg.contains("jesus") || lowerMsg.contains("lord") || lowerMsg.contains("faith") || lowerMsg.contains("prayer") || lowerMsg.contains("scripture") || lowerMsg.contains("christ")) {
-            deterministicProposals.add(
-                ProposedItemCandidate(
-                    name = "Faith & Spiritual Anchor",
-                    category = SelfMapCategory.IDEAS_LIKES,
-                    suggestedImportance = 0.85f,
-                    note = "Spiritual foundation",
-                    rationale = "Grounded in user mention of faith/Jesus/Lord"
-                )
-            )
-        }
-        if (lowerMsg.contains("coding") || lowerMsg.contains("building") || lowerMsg.contains("creating") || lowerMsg.contains("tinkering") || lowerMsg.contains("dev") || lowerMsg.contains("architect")) {
-            deterministicProposals.add(
-                ProposedItemCandidate(
-                    name = "Creation & Building",
-                    category = SelfMapCategory.ROLES_ACCOMPLISHMENTS,
-                    suggestedImportance = 0.80f,
-                    note = "Maker and engineering focus",
-                    rationale = "Grounded in user mention of building/coding/creating"
-                )
-            )
-        }
-        if (lowerMsg.contains("lifting") || lowerMsg.contains("weights") || lowerMsg.contains("body") || lowerMsg.contains("mind") || lowerMsg.contains("health") || lowerMsg.contains("workout") || lowerMsg.contains("trainer")) {
-            deterministicProposals.add(
-                ProposedItemCandidate(
-                    name = "Physical Conditioning",
-                    category = SelfMapCategory.BODY_SENSES,
-                    suggestedImportance = 0.85f,
-                    note = "Physical vitality",
-                    rationale = "Grounded in user mention of health/weights/body"
-                )
-            )
-        }
-        if (lowerMsg.contains("learning") || lowerMsg.contains("reading") || lowerMsg.contains("study") || lowerMsg.contains("growth")) {
-            deterministicProposals.add(
-                ProposedItemCandidate(
-                    name = "Continuous Learning",
-                    category = SelfMapCategory.IDEAS_LIKES,
-                    suggestedImportance = 0.75f,
-                    note = "Intellectual expansion",
-                    rationale = "Grounded in user mention of learning/reading"
-                )
-            )
-        }
-        if (lowerMsg.contains("work") || lowerMsg.contains("job") || lowerMsg.contains("provider") || lowerMsg.contains("career") || lowerMsg.contains("business")) {
-            deterministicProposals.add(
-                ProposedItemCandidate(
-                    name = "Professional Vector",
-                    category = SelfMapCategory.ROLES_ACCOMPLISHMENTS,
-                    suggestedImportance = 0.75f,
-                    note = "Work and career responsibility",
-                    rationale = "Grounded in user mention of work/provider"
-                )
-            )
-        }
+
+        extractIfMatch(listOf("family", "wife", "kids", "children", "son", "daughter"), "Family & Kin", SelfMapCategory.PEOPLE, 0.85f, "Core family attachment")
+        extractIfMatch(listOf("jesus", "lord", "faith", "prayer", "scripture", "christ"), "Faith & Spiritual Anchor", SelfMapCategory.IDEAS_LIKES, 0.85f, "Spiritual foundation")
+        extractIfMatch(listOf("coding", "building", "creating", "tinkering", "dev", "architect"), "Creation & Building", SelfMapCategory.ROLES_ACCOMPLISHMENTS, 0.80f, "Maker and engineering focus")
+        extractIfMatch(listOf("lifting", "weights", "body", "mind", "health", "workout", "trainer"), "Physical Conditioning", SelfMapCategory.BODY_SENSES, 0.85f, "Physical vitality")
+        extractIfMatch(listOf("learning", "reading", "study", "growth"), "Continuous Learning", SelfMapCategory.IDEAS_LIKES, 0.75f, "Intellectual expansion")
+        extractIfMatch(listOf("work", "job", "provider", "career", "business"), "Professional Vector", SelfMapCategory.ROLES_ACCOMPLISHMENTS, 0.75f, "Work and career responsibility")
 
         if (deterministicProposals.isNotEmpty()) {
             return Pair("Based on that, two nodes:", deterministicProposals.take(2))
@@ -212,10 +169,9 @@ class SelfMapConversationalIntakeUseCase @Inject constructor(
             - Tone: Neutral, operational, concise.
             - Task: Emit 1 to 3 structured proposal items grounded strictly in the operator's last message: "$userMessage".
             $existingContext
-            - Format strictly as:
-            [PROPOSAL: Name | Category | Importance (0.40 to 0.90) | Short Note | Grounded Rationale]
-            - Categories: BODY_SENSES, PEOPLE, STUFF, ROLES_ACCOMPLISHMENTS, IDEAS_LIKES, CUSTOM.
-            - Do not include conversational monologue or introductory filler.
+            - Format strictly as a valid JSON array of objects. Keys required: "name" (string), "category" (string), "importance" (float 0.40 to 0.90), "note" (string), "rationale" (string).
+            - Categories must be one of: BODY_SENSES, PEOPLE, STUFF, ROLES_ACCOMPLISHMENTS, IDEAS_LIKES, CUSTOM.
+            - Output ONLY raw JSON array. No markdown code blocks, no conversational monologue, no introductory filler.
         """.trimIndent()
 
         val proposalsToEmit = if (aiCore.isReady()) {
@@ -257,57 +213,53 @@ class SelfMapConversationalIntakeUseCase @Inject constructor(
                         return Pair(templateIntro, proposals)
                     } else {
                         // Fall back to short confirmation of what was heard instead of showing bad cards
-                        val fallbackMsg = "I heard \"$trimmed\" — want nodes for that?"
+                        val fallbackMsg = "I heard \"${trimmed.take(30)}\"... want to try again, or switch to the form?"
                         return Pair(fallbackMsg, emptyList())
                     }
                 }
                 is AiResult.Failure -> {
-                    val fallbackMsg = "I heard \"$trimmed\" — want nodes for that?"
+                    val fallbackMsg = "I heard \"${trimmed.take(30)}\"... want to try again, or switch to the form?"
                     return Pair(fallbackMsg, emptyList())
                 }
             }
         } else {
-            val fallbackMsg = "I heard \"$trimmed\" — want nodes for that?"
+            val fallbackMsg = "I heard \"${trimmed.take(30)}\"... want to try again, or switch to the form?"
             return Pair(fallbackMsg, emptyList())
         }
     }
 
     private fun parseAiResponse(response: String): Pair<String, List<ProposedItemCandidate>> {
-        val proposalRegex = Regex("\\[PROPOSAL: (.*?)\\]")
-        val matches = proposalRegex.findAll(response).toList()
-
-        val proposals = matches.mapNotNull { match ->
-            val inner = match.groupValues[1]
-            val parts = inner.split("|").map { it.trim() }
-            if (parts.size < 2) return@mapNotNull null
-
-            val name = parts[0]
-            if (name.isBlank()) return@mapNotNull null
-
-            val categoryStr = parts[1].uppercase()
-            val category = SelfMapCategory.entries.firstOrNull { it.name == categoryStr } ?: SelfMapCategory.CUSTOM
-
-            val importance = if (parts.size > 2) {
-                parts[2].toFloatOrNull()?.coerceIn(0.40f, 0.90f) ?: 0.65f
-            } else {
-                0.65f
+        val cleanText = response.replace("```json", "").replace("```", "").trim()
+        val proposals = mutableListOf<ProposedItemCandidate>()
+        try {
+            val jsonArray = org.json.JSONArray(cleanText)
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i)
+                val name = obj.optString("name")
+                if (name.isBlank()) continue
+                
+                val categoryStr = obj.optString("category").uppercase()
+                val category = SelfMapCategory.entries.firstOrNull { it.name == categoryStr } ?: SelfMapCategory.CUSTOM
+                
+                val importance = obj.optDouble("importance", 0.65).toFloat().coerceIn(0.40f, 0.90f)
+                val note = obj.optString("note").takeIf { it.isNotBlank() }
+                val rationale = obj.optString("rationale").takeIf { it.isNotBlank() }
+                
+                proposals.add(
+                    ProposedItemCandidate(
+                        name = name,
+                        category = category,
+                        suggestedImportance = importance,
+                        note = note,
+                        rationale = rationale
+                    )
+                )
             }
-
-            val note = if (parts.size > 3 && parts[3].isNotBlank()) parts[3] else null
-            val rationale = if (parts.size > 4 && parts[4].isNotBlank()) parts[4] else null
-
-            ProposedItemCandidate(
-                name = name,
-                category = category,
-                suggestedImportance = importance,
-                note = note,
-                rationale = rationale
-            )
+        } catch (e: Exception) {
+            // Parsing failed, return empty list
         }
 
-        val cleanText = response.replace(proposalRegex, "").trim()
-        val text = cleanText.ifBlank { "Structured proposal candidates generated." }
-        return Pair(text, proposals)
+        return Pair("Structured proposal candidates generated.", proposals)
     }
 
     suspend fun suggestItemForCategory(category: SelfMapCategory): ProposedItemCandidate {
@@ -318,8 +270,9 @@ class SelfMapConversationalIntakeUseCase @Inject constructor(
             - NEVER inherit CYBR-TES, Socrates, or Faith Lens. No philosophy, no moralizing, no emotional invention.
             - Tone: Neutral, operational, concise.
             - Task: Suggest 1 relevant, high-value Self Map attachment node for category: ${category.displayName}.
-            - Format strictly as:
-            [PROPOSAL: Name | ${category.name} | Importance (0.40 to 0.90) | Short Note | Grounded Rationale]
+            - Format strictly as a valid JSON array containing exactly one object. Keys required: "name" (string), "category" (string), "importance" (float 0.40 to 0.90), "note" (string), "rationale" (string).
+            - The category field must be exactly: ${category.name}
+            - Output ONLY raw JSON array. No markdown code blocks, no conversational monologue, no introductory filler.
         """.trimIndent()
 
         if (aiCore.isReady()) {
