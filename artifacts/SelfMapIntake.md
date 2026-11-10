@@ -1,7 +1,7 @@
 # Neon Ascent – Self Map Intake (LardAss Slice 1)
 
 **Status**: Design lock  
-**Updated**: November 8, 2026 (propose-on-substantive-reply lock)  
+**Updated**: November 9, 2026 (specific-grounding lock)  
 **Repo**: `mojo70/Neon-Ascent`  
 **Studio pack**: `SelfMapIntakeGeminiPrompts.md` (local only)  
 **Depends on**: `SelfMap.md` (V1 shipped, V2 section), existing Self Map canvas + repository, AiPersonality.md, `LardAss.md`
@@ -46,7 +46,7 @@ Entry → Load context (current items, categories, pre-seed)
 | Context | Load non-archived Self Map items + categories + pre-seed Body & Senses before first proposal. |
 | Control flow | Deterministic state machine. Guide asks (template or short fixed question) and waits. Model is called only after a non-empty user reply, and only for structured proposal JSON. Introductory sentence is a template. No free-form monologue is possible. |
 | Prompt isolation | Dedicated minimal system prompt for Self Map intake. Never loads CYBR-TES / Socrates base. Never injects Faith Lens. Blocked patterns (CYBR-TES, Runner, protocol, vision/stimulus, etc.) are rejected at validation. |
-| Validation | Schema + grounding required. Rationale must reference the user’s most recent utterance. Off-tone or ungrounded output is discarded; fall back to a follow-up question only if the reply is empty, one word, or pure skip. On a multi-sentence or entity-rich reply, emit proposals immediately. Never surface the raw category enum (“Custom”) in Guide text. |
+| Validation | Schema + specific grounding required. Rationale and proposal name must reference a concrete phrase from the user’s most recent utterance. Generic catch-all names (“Core Focus”, “Personal Growth Drive”, “Primary Identity Anchor”, etc.) and ungrounded rationales (“Grounded in operator baseline setup”, “Essential psychological vector”) are rejected. On rejection, fall back to a short confirmation of what was heard instead of showing bad cards. |
 | Tone | Curious, non-judgmental, meta-aware. Short, operational, light cyber. No Faith Lens, no Socrates, no moralizing. |
 | Reject memory | Session rejects are not re-proposed. |
 | UI surface | Conversational terminal: scrolling message thread is the primary canvas. Proposals appear as compact inline cards inside the chat. Terminal-style input is the clear bottom focus. Phase is a light header crumb only. No separate proposal section or large Next Phase button. |
@@ -63,7 +63,8 @@ Entry → Load context (current items, categories, pre-seed)
 - Agent loads current non-archived items and categories first.
 - One focused question at a time (base sequence, skippable, can shorten if coverage high).
 - Guide asks the question and waits. No proposals are emitted until the user has replied on that step.
-- After a real user reply that contains clear entities or multi-sentence content, Guide emits 1–2 structured proposals immediately as compact inline cards inside the thread: name, category, importance 0.4–0.9, short note, optional rationale grounded in what the user just said.
+- After a real user reply that contains clear entities or multi-sentence content, Guide emits 1–2 structured proposals immediately as compact inline cards inside the thread. Each proposal name and rationale must cite a concrete phrase from the user’s reply (e.g., “coding, building”, “lift weights”, “God”). Generic catch-alls are rejected.
+- If the model returns only generic or ungrounded nodes, discard them and fall back to a short confirmation (“I heard coding/building and lifting — want nodes for those?”) instead of showing bad cards.
 - Follow-up question only if the reply is empty, one word, or pure skip. Never ask for elaboration on a substantive reply.
 - Never surface the raw category enum (“Custom”) in Guide text.
 - Introductory sentence is a short template (“Based on that, two nodes:”).
