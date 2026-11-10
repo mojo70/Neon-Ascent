@@ -1,8 +1,5 @@
 package com.neon.ascent.feature.dashboard.selfmap
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -12,7 +9,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -45,13 +41,7 @@ fun SelfMapConversationalIntakeScreen(
     val danger = theme.accentDanger
     val uiState by viewModel.uiState.collectAsState()
 
-    var userTextInput by remember { mutableStateOf(uiState.draftName) }
-
-    LaunchedEffect(uiState.draftName) {
-        if (uiState.draftName != userTextInput && userTextInput.isBlank()) {
-            userTextInput = uiState.draftName
-        }
-    }
+    var userTextInput by remember { mutableStateOf("") }
 
     val currentStep = uiState.currentIntakeStepIndex
     val totalSteps = 5
@@ -70,7 +60,7 @@ fun SelfMapConversationalIntakeScreen(
                 .navigationBarsPadding()
                 .padding(16.dp)
         ) {
-            // --- TOP HEADER & ALWAYS-VISIBLE SKIP BUTTON ---
+            // --- TOP HEADER & LIGHT PHASE CRUMB ---
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -80,7 +70,7 @@ fun SelfMapConversationalIntakeScreen(
             ) {
                 Column {
                     Text(
-                        text = "SELF MAP // CONVERSATIONAL INTAKE",
+                        text = "SELF MAP // INTAKE STREAM",
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = cyan,
                             fontFamily = FontFamily.Monospace,
@@ -88,7 +78,7 @@ fun SelfMapConversationalIntakeScreen(
                         )
                     )
                     Text(
-                        text = "PHASE ${currentStep + 1} OF $totalSteps",
+                        text = "PHASE // ${currentStep + 1} OF $totalSteps",
                         style = MaterialTheme.typography.titleMedium.copy(
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
@@ -97,7 +87,7 @@ fun SelfMapConversationalIntakeScreen(
                     )
                 }
 
-                // IN-SESSION MODE SWITCH BUTTON
+                // IN-SESSION MODE SWITCH BUTTON (Switch to Form)
                 OutlinedButton(
                     onClick = {
                         viewModel.switchSessionIntakeMode(SelfMapIntakeMode.FORM)
@@ -110,7 +100,9 @@ fun SelfMapConversationalIntakeScreen(
                     Icon(
                         imageVector = Icons.Default.SkipNext,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp).padding(end = 4.dp)
+                        modifier = Modifier
+                            .size(16.dp)
+                            .padding(end = 4.dp)
                     )
                     Text(
                         text = "Switch to Form",
@@ -120,35 +112,26 @@ fun SelfMapConversationalIntakeScreen(
                 }
             }
 
-            // Step Progress Indicator
-            LinearProgressIndicator(
-                progress = { (currentStep + 1) / totalSteps.toFloat() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(4.dp),
-                color = cyan,
-                trackColor = Color.DarkGray
-            )
+            Spacer(modifier = Modifier.height(8.dp))
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // --- MAIN CHAT & PROPOSALS SCROLLING CONTENT ---
+            // --- MAIN SCROLLING MESSAGE THREAD (PRIMARY CANVAS) ---
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // GUIDE PROMPT CARD
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color(0xFF0F141C), RoundedCornerShape(6.dp))
-                            .border(1.dp, cyan.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
-                            .padding(16.dp)
-                    ) {
-                        Column {
+                items(uiState.chatTurns, key = { it.id }) { turn ->
+                    if (turn.sender == MessageSender.GUIDE) {
+                        // Guide message card with compact inline proposal cards inside the thread
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFF0F141C), RoundedCornerShape(6.dp))
+                                .border(1.dp, cyan.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = "🤖 NEON GUIDE",
@@ -158,7 +141,7 @@ fun SelfMapConversationalIntakeScreen(
                                         fontFamily = FontFamily.Monospace
                                     )
                                 )
-                                if (uiState.isGeneratingIntakeResponse) {
+                                if (uiState.isGeneratingIntakeResponse && turn == uiState.chatTurns.last()) {
                                     Spacer(modifier = Modifier.width(8.dp))
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(14.dp),
@@ -168,99 +151,58 @@ fun SelfMapConversationalIntakeScreen(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
-
                             Text(
-                                text = uiState.intakeChatMessage,
+                                text = turn.text,
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     color = Color.White,
                                     fontFamily = FontFamily.Monospace,
                                     lineHeight = 20.sp
                                 )
                             )
-                        }
-                    }
-                }
 
-                // AI PROPOSED ITEMS CARDS
-                if (uiState.pendingProposals.isNotEmpty()) {
-                    item {
-                        Text(
-                            text = "PROPOSED ATTACHMENT NODES [ACCEPT, EDIT, OR REJECT]",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                color = Color.Gray,
-                                fontFamily = FontFamily.Monospace,
-                                letterSpacing = 1.sp
-                            ),
-                            modifier = Modifier.padding(top = 8.dp)
-                        )
-                    }
-
-                    items(uiState.pendingProposals, key = { it.id }) { proposal ->
-                        ProposalCard(
-                            proposal = proposal,
-                            onAccept = { name, cat, imp, note ->
-                                viewModel.acceptProposal(proposal.id, name, cat, imp, note)
-                            },
-                            onReject = {
-                                viewModel.rejectProposal(proposal.id)
-                            },
-                            onMoreLikeThis = {
-                                viewModel.requestMoreProposals(proposal.category)
-                            }
-                        )
-                    }
-                }
-
-                if (uiState.acceptedProposals.isNotEmpty()) {
-                    item {
-                        Text(
-                            text = "ACCEPTED ATTACHMENTS [PLACED ON MAP: ${uiState.acceptedProposals.size}]",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                color = Color(0xFF00FF9F),
-                                fontFamily = FontFamily.Monospace,
-                                letterSpacing = 1.sp
-                            ),
-                            modifier = Modifier.padding(top = 12.dp)
-                        )
-                    }
-
-                    items(uiState.acceptedProposals, key = { "accepted_${it.id}" }) { accepted ->
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF0A1F14)),
-                            shape = RoundedCornerShape(4.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .border(1.dp, Color(0xFF00FF9F).copy(alpha = 0.6f), RoundedCornerShape(4.dp))
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = accepted.name,
-                                        style = MaterialTheme.typography.titleSmall.copy(
-                                            color = Color.White,
-                                            fontWeight = FontWeight.Bold,
-                                            fontFamily = FontFamily.Monospace
-                                        )
-                                    )
-                                    Text(
-                                        text = "${accepted.category.displayName} | Importance: ${(accepted.suggestedImportance * 100).toInt()}%",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            color = Color(0xFF00FF9F),
-                                            fontFamily = FontFamily.Monospace
-                                        )
+                            // Inline Proposals inside the thread
+                            if (turn.proposals.isNotEmpty()) {
+                                for (proposal in turn.proposals) {
+                                    ProposalCard(
+                                        proposal = proposal,
+                                        onAccept = { name, cat, imp, note ->
+                                            viewModel.acceptProposal(proposal.id, name, cat, imp, note)
+                                        },
+                                        onReject = {
+                                            viewModel.rejectProposal(proposal.id)
+                                        },
+                                        onMoreLikeThis = {
+                                            viewModel.requestMoreProposals(proposal.category)
+                                        }
                                     )
                                 }
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Accepted",
-                                    tint = Color(0xFF00FF9F)
+                            }
+                        }
+                    } else {
+                        // Operator reply bubble inside the thread
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 32.dp)
+                                .background(Color(0xFF16221D), RoundedCornerShape(6.dp))
+                                .border(1.dp, Color(0xFF00FF9F).copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                                .padding(14.dp)
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    text = "OPERATOR // REPLIED",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = Color(0xFF00FF9F),
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = turn.text,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        color = Color.White,
+                                        fontFamily = FontFamily.Monospace
+                                    )
                                 )
                             }
                         }
@@ -270,22 +212,20 @@ fun SelfMapConversationalIntakeScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // --- OPERATOR CHAT TURN INPUT BAR ---
+            // --- TERMINAL INPUT BAR (> Reply to Guide…) ---
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedTextField(
                     value = userTextInput,
-                    onValueChange = {
-                        userTextInput = it
-                        viewModel.updateDraftForm(name = it)
-                    },
+                    onValueChange = { userTextInput = it },
                     placeholder = {
                         Text(
-                            "Type your response to Guide...",
+                            "> Reply to Guide…",
                             fontFamily = FontFamily.Monospace,
-                            fontSize = 12.sp
+                            fontSize = 12.sp,
+                            color = Color.Gray
                         )
                     },
                     singleLine = true,
@@ -305,7 +245,6 @@ fun SelfMapConversationalIntakeScreen(
                         if (userTextInput.isNotBlank()) {
                             viewModel.sendConversationalTurn(userTextInput)
                             userTextInput = ""
-                            viewModel.updateDraftForm(name = "")
                         }
                     },
                     modifier = Modifier
@@ -320,23 +259,22 @@ fun SelfMapConversationalIntakeScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // --- BOTTOM NAVIGATION ACTION BAR ---
+            // --- COMPACT TERMINAL FOOTER (Skip / Finish without heavy buttons) ---
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                OutlinedButton(
+                TextButton(
                     onClick = { viewModel.skipCurrentCategory() },
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Gray),
-                    shape = RoundedCornerShape(4.dp),
-                    modifier = Modifier.weight(1f).height(48.dp)
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color.Gray)
                 ) {
-                    Text("SKIP CATEGORY", fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                    Text("[ SKIP CATEGORY ]", fontFamily = FontFamily.Monospace, fontSize = 10.sp)
                 }
 
-                Button(
+                TextButton(
                     onClick = {
                         if (currentStep + 1 >= totalSteps) {
                             viewModel.finishConversationalIntake()
@@ -345,19 +283,13 @@ fun SelfMapConversationalIntakeScreen(
                             viewModel.nextIntakeStep()
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = cyan,
-                        contentColor = Color.Black
-                    ),
-                    shape = RoundedCornerShape(4.dp),
-                    modifier = Modifier.weight(2f).height(48.dp)
+                    colors = ButtonDefaults.textButtonColors(contentColor = cyan)
                 ) {
                     Text(
-                        text = if (currentStep + 1 >= totalSteps) "FINISH & LAND ON RADIAL CANVAS" else "NEXT PHASE [${currentStep + 2}/$totalSteps] ->",
-                        fontWeight = FontWeight.Bold,
+                        text = if (currentStep + 1 >= totalSteps) "[ FINISH -> CANVAS ]" else "[ NEXT PHASE -> ]",
                         fontFamily = FontFamily.Monospace,
-                        fontSize = 11.sp,
-                        letterSpacing = 1.sp
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
@@ -605,3 +537,5 @@ fun ProposalCard(
         }
     }
 }
+
+

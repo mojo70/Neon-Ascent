@@ -8,6 +8,15 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
+enum class MessageSender { GUIDE, OPERATOR }
+
+data class ChatTurnMessage(
+    val id: String = UUID.randomUUID().toString(),
+    val sender: MessageSender,
+    val text: String,
+    val proposals: List<ProposedItemCandidate> = emptyList()
+)
+
 data class ProposedItemCandidate(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
@@ -93,52 +102,174 @@ class SelfMapConversationalIntakeUseCase @Inject constructor(
         val categoryCoverage = existingItems.map { it.category }.toSet()
         val isCovered = categoryCoverage.contains(currentStep.targetCategory)
 
+        val existingContext = if (existingItems.isNotEmpty()) {
+            "Already Mapped Items (" + existingItems.size + "): " + existingItems.joinToString(", ") { "${it.name} [${it.category.name}, imp: ${it.importance}]" }
+        } else {
+            "No items mapped yet."
+        }
+
         val baseQuestion = if (isCovered && userMessage.isBlank()) {
             "I notice you already have items mapped in ${currentStep.targetCategory.displayName}. Would you like to refine or add more in this category, or proceed?"
         } else {
             currentStep.promptQuestion
         }
 
-        if (userMessage.isBlank()) {
-            return Pair(baseQuestion, currentStep.defaultProposals)
+        // Follow-up only for empty / one-word / skip inputs
+        val trimmed = userMessage.trim()
+        val words = trimmed.split(Regex("\\s+")).filter { it.isNotBlank() }
+        val isSkipOrShort = userMessage.isBlank() || words.size <= 1 || trimmed.lowercase() in listOf("skip", "none", "nothing", "idk", "pass", "no")
+
+        if (isSkipOrShort) {
+            val followUp = if (userMessage.isBlank()) {
+                baseQuestion
+            } else {
+                "Understood. Would you like to name one specific landmark in ${currentStep.targetCategory.displayName}, or proceed to the next phase?"
+            }
+            return Pair(followUp, emptyList())
         }
 
+        // --- 1. DETERMINISTIC ENTITY EXTRACTION (PRIMARY PATH) ---
+        val lowerMsg = userMessage.lowercase()
+        val deterministicProposals = mutableListOf<ProposedItemCandidate>()
+
+        if (lowerMsg.contains("family") || lowerMsg.contains("wife") || lowerMsg.contains("kids") || lowerMsg.contains("children") || lowerMsg.contains("son") || lowerMsg.contains("daughter")) {
+            deterministicProposals.add(
+                ProposedItemCandidate(
+                    name = "Family & Kin",
+                    category = SelfMapCategory.PEOPLE,
+                    suggestedImportance = 0.85f,
+                    note = "Core family attachment",
+                    rationale = "Grounded in user mention of family/wife/kids"
+                )
+            )
+        }
+        if (lowerMsg.contains("jesus") || lowerMsg.contains("lord") || lowerMsg.contains("faith") || lowerMsg.contains("prayer") || lowerMsg.contains("scripture") || lowerMsg.contains("christ")) {
+            deterministicProposals.add(
+                ProposedItemCandidate(
+                    name = "Faith & Spiritual Anchor",
+                    category = SelfMapCategory.IDEAS_LIKES,
+                    suggestedImportance = 0.85f,
+                    note = "Spiritual foundation",
+                    rationale = "Grounded in user mention of faith/Jesus/Lord"
+                )
+            )
+        }
+        if (lowerMsg.contains("coding") || lowerMsg.contains("building") || lowerMsg.contains("creating") || lowerMsg.contains("tinkering") || lowerMsg.contains("dev") || lowerMsg.contains("architect")) {
+            deterministicProposals.add(
+                ProposedItemCandidate(
+                    name = "Creation & Building",
+                    category = SelfMapCategory.ROLES_ACCOMPLISHMENTS,
+                    suggestedImportance = 0.80f,
+                    note = "Maker and engineering focus",
+                    rationale = "Grounded in user mention of building/coding/creating"
+                )
+            )
+        }
+        if (lowerMsg.contains("lifting") || lowerMsg.contains("weights") || lowerMsg.contains("body") || lowerMsg.contains("mind") || lowerMsg.contains("health") || lowerMsg.contains("workout") || lowerMsg.contains("trainer")) {
+            deterministicProposals.add(
+                ProposedItemCandidate(
+                    name = "Physical Conditioning",
+                    category = SelfMapCategory.BODY_SENSES,
+                    suggestedImportance = 0.85f,
+                    note = "Physical vitality",
+                    rationale = "Grounded in user mention of health/weights/body"
+                )
+            )
+        }
+        if (lowerMsg.contains("learning") || lowerMsg.contains("reading") || lowerMsg.contains("study") || lowerMsg.contains("growth")) {
+            deterministicProposals.add(
+                ProposedItemCandidate(
+                    name = "Continuous Learning",
+                    category = SelfMapCategory.IDEAS_LIKES,
+                    suggestedImportance = 0.75f,
+                    note = "Intellectual expansion",
+                    rationale = "Grounded in user mention of learning/reading"
+                )
+            )
+        }
+        if (lowerMsg.contains("work") || lowerMsg.contains("job") || lowerMsg.contains("provider") || lowerMsg.contains("career") || lowerMsg.contains("business")) {
+            deterministicProposals.add(
+                ProposedItemCandidate(
+                    name = "Professional Vector",
+                    category = SelfMapCategory.ROLES_ACCOMPLISHMENTS,
+                    suggestedImportance = 0.75f,
+                    note = "Work and career responsibility",
+                    rationale = "Grounded in user mention of work/provider"
+                )
+            )
+        }
+
+        if (deterministicProposals.isNotEmpty()) {
+            return Pair("Based on that, two nodes:", deterministicProposals.take(2))
+        }
+
+        // --- 2. FALLBACK MODEL CALL (ISOLATED PROMPT) ---
         val prompt = """
-            [SYSTEM: Self Map Structured Conversational Agent]
-            You are a concise, curious, non-judgmental cyber-mentor assisting the operator in mapping their Self Map attachments.
-            Tone: short, objective, respectful, inquisitive, light cyber. No moralizing, no Socrates, no emotional invention.
-            Category choices: BODY_SENSES, PEOPLE, STUFF, ROLES_ACCOMPLISHMENTS, IDEAS_LIKES, CUSTOM.
-            
-            Current Phase: ${currentStep.title}
-            Question: "$baseQuestion"
-            Operator Input: "$userMessage"
-            
-            Provide a concise 1-2 sentence conversational response, and propose 1 to 3 attachment items strictly adhering to schema:
-            [PROPOSAL: Name | Category | Importance (0.40 to 0.90) | Note | Rationale]
-            - Name: required string
-            - Category: valid SelfMapCategory enum name
-            - Importance: Float between 0.40 and 0.90
-            - Note: optional short description
-            - Rationale: optional short grounded reason
+            [SYSTEM: Self Map Intake Structured Extraction Engine]
+            Role: Strict structured proposal generator for Self Map intake.
+            Constraints:
+            - NEVER inherit CYBR-TES, Socrates, or Faith Lens. No philosophy, no moralizing, no emotional invention.
+            - Tone: Neutral, operational, concise.
+            - Task: Emit 1 to 3 structured proposal items grounded strictly in the operator's last message: "$userMessage".
+            $existingContext
+            - Format strictly as:
+            [PROPOSAL: Name | Category | Importance (0.40 to 0.90) | Short Note | Grounded Rationale]
+            - Categories: BODY_SENSES, PEOPLE, STUFF, ROLES_ACCOMPLISHMENTS, IDEAS_LIKES, CUSTOM.
+            - Do not include conversational monologue or introductory filler.
         """.trimIndent()
 
-        if (aiCore.isReady()) {
+        val proposalsToEmit = if (aiCore.isReady()) {
             when (val res = aiCore.generate(prompt, forceLocal = true)) {
                 is AiResult.Success -> {
-                    val (text, proposals) = parseAiResponse(res.text)
-                    if (proposals.isNotEmpty()) {
-                        return Pair(text, proposals)
+                    val (rawText, proposals) = parseAiResponse(res.text)
+                    
+                    // Post-validation:
+                    // 1. Blocked patterns (CYBR-TES, Socrates, Runner, protocol, vision/stimulus, faith)
+                    val blockedPatterns = listOf("cybr-tes", "socrates", "faith", "vision/stimulus", "protocol", "runner")
+                    val hasBlocked = blockedPatterns.any { pattern ->
+                        rawText.lowercase().contains(pattern) || proposals.any { prop ->
+                            (prop.rationale?.lowercase()?.contains(pattern) == true) ||
+                            (prop.note?.lowercase()?.contains(pattern) == true) ||
+                            prop.name.lowercase().contains(pattern)
+                        }
                     }
-                    return Pair(text, currentStep.defaultProposals)
+
+                    // 2. Generic catch-all check: reject generic names
+                    val genericCatchAlls = listOf("core focus", "personal growth drive", "primary identity anchor", "essential psychological vector", "baseline setup")
+                    val hasGeneric = proposals.any { prop ->
+                        val n = prop.name.lowercase()
+                        genericCatchAlls.any { n.contains(it) }
+                    }
+
+                    // 3. Grounding check: rationale or proposal name must reference concrete words from userMessage
+                    val userWords = trimmed.lowercase().split(Regex("\\s+"))
+                        .map { it.replace(Regex("[^a-z0-9]"), "") }
+                        .filter { it.length > 2 }
+                    val isGrounded = proposals.isNotEmpty() && proposals.all { prop ->
+                        val rationale = prop.rationale?.lowercase() ?: ""
+                        val note = prop.note?.lowercase() ?: ""
+                        val name = prop.name.lowercase()
+                        userWords.isEmpty() || userWords.any { rationale.contains(it) || note.contains(it) || name.contains(it) }
+                    }
+
+                    if (!hasBlocked && !hasGeneric && isGrounded && proposals.isNotEmpty()) {
+                        val templateIntro = "Based on that, two nodes:"
+                        return Pair(templateIntro, proposals)
+                    } else {
+                        // Fall back to short confirmation of what was heard instead of showing bad cards
+                        val fallbackMsg = "I heard \"$trimmed\" — want nodes for that?"
+                        return Pair(fallbackMsg, emptyList())
+                    }
                 }
                 is AiResult.Failure -> {
-                    // Fallback to default proposals
+                    val fallbackMsg = "I heard \"$trimmed\" — want nodes for that?"
+                    return Pair(fallbackMsg, emptyList())
                 }
             }
+        } else {
+            val fallbackMsg = "I heard \"$trimmed\" — want nodes for that?"
+            return Pair(fallbackMsg, emptyList())
         }
-
-        val fallbackText = "Acknowledged, Operator. Here are structured attachment proposals based on your input."
-        return Pair(fallbackText, currentStep.defaultProposals)
     }
 
     private fun parseAiResponse(response: String): Pair<String, List<ProposedItemCandidate>> {
@@ -181,17 +312,29 @@ class SelfMapConversationalIntakeUseCase @Inject constructor(
 
     suspend fun suggestItemForCategory(category: SelfMapCategory): ProposedItemCandidate {
         val prompt = """
-            [SYSTEM: Self Map Quick Mentor Suggestion]
-            Suggest 1 relevant, high-value Self Map attachment node for category: ${category.displayName}.
-            Format strictly:
+            [SYSTEM: Self Map Intake Structured Extraction Engine]
+            Role: Strict structured proposal generator for Self Map intake.
+            Constraints:
+            - NEVER inherit CYBR-TES, Socrates, or Faith Lens. No philosophy, no moralizing, no emotional invention.
+            - Tone: Neutral, operational, concise.
+            - Task: Suggest 1 relevant, high-value Self Map attachment node for category: ${category.displayName}.
+            - Format strictly as:
             [PROPOSAL: Name | ${category.name} | Importance (0.40 to 0.90) | Short Note | Grounded Rationale]
         """.trimIndent()
 
         if (aiCore.isReady()) {
             when (val res = aiCore.generate(prompt, forceLocal = true)) {
                 is AiResult.Success -> {
-                    val (_, proposals) = parseAiResponse(res.text)
-                    if (proposals.isNotEmpty()) {
+                    val (rawText, proposals) = parseAiResponse(res.text)
+                    val blockedPatterns = listOf("cybr-tes", "socrates", "faith", "vision/stimulus", "protocol", "runner")
+                    val hasBlocked = blockedPatterns.any { pattern ->
+                        rawText.lowercase().contains(pattern) || proposals.any { prop ->
+                            (prop.rationale?.lowercase()?.contains(pattern) == true) ||
+                            (prop.note?.lowercase()?.contains(pattern) == true) ||
+                            prop.name.lowercase().contains(pattern)
+                        }
+                    }
+                    if (!hasBlocked && proposals.isNotEmpty()) {
                         return proposals.first()
                     }
                 }

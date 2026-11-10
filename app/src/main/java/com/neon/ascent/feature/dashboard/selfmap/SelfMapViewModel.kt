@@ -52,7 +52,8 @@ data class SelfMapUiState(
     val draftCategory: SelfMapCategory = SelfMapCategory.BODY_SENSES,
     val draftImportance: Float = 0.7f,
     val draftNotes: String = "",
-    val isSuggestingFromMentor: Boolean = false
+    val isSuggestingFromMentor: Boolean = false,
+    val chatTurns: List<ChatTurnMessage> = emptyList()
 )
 
 @HiltViewModel
@@ -77,6 +78,7 @@ class SelfMapViewModel @Inject constructor(
     private val _draftImportance = MutableStateFlow(0.7f)
     private val _draftNotes = MutableStateFlow("")
     private val _isSuggestingFromMentor = MutableStateFlow(false)
+    private val _chatTurns = MutableStateFlow<List<ChatTurnMessage>>(emptyList())
 
     @Suppress("UNCHECKED_CAST")
     val uiState: StateFlow<SelfMapUiState> = combine(
@@ -107,7 +109,8 @@ class SelfMapViewModel @Inject constructor(
         _draftCategory,
         _draftImportance,
         _draftNotes,
-        _isSuggestingFromMentor
+        _isSuggestingFromMentor,
+        _chatTurns
     ) { flows: Array<Any?> ->
         val onboardingSeen = flows[0] as Boolean
         val intakeSeen = flows[1] as Boolean
@@ -137,6 +140,7 @@ class SelfMapViewModel @Inject constructor(
         val dImp = flows[25] as Float
         val dNotes = flows[26] as String
         val isSuggesting = flows[27] as Boolean
+        val turns = flows[28] as List<ChatTurnMessage>
 
         SelfMapUiState(
             isOnboardingSeen = onboardingSeen,
@@ -167,7 +171,8 @@ class SelfMapViewModel @Inject constructor(
             draftCategory = dCat,
             draftImportance = dImp,
             draftNotes = dNotes,
-            isSuggestingFromMentor = isSuggesting
+            isSuggestingFromMentor = isSuggesting,
+            chatTurns = turns
         )
     }.stateIn(
         scope = viewModelScope,
@@ -208,7 +213,8 @@ class SelfMapViewModel @Inject constructor(
             _intakeStepIndex.value = stepIndex
             repository.setIntakeStepIndex(stepIndex)
             _isGeneratingIntake.value = true
-            val (msg, proposals) = intakeUseCase.processUserTurn(stepIndex, "")
+            val existingItems = repository.getAllItemsOnce()
+            val (msg, proposals) = intakeUseCase.processUserTurn(stepIndex, "", existingItems)
             val rejected = repository.rejectedSignatures.first()
             val filteredProposals = proposals.filter { prop ->
                 val sig = "${prop.name}:${prop.category}"
@@ -216,6 +222,13 @@ class SelfMapViewModel @Inject constructor(
             }
             _intakeChatMessage.value = msg
             _pendingProposals.value = filteredProposals
+            _chatTurns.value = listOf(
+                ChatTurnMessage(
+                    sender = MessageSender.GUIDE,
+                    text = msg,
+                    proposals = filteredProposals
+                )
+            )
             _isGeneratingIntake.value = false
         }
     }
@@ -223,8 +236,12 @@ class SelfMapViewModel @Inject constructor(
     fun sendConversationalTurn(userMessage: String) {
         val currentStep = _intakeStepIndex.value
         viewModelScope.launch {
+            val operatorTurn = ChatTurnMessage(sender = MessageSender.OPERATOR, text = userMessage)
+            _chatTurns.update { it + operatorTurn }
+
             _isGeneratingIntake.value = true
-            val (msg, proposals) = intakeUseCase.processUserTurn(currentStep, userMessage)
+            val existingItems = repository.getAllItemsOnce()
+            val (msg, proposals) = intakeUseCase.processUserTurn(currentStep, userMessage, existingItems)
             val rejected = repository.rejectedSignatures.first()
             val filteredProposals = proposals.filter { prop ->
                 val sig = "${prop.name}:${prop.category}"
@@ -232,6 +249,13 @@ class SelfMapViewModel @Inject constructor(
             }
             _intakeChatMessage.value = msg
             _pendingProposals.value = filteredProposals
+
+            val guideTurn = ChatTurnMessage(
+                sender = MessageSender.GUIDE,
+                text = msg,
+                proposals = filteredProposals
+            )
+            _chatTurns.update { it + guideTurn }
             _isGeneratingIntake.value = false
         }
     }
@@ -277,6 +301,15 @@ class SelfMapViewModel @Inject constructor(
             _acceptedProposals.update { list ->
                 list.filterNot { it.id == proposalId } + updatedCandidate
             }
+            _chatTurns.update { turns ->
+                val updatedTurns = turns.map { turn ->
+                    turn.copy(proposals = turn.proposals.map { if (it.id == proposalId) updatedCandidate else it })
+                }
+                updatedTurns + ChatTurnMessage(
+                    sender = MessageSender.GUIDE,
+                    text = "✓ Inserted '$finalName' into Self Map."
+                )
+            }
         }
     }
 
@@ -290,6 +323,11 @@ class SelfMapViewModel @Inject constructor(
 
             _pendingProposals.update { list ->
                 list.map { if (it.id == proposalId) it.copy(isRejected = true, isAccepted = false) else it }
+            }
+            _chatTurns.update { turns ->
+                turns.map { turn ->
+                    turn.copy(proposals = turn.proposals.map { if (it.id == proposalId) it.copy(isRejected = true, isAccepted = false) else it })
+                }
             }
         }
     }
@@ -315,6 +353,14 @@ class SelfMapViewModel @Inject constructor(
             val sig = "${suggestion.name}:${suggestion.category}"
             if (!rejected.contains(sig)) {
                 _pendingProposals.update { it + suggestion }
+                _chatTurns.update { turns ->
+                    if (turns.isNotEmpty()) {
+                        val lastTurn = turns.last()
+                        turns.dropLast(1) + lastTurn.copy(proposals = lastTurn.proposals + suggestion)
+                    } else {
+                        turns
+                    }
+                }
             }
             _isGeneratingIntake.value = false
         }

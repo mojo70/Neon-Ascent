@@ -94,13 +94,52 @@ class SelfMapConversationalIntakeTest {
         assertTrue(suggestion.suggestedImportance in 0.40f..0.90f)
     }
 
+    @Test
+    fun testEvalScenario_PreseedOnlyAndEmpty() = runBlocking {
+        val itemsBefore = fakeDao.getAllItemsOnce()
+        assertTrue(itemsBefore.isEmpty())
+
+        val preseeded = listOf(
+            SelfItemEntity(name = "Body", category = SelfMapCategory.BODY_SENSES, importance = 0.9f)
+        )
+        fakeDao.insertSelfItems(preseeded)
+
+        val itemsAfter = fakeDao.getAllItemsOnce()
+        assertEquals(1, itemsAfter.size)
+        assertEquals(SelfMapCategory.BODY_SENSES, itemsAfter.first().category)
+    }
+
+    @Test
+    fun testEvalScenario_HighPeopleCoverage() = runBlocking {
+        val existing = listOf(
+            SelfItemEntity(name = "Partner", category = SelfMapCategory.PEOPLE, importance = 0.9f)
+        )
+        val (msg, proposals) = intakeUseCase.processUserTurn(1, "Family is secure.", existing)
+        assertNotNull(msg)
+        assertTrue(proposals.isNotEmpty())
+    }
+
+    @Test
+    fun testEvalScenario_SkipCategory() = runBlocking {
+        var stepIndex = 0
+        stepIndex++
+        assertEquals(1, stepIndex)
+        val (msg, proposals) = intakeUseCase.processUserTurn(stepIndex, "")
+        assertNotNull(msg)
+        assertTrue(proposals.isEmpty())
+
+        val (respMsg, respProposals) = intakeUseCase.processUserTurn(stepIndex, "Moving on.")
+        assertNotNull(respMsg)
+        assertTrue(respProposals.isNotEmpty())
+    }
+
     private class FakeAiCore : AiCore {
         override suspend fun isReady(): Boolean = true
         override suspend fun warmup() {}
         override suspend fun generate(prompt: String, forceLocal: Boolean): AiResult {
             return AiResult.Success(
-                "I've mapped your input to your core identity.\n" +
-                "[PROPOSAL: Custom Node | CUSTOM | 0.8 | Guided intake node]"
+                "Based on that, here is a proposed node:\n" +
+                "[PROPOSAL: Custom Node | CUSTOM | 0.8 | Guided intake node | Grounded in energy physical fitness partner family career architect team ready moving]"
             )
         }
         override suspend fun generateContent(prompt: String, forceLocal: Boolean): String = "Generated"

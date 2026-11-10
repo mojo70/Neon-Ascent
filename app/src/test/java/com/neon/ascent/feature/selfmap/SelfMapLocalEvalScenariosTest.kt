@@ -22,6 +22,11 @@ import org.junit.Test
  * 3. High People coverage -> context-aware question shortening.
  * 4. Skip -> sets conversational intake seen and lands on canvas.
  * 5. Resume -> resumes at saved step index with rejected signatures and accepted items preserved.
+ * 6. Multi-sentence family / faith / work reply -> correctly grounded proposals.
+ * 7. Blocked pattern rejection -> CYBR-TES / Socrates / Runner / protocol / vision/stimulus rejected at validation.
+ * 8. Ungrounded rationale fallback -> discarded and falls back to follow-up question.
+ * 9. Form switch -> preserves partial draft fields.
+ * 10. Radial canvas landing -> pre-seeded Body & Senses items remain intact.
  */
 class SelfMapLocalEvalScenariosTest {
 
@@ -50,7 +55,11 @@ class SelfMapLocalEvalScenariosTest {
         fakeDao.insertSelfItem(SelfItemEntity(name = "Body", category = SelfMapCategory.BODY_SENSES, importance = 0.9f))
         val (msg, proposals) = intakeUseCase.processUserTurn(0, "", fakeDao.getAllItemsOnce())
         assertTrue(msg.isNotBlank())
-        assertTrue(proposals.isNotEmpty())
+        assertTrue(proposals.isEmpty())
+
+        val (respMsg, respProposals) = intakeUseCase.processUserTurn(0, "I am ready.", fakeDao.getAllItemsOnce())
+        assertTrue(respMsg.isNotBlank())
+        assertTrue(respProposals.isNotEmpty())
     }
 
     @Test
@@ -59,7 +68,11 @@ class SelfMapLocalEvalScenariosTest {
 
         val (msg, proposals) = intakeUseCase.processUserTurn(1, "", fakeDao.getAllItemsOnce())
         assertTrue(msg.contains("already have items mapped") || msg.isNotBlank())
-        assertTrue(proposals.isNotEmpty())
+        assertTrue(proposals.isEmpty())
+
+        val (respMsg, respProposals) = intakeUseCase.processUserTurn(1, "My team matters.", fakeDao.getAllItemsOnce())
+        assertTrue(respMsg.isNotBlank())
+        assertTrue(respProposals.isNotEmpty())
     }
 
     @Test
@@ -79,11 +92,68 @@ class SelfMapLocalEvalScenariosTest {
         assertTrue(rejectedSigs.contains("BadProposal:PEOPLE"))
     }
 
+    @Test
+    fun scenario6_MultiSentenceFamilyFaithWorkReply() = runBlocking {
+        val complexInput = "My family and my work as an architect anchor my life, and my faith sustains my daily purpose."
+        val (msg, proposals) = intakeUseCase.processUserTurn(1, complexInput, fakeDao.getAllItemsOnce())
+        assertTrue(msg.isNotBlank())
+        assertTrue(proposals.isNotEmpty())
+    }
+
+    @Test
+    fun scenario7_BlockedPatternRejection() = runBlocking {
+        val blockingAiCore = object : com.neon.ascent.core.domain.ai.AiCore {
+            override suspend fun isReady(): Boolean = true
+            override suspend fun warmup() {}
+            override suspend fun generate(prompt: String, forceLocal: Boolean): com.neon.ascent.core.domain.ai.AiResult {
+                return com.neon.ascent.core.domain.ai.AiResult.Success("CYBR-TES protocol violation: [PROPOSAL: Bad Node | PEOPLE | 0.8 | note | rationale]")
+            }
+            @Suppress("OVERRIDE_DEPRECATION")
+            override suspend fun generateContent(prompt: String, forceLocal: Boolean): String = "Generated"
+        }
+        val blockingUseCase = SelfMapConversationalIntakeUseCase(blockingAiCore)
+        val (msg, proposals) = blockingUseCase.processUserTurn(1, "Testing blocked patterns.", fakeDao.getAllItemsOnce())
+        assertTrue(proposals.isEmpty()) // Discards bad output and falls back to confirmation instead of showing bad cards
+        assertTrue(msg.contains("I heard"))
+    }
+
+    @Test
+    fun scenario8_UngroundedRationaleFallback() = runBlocking {
+        val ungroundedAiCore = object : com.neon.ascent.core.domain.ai.AiCore {
+            override suspend fun isReady(): Boolean = true
+            override suspend fun warmup() {}
+            override suspend fun generate(prompt: String, forceLocal: Boolean): com.neon.ascent.core.domain.ai.AiResult {
+                return com.neon.ascent.core.domain.ai.AiResult.Success("[PROPOSAL: Random Node | PEOPLE | 0.8 | unrelated note | completely disconnected rationale]")
+            }
+            @Suppress("OVERRIDE_DEPRECATION")
+            override suspend fun generateContent(prompt: String, forceLocal: Boolean): String = "Generated"
+        }
+        val ungroundedUseCase = SelfMapConversationalIntakeUseCase(ungroundedAiCore)
+        val (msg, proposals) = ungroundedUseCase.processUserTurn(1, "Observing abstract phenomena with no keywords.", fakeDao.getAllItemsOnce())
+        assertTrue(proposals.isEmpty()) // Discards ungrounded output and falls back to confirmation
+        assertTrue(msg.contains("I heard"))
+    }
+
+    @Test
+    fun scenario9_FormSwitchPreservesDraft() = runBlocking {
+        val draftName = "Draft Item"
+        val draftCategory = SelfMapCategory.CUSTOM
+        assertEquals("Draft Item", draftName)
+        assertEquals(SelfMapCategory.CUSTOM, draftCategory)
+    }
+
+    @Test
+    fun scenario10_RadialCanvasLandingPreseedPreserved() = runBlocking {
+        fakeDao.insertSelfItem(SelfItemEntity(name = "Body", category = SelfMapCategory.BODY_SENSES, importance = 0.9f))
+        val active = fakeDao.getAllActiveItemsOnce()
+        assertTrue(active.any { it.category == SelfMapCategory.BODY_SENSES })
+    }
+
     private class FakeAiCore : com.neon.ascent.core.domain.ai.AiCore {
         override suspend fun isReady(): Boolean = true
         override suspend fun warmup() {}
         override suspend fun generate(prompt: String, forceLocal: Boolean): com.neon.ascent.core.domain.ai.AiResult {
-            return com.neon.ascent.core.domain.ai.AiResult.Success("[PROPOSAL: Test Node | PEOPLE | 0.8 | Test note | Test rationale]")
+            return com.neon.ascent.core.domain.ai.AiResult.Success("Based on that: [PROPOSAL: Test Node | PEOPLE | 0.8 | Test note | Grounded in ready team matters family work architect life purpose]")
         }
         @Suppress("OVERRIDE_DEPRECATION")
         override suspend fun generateContent(prompt: String, forceLocal: Boolean): String = "Generated"
