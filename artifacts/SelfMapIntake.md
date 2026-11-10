@@ -1,7 +1,7 @@
 # Neon Ascent – Self Map Intake (LardAss Slice 1)
 
 **Status**: Design lock  
-**Updated**: November 9, 2026 (phase-purpose sentence lock)  
+**Updated**: November 9, 2026 (all-proposals-resolved advance lock)  
 **Repo**: `mojo70/Neon-Ascent`  
 **Studio pack**: `SelfMapIntakeGeminiPrompts.md` (local only)  
 **Depends on**: `SelfMap.md` (V1 shipped, V2 section), existing Self Map canvas + repository, AiPersonality.md, `LardAss.md`
@@ -40,7 +40,7 @@ Entry → Load context (current items, categories, pre-seed)
 | Preference | Settings toggle `selfMapIntakeMode`: `CHAT` (default) \| `FORM` |
 | Returning users | Do not force the conversation. Preference + explicit “Guided start” only. |
 | Confirmation | AI proposes; user confirms every item before insert. |
-| Sequence advance | After the user accepts or rejects the proposals on a step, the Guide automatically asks the next focused question in the base sequence (template, short, skippable). No reliance on a “Next Phase” button as the primary path. Optional “Skip this category” and “I’m done” remain available. When the sequence ends or the user says they’re done, land on the radial canvas. |
+| Sequence advance | After every proposal on the current step has been resolved (accepted, rejected, or explicitly dismissed), the Guide automatically asks the next focused question. Do not advance while any proposal card is still actionable. No reliance on a “Next Phase” button as the primary path. Optional “Skip this category” and “I’m done” remain available. When the sequence ends or the user says they’re done, land on the radial canvas. |
 | Phase purpose | Each next-question template includes one short purpose sentence explaining why the category matters for the map (e.g., “People nodes are usually the attachments that produce the strongest reactions when threatened”). No completeness pressure. |
 | Landing | Radial canvas with accepted items placed. |
 | Resume | Persist lightweight session state (step, accepted, rejected set) so interrupted chat resumes. |
@@ -74,7 +74,7 @@ Entry → Load context (current items, categories, pre-seed)
 - User actions on each card: accept, accept-and-edit, reject, “more like this”. Rejected items collapse or leave the thread and are not re-proposed this session.
 - Bottom terminal-style input is always primary (“> Reply to Guide…”). User can type free text at any time to refine or continue.
 - On accept: insert via `SelfMapRepository`, brief confirmation line in thread, canvas updates immediately.
-- After the user accepts or rejects the proposals on a step, the Guide automatically asks the next focused question in the base sequence. The question includes one short purpose sentence (why this category matters for the map). No completeness pressure. No reliance on a “Next Phase” button as the primary path.
+- After every proposal on the current step has been resolved (accepted, rejected, or explicitly dismissed), the Guide automatically asks the next focused question. Do not advance while any proposal card is still actionable. The question includes one short purpose sentence. No completeness pressure. No reliance on a “Next Phase” button as the primary path.
 - Optional small “Skip this category” and “I’m done” controls remain available. Default is to continue.
 - When the sequence ends or the user says they’re done, land on the radial canvas with accepted items placed.
 - Session state persisted so interruption resumes at the same step with the same accepted/rejected set and visible history.
