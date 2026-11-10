@@ -3,6 +3,7 @@ package com.neon.ascent.feature.dashboard.selfmap.intake
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.neon.ascent.core.data.local.entity.SelfItemEntity
+import com.neon.ascent.core.data.repository.SelfMapIntakeSession
 import com.neon.ascent.core.data.repository.SelfMapRepository
 import com.neon.ascent.feature.dashboard.selfmap.ChatTurnMessage
 import com.neon.ascent.feature.dashboard.selfmap.MessageSender
@@ -12,7 +13,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -24,6 +24,8 @@ data class IntakeUiState(
     val activeItems: List<SelfItemEntity> = emptyList(),
     val acceptedIds: Set<String> = emptySet(),
     val rejectedIds: Set<String> = emptySet(),
+    val dismissedIds: Set<String> = emptySet(),
+    val stepAnchor: Int = 0,
     val isCompleted: Boolean = false
 )
 
@@ -38,30 +40,43 @@ class SelfMapIntakeViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            // Context Load: Pre-seed if empty, load active items
-            repository.preseedDefaultItemsIfEmpty()
-            val items = repository.activeItems.first()
+            val context = repository.loadIntakeContext()
+            val session = repository.loadIntakeSession()
+            val restored = IntakeResume.restore(session, intakeUseCase.intakeSteps)
 
-            // Load lightweight session state
-            val savedStep = repository.intakeStepIndex.first()
-            val accepted = repository.acceptedItemIds.first()
-            val rejected = repository.rejectedSignatures.first()
-
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    currentStepIndex = savedStep,
-                    activeItems = items,
-                    acceptedIds = accepted,
-                    rejectedIds = rejected
-                )
+            if (restored != null && restored.messages.isNotEmpty()) {
+                _uiState.value = restored.copy(activeItems = context.activeItems)
+            } else {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        currentStepIndex = session.stepIndex.coerceIn(0, intakeUseCase.intakeSteps.lastIndex),
+                        activeItems = context.activeItems,
+                        acceptedIds = session.acceptedItemIds,
+                        rejectedIds = session.rejectedSignatures,
+                        dismissedIds = session.dismissedIds,
+                        stepAnchor = session.stepAnchor,
+                    )
+                }
+                if (_uiState.value.messages.isEmpty()) {
+                    askCurrentStepQuestion()
+                }
             }
-
-            // Initialize chat with the first question if empty
-            if (_uiState.value.messages.isEmpty()) {
+            persistSession()
+        }
+        viewModelScope.launch {
+            repository.mapCleared.collect {
+                val context = repository.loadIntakeContext()
+                _uiState.value = IntakeUiState(isLoading = false, activeItems = context.activeItems)
                 askCurrentStepQuestion()
+                persistSession()
             }
         }
+    }
+
+    /** Guided start reopens the saved thread instead of bouncing off a finished flag. */
+    fun resumeForEntry() {
+        _uiState.update { it.copy(isCompleted = false) }
     }
 
     private fun askCurrentStepQuestion() {
@@ -72,38 +87,47 @@ class SelfMapIntakeViewModel @Inject constructor(
         }
 
         val step = intakeUseCase.intakeSteps[stepIndex]
-        val isCovered = _uiState.value.activeItems.any { it.category == step.targetCategory }
-
-        val question = if (isCovered && stepIndex != 0) {
-            "I notice you already have items mapped in ${step.targetCategory.displayName}. Would you like to refine or add more in this category, or proceed?"
-        } else {
-            step.promptQuestion
-        }
-
-        val newMsg = ChatTurnMessage(
+        val question = ChatTurnMessage(
             sender = MessageSender.GUIDE,
-            text = question,
-            proposals = emptyList()
+            text = step.promptQuestion,
         )
-
-        _uiState.update { it.copy(messages = it.messages + newMsg) }
+        _uiState.update { state ->
+            val messages = state.messages + question
+            state.copy(messages = messages, stepAnchor = messages.lastIndex)
+        }
     }
 
     fun submitUserReply(reply: String) {
         if (reply.isBlank()) return
+        if (isDonePhrase(reply)) {
+            val userMsg = ChatTurnMessage(sender = MessageSender.OPERATOR, text = reply.trim())
+            _uiState.update { it.copy(messages = it.messages + userMsg) }
+            completeIntake()
+            return
+        }
 
         val userMsg = ChatTurnMessage(sender = MessageSender.OPERATOR, text = reply)
         _uiState.update { it.copy(messages = it.messages + userMsg) }
 
         viewModelScope.launch {
+            val trimmed = reply.trim().lowercase().trimEnd('.')
+            if (trimmed in setOf("skip", "none", "nothing", "idk", "pass", "no")) {
+                _uiState.update { state ->
+                    IntakeAutoAdvance.toStep(state, intakeUseCase.intakeSteps, state.currentStepIndex + 1)
+                }
+                finishIfNeeded()
+                persistSession()
+                return@launch
+            }
+
             val stepIndex = _uiState.value.currentStepIndex
-            val items = repository.getAllItemsOnce()
+            val context = repository.loadIntakeContext()
+            _uiState.update { it.copy(activeItems = context.activeItems) }
 
-            val (guideText, rawProposals) = intakeUseCase.processUserTurn(stepIndex, reply, items)
+            val (guideText, rawProposals) = intakeUseCase.processUserTurn(stepIndex, reply, context.activeItems)
 
-            // Filter out already accepted/rejected proposals
-            val filteredProposals = rawProposals.filterNot {
-                _uiState.value.acceptedIds.contains(it.id) || _uiState.value.rejectedIds.contains(it.name)
+            val filteredProposals = rawProposals.filter { proposal ->
+                actionable(proposal)
             }
 
             val guideMsg = ChatTurnMessage(
@@ -111,56 +135,78 @@ class SelfMapIntakeViewModel @Inject constructor(
                 text = guideText,
                 proposals = filteredProposals
             )
-            _uiState.update { it.copy(messages = it.messages + guideMsg) }
-
-            if (filteredProposals.isEmpty()) {
-                // If no proposals or all filtered, we can auto-advance if it was a pure skip
-                val trimmed = reply.trim().lowercase()
-                val words = trimmed.split(Regex("\\s+")).filter { it.isNotBlank() }
-                val isSkip = words.size <= 1 || trimmed in listOf("skip", "none", "nothing", "idk", "pass", "no")
-                if (isSkip) {
-                    advanceToNextStep()
-                }
+            _uiState.update { state ->
+                IntakeAutoAdvance.afterResolution(
+                    state.copy(messages = state.messages + guideMsg),
+                    intakeUseCase.intakeSteps,
+                )
             }
+            finishIfNeeded()
+            persistSession()
         }
     }
 
     fun acceptProposal(proposal: ProposedItemCandidate) {
         viewModelScope.launch {
+            if (!actionable(proposal)) return@launch
             val item = SelfItemEntity(
                 name = proposal.name,
                 category = proposal.category,
                 importance = proposal.suggestedImportance,
                 notes = proposal.note,
-                baselineMassContributor = true
             )
-            repository.insertSelfItem(item)
-            
-            val newAccepted = _uiState.value.acceptedIds + proposal.id
-            repository.setAcceptedItemIds(newAccepted)
-            
-            val confirmMsg = ChatTurnMessage(
-                sender = MessageSender.GUIDE,
-                text = "Confirmed: [${proposal.name}] added to Self Map."
-            )
+            val insertId = repository.insertSelfItem(item)
+            val state = _uiState.value
+            val newAccepted = state.acceptedIds + proposal.id + insertId.toString() + IntakeProposalResolution.signature(proposal)
+            val context = repository.loadIntakeContext()
 
-            _uiState.update { it.copy(
-                acceptedIds = newAccepted,
-                activeItems = repository.getAllItemsOnce(),
-                messages = it.messages + confirmMsg
-            ) }
-            
-            checkStepCompletion()
+            _uiState.update { state ->
+                IntakeAutoAdvance.afterResolution(
+                    state.copy(
+                        acceptedIds = newAccepted,
+                        activeItems = context.activeItems,
+                        messages = state.messages + ChatTurnMessage(
+                            sender = MessageSender.GUIDE,
+                            text = "Added ${proposal.name}.",
+                        ),
+                    ),
+                    intakeUseCase.intakeSteps,
+                )
+            }
+            finishIfNeeded()
+            persistSession()
+        }
+    }
+
+    /**
+     * Leaves the card and opens the form. The form save is the insert.
+     */
+    fun dismissProposal(proposal: ProposedItemCandidate) {
+        if (!actionable(proposal)) return
+        _uiState.update { state ->
+            IntakeAutoAdvance.afterResolution(
+                state.copy(dismissedIds = state.dismissedIds + proposal.id),
+                intakeUseCase.intakeSteps,
+            )
+        }
+        viewModelScope.launch {
+            finishIfNeeded()
+            persistSession()
         }
     }
 
     fun rejectProposal(proposal: ProposedItemCandidate) {
         viewModelScope.launch {
-            val newRejected = _uiState.value.rejectedIds + proposal.name
-            repository.setRejectedSignatures(newRejected)
-            _uiState.update { it.copy(rejectedIds = newRejected) }
-            
-            checkStepCompletion()
+            if (!actionable(proposal)) return@launch
+            val newRejected = _uiState.value.rejectedIds + IntakeProposalResolution.signature(proposal)
+            _uiState.update { state ->
+                IntakeAutoAdvance.afterResolution(
+                    state.copy(rejectedIds = newRejected),
+                    intakeUseCase.intakeSteps,
+                )
+            }
+            finishIfNeeded()
+            persistSession()
         }
     }
 
@@ -170,12 +216,21 @@ class SelfMapIntakeViewModel @Inject constructor(
 
         viewModelScope.launch {
             val stepIndex = _uiState.value.currentStepIndex
-            val items = repository.getAllItemsOnce()
+            val context = repository.loadIntakeContext()
+            val priorUtterance = _uiState.value.messages.lastOrNull { message ->
+                message.sender == MessageSender.OPERATOR && !message.text.startsWith("Give me another node")
+            }?.text ?: proposal.name
+
+            val seedName = proposal.name
+            val (guideText, rawProposals) = intakeUseCase.moreLikeThis(
+                stepIndex,
+                priorUtterance,
+                seedName,
+                context.activeItems,
+            )
             
-            val (guideText, rawProposals) = intakeUseCase.processUserTurn(stepIndex, "more like ${proposal.name}", items)
-            
-            val filteredProposals = rawProposals.filterNot { 
-                _uiState.value.acceptedIds.contains(it.id) || _uiState.value.rejectedIds.contains(it.name) 
+            val filteredProposals = rawProposals.filter { proposal ->
+                proposal.name != seedName && actionable(proposal)
             }
 
             val guideMsg = ChatTurnMessage(
@@ -183,62 +238,67 @@ class SelfMapIntakeViewModel @Inject constructor(
                 text = guideText,
                 proposals = filteredProposals
             )
-            _uiState.update { it.copy(messages = it.messages + guideMsg) }
-            
-            if (filteredProposals.isEmpty()) {
-                checkStepCompletion()
+            _uiState.update { state ->
+                IntakeAutoAdvance.afterResolution(
+                    state.copy(messages = state.messages + guideMsg),
+                    intakeUseCase.intakeSteps,
+                )
             }
+            finishIfNeeded()
+            persistSession()
         }
     }
 
-    private fun checkStepCompletion() {
+    private fun actionable(proposal: ProposedItemCandidate): Boolean {
         val state = _uiState.value
-        val currentStep = intakeUseCase.intakeSteps.getOrNull(state.currentStepIndex) ?: return
-        
-        // 1. Identify all messages since the Guide asked the current step's question
-        val lastQuestionIndex = state.messages.indexOfLast { msg ->
-            msg.sender == MessageSender.GUIDE && 
-            (msg.text == currentStep.promptQuestion || msg.text.contains("Would you like to refine"))
-        }
-
-        if (lastQuestionIndex != -1) {
-            val messagesSinceQuestion = state.messages.drop(lastQuestionIndex + 1)
-            
-            // 2. Gather every proposal emitted in this step
-            val allProposalsInStep = messagesSinceQuestion.flatMap { it.proposals }
-            
-            if (allProposalsInStep.isEmpty()) return // No proposals to resolve yet
-            
-            // 3. Check if any proposal is still actionable (neither accepted nor rejected)
-            val hasUnresolved = allProposalsInStep.any { prop ->
-                !state.acceptedIds.contains(prop.id) && !state.rejectedIds.contains(prop.name)
-            }
-
-            // 4. Force auto-advance: if proposals exist and ALL are resolved, move immediately.
-            if (!hasUnresolved) {
-                advanceToNextStep()
-            }
-        }
+        return IntakeProposalResolution.isActionable(
+            proposal,
+            state.acceptedIds,
+            state.rejectedIds,
+            state.dismissedIds,
+        )
     }
 
     fun skipCurrentStep() {
-        advanceToNextStep()
+        _uiState.update { state ->
+            IntakeAutoAdvance.toStep(state, intakeUseCase.intakeSteps, state.currentStepIndex + 1)
+        }
+        viewModelScope.launch {
+            finishIfNeeded()
+            persistSession()
+        }
     }
 
-    private fun advanceToNextStep() {
-        val nextStep = _uiState.value.currentStepIndex + 1
-        viewModelScope.launch {
-            repository.setIntakeStepIndex(nextStep)
-            _uiState.update { it.copy(currentStepIndex = nextStep) }
-            askCurrentStepQuestion()
+    private suspend fun finishIfNeeded() {
+        if (_uiState.value.isCompleted) {
+            repository.setConversationalIntakeSeen(true)
         }
     }
 
     fun completeIntake() {
         viewModelScope.launch {
             repository.setConversationalIntakeSeen(true)
-            repository.setIntakeStepIndex(0)
-            _uiState.update { it.copy(isCompleted = true) }
+            _uiState.update { it.copy(isCompleted = true, currentStepIndex = 0) }
+            persistSession()
         }
+    }
+
+    private fun isDonePhrase(reply: String): Boolean {
+        val text = reply.trim().lowercase().trimEnd('.')
+        return text in setOf("done", "i'm done", "im done", "i am done", "finished", "i'm finished")
+    }
+
+    private suspend fun persistSession() {
+        val state = _uiState.value
+        repository.saveIntakeSession(
+            SelfMapIntakeSession(
+                stepIndex = state.currentStepIndex,
+                acceptedItemIds = state.acceptedIds,
+                rejectedSignatures = state.rejectedIds,
+                dismissedIds = state.dismissedIds,
+                stepAnchor = state.stepAnchor,
+                transcript = IntakeTranscriptCodec.encode(state.messages),
+            )
+        )
     }
 }

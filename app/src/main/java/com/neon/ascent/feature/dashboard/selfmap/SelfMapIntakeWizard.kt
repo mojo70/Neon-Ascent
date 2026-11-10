@@ -61,10 +61,19 @@ fun SelfMapIntakeWizardScreen(
     val theme = LocalNeonTheme.current
     val cyan = theme.accent
     val danger = theme.accentDanger
+    val ink = theme.ink
+    val inkMuted = theme.inkMuted
     val uiState by viewModel.uiState.collectAsState()
 
-    var currentStepIndex by remember { mutableIntStateOf(0) }
+    var currentStepIndex by remember {
+        val start = wizardCategories.indexOf(uiState.draftCategory).coerceAtLeast(0)
+        mutableIntStateOf(start)
+    }
     val currentCategory = wizardCategories[currentStepIndex]
+
+    LaunchedEffect(currentCategory) {
+        viewModel.updateDraftForm(category = currentCategory)
+    }
 
     // Form fields for adding/editing items
     var nameInput by remember { mutableStateOf(uiState.draftName) }
@@ -87,10 +96,17 @@ fun SelfMapIntakeWizardScreen(
         }
     }
 
+    LaunchedEffect(uiState.mentorEpoch) {
+        if (uiState.mentorEpoch == 0 || uiState.draftName.isBlank()) return@LaunchedEffect
+        nameInput = uiState.draftName
+        importanceInput = uiState.draftImportance
+        showForm = true
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(theme.canvas)
     ) {
         SoftGridBackground(modifier = Modifier.fillMaxSize())
 
@@ -119,7 +135,7 @@ fun SelfMapIntakeWizardScreen(
                     Text(
                         text = "STEP ${currentStepIndex + 1} OF ${wizardCategories.size}: ${currentCategory.displayName.uppercase()}",
                         style = MaterialTheme.typography.titleMedium.copy(
-                            color = Color.White,
+                            color = ink,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace
                         )
@@ -130,12 +146,18 @@ fun SelfMapIntakeWizardScreen(
                     if (onSwitchToChat != null) {
                         OutlinedButton(
                             onClick = {
+                                viewModel.updateDraftForm(
+                                    name = nameInput,
+                                    category = currentCategory,
+                                    importance = importanceInput,
+                                    notes = notesInput,
+                                )
                                 viewModel.switchSessionIntakeMode(SelfMapIntakeMode.CHAT)
                                 onSwitchToChat()
                             },
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.LightGray),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = inkMuted),
                             shape = RoundedCornerShape(4.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.DarkGray),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, theme.hairline),
                             modifier = Modifier.padding(end = 8.dp)
                         ) {
                             Text(
@@ -150,7 +172,7 @@ fun SelfMapIntakeWizardScreen(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Exit Wizard",
-                            tint = Color.Gray
+                            tint = inkMuted
                         )
                     }
                 }
@@ -165,7 +187,7 @@ fun SelfMapIntakeWizardScreen(
                     .fillMaxWidth()
                     .height(4.dp),
                 color = cyan,
-                trackColor = Color.DarkGray
+                trackColor = theme.inkFaint
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -181,7 +203,7 @@ fun SelfMapIntakeWizardScreen(
                     Text(
                         text = currentCategory.description,
                         style = MaterialTheme.typography.bodyMedium.copy(
-                            color = Color.LightGray,
+                            color = inkMuted,
                             fontFamily = FontFamily.Monospace
                         )
                     )
@@ -227,13 +249,21 @@ fun SelfMapIntakeWizardScreen(
                                     Text(
                                         text = "MANUAL INPUT FIELDS",
                                         style = MaterialTheme.typography.labelSmall.copy(
-                                            color = Color.Gray,
+                                            color = inkMuted,
                                             fontFamily = FontFamily.Monospace
                                         )
                                     )
 
                                     OutlinedButton(
-                                        onClick = { viewModel.askMentorForSuggestion(currentCategory) },
+                                        onClick = {
+                                            viewModel.updateDraftForm(
+                                                name = nameInput,
+                                                category = currentCategory,
+                                                importance = importanceInput,
+                                                notes = notesInput,
+                                            )
+                                            viewModel.askMentorForSuggestion(currentCategory)
+                                        },
                                         enabled = !uiState.isSuggestingFromMentor,
                                         shape = RoundedCornerShape(4.dp),
                                         colors = ButtonDefaults.outlinedButtonColors(contentColor = cyan),
@@ -245,6 +275,17 @@ fun SelfMapIntakeWizardScreen(
                                         }
                                         Text("⚡ ASK MENTOR", fontFamily = FontFamily.Monospace, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                     }
+                                }
+
+                                if (uiState.mentorHint.isNotBlank()) {
+                                    Text(
+                                        text = uiState.mentorHint,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = inkMuted,
+                                            fontFamily = FontFamily.Monospace
+                                        ),
+                                        modifier = Modifier.padding(bottom = 8.dp)
+                                    )
                                 }
 
                                 OutlinedTextField(
@@ -262,9 +303,9 @@ fun SelfMapIntakeWizardScreen(
                                     singleLine = true,
                                     colors = OutlinedTextFieldDefaults.colors(
                                         focusedBorderColor = cyan,
-                                        unfocusedBorderColor = Color.Gray,
-                                        focusedTextColor = Color.White,
-                                        unfocusedTextColor = Color.White
+                                        unfocusedBorderColor = inkMuted,
+                                        focusedTextColor = ink,
+                                        unfocusedTextColor = ink
                                     ),
                                     modifier = Modifier.fillMaxWidth()
                                 )
@@ -281,7 +322,7 @@ fun SelfMapIntakeWizardScreen(
                                     Text(
                                         text = "IMPORTANCE: ${(importanceInput * 100).toInt()}%",
                                         style = MaterialTheme.typography.labelMedium.copy(
-                                            color = Color.White,
+                                            color = ink,
                                             fontWeight = FontWeight.Bold,
                                             fontFamily = FontFamily.Monospace
                                         )
@@ -306,7 +347,7 @@ fun SelfMapIntakeWizardScreen(
                                     colors = SliderDefaults.colors(
                                         thumbColor = ringColor,
                                         activeTrackColor = ringColor,
-                                        inactiveTrackColor = Color.DarkGray
+                                        inactiveTrackColor = theme.inkFaint
                                     ),
                                     modifier = Modifier.fillMaxWidth()
                                 )
@@ -328,9 +369,9 @@ fun SelfMapIntakeWizardScreen(
                                     maxLines = 3,
                                     colors = OutlinedTextFieldDefaults.colors(
                                         focusedBorderColor = cyan,
-                                        unfocusedBorderColor = Color.Gray,
-                                        focusedTextColor = Color.White,
-                                        unfocusedTextColor = Color.White
+                                        unfocusedBorderColor = inkMuted,
+                                        focusedTextColor = ink,
+                                        unfocusedTextColor = ink
                                     ),
                                     modifier = Modifier.fillMaxWidth()
                                 )
@@ -349,7 +390,7 @@ fun SelfMapIntakeWizardScreen(
                                                 nameInput = ""
                                             }
                                         ) {
-                                            Text("CANCEL", color = Color.Gray, fontFamily = FontFamily.Monospace)
+                                            Text("CANCEL", color = inkMuted, fontFamily = FontFamily.Monospace)
                                         }
                                         Spacer(modifier = Modifier.width(8.dp))
                                     }
@@ -385,7 +426,7 @@ fun SelfMapIntakeWizardScreen(
                                         enabled = nameInput.isNotBlank(),
                                         colors = ButtonDefaults.buttonColors(
                                             containerColor = cyan,
-                                            contentColor = Color.Black
+                                            contentColor = theme.canvas
                                         ),
                                         shape = MaterialTheme.shapes.extraSmall
                                     ) {
@@ -413,7 +454,7 @@ fun SelfMapIntakeWizardScreen(
                                 notesInput = ""
                             },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF1E2630),
+                                containerColor = theme.surfaceRaised,
                                 contentColor = cyan
                             ),
                             shape = MaterialTheme.shapes.extraSmall,
@@ -453,7 +494,7 @@ fun SelfMapIntakeWizardScreen(
                                 Text(
                                     text = item.name,
                                     style = MaterialTheme.typography.titleMedium.copy(
-                                        color = Color.White,
+                                        color = ink,
                                         fontWeight = FontWeight.Bold,
                                         fontFamily = FontFamily.Monospace
                                     )
@@ -471,7 +512,7 @@ fun SelfMapIntakeWizardScreen(
                                     Text(
                                         text = item.notes!!,
                                         style = MaterialTheme.typography.bodySmall.copy(
-                                            color = Color.LightGray,
+                                            color = inkMuted,
                                             fontFamily = FontFamily.Monospace
                                         ),
                                         modifier = Modifier.padding(top = 4.dp)
@@ -502,7 +543,7 @@ fun SelfMapIntakeWizardScreen(
                                     Icon(
                                         imageVector = Icons.Default.Archive,
                                         contentDescription = "Archive",
-                                        tint = Color.Gray
+                                        tint = inkMuted
                                     )
                                 }
                             }
@@ -522,7 +563,7 @@ fun SelfMapIntakeWizardScreen(
                 if (currentStepIndex > 0) {
                     OutlinedButton(
                         onClick = { currentStepIndex-- },
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = ink),
                         shape = MaterialTheme.shapes.extraSmall
                     ) {
                         Icon(
@@ -547,7 +588,7 @@ fun SelfMapIntakeWizardScreen(
                 ) {
                     Text(
                         text = "ADD LATER / SKIP",
-                        color = Color.Gray,
+                        color = inkMuted,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold
                     )
@@ -565,7 +606,7 @@ fun SelfMapIntakeWizardScreen(
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (isLastStep) theme.accent else cyan,
-                        contentColor = Color.Black
+                        contentColor = theme.canvas
                     ),
                     shape = MaterialTheme.shapes.extraSmall
                 ) {

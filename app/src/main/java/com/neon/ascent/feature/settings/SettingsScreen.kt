@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.neon.ascent.core.domain.selfmap.SelfMapIntakeMode
 import com.neon.ascent.ui.CyberButtonShape
 import com.neon.ascent.ui.CyberFrame
 import com.neon.ascent.util.BiometricAuthManager
@@ -80,9 +81,11 @@ fun SettingsScreen(
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val biometricLockEnabled by viewModel.isBiometricLockEnabled.collectAsState()
+    val selfMapIntakeMode by viewModel.selfMapIntakeMode.collectAsState()
     val biometricAuthManager = remember { BiometricAuthManager(context) }
 
     var showResetDialog by remember { mutableStateOf(false) }
+    var showClearSelfMapDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showPinDialog by remember { mutableStateOf(false) }
     var pinAction by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -305,6 +308,27 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            CyberFrame(label = "SELF MAP") {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    ToggleSetting(
+                        label = "FORCE FORM INTAKE",
+                        checked = selfMapIntakeMode == SelfMapIntakeMode.FORM,
+                        onCheckedChange = { forceForm ->
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            viewModel.setSelfMapIntakeMode(
+                                if (forceForm) SelfMapIntakeMode.FORM else SelfMapIntakeMode.CHAT
+                            )
+                        }
+                    )
+                    SettingsItem("CLEAR SELF MAP", color = Color(0xFFFF006E), onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        showClearSelfMapDialog = true
+                    })
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
             CyberFrame(label = "SYSTEM_CREDITS") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
@@ -370,6 +394,22 @@ fun SettingsScreen(
                     }
                 )
             }
+        }
+
+        if (showClearSelfMapDialog) {
+            CyberConfirmDialog(
+                title = "CLEAR SELF MAP?",
+                description = "Deletes Self Map items, reaction logs, snapshots, and mood entries, and starts intake over. Body & Senses defaults return. Other features stay.",
+                confirmText = "CONFIRM",
+                confirmButtonText = "CLEAR MAP",
+                armDelaySeconds = 0,
+                onConfirm = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    showClearSelfMapDialog = false
+                    viewModel.clearSelfMap()
+                },
+                onDismiss = { showClearSelfMapDialog = false }
+            )
         }
 
         if (showResetDialog) {
@@ -543,10 +583,12 @@ fun CyberConfirmDialog(
     description: String,
     confirmText: String,
     onConfirm: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    confirmButtonText: String = "EXECUTE OVERRIDE",
+    armDelaySeconds: Int = 3,
 ) {
     var input by remember { mutableStateOf("") }
-    var countdown by remember { mutableStateOf(3) }
+    var countdown by remember { mutableStateOf(armDelaySeconds) }
 
     LaunchedEffect(Unit) {
         while(countdown > 0) {
@@ -567,12 +609,20 @@ fun CyberConfirmDialog(
                 Text(title, color = Color(0xFFFF006E), fontWeight = FontWeight.Black, fontSize = 20.sp)
                 Spacer(Modifier.height(8.dp))
                 Text(description, color = Color.White, fontSize = 12.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    "Type $confirmText",
+                    color = Color(0xFFFF006E),
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 14.sp,
+                )
+                Spacer(Modifier.height(8.dp))
 
                 OutlinedTextField(
                     value = input,
                     onValueChange = { input = it.uppercase() },
-                    placeholder = { Text("TYPE TO CONFIRM", color = Color.Gray) },
+                    placeholder = { Text(confirmText, color = Color.Gray) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color(0xFFFF006E),
@@ -592,7 +642,14 @@ fun CyberConfirmDialog(
                         disabledContainerColor = Color.DarkGray
                     )
                 ) {
-                    Text(if (countdown > 0) "WAITING... $countdown" else "EXECUTE OVERRIDE", color = Color.White)
+                    Text(
+                        when {
+                            countdown > 0 -> "WAITING... $countdown"
+                            input != confirmText -> "TYPE $confirmText"
+                            else -> confirmButtonText
+                        },
+                        color = Color.White,
+                    )
                 }
             }
         }

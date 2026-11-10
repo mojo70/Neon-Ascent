@@ -311,7 +311,7 @@ fun AppNavigation(
                         page == deckIndex -> Box(Modifier.fillMaxSize()) {
                             DashboardScreen(
                                 onAvatarClick = { 
-                                    navController.navigate(Screen.HolographicHub)
+                                    navController.navigate(Screen.HolographicHub())
                                 },
                                 onSettingsClick = {
                                     navController.navigate(Screen.Settings)
@@ -348,7 +348,7 @@ fun AppNavigation(
                                 }
                             },
                             onNavigateToSelfMap = {
-                                navController.navigate(Screen.HolographicHub)
+                                navController.navigate(Screen.HolographicHub(entry = "labs"))
                             },
                             onNavigateToForge = { type, title, desc, biometrics ->
                                 navController.navigate(Screen.AscensionForge(type.name, title, desc, biometrics = biometrics))
@@ -433,7 +433,7 @@ fun AppNavigation(
             BiohackingScreen(
                 focus = bio.focus,
                 onBack = { navController.popBackStack() },
-                onNavigateToSelfMap = { navController.navigate(Screen.HolographicHub) },
+                onNavigateToSelfMap = { navController.navigate(Screen.HolographicHub(entry = "labs")) },
                 onNavigateToForge = { type, title, desc, biometrics ->
                     navController.navigate(Screen.AscensionForge(type.name, title, desc, biometrics = biometrics))
                 },
@@ -453,8 +453,10 @@ fun AppNavigation(
             )
         }
 
-        composable<Screen.HolographicHub> {
+        composable<Screen.HolographicHub> { backStackEntry ->
+            val hub = backStackEntry.toRoute<Screen.HolographicHub>()
             HolographicAvatarHub(
+                entry = hub.entry,
                 onBack = { navController.popBackStack() },
                 onNavigateToBiohacking = { focus ->
                     navController.navigate(Screen.Biohacking(focus))

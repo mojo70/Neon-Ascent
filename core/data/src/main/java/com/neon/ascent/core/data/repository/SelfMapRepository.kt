@@ -11,6 +11,9 @@ import com.neon.ascent.core.data.local.entity.SelfMapSnapshotEntity
 import com.neon.ascent.core.domain.selfmap.SelfMapCategory
 import com.neon.ascent.core.domain.selfmap.SelfMapIntakeMode
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -26,6 +29,10 @@ class SelfMapRepository @Inject constructor(
     private val preferencesDataStore: SelfMapPreferencesDataStore
 ) {
     private val gson = GsonBuilder().setPrettyPrinting().create()
+
+    private val _mapCleared = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    /** Fires after [resetMapForNewIntake] so open screens drop in-memory intake state. */
+    val mapCleared: SharedFlow<Unit> = _mapCleared.asSharedFlow()
 
     val activeItems: Flow<List<SelfItemEntity>> = selfMapDao.getAllActiveItems()
 
@@ -143,6 +150,36 @@ class SelfMapRepository @Inject constructor(
 
     suspend fun setRejectedSignatures(sigs: Set<String>) {
         preferencesDataStore.setRejectedSignatures(sigs)
+    }
+
+    /**
+     * Pre-seeds Body & Senses when the table is empty, then returns only non-archived items.
+     */
+    suspend fun loadIntakeContext(): SelfMapIntakeContext {
+        preseedDefaultItemsIfEmpty()
+        return SelfMapIntakeContext.fromActiveItems(selfMapDao.getAllActiveItemsOnce())
+    }
+
+    suspend fun loadIntakeSession(): SelfMapIntakeSession {
+        return SelfMapIntakeSession(
+            stepIndex = preferencesDataStore.intakeStepIndex.first(),
+            acceptedItemIds = preferencesDataStore.acceptedItemIds.first(),
+            rejectedSignatures = preferencesDataStore.rejectedSignatures.first(),
+            dismissedIds = preferencesDataStore.dismissedIds.first(),
+            stepAnchor = preferencesDataStore.intakeStepAnchor.first(),
+            transcript = preferencesDataStore.intakeTranscript.first(),
+        )
+    }
+
+    suspend fun saveIntakeSession(session: SelfMapIntakeSession) {
+        preferencesDataStore.saveIntakeSession(
+            stepIndex = session.stepIndex,
+            acceptedItemIds = session.acceptedItemIds,
+            rejectedSignatures = session.rejectedSignatures,
+            dismissedIds = session.dismissedIds,
+            stepAnchor = session.stepAnchor,
+            transcript = session.transcript,
+        )
     }
 
     /**
@@ -323,5 +360,20 @@ class SelfMapRepository @Inject constructor(
         selfMapDao.deleteAllSnapshots()
         selfMapDao.deleteAllMoodEntries()
         preferencesDataStore.clearAll()
+    }
+
+    /**
+     * Wipes map rows and intake progress, then restores the empty-map Body & Senses pre-seed.
+     * Intake mode, the self-map biometric lock, and review reminders stay.
+     * Does not touch other features.
+     */
+    suspend fun resetMapForNewIntake() {
+        selfMapDao.deleteAllSelfItems()
+        selfMapDao.deleteAllEoEEntries()
+        selfMapDao.deleteAllSnapshots()
+        selfMapDao.deleteAllMoodEntries()
+        preferencesDataStore.clearIntakeProgress()
+        preseedDefaultItemsIfEmpty()
+        _mapCleared.emit(Unit)
     }
 }

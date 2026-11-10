@@ -23,6 +23,9 @@ import java.util.UUID
 import javax.inject.Inject
 import kotlin.math.abs
 
+private const val MENTOR_HINT_NEED_TEXT = "Type a name or note first."
+private const val MENTOR_HINT_NO_NAME = "No grounded name from that text."
+
 data class SelfMapUiState(
     val isOnboardingSeen: Boolean = false,
     val isConversationalIntakeSeen: Boolean = false,
@@ -53,6 +56,8 @@ data class SelfMapUiState(
     val draftImportance: Float = 0.7f,
     val draftNotes: String = "",
     val isSuggestingFromMentor: Boolean = false,
+    val mentorHint: String = "",
+    val mentorEpoch: Int = 0,
     val chatTurns: List<ChatTurnMessage> = emptyList()
 )
 
@@ -78,6 +83,8 @@ class SelfMapViewModel @Inject constructor(
     private val _draftImportance = MutableStateFlow(0.7f)
     private val _draftNotes = MutableStateFlow("")
     private val _isSuggestingFromMentor = MutableStateFlow(false)
+    private val _mentorHint = MutableStateFlow("")
+    private val _mentorEpoch = MutableStateFlow(0)
     private val _chatTurns = MutableStateFlow<List<ChatTurnMessage>>(emptyList())
 
     @Suppress("UNCHECKED_CAST")
@@ -110,6 +117,8 @@ class SelfMapViewModel @Inject constructor(
         _draftImportance,
         _draftNotes,
         _isSuggestingFromMentor,
+        _mentorHint,
+        _mentorEpoch,
         _chatTurns
     ) { flows: Array<Any?> ->
         val onboardingSeen = flows[0] as Boolean
@@ -140,7 +149,9 @@ class SelfMapViewModel @Inject constructor(
         val dImp = flows[25] as Float
         val dNotes = flows[26] as String
         val isSuggesting = flows[27] as Boolean
-        val turns = flows[28] as List<ChatTurnMessage>
+        val hint = flows[28] as String
+        val epoch = flows[29] as Int
+        val turns = flows[30] as List<ChatTurnMessage>
 
         SelfMapUiState(
             isOnboardingSeen = onboardingSeen,
@@ -172,6 +183,8 @@ class SelfMapViewModel @Inject constructor(
             draftImportance = dImp,
             draftNotes = dNotes,
             isSuggestingFromMentor = isSuggesting,
+            mentorHint = hint,
+            mentorEpoch = epoch,
             chatTurns = turns
         )
     }.stateIn(
@@ -183,13 +196,32 @@ class SelfMapViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             repository.preseedDefaultItemsIfEmpty()
-            val savedStep = repository.intakeStepIndex.first()
-            val savedAccepted = repository.acceptedItemIds.first()
-            val savedRejected = repository.rejectedSignatures.first()
-            _acceptedItemIds.value = savedAccepted
-            _rejectedSignatures.value = savedRejected
-            initializeIntakeStep(savedStep)
+            // The terminal session owns the shared step key. Starting the legacy
+            // step machine here rewrites that key after the terminal has advanced.
         }
+        viewModelScope.launch {
+            repository.mapCleared.collect { clearInMemoryIntake() }
+        }
+    }
+
+    private fun clearInMemoryIntake() {
+        _sessionIntakeMode.value = null
+        _draftName.value = ""
+        _draftCategory.value = SelfMapCategory.BODY_SENSES
+        _draftImportance.value = 0.7f
+        _draftNotes.value = ""
+        _mentorHint.value = ""
+        _mentorEpoch.value = 0
+        _intakeStepIndex.value = 0
+        _isGeneratingIntake.value = false
+        _intakeChatMessage.value = ""
+        _pendingProposals.value = emptyList()
+        _acceptedProposals.value = emptyList()
+        _acceptedItemIds.value = emptySet()
+        _rejectedSignatures.value = emptySet()
+        _chatTurns.value = emptyList()
+        _showMoodCheckInSheet.value = false
+        _pendingMoodEoeId.value = null
     }
 
     fun completeOnboarding() {
@@ -362,16 +394,18 @@ class SelfMapViewModel @Inject constructor(
         viewModelScope.launch {
             _isGeneratingIntake.value = true
             val suggestion = intakeUseCase.suggestItemForCategory(category)
-            val rejected = repository.rejectedSignatures.first()
-            val sig = "${suggestion.name}:${suggestion.category}"
-            if (!rejected.contains(sig)) {
-                _pendingProposals.update { it + suggestion }
-                _chatTurns.update { turns ->
-                    if (turns.isNotEmpty()) {
-                        val lastTurn = turns.last()
-                        turns.dropLast(1) + lastTurn.copy(proposals = lastTurn.proposals + suggestion)
-                    } else {
-                        turns
+            if (suggestion != null) {
+                val rejected = repository.rejectedSignatures.first()
+                val sig = "${suggestion.name}:${suggestion.category}"
+                if (!rejected.contains(sig)) {
+                    _pendingProposals.update { it + suggestion }
+                    _chatTurns.update { turns ->
+                        if (turns.isNotEmpty()) {
+                            val lastTurn = turns.last()
+                            turns.dropLast(1) + lastTurn.copy(proposals = lastTurn.proposals + suggestion)
+                        } else {
+                            turns
+                        }
                     }
                 }
             }
@@ -411,32 +445,48 @@ class SelfMapViewModel @Inject constructor(
         importance: Float? = null,
         notes: String? = null
     ) {
+        val nameChanged = name != null && name != _draftName.value
+        val notesChanged = notes != null && notes != _draftNotes.value
+        val categoryChanged = category != null && category != _draftCategory.value
         if (name != null) _draftName.value = name
         if (category != null) _draftCategory.value = category
         if (importance != null) _draftImportance.value = importance
         if (notes != null) _draftNotes.value = notes
+        if (nameChanged || notesChanged || categoryChanged) _mentorHint.value = ""
     }
 
     /**
-     * Queries the AI guide for a quick recommendation for the specified or draft category
-     * without forcing a multi-turn chat sequence.
+     * One structured name + importance for the form category.
+     * Stays on the form. Blank text does not call the model and does not overwrite fields.
+     * Operator notes are left as typed.
      */
     fun askMentorForSuggestion(category: SelfMapCategory? = null) {
         viewModelScope.launch {
             _isSuggestingFromMentor.value = true
-            val targetCat = category ?: _draftCategory.value
-            
-            // Reuses isolated deterministic + narrow JSON-only extraction prompt 
-            // inside suggestItemForCategory without jumping to full chat Mode
-            val suggestion = intakeUseCase.suggestItemForCategory(targetCat)
-            
-            _draftName.value = suggestion.name
-            _draftCategory.value = suggestion.category
-            _draftImportance.value = suggestion.suggestedImportance
-            if (!suggestion.note.isNullOrBlank()) {
-                _draftNotes.value = suggestion.note
+            _mentorHint.value = ""
+            try {
+                val targetCat = category ?: _draftCategory.value
+                val anchor = listOf(_draftName.value, _draftNotes.value)
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+                    .joinToString(" ")
+                val suggestion = intakeUseCase.suggestItemForCategory(
+                    category = targetCat,
+                    operatorText = anchor,
+                    existingItems = repository.activeItems.first(),
+                )
+                if (suggestion == null) {
+                    _mentorHint.value = if (anchor.isBlank()) MENTOR_HINT_NEED_TEXT else MENTOR_HINT_NO_NAME
+                } else {
+                    _draftName.value = suggestion.name
+                    _draftCategory.value = targetCat
+                    _draftImportance.value = suggestion.suggestedImportance.coerceIn(0.40f, 0.90f)
+                    _mentorEpoch.value = _mentorEpoch.value + 1
+                    _mentorHint.value = ""
+                }
+            } finally {
+                _isSuggestingFromMentor.value = false
             }
-            _isSuggestingFromMentor.value = false
         }
     }
 

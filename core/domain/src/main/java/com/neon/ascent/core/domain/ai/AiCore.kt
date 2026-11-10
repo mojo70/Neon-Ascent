@@ -14,6 +14,14 @@ interface AiCore {
     suspend fun generate(prompt: String, forceLocal: Boolean = false): AiResult
 
     /**
+     * Sends [prompt] unchanged for a surface that supplies its own instructions.
+     * Implementations must not prepend a persona or replace the reply with one.
+     * The default forwards to [generate] so test doubles keep working.
+     * Production routing for this method skips persona synthesizers.
+     */
+    suspend fun generateIsolated(prompt: String): AiResult = generate(prompt, forceLocal = true)
+
+    /**
      * Checks if the AI core is ready to process requests (warmed up and not circuit-broken).
      */
     suspend fun isReady(): Boolean

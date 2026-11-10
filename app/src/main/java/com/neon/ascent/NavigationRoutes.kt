@@ -14,7 +14,7 @@ sealed interface Screen {
     data class Biohacking(val focus: String? = null) : Screen
 
     @Serializable
-    data object HolographicHub : Screen
+    data class HolographicHub(val entry: String = "avatar") : Screen
 
     @Serializable
     data class IceBreach(val context: String = "ROOT") : Screen

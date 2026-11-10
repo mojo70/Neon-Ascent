@@ -49,6 +49,7 @@ import java.util.UUID
 import com.neon.ascent.core.data.datastore.DirectivePreferencesDataStore
 import com.neon.ascent.core.data.datastore.BriefPreferencesDataStore
 import com.neon.ascent.core.data.datastore.SelfMapPreferencesDataStore
+import com.neon.ascent.core.data.repository.SelfMapRepository
 import com.neon.ascent.core.data.datastore.WorkoutPreferencesDataStore
 import com.neon.ascent.core.domain.goals.models.DirectiveIntakeMode
 import com.neon.ascent.core.domain.selfmap.SelfMapIntakeMode
@@ -69,6 +70,7 @@ class SettingsViewModel @Inject constructor(
     private val directivePreferencesDataStore: DirectivePreferencesDataStore,
     private val briefPreferencesDataStore: BriefPreferencesDataStore,
     private val selfMapPreferencesDataStore: SelfMapPreferencesDataStore,
+    private val selfMapRepository: SelfMapRepository,
     private val workoutPreferencesDataStore: WorkoutPreferencesDataStore,
     private val dailyPrayerDao: DailyPrayerDao,
     private val journalRepository: JournalRepository,
@@ -140,6 +142,14 @@ class SettingsViewModel @Inject constructor(
     fun setSelfMapIntakeMode(mode: SelfMapIntakeMode) {
         viewModelScope.launch {
             selfMapPreferencesDataStore.setSelfMapIntakeMode(mode)
+        }
+    }
+
+    /** Clears Self Map rows and intake progress so the next open runs intake again. */
+    fun clearSelfMap(onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            selfMapRepository.resetMapForNewIntake()
+            onComplete()
         }
     }
 

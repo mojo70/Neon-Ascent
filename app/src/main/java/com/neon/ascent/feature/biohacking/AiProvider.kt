@@ -282,6 +282,61 @@ class AiProvider @Inject constructor(
         return AiResult.Failure("ALL_ENGINES_FAILED: $combinedError")
     }
 
+    /**
+     * Self Map intake and other isolated surfaces. Gemma, then Gemini Nano.
+     * Does not call [EmbeddedLocalEngine] (CYBR-TES canned replies) or cloud.
+     * Does not record a circuit-breaker failure.
+     */
+    override suspend fun generateIsolated(prompt: String): AiResult {
+        if (isCircuitBroken) {
+            return AiResult.Failure("CIRCUIT_BREAKER_ACTIVE (3 failures in last 6 hours)")
+        }
+
+        val failureReasons = mutableListOf<String>()
+
+        if (gemmaClient.isAvailable() && gemmaClient.isReady()) {
+            when (val localResult = gemmaClient.generate(prompt)) {
+                is AiResult.Success -> {
+                    _activeAiType.value = AiType.LOCAL
+                    _engineTelemetry.value = AiEngineTelemetry(
+                        status = EngineStatus.LOCAL_GEMMA_READY,
+                        badgeLabel = "[GEMMA_2B_LOCAL]",
+                        activeType = AiType.LOCAL
+                    )
+                    return localResult
+                }
+                is AiResult.Failure -> failureReasons.add("GEMMA: ${localResult.reason}")
+            }
+        } else {
+            if (!gemmaClient.isAvailable()) {
+                failureReasons.add("GEMMA: Model file missing (${gemmaClient.modelPath})")
+            } else if (!gemmaClient.isReady()) {
+                failureReasons.add("GEMMA: Uninitialized (${gemmaClient.lastInitError ?: "unknown"})")
+            }
+        }
+
+        if (geminiNanoClient.isReady()) {
+            when (val localResult = geminiNanoClient.generate(prompt)) {
+                is AiResult.Success -> {
+                    _activeAiType.value = AiType.LOCAL
+                    _engineTelemetry.value = AiEngineTelemetry(
+                        status = EngineStatus.LOCAL_NANO_READY,
+                        badgeLabel = "[GEMINI_NANO]",
+                        activeType = AiType.LOCAL
+                    )
+                    return localResult
+                }
+                is AiResult.Failure -> failureReasons.add("NANO: ${localResult.reason}")
+            }
+        } else {
+            failureReasons.add("NANO: AICore unsupported or uninitialized")
+        }
+
+        return AiResult.Failure(
+            "ISOLATED_LOCAL_UNAVAILABLE (${failureReasons.joinToString(" | ")})"
+        )
+    }
+
     @Deprecated("Use generate instead")
     override suspend fun generateContent(prompt: String, forceLocal: Boolean): String {
         return when (val res = generate(prompt, forceLocal)) {

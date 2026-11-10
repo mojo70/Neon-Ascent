@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -88,10 +89,26 @@ class SelfMapConversationalIntakeTest {
 
     @Test
     fun testSuggestItemForCategory_AskMentorSuggestion() = runBlocking {
-        val suggestion = intakeUseCase.suggestItemForCategory(SelfMapCategory.PEOPLE)
-        assertNotNull(suggestion)
-        assertTrue(suggestion.name.isNotBlank())
-        assertTrue(suggestion.suggestedImportance in 0.40f..0.90f)
+        fakeAiCore.isolatedCalls = 0
+        assertNull(intakeUseCase.suggestItemForCategory(SelfMapCategory.PEOPLE, ""))
+        assertEquals(0, fakeAiCore.isolatedCalls)
+
+        val family = intakeUseCase.suggestItemForCategory(
+            SelfMapCategory.PEOPLE,
+            "My family is who I come home to.",
+        )
+        assertNotNull(family)
+        assertEquals("Family & Kin", family!!.name)
+        assertEquals(SelfMapCategory.PEOPLE, family.category)
+        assertEquals(0.85f, family.suggestedImportance)
+        assertEquals(0, fakeAiCore.isolatedCalls)
+
+        val missed = intakeUseCase.suggestItemForCategory(
+            SelfMapCategory.STUFF,
+            "Observing abstract phenomena with no keywords.",
+        )
+        assertNull(missed)
+        assertTrue(fakeAiCore.isolatedCalls > 0)
     }
 
     @Test
@@ -134,6 +151,7 @@ class SelfMapConversationalIntakeTest {
     }
 
     private class FakeAiCore : AiCore {
+        var isolatedCalls = 0
         override suspend fun isReady(): Boolean = true
         override suspend fun warmup() {}
         override suspend fun generate(prompt: String, forceLocal: Boolean): AiResult {
@@ -141,6 +159,10 @@ class SelfMapConversationalIntakeTest {
                 "Based on that, here is a proposed node:\n" +
                 "[PROPOSAL: Custom Node | CUSTOM | 0.8 | Guided intake node | Grounded in energy physical fitness partner family career architect team ready moving]"
             )
+        }
+        override suspend fun generateIsolated(prompt: String): AiResult {
+            isolatedCalls++
+            return generate(prompt, true)
         }
         override suspend fun generateContent(prompt: String, forceLocal: Boolean): String = "Generated"
     }

@@ -70,6 +70,8 @@ import com.neon.ascent.feature.dashboard.selfmap.SelfMapIntakeWizardScreen
 import com.neon.ascent.feature.dashboard.selfmap.SelfMapOnboardingScreen
 import com.neon.ascent.feature.dashboard.selfmap.SelfMapRadialCanvas
 import com.neon.ascent.feature.dashboard.selfmap.SelfMapViewModel
+import com.neon.ascent.feature.dashboard.selfmap.intake.SelfMapEntry
+import com.neon.ascent.feature.dashboard.selfmap.intake.SelfMapIntakeViewModel
 
 enum class AvatarHubMode {
     AVATAR, SELF_MAP, WIZARD, CONVERSATIONAL_INTAKE
@@ -78,6 +80,7 @@ enum class AvatarHubMode {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HolographicAvatarHub(
+    entry: String = "avatar",
     viewModel: DashboardViewModel = hiltViewModel(),
     terminalViewModel: TerminalViewModel = hiltViewModel(),
     healthViewModel: HealthViewModel = hiltViewModel(),
@@ -99,8 +102,31 @@ fun HolographicAvatarHub(
     val isReligionEnabled by viewModel.isReligionShortcutEnabled.collectAsState()
     
     val selfMapViewModel: SelfMapViewModel = hiltViewModel()
+    val intakeViewModel: SelfMapIntakeViewModel = hiltViewModel()
     val selfMapUiState by selfMapViewModel.uiState.collectAsState()
     var hubViewMode by remember { mutableStateOf(AvatarHubMode.AVATAR) }
+    var labsEntryApplied by remember { mutableStateOf(false) }
+
+    fun openSelfMap(reason: SelfMapEntry.Reason) {
+        val surface = SelfMapEntry.surface(
+            intakeSeen = selfMapUiState.isConversationalIntakeSeen,
+            preference = selfMapUiState.intakeModePreference,
+            reason = reason,
+        )
+        if (surface == SelfMapEntry.Surface.CHAT) {
+            intakeViewModel.resumeForEntry()
+            selfMapViewModel.switchSessionIntakeMode(SelfMapIntakeMode.CHAT)
+            hubViewMode = AvatarHubMode.CONVERSATIONAL_INTAKE
+        } else {
+            hubViewMode = AvatarHubMode.SELF_MAP
+        }
+    }
+
+    LaunchedEffect(entry, selfMapUiState.isLoading) {
+        if (entry != "labs" || labsEntryApplied || selfMapUiState.isLoading) return@LaunchedEffect
+        labsEntryApplied = true
+        openSelfMap(SelfMapEntry.Reason.LABS)
+    }
     var eoeTargetItem by remember { mutableStateOf<SelfItemEntity?>(null) }
     var showEoELogSheet by remember { mutableStateOf(false) }
 
@@ -146,10 +172,7 @@ fun HolographicAvatarHub(
                 SelfMapRadialCanvas(
                     viewModel = selfMapViewModel,
                     onOpenWizard = { hubViewMode = AvatarHubMode.WIZARD },
-                    onOpenConversationalIntake = {
-                        selfMapViewModel.switchSessionIntakeMode(SelfMapIntakeMode.CHAT)
-                        hubViewMode = AvatarHubMode.CONVERSATIONAL_INTAKE
-                    },
+                    onOpenConversationalIntake = { openSelfMap(SelfMapEntry.Reason.GUIDED_START) },
                     onOpenEoELog = { item ->
                         eoeTargetItem = item
                         showEoELogSheet = true
@@ -426,13 +449,7 @@ fun HolographicAvatarHub(
                                 .clip(RoundedCornerShape(4.dp))
                                 .background(neonGreen.copy(alpha = 0.15f))
                                 .border(1.dp, neonGreen.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
-                                .clickable { 
-                                    if (!selfMapUiState.isConversationalIntakeSeen && selfMapUiState.activeSessionIntakeMode == SelfMapIntakeMode.CHAT) {
-                                        hubViewMode = AvatarHubMode.CONVERSATIONAL_INTAKE
-                                    } else {
-                                        hubViewMode = AvatarHubMode.SELF_MAP 
-                                    }
-                                }
+                                .clickable { openSelfMap(SelfMapEntry.Reason.FIRST_OPEN) }
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(

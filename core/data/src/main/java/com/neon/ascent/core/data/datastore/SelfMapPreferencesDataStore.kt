@@ -27,8 +27,11 @@ class SelfMapPreferencesDataStore @Inject constructor(
         val REVIEW_REMINDER_CADENCE_DAYS = intPreferencesKey("self_map_review_reminder_cadence_days")
         val SELF_MAP_INTAKE_MODE = stringPreferencesKey("selfMapIntakeMode")
         val INTAKE_STEP_INDEX = intPreferencesKey("self_map_intake_step_index")
+        val INTAKE_STEP_ANCHOR = intPreferencesKey("self_map_intake_step_anchor")
         val ACCEPTED_ITEM_IDS = stringSetPreferencesKey("self_map_accepted_item_ids")
         val REJECTED_SIGNATURES = stringSetPreferencesKey("self_map_rejected_signatures")
+        val DISMISSED_IDS = stringSetPreferencesKey("self_map_dismissed_ids")
+        val INTAKE_TRANSCRIPT = stringPreferencesKey("self_map_intake_transcript")
     }
 
     private val dataStore = context.selfMapDataStore
@@ -82,6 +85,18 @@ class SelfMapPreferencesDataStore @Inject constructor(
         prefs[Keys.REJECTED_SIGNATURES] ?: emptySet()
     }
 
+    val dismissedIds: Flow<Set<String>> = dataStore.data.map { prefs ->
+        prefs[Keys.DISMISSED_IDS] ?: emptySet()
+    }
+
+    val intakeStepAnchor: Flow<Int> = dataStore.data.map { prefs ->
+        prefs[Keys.INTAKE_STEP_ANCHOR] ?: 0
+    }
+
+    val intakeTranscript: Flow<String> = dataStore.data.map { prefs ->
+        prefs[Keys.INTAKE_TRANSCRIPT] ?: ""
+    }
+
     suspend fun setSelfMapIntakeMode(mode: SelfMapIntakeMode) {
         dataStore.edit { prefs ->
             prefs[Keys.SELF_MAP_INTAKE_MODE] = mode.name
@@ -103,6 +118,24 @@ class SelfMapPreferencesDataStore @Inject constructor(
     suspend fun setRejectedSignatures(sigs: Set<String>) {
         dataStore.edit { prefs ->
             prefs[Keys.REJECTED_SIGNATURES] = sigs
+        }
+    }
+
+    suspend fun saveIntakeSession(
+        stepIndex: Int,
+        acceptedItemIds: Set<String>,
+        rejectedSignatures: Set<String>,
+        dismissedIds: Set<String> = emptySet(),
+        stepAnchor: Int = 0,
+        transcript: String = "",
+    ) {
+        dataStore.edit { prefs ->
+            prefs[Keys.INTAKE_STEP_INDEX] = stepIndex
+            prefs[Keys.INTAKE_STEP_ANCHOR] = stepAnchor
+            prefs[Keys.ACCEPTED_ITEM_IDS] = acceptedItemIds
+            prefs[Keys.REJECTED_SIGNATURES] = rejectedSignatures
+            prefs[Keys.DISMISSED_IDS] = dismissedIds
+            prefs[Keys.INTAKE_TRANSCRIPT] = transcript
         }
     }
 
@@ -145,6 +178,23 @@ class SelfMapPreferencesDataStore @Inject constructor(
     suspend fun clearAll() {
         dataStore.edit { prefs ->
             prefs.clear()
+        }
+    }
+
+    /**
+     * Drops intake progress and baseline mass.
+     * Keeps intake mode, the self-map biometric lock, and review reminders.
+     */
+    suspend fun clearIntakeProgress() {
+        dataStore.edit { prefs ->
+            prefs.remove(Keys.CONVERSATIONAL_INTAKE_SEEN)
+            prefs.remove(Keys.BASELINE_MASS)
+            prefs.remove(Keys.INTAKE_STEP_INDEX)
+            prefs.remove(Keys.INTAKE_STEP_ANCHOR)
+            prefs.remove(Keys.ACCEPTED_ITEM_IDS)
+            prefs.remove(Keys.REJECTED_SIGNATURES)
+            prefs.remove(Keys.DISMISSED_IDS)
+            prefs.remove(Keys.INTAKE_TRANSCRIPT)
         }
     }
 }

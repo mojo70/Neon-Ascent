@@ -1,9 +1,11 @@
 package com.neon.ascent.feature.dashboard.selfmap
 
 import com.neon.ascent.core.data.local.entity.SelfItemEntity
+import com.neon.ascent.core.data.repository.SelfMapIntakeContext
 import com.neon.ascent.core.domain.ai.AiCore
 import com.neon.ascent.core.domain.ai.AiResult
 import com.neon.ascent.core.domain.selfmap.SelfMapCategory
+import com.neon.ascent.feature.dashboard.selfmap.intake.IntakeModelGate
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -99,24 +101,12 @@ class SelfMapConversationalIntakeUseCase @Inject constructor(
         existingItems: List<SelfItemEntity> = emptyList()
     ): Pair<String, List<ProposedItemCandidate>> {
         val currentStep = intakeSteps.getOrElse(currentStepIndex) { intakeSteps.first() }
-        val categoryCoverage = existingItems.map { it.category }.toSet()
-        val isCovered = categoryCoverage.contains(currentStep.targetCategory)
-
-        val existingContext = if (existingItems.isNotEmpty()) {
-            "Already Mapped Items (" + existingItems.size + "): " + existingItems.joinToString(", ") { "${it.name} [${it.category.name}, imp: ${it.importance}]" }
-        } else {
-            "No items mapped yet."
-        }
-
-        val baseQuestion = if (isCovered && userMessage.isBlank()) {
-            "I notice you already have items mapped in ${currentStep.targetCategory.displayName}. Would you like to refine or add more in this category, or proceed?"
-        } else {
-            currentStep.promptQuestion
-        }
 
         if (userMessage.isBlank()) {
-            return Pair(baseQuestion, emptyList())
+            return Pair(currentStep.promptQuestion, emptyList())
         }
+
+        val context = SelfMapIntakeContext.fromActiveItems(existingItems)
 
         // Follow-up for skip / short inputs
         val trimmed = userMessage.trim()
@@ -124,108 +114,106 @@ class SelfMapConversationalIntakeUseCase @Inject constructor(
         val isSkipOrShort = words.size <= 1 || trimmed.lowercase() in listOf("skip", "none", "nothing", "idk", "pass", "no")
 
         if (isSkipOrShort) {
-            val followUp = "Understood. Would you like to name one specific landmark in ${currentStep.targetCategory.displayName}, or proceed to the next phase?"
-            return Pair(followUp, emptyList())
+            return Pair(followUpQuestion(currentStep.targetCategory), emptyList())
         }
 
-        // --- 1. DETERMINISTIC ENTITY EXTRACTION (PRIMARY PATH) ---
-        val lowerMsg = userMessage.lowercase()
-        val deterministicProposals = mutableListOf<ProposedItemCandidate>()
-
-        fun extractIfMatch(keywords: List<String>, name: String, category: SelfMapCategory, importance: Float, note: String) {
-            val matchedWord = keywords.firstOrNull { lowerMsg.contains(it) }
-            if (matchedWord != null) {
-                // Find the word in the original casing for a better quote
-                val originalQuote = userMessage.split(Regex("\\W+")).firstOrNull { it.equals(matchedWord, ignoreCase = true) } ?: matchedWord
-                deterministicProposals.add(
-                    ProposedItemCandidate(
-                        name = name,
-                        category = category,
-                        suggestedImportance = importance,
-                        note = note,
-                        rationale = "You mentioned \"$originalQuote\""
-                    )
-                )
-            }
+        val lower = trimmed.lowercase()
+        if (lower.startsWith("refine ")) {
+            val seed = trimmed.substringAfter(" ").trim()
+            return refineExtracted(currentStepIndex, trimmed, seed, existingItems)
         }
 
-        extractIfMatch(listOf("family", "wife", "kids", "children", "son", "daughter"), "Family & Kin", SelfMapCategory.PEOPLE, 0.85f, "Core family attachment")
-        extractIfMatch(listOf("jesus", "lord", "faith", "prayer", "scripture", "christ"), "Faith & Spiritual Anchor", SelfMapCategory.IDEAS_LIKES, 0.85f, "Spiritual foundation")
-        extractIfMatch(listOf("coding", "building", "creating", "tinkering", "dev", "architect"), "Creation & Building", SelfMapCategory.ROLES_ACCOMPLISHMENTS, 0.80f, "Maker and engineering focus")
-        extractIfMatch(listOf("lifting", "weights", "body", "mind", "health", "workout", "trainer"), "Physical Conditioning", SelfMapCategory.BODY_SENSES, 0.85f, "Physical vitality")
-        extractIfMatch(listOf("learning", "reading", "study", "growth"), "Continuous Learning", SelfMapCategory.IDEAS_LIKES, 0.75f, "Intellectual expansion")
-        extractIfMatch(listOf("work", "job", "provider", "career", "business"), "Professional Vector", SelfMapCategory.ROLES_ACCOMPLISHMENTS, 0.75f, "Work and career responsibility")
-
-        if (deterministicProposals.isNotEmpty()) {
-            return Pair("Based on that, two nodes:", deterministicProposals.take(2))
+        // 1. Keyword rules. A hit never calls the model.
+        val extracted = SelfMapEntityExtractor.extract(trimmed)
+        if (extracted.isNotEmpty()) {
+            return Pair(templateIntro(extracted.size), extracted)
         }
 
-        // --- 2. FALLBACK MODEL CALL (ISOLATED PROMPT) ---
-        val prompt = """
-            [SYSTEM: Self Map Intake Structured Extraction Engine]
-            Role: Strict structured proposal generator for Self Map intake.
-            Constraints:
-            - NEVER inherit CYBR-TES, Socrates, or Faith Lens. No philosophy, no moralizing, no emotional invention.
-            - Tone: Neutral, operational, concise.
-            - Task: Emit 1 to 3 structured proposal items grounded strictly in the operator's last message: "$userMessage".
-            $existingContext
-            - Format strictly as a valid JSON array of objects. Keys required: "name" (string), "category" (string), "importance" (float 0.40 to 0.90), "note" (string), "rationale" (string).
-            - Categories must be one of: BODY_SENSES, PEOPLE, STUFF, ROLES_ACCOMPLISHMENTS, IDEAS_LIKES, CUSTOM.
-            - Output ONLY raw JSON array. No markdown code blocks, no conversational monologue, no introductory filler.
-        """.trimIndent()
+        // 2. Extraction miss: one isolated JSON call.
+        return modelProposals(
+            prompt = SelfMapIntakePrompt.request(trimmed, context),
+            anchor = trimmed,
+            seedName = null,
+            category = currentStep.targetCategory,
+        )
+    }
 
-        val proposalsToEmit = if (aiCore.isReady()) {
-            when (val res = aiCore.generate(prompt, forceLocal = true)) {
-                is AiResult.Success -> {
-                    val (rawText, proposals) = parseAiResponse(res.text)
-                    
-                    // Post-validation:
-                    // 1. Blocked patterns (CYBR-TES, Socrates, Runner, protocol, vision/stimulus, faith)
-                    val blockedPatterns = listOf("cybr-tes", "socrates", "faith", "vision/stimulus", "protocol", "runner")
-                    val hasBlocked = blockedPatterns.any { pattern ->
-                        rawText.lowercase().contains(pattern) || proposals.any { prop ->
-                            (prop.rationale?.lowercase()?.contains(pattern) == true) ||
-                            (prop.note?.lowercase()?.contains(pattern) == true) ||
-                            prop.name.lowercase().contains(pattern)
-                        }
-                    }
+    /**
+     * Tightens one extracted node. Skips keyword extraction.
+     */
+    suspend fun refineExtracted(
+        currentStepIndex: Int,
+        userMessage: String,
+        seedName: String,
+        existingItems: List<SelfItemEntity> = emptyList(),
+    ): Pair<String, List<ProposedItemCandidate>> {
+        val step = intakeSteps.getOrElse(currentStepIndex) { intakeSteps.first() }
+        val context = SelfMapIntakeContext.fromActiveItems(existingItems)
+        val prompt = SelfMapIntakePrompt.anchored(
+            lastMessage = userMessage,
+            context = context,
+            seedName = seedName,
+            task = "Emit one tighter object for the seed. JSON array length 1.",
+        )
+        return modelProposals(prompt, userMessage, seedName, step.targetCategory)
+    }
 
-                    // 2. Generic catch-all check: reject generic names
-                    val genericCatchAlls = listOf("core focus", "personal growth drive", "primary identity anchor", "essential psychological vector", "baseline setup")
-                    val hasGeneric = proposals.any { prop ->
-                        val n = prop.name.lowercase()
-                        genericCatchAlls.any { n.contains(it) }
-                    }
+    /**
+     * Another node near an extracted one. Skips keyword extraction.
+     */
+    suspend fun moreLikeThis(
+        currentStepIndex: Int,
+        userMessage: String,
+        seedName: String,
+        existingItems: List<SelfItemEntity> = emptyList(),
+    ): Pair<String, List<ProposedItemCandidate>> {
+        val step = intakeSteps.getOrElse(currentStepIndex) { intakeSteps.first() }
+        val context = SelfMapIntakeContext.fromActiveItems(existingItems)
+        val prompt = SelfMapIntakePrompt.anchored(
+            lastMessage = userMessage,
+            context = context,
+            seedName = seedName,
+            task = "Emit one different object near the seed. JSON array length 1.",
+        )
+        return modelProposals(prompt, userMessage, seedName, step.targetCategory)
+    }
 
-                    // 3. Grounding check: rationale or proposal name must reference concrete words from userMessage
-                    val userWords = trimmed.lowercase().split(Regex("\\s+"))
-                        .map { it.replace(Regex("[^a-z0-9]"), "") }
-                        .filter { it.length > 2 }
-                    val isGrounded = proposals.isNotEmpty() && proposals.all { prop ->
-                        val rationale = prop.rationale?.lowercase() ?: ""
-                        val note = prop.note?.lowercase() ?: ""
-                        val name = prop.name.lowercase()
-                        userWords.isEmpty() || userWords.any { rationale.contains(it) || note.contains(it) || name.contains(it) }
-                    }
-
-                    if (!hasBlocked && !hasGeneric && isGrounded && proposals.isNotEmpty()) {
-                        val templateIntro = "Based on that, two nodes:"
-                        return Pair(templateIntro, proposals)
-                    } else {
-                        // Fall back to short confirmation of what was heard instead of showing bad cards
-                        val fallbackMsg = "I heard \"${trimmed.take(30)}\"... want to try again, or switch to the form?"
-                        return Pair(fallbackMsg, emptyList())
-                    }
-                }
-                is AiResult.Failure -> {
-                    val fallbackMsg = "I heard \"${trimmed.take(30)}\"... want to try again, or switch to the form?"
-                    return Pair(fallbackMsg, emptyList())
-                }
-            }
-        } else {
-            val fallbackMsg = "I heard \"${trimmed.take(30)}\"... want to try again, or switch to the form?"
-            return Pair(fallbackMsg, emptyList())
+    private suspend fun modelProposals(
+        prompt: String,
+        anchor: String,
+        seedName: String?,
+        category: SelfMapCategory,
+    ): Pair<String, List<ProposedItemCandidate>> {
+        if (!aiCore.isReady()) {
+            return Pair(followUpQuestion(category), emptyList())
         }
+        val accepted = when (val res = aiCore.generateIsolated(prompt)) {
+            is AiResult.Success -> validateModelOutput(res.text, anchor, seedName)
+            is AiResult.Failure -> emptyList()
+        }
+        if (accepted.isEmpty()) {
+            return Pair(followUpQuestion(category), emptyList())
+        }
+        return Pair(templateIntro(accepted.size), accepted)
+    }
+
+    private fun validateModelOutput(
+        rawText: String,
+        anchor: String,
+        seedName: String?,
+    ): List<ProposedItemCandidate> {
+        val stripped = rawText.replace("```json", "").replace("```", "").trim()
+        if (!stripped.startsWith("[")) return emptyList()
+        val (_, proposals) = parseAiResponse(stripped)
+        return IntakeModelGate.accepted(rawText, proposals, anchor, seedName)
+    }
+
+    private fun templateIntro(count: Int): String {
+        return if (count == 1) "Based on that, one node:" else "Based on that, two nodes:"
+    }
+
+    private fun followUpQuestion(category: SelfMapCategory): String {
+        return "Name one ${category.displayName} landmark, or switch to the form."
     }
 
     private fun parseAiResponse(response: String): Pair<String, List<ProposedItemCandidate>> {
@@ -262,46 +250,38 @@ class SelfMapConversationalIntakeUseCase @Inject constructor(
         return Pair("Structured proposal candidates generated.", proposals)
     }
 
-    suspend fun suggestItemForCategory(category: SelfMapCategory): ProposedItemCandidate {
-        val prompt = """
-            [SYSTEM: Self Map Intake Structured Extraction Engine]
-            Role: Strict structured proposal generator for Self Map intake.
-            Constraints:
-            - NEVER inherit CYBR-TES, Socrates, or Faith Lens. No philosophy, no moralizing, no emotional invention.
-            - Tone: Neutral, operational, concise.
-            - Task: Suggest 1 relevant, high-value Self Map attachment node for category: ${category.displayName}.
-            - Format strictly as a valid JSON array containing exactly one object. Keys required: "name" (string), "category" (string), "importance" (float 0.40 to 0.90), "note" (string), "rationale" (string).
-            - The category field must be exactly: ${category.name}
-            - Output ONLY raw JSON array. No markdown code blocks, no conversational monologue, no introductory filler.
-        """.trimIndent()
+    /**
+     * One form suggestion: name + importance for [category].
+     * Blank text returns null and does not call the model.
+     * A keyword hit in the form category wins. Otherwise the isolated prompt and [IntakeModelGate].
+     * Never invents a canned name. Does not switch the session into chat.
+     */
+    suspend fun suggestItemForCategory(
+        category: SelfMapCategory,
+        operatorText: String = "",
+        existingItems: List<SelfItemEntity> = emptyList(),
+    ): ProposedItemCandidate? {
+        val text = operatorText.trim()
+        if (text.isBlank()) return null
 
-        if (aiCore.isReady()) {
-            when (val res = aiCore.generate(prompt, forceLocal = true)) {
-                is AiResult.Success -> {
-                    val (rawText, proposals) = parseAiResponse(res.text)
-                    val blockedPatterns = listOf("cybr-tes", "socrates", "faith", "vision/stimulus", "protocol", "runner")
-                    val hasBlocked = blockedPatterns.any { pattern ->
-                        rawText.lowercase().contains(pattern) || proposals.any { prop ->
-                            (prop.rationale?.lowercase()?.contains(pattern) == true) ||
-                            (prop.note?.lowercase()?.contains(pattern) == true) ||
-                            prop.name.lowercase().contains(pattern)
-                        }
-                    }
-                    if (!hasBlocked && proposals.isNotEmpty()) {
-                        return proposals.first()
-                    }
-                }
-                is AiResult.Failure -> {}
-            }
+        val extracted = SelfMapEntityExtractor.extract(text).firstOrNull { it.category == category }
+        if (extracted != null) {
+            return extracted.copy(
+                category = category,
+                suggestedImportance = extracted.suggestedImportance.coerceIn(0.40f, 0.90f),
+            )
         }
 
-        return when (category) {
-            SelfMapCategory.BODY_SENSES -> ProposedItemCandidate(name = "Physical Health & Energy", category = category, suggestedImportance = 0.85f, note = "Core operating capacity", rationale = "Baseline physiological container")
-            SelfMapCategory.PEOPLE -> ProposedItemCandidate(name = "Inner Circle Allies", category = category, suggestedImportance = 0.80f, note = "Primary personal bonds", rationale = "Key social security network")
-            SelfMapCategory.STUFF -> ProposedItemCandidate(name = "Primary Workspace", category = category, suggestedImportance = 0.65f, note = "Operational environment", rationale = "Execution leverage")
-            SelfMapCategory.ROLES_ACCOMPLISHMENTS -> ProposedItemCandidate(name = "Lead Operational Role", category = category, suggestedImportance = 0.75f, note = "Main focus area", rationale = "Core societal contribution")
-            SelfMapCategory.IDEAS_LIKES -> ProposedItemCandidate(name = "Autonomy & Mastery", category = category, suggestedImportance = 0.70f, note = "Core guiding value", rationale = "Intrinsic psychological driver")
-            SelfMapCategory.CUSTOM -> ProposedItemCandidate(name = "Personal Landmark", category = category, suggestedImportance = 0.60f, note = "Custom attachment", rationale = "Self-defined pillar")
+        if (!aiCore.isReady()) return null
+        val prompt = SelfMapIntakePrompt.formAssist(text, SelfMapIntakeContext.fromActiveItems(existingItems), category)
+        val accepted = when (val res = aiCore.generateIsolated(prompt)) {
+            is AiResult.Success -> validateModelOutput(res.text, text, null)
+            is AiResult.Failure -> emptyList()
         }
+        val hit = accepted.firstOrNull() ?: return null
+        return hit.copy(
+            category = category,
+            suggestedImportance = hit.suggestedImportance.coerceIn(0.40f, 0.90f),
+        )
     }
 }
