@@ -3,9 +3,7 @@ package com.neon.ascent.feature.notifications.data
 import android.content.Context
 import androidx.work.*
 import com.neon.ascent.core.domain.NeuralPingScheduler
-import com.neon.ascent.core.domain.goals.models.*
 import com.neon.ascent.core.domain.health.HealthManager
-import com.neon.ascent.core.domain.repository.AscensionRepository
 import com.neon.ascent.feature.notifications.data.workers.*
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -22,7 +20,6 @@ import com.neon.ascent.core.data.datastore.BriefPreferencesDataStore
 @Singleton
 class SmartPingScheduler @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val ascensionRepository: AscensionRepository,
     private val healthManager: HealthManager,
     private val briefPrefs: BriefPreferencesDataStore
 ) : NeuralPingScheduler {
@@ -31,19 +28,7 @@ class SmartPingScheduler @Inject constructor(
 
     /** Main scheduling entry point — call after onboarding and on app start */
     override suspend fun scheduleSmartPings() {
-        val activeTasks = ascensionRepository.getAllRecurringTasks().first()
-
-        activeTasks.forEach { task ->
-            scheduleForTask(task)
-        }
-
-        // Periodic health state check for dynamic triggers (wake/bed)
-        scheduleHealthTriggerCheck()
-
-        // Periodic insight full re-materialization (Nightly)
-        scheduleNightlyInsightProjection()
-        
-        // P1: Adaptive scheduling
+        // P1: Adaptive scheduling (Morning/Evening Brief)
         scheduleNextAdaptiveBrief()
         
         // Warmup AI core at 05:30
@@ -125,7 +110,7 @@ class SmartPingScheduler @Inject constructor(
 
         workManager.enqueueUniqueWork(
             NeuralBriefWorker.UNIQUE_WORK_NAME,
-            ExistingWorkPolicy.REPLACE,
+            ExistingWorkPolicy.KEEP,
             request
         )
     }
@@ -210,87 +195,5 @@ class SmartPingScheduler @Inject constructor(
                 request
             )
         }
-    }
-
-    private fun scheduleForTask(task: AscensionTask) {
-        if (task.timeWindows.isEmpty() && task.recurrence == null) return
-
-        // Fixed times are scheduled here. Dynamic triggers (wake/bed) are handled by HealthTriggerWorker.
-        val fixedWindows = task.timeWindows.filter { !it.contains("wake", true) && !it.contains("bed", true) }
-        
-        fixedWindows.forEachIndexed { index, window ->
-            scheduleFixedTime(task, window, index)
-        }
-    }
-
-    private fun scheduleFixedTime(task: AscensionTask, window: String, index: Int) {
-        val targetTime = try { LocalTime.parse(window) } catch (e: Exception) { return }
-        val delay = calculateDelayToNextOccurrence(targetTime, task.recurrence)
-
-        val inputData = Data.Builder()
-            .putString("task_id", task.id)
-            .putString("task_title", task.title)
-            .build()
-
-        val request = OneTimeWorkRequestBuilder<ContextualPingWorker>()
-            .setInputData(inputData)
-            .setInitialDelay(delay, TimeUnit.MILLISECONDS)
-            .build()
-
-        workManager.enqueueUniqueWork(
-            "ping_${task.id}_$index",
-            ExistingWorkPolicy.REPLACE,
-            request
-        )
-    }
-
-    private fun calculateDelayToNextOccurrence(targetTime: LocalTime, recurrence: RecurrenceV3?): Long {
-        val now = LocalDateTime.now()
-        var target = now.with(targetTime)
-
-        if (target.isBefore(now)) {
-            target = target.plusDays(1)
-        }
-
-        // Adjust for days of week
-        if (recurrence?.type == RecurrenceTypeV3.DAYS_OF_WEEK && recurrence.daysOfWeek.isNotEmpty()) {
-            while (!recurrence.daysOfWeek.contains(target.dayOfWeek)) {
-                target = target.plusDays(1)
-            }
-        } else if (recurrence?.type == RecurrenceTypeV3.WEEKDAYS) {
-            while (target.dayOfWeek == DayOfWeek.SATURDAY || target.dayOfWeek == DayOfWeek.SUNDAY) {
-                target = target.plusDays(1)
-            }
-        }
-
-        return Duration.between(now, target).toMillis()
-    }
-
-    private fun scheduleHealthTriggerCheck() {
-        val request = PeriodicWorkRequestBuilder<HealthTriggerWorker>(15, TimeUnit.MINUTES)
-            .build()
-
-        workManager.enqueueUniquePeriodicWork(
-            "health_dynamic_trigger_check",
-            ExistingPeriodicWorkPolicy.KEEP,
-            request
-        )
-    }
-
-    private fun scheduleNightlyInsightProjection() {
-        val constraints = Constraints.Builder()
-            .setRequiresCharging(true)
-            .setRequiresDeviceIdle(true)
-            .build()
-
-        val request = PeriodicWorkRequestBuilder<InsightProjectionWorker>(24, TimeUnit.HOURS)
-            .setConstraints(constraints)
-            .build()
-
-        workManager.enqueueUniquePeriodicWork(
-            "nightly_insight_projection",
-            ExistingPeriodicWorkPolicy.KEEP,
-            request
-        )
     }
 }

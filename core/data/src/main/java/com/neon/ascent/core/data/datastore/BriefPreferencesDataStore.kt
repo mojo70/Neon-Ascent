@@ -18,6 +18,7 @@ class BriefPreferencesDataStore @Inject constructor(
 ) {
     private object Keys {
         val LAST_BRIEF_DATE = stringPreferencesKey("last_brief_date")
+        val LAST_BRIEF_NOTIFICATION_POSTED_DATE = stringPreferencesKey("last_brief_notification_posted_date")
         val LAST_BRIEF_SLOT = stringPreferencesKey("last_brief_slot")
         val LAST_BRIEF_FACTS_HASH = stringPreferencesKey("last_brief_facts_hash")
         val LAST_LEAD_SESSION_ID = stringPreferencesKey("last_lead_session_id")
@@ -41,6 +42,7 @@ class BriefPreferencesDataStore @Inject constructor(
     private val dataStore = context.briefDataStore
 
     val lastBriefDate: Flow<String?> = dataStore.data.map { it[Keys.LAST_BRIEF_DATE] }
+    val lastBriefNotificationPostedDate: Flow<String?> = dataStore.data.map { it[Keys.LAST_BRIEF_NOTIFICATION_POSTED_DATE] }
     val lastBriefSlot: Flow<String?> = dataStore.data.map { it[Keys.LAST_BRIEF_SLOT] }
     val lastBriefFactsHash: Flow<String?> = dataStore.data.map { it[Keys.LAST_BRIEF_FACTS_HASH] }
     val lastLeadSessionId: Flow<String?> = dataStore.data.map { it[Keys.LAST_LEAD_SESSION_ID] }
@@ -80,6 +82,10 @@ class BriefPreferencesDataStore @Inject constructor(
             if (leadSessionId != null) prefs[Keys.LAST_LEAD_SESSION_ID] = leadSessionId
             if (status != null) prefs[Keys.LAST_BRIEF_STATUS] = status
         }
+    }
+
+    suspend fun updateLastBriefNotificationPostedDate(date: String) {
+        dataStore.edit { it[Keys.LAST_BRIEF_NOTIFICATION_POSTED_DATE] = date }
     }
 
     suspend fun setTargetWakeWd(time: String?) {

@@ -140,8 +140,13 @@ class NeuralBriefWorker @AssistedInject constructor(
 
             val notificationId = if (slot == BriefSlot.AM) BriefService.BRIEF_NOTIFICATION_ID_AM else BriefService.BRIEF_NOTIFICATION_ID_PM
 
+            val lastPostedDate = briefPrefs.lastBriefNotificationPostedDate.first()
+            val alreadyPostedToday = lastPostedDate == today
+
             if (!copy.shadeAllowed) {
                 Log.i(TAG, "// SHADE_NOT_ALLOWED: Update card only, suppressing notification.")
+            } else if (alreadyPostedToday) {
+                Log.i(TAG, "// NOTIFICATION_ALREADY_POSTED_TODAY: Suppressing duplicate notification (dismissed or retried).")
             } else if (isForeground) {
                 Log.i(TAG, "// APP_IN_FOREGROUND: Skipping notification, updating card holder.")
             } else {
@@ -155,6 +160,7 @@ class NeuralBriefWorker @AssistedInject constructor(
                         actions = briefActions,
                         notificationId = notificationId
                     )
+                    briefPrefs.updateLastBriefNotificationPostedDate(today)
                 }
             }
 
