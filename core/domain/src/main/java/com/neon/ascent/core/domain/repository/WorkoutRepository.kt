@@ -30,6 +30,7 @@ interface WorkoutRepository {
     fun getAllRoutines(): Flow<List<WorkoutRoutine>>
     suspend fun saveRoutine(routine: WorkoutRoutine)
     suspend fun deleteRoutine(routineId: String)
+    suspend fun restoreRoutineToLibrary(routineId: String)
 
     fun getAllAugments(): Flow<List<WorkoutAugment>>
     suspend fun saveAugment(augment: WorkoutAugment)

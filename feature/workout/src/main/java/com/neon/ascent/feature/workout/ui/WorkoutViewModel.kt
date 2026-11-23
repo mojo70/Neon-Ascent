@@ -651,7 +651,19 @@ class WorkoutViewModel @Inject constructor(
         val item = currentLogs.removeAt(fromIndex)
         currentLogs.add(toIndex, item)
         
-        _uiState.update { it.copy(logs = currentLogs) }
+        _uiState.update { state ->
+            val activeRoutine = state.activeRoutine
+            val updatedRoutine = if (activeRoutine != null) {
+                val exerciseOrder = currentLogs.map { it.first.exerciseId }
+                val reorderedExercises = activeRoutine.exercises.sortedBy { re ->
+                    val idx = exerciseOrder.indexOf(re.exercise.id)
+                    if (idx != -1) idx else Int.MAX_VALUE
+                }
+                activeRoutine.copy(exercises = reorderedExercises)
+            } else null
+
+            state.copy(logs = currentLogs, activeRoutine = updatedRoutine ?: state.activeRoutine)
+        }
         
         // Persist new order
         viewModelScope.launch {
@@ -1807,7 +1819,8 @@ class WorkoutViewModel @Inject constructor(
 
     private fun loadPreviousData(exerciseId: String) {
         val currentSessionId = _uiState.value.session?.id ?: return
-        if (_uiState.value.previousLogs.containsKey(exerciseId) && 
+        val existingSets = _uiState.value.previousLogs[exerciseId]
+        if (existingSets != null && existingSets.isNotEmpty() && 
             _uiState.value.progressionStates.containsKey(exerciseId) &&
             _uiState.value.accomplishments.containsKey(exerciseId)) return
         
@@ -3023,6 +3036,19 @@ class WorkoutViewModel @Inject constructor(
             exerciseName = exercise.name
         )
         
+        _uiState.update { state ->
+            val activeRoutine = state.activeRoutine
+            if (activeRoutine != null) {
+                val newRoutineExercise = RoutineExercise(
+                    exercise = exercise,
+                    sets = listOf(RoutineSet(type = SetType.REST_PAUSE))
+                )
+                state.copy(activeRoutine = activeRoutine.copy(exercises = activeRoutine.exercises + newRoutineExercise))
+            } else {
+                state
+            }
+        }
+        
         viewModelScope.launch {
             repository.saveWorkoutLog(workoutLog)
             loadPreviousData(exercise.id)
@@ -3835,6 +3861,14 @@ class WorkoutViewModel @Inject constructor(
         
         viewModelScope.launch {
             repository.saveRoutine(updatedRoutine)
+            _uiState.update { it.copy(activeRoutine = updatedRoutine) }
+        }
+    }
+
+    fun restoreRoutineToLibrary(routineId: String) {
+        viewModelScope.launch {
+            repository.restoreRoutineToLibrary(routineId)
+            loadRoutines()
         }
     }
 
@@ -4410,6 +4444,18 @@ class WorkoutViewModel @Inject constructor(
             
             // Immediate UI feedback to avoid race conditions when finishing
             _uiState.update { state ->
+                val activeRoutine = state.activeRoutine
+                val updatedRoutine = if (activeRoutine != null) {
+                    val updatedExercises = activeRoutine.exercises.map { re ->
+                        if (re.exercise.id == oldExerciseId) {
+                            re.copy(exercise = newExercise)
+                        } else {
+                            re
+                        }
+                    }
+                    activeRoutine.copy(exercises = updatedExercises)
+                } else null
+
                 val newLogs = state.logs.map { (log, sets) ->
                     if (log.id == updatedLog.id) {
                         updatedLog to emptyList<SetLog>() // Sets will be updated below
@@ -4417,7 +4463,7 @@ class WorkoutViewModel @Inject constructor(
                         log to sets
                     }
                 }
-                state.copy(logs = newLogs)
+                state.copy(logs = newLogs, activeRoutine = updatedRoutine ?: state.activeRoutine)
             }
 
             repository.saveWorkoutLog(updatedLog)

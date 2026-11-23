@@ -521,6 +521,14 @@ class WorkoutRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun restoreRoutineToLibrary(routineId: String) {
+        val systemRoutine = getSystemRoutineDefinition(routineId)
+        if (systemRoutine != null) {
+            workoutDao.deleteRoutine(routineId)
+            saveRoutine(systemRoutine.copy(isAddedToLibrary = true))
+        }
+    }
+
     override fun getAllAugments(): Flow<List<WorkoutAugment>> =
         workoutDao.getAllAugments().map { list ->
             list.map { it.augment.toDomain(it.exercises, it.exerciseRefs, it.augmentSets) }
