@@ -44,6 +44,8 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -59,6 +61,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import coil.compose.AsyncImage
 import coil.decode.GifDecoder
@@ -73,6 +76,12 @@ import com.neon.ascent.core.domain.workout.models.*
 import com.neon.ascent.core.domain.notifications.models.OperationalStatus
 import com.neon.ascent.core.domain.workout.rules.CyberCrappRules
 import com.neon.ascent.core.domain.workout.rules.RepRange
+
+data class FieldEditor(
+    val getValue: () -> String,
+    val onValueChange: (String) -> Unit,
+    val onComplete: () -> Unit = {}
+)
 
 @Composable
 fun WorkoutLoggingScreen(
@@ -797,6 +806,8 @@ fun FocusWorkoutContent(
 
     // Active set for quick adjustments
     val activeUncompletedSet = sets.find { !it.isCompleted } ?: sets.lastOrNull()
+    var activeFieldEditor by remember { mutableStateOf<FieldEditor?>(null) }
+    val focusManager = LocalFocusManager.current
 
     // Grouping sets for display (so Rest-Pause / Cluster mini-sets are grouped into 1 set row)
     val displayItems = remember(sets, uiState.currentUiMode) {
@@ -923,9 +934,11 @@ fun FocusWorkoutContent(
                             sets = clusterSets,
                             previousSets = prevClusterSets,
                             previousWeight = if (prevW != null && prevW > 0) prevW else null,
+                            useCustomNumpad = uiState.useCustomNumpadInFocusMode,
                             onUpdateWeight = { weight -> clusterSets.forEach { viewModel.updateSet(it, weight = weight) } },
                             onClick = { showClusterDialogFor = clusterSets },
                             onSetLabelClick = { showSetTypeSelector = clusterSets.first() },
+                            onRegisterWeightEditor = { editor -> activeFieldEditor = editor },
                             modifier = Modifier.padding(vertical = 4.dp)
                         )
                     }
@@ -949,10 +962,13 @@ fun FocusWorkoutContent(
                             goalData = goalText,
                             previousWeight = prevWork?.weight,
                             previousReps = prevWork?.reps,
+                            useCustomNumpad = uiState.useCustomNumpadInFocusMode,
                             onUpdateWeight = { viewModel.updateSet(s, weight = it) },
                             onUpdateReps = { viewModel.updateSet(s, reps = it) },
                             onCompleteToggle = { viewModel.updateSet(s, isCompleted = !s.isCompleted) },
                             onSetLabelClick = { showSetTypeSelector = s },
+                            onRegisterWeightEditor = { editor -> activeFieldEditor = editor },
+                            onRegisterRepsEditor = { editor -> activeFieldEditor = editor },
                             modifier = Modifier.padding(vertical = 4.dp)
                         )
                     }
@@ -1056,31 +1072,44 @@ fun FocusWorkoutContent(
         if (uiState.useCustomNumpadInFocusMode) {
             FocusCustomKeypad(
                 onKeyPress = { digit ->
-                    activeUncompletedSet?.let { s ->
-                        val currentStr = if (s.weight % 1 == 0f) s.weight.toInt().toString() else s.weight.toString()
-                        val newStr = (if (currentStr == "0") "" else currentStr) + digit
-                        newStr.toFloatOrNull()?.let { w -> viewModel.updateSet(s, weight = w) }
+                    if (activeFieldEditor != null) {
+                        val editor = activeFieldEditor!!
+                        val currentVal = editor.getValue()
+                        val currentStr = if (currentVal == "0" || currentVal == "0.0") "" else currentVal
+                        val newStr = currentStr + digit
+                        editor.onValueChange(newStr)
+                    } else {
+                        activeUncompletedSet?.let { s ->
+                            val currentStr = if (s.weight % 1 == 0f) s.weight.toInt().toString() else s.weight.toString()
+                            val newStr = (if (currentStr == "0") "" else currentStr) + digit
+                            newStr.toFloatOrNull()?.let { w -> viewModel.updateSet(s, weight = w) }
+                        }
                     }
                 },
                 onBackspace = {
-                    activeUncompletedSet?.let { s ->
-                        val currentStr = if (s.weight % 1 == 0f) s.weight.toInt().toString() else s.weight.toString()
-                        if (currentStr.length > 1) {
-                            currentStr.dropLast(1).toFloatOrNull()?.let { w -> viewModel.updateSet(s, weight = w) }
-                        } else {
+                    if (activeFieldEditor != null) {
+                        val editor = activeFieldEditor!!
+                        val currentVal = editor.getValue()
+                        val currentStr = if (currentVal == "0" || currentVal == "0.0") "" else currentVal
+                        val newStr = if (currentStr.length > 1) currentStr.dropLast(1) else ""
+                        editor.onValueChange(newStr)
+                    } else {
+                        activeUncompletedSet?.let { s ->
                             viewModel.updateSet(s, weight = 0f)
                         }
                     }
                 },
                 onNext = {
-                    val nextIdx = sets.indexOfFirst { !it.isCompleted }
-                    if (nextIdx >= 0 && nextIdx < sets.lastIndex) {
-                        // Shifts attention
-                    }
+                    focusManager.moveFocus(FocusDirection.Next)
                 },
                 onCompleteSet = {
-                    activeUncompletedSet?.let { s ->
-                        viewModel.updateSet(s, isCompleted = true)
+                    if (activeFieldEditor != null) {
+                        activeFieldEditor?.onComplete?.invoke()
+                    } else {
+                        activeUncompletedSet?.let { s ->
+                            viewModel.updateSet(s, isCompleted = true)
+                            focusManager.moveFocus(FocusDirection.Next)
+                        }
                     }
                 }
             )
@@ -6001,6 +6030,9 @@ fun ClusterLoggingDialog(
     onDismiss: () -> Unit
 ) {
     val theme = LocalNeonTheme.current
+    val focusManager = LocalFocusManager.current
+    var activeFieldEditor by remember { mutableStateOf<FieldEditor?>(null) }
+
     LaunchedEffect(uiState.workoutPhase) {
         if (uiState.workoutPhase == RestPausePhase.FINISHER || uiState.workoutPhase == RestPausePhase.LOADED_STRETCH) {
             onDismiss()
@@ -6142,9 +6174,25 @@ fun ClusterLoggingDialog(
 
                             EditableValueBox(
                                 value = if (set.reps == 0 && !set.isCompleted) "" else set.reps.toString(),
+                                readOnly = uiState.useCustomNumpadInFocusMode,
                                 onValueChange = { 
                                     val newVal = it.toIntOrNull() ?: 0
                                     viewModel.updateSet(set, reps = newVal) 
+                                },
+                                onFocusChanged = { focused ->
+                                    if (focused) {
+                                        activeFieldEditor = FieldEditor(
+                                            getValue = { set.reps.toString() },
+                                            onValueChange = { str ->
+                                                val newVal = if (str.isEmpty()) 0 else (str.toIntOrNull() ?: 0)
+                                                viewModel.updateSet(set, reps = newVal)
+                                            },
+                                            onComplete = {
+                                                viewModel.updateSet(set, isCompleted = true)
+                                                focusManager.moveFocus(FocusDirection.Next)
+                                            }
+                                        )
+                                    }
                                 },
                                 placeholder = miniSetPlaceholder,
                                 modifier = Modifier.width(80.dp),
@@ -6175,7 +6223,6 @@ fun ClusterLoggingDialog(
                             }
                         }
                     }
-
                     if (uiState.userProfile?.rirCapturePerMiniSet == true) {
                         if (isActive || (set.isCompleted && set.rir != null)) {
                             Row(
@@ -6315,6 +6362,54 @@ fun ClusterLoggingDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                if (uiState.useCustomNumpadInFocusMode) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    FocusCustomKeypad(
+                        onKeyPress = { digit ->
+                            if (activeFieldEditor != null) {
+                                val editor = activeFieldEditor!!
+                                val currentVal = editor.getValue()
+                                val currentStr = if (currentVal == "0") "" else currentVal
+                                val newStr = currentStr + digit
+                                editor.onValueChange(newStr)
+                            } else {
+                                sets.find { !it.isCompleted }?.let { s ->
+                                    val currentStr = s.reps.toString()
+                                    val newStr = (if (currentStr == "0" || currentStr == "0.0") "" else currentStr) + digit
+                                    newStr.toIntOrNull()?.let { r -> viewModel.updateSet(s, reps = r) }
+                                }
+                            }
+                        },
+                        onBackspace = {
+                            if (activeFieldEditor != null) {
+                                val editor = activeFieldEditor!!
+                                val currentVal = editor.getValue()
+                                val currentStr = if (currentVal == "0") "" else currentVal
+                                val newStr = if (currentStr.length > 1) currentStr.dropLast(1) else "0"
+                                editor.onValueChange(newStr)
+                            } else {
+                                sets.find { !it.isCompleted }?.let { s ->
+                                    viewModel.updateSet(s, reps = 0)
+                                }
+                            }
+                        },
+                        onNext = {
+                            focusManager.moveFocus(FocusDirection.Next)
+                        },
+                        onCompleteSet = {
+                            if (activeFieldEditor != null) {
+                                activeFieldEditor?.onComplete?.invoke()
+                            } else {
+                                sets.find { !it.isCompleted }?.let { s ->
+                                    viewModel.updateSet(s, isCompleted = true)
+                                    focusManager.moveFocus(FocusDirection.Next)
+                                }
+                            }
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
                 val isSteve = theme.mode == VisualMode.STEVE
                 Button(
                     onClick = onDismiss,
@@ -6344,14 +6439,18 @@ fun EditableValueBox(
     modifier: Modifier = Modifier,
     keyboardType: KeyboardType = KeyboardType.Number,
     placeholder: String = "0",
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    readOnly: Boolean = false,
+    onFocusChanged: (Boolean) -> Unit = {}
 ) {
     val theme = LocalNeonTheme.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusRequester = remember { FocusRequester() }
     var text by remember { mutableStateOf(if (value == "0" || value == "0.0") "" else value) }
     var isFocused by remember { mutableStateOf(false) }
 
     LaunchedEffect(value) {
-        if (!isFocused) {
+        if (!isFocused || readOnly) {
             text = if (value == "0" || value == "0.0") "" else value
         }
     }
@@ -6360,6 +6459,7 @@ fun EditableValueBox(
         modifier = modifier
             .padding(horizontal = 4.dp)
             .background(if (enabled) (if (theme.mode == VisualMode.STEVE) theme.surface else theme.surfaceRaised) else Color.Transparent, RoundedCornerShape(4.dp))
+            .clickable(enabled = enabled) { focusRequester.requestFocus() }
             .padding(vertical = 4.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -6375,6 +6475,7 @@ fun EditableValueBox(
 
         BasicTextField(
             value = text,
+            readOnly = readOnly,
             onValueChange = {
                 val isValid = if (keyboardType == KeyboardType.Text) {
                     it.length <= 10
@@ -6406,15 +6507,22 @@ fun EditableValueBox(
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
+                .focusRequester(focusRequester)
                 .onFocusChanged { 
                     val wasFocused = isFocused
                     isFocused = it.isFocused
-                    if (wasFocused && !it.isFocused) {
-                        onCommit()
-                    } else if (!wasFocused && it.isFocused) {
-                        if (text == "0" || text == "0.0") {
-                            text = ""
+                    if (wasFocused != it.isFocused) {
+                        if (it.isFocused && readOnly) {
+                            keyboardController?.hide()
                         }
+                        if (wasFocused && !it.isFocused) {
+                            onCommit()
+                        } else if (!wasFocused && it.isFocused) {
+                            if (text == "0" || text == "0.0") {
+                                text = ""
+                            }
+                        }
+                        onFocusChanged(it.isFocused)
                     }
                 }
         )

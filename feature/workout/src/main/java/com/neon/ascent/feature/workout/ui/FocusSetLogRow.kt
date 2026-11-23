@@ -19,11 +19,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -40,6 +43,8 @@ import com.neon.ascent.core.domain.workout.models.SetType
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import kotlinx.coroutines.launch
 
+import com.neon.ascent.feature.workout.ui.FieldEditor
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FocusSetLogRow(
@@ -49,10 +54,15 @@ fun FocusSetLogRow(
     goalData: String? = null,
     previousWeight: Float? = null,
     previousReps: Int? = null,
+    useCustomNumpad: Boolean = false,
     onUpdateWeight: (Float) -> Unit,
     onUpdateReps: (Int) -> Unit,
     onCompleteToggle: () -> Unit,
     onSetLabelClick: () -> Unit,
+    onWeightFocusChanged: (Boolean) -> Unit = {},
+    onRepsFocusChanged: (Boolean) -> Unit = {},
+    onRegisterWeightEditor: ((FieldEditor) -> Unit)? = null,
+    onRegisterRepsEditor: ((FieldEditor) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val theme = LocalNeonTheme.current
@@ -88,6 +98,9 @@ fun FocusSetLogRow(
     // Weight & Reps Placeholders
     val weightPlaceholder = previousWeight?.let { if (it % 1 == 0f) it.toInt().toString() else it.toString() } ?: "0"
     val repsPlaceholder = previousReps?.takeIf { it > 0 }?.toString() ?: "0"
+
+    val weightValueStr = if (set.weight % 1 == 0f) set.weight.toInt().toString() else set.weight.toString()
+    val repsValueStr = set.reps.toString()
 
     Surface(
         modifier = modifier
@@ -155,34 +168,56 @@ fun FocusSetLogRow(
             ) {
                 // Weight Large Input Box
                 FocusValueBox(
-                    value = if (set.weight % 1 == 0f) set.weight.toInt().toString() else set.weight.toString(),
+                    value = weightValueStr,
                     label = "LBS",
                     placeholder = weightPlaceholder,
                     keyboardType = KeyboardType.Decimal,
                     imeAction = ImeAction.Next,
-                    onValueChange = { it.toFloatOrNull()?.let { w -> onUpdateWeight(w) } },
-                    onImeAction = { focusManager.moveFocus(FocusDirection.Next) },
-                    onFocusGained = {
-                        coroutineScope.launch { bringIntoViewRequester.bringIntoView() }
+                    readOnly = useCustomNumpad,
+                    onValueChange = { str ->
+                        if (str.isEmpty()) {
+                            onUpdateWeight(0f)
+                        } else {
+                            str.toFloatOrNull()?.let { w -> onUpdateWeight(w) }
+                        }
                     },
+                    onImeAction = { focusManager.moveFocus(FocusDirection.Next) },
+                    onFocusChanged = { focused ->
+                        if (focused) {
+                            coroutineScope.launch { bringIntoViewRequester.bringIntoView() }
+                        }
+                        onWeightFocusChanged(focused)
+                    },
+                    onRegisterEditor = onRegisterWeightEditor,
                     modifier = Modifier.weight(1f)
                 )
 
                 // Reps Large Input Box
                 FocusValueBox(
-                    value = set.reps.toString(),
+                    value = repsValueStr,
                     label = "REPS",
                     placeholder = repsPlaceholder,
                     keyboardType = KeyboardType.Number,
                     imeAction = ImeAction.Done,
-                    onValueChange = { it.toIntOrNull()?.let { r -> onUpdateReps(r) } },
+                    readOnly = useCustomNumpad,
+                    onValueChange = { str ->
+                        if (str.isEmpty()) {
+                            onUpdateReps(0)
+                        } else {
+                            str.toIntOrNull()?.let { r -> onUpdateReps(r) }
+                        }
+                    },
                     onImeAction = {
                         focusManager.clearFocus()
                         if (!isCompleted) onCompleteToggle()
                     },
-                    onFocusGained = {
-                        coroutineScope.launch { bringIntoViewRequester.bringIntoView() }
+                    onFocusChanged = { focused ->
+                        if (focused) {
+                            coroutineScope.launch { bringIntoViewRequester.bringIntoView() }
+                        }
+                        onRepsFocusChanged(focused)
                     },
+                    onRegisterEditor = onRegisterRepsEditor,
                     modifier = Modifier.weight(1f)
                 )
 
@@ -225,12 +260,16 @@ private fun FocusValueBox(
     placeholder: String,
     keyboardType: KeyboardType,
     imeAction: ImeAction,
+    readOnly: Boolean = false,
     onValueChange: (String) -> Unit,
     onImeAction: () -> Unit,
-    onFocusGained: () -> Unit,
+    onFocusChanged: (Boolean) -> Unit,
+    onRegisterEditor: ((FieldEditor) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val theme = LocalNeonTheme.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
     var isFocused by remember { mutableStateOf(false) }
 
     val rawText = if (value == "0" || value == "0.0") "" else value
@@ -239,7 +278,7 @@ private fun FocusValueBox(
     LaunchedEffect(value) {
         if (!isFocused) {
             val fresh = if (value == "0" || value == "0.0") "" else value
-            textFieldValue = TextFieldValue(fresh)
+            textFieldValue = TextFieldValue(text = fresh, selection = TextRange(fresh.length))
         }
     }
 
@@ -257,6 +296,7 @@ private fun FocusValueBox(
                 color = if (isFocused) primaryColor else theme.hairline,
                 shape = RoundedCornerShape(8.dp)
             )
+            .clickable { focusRequester.requestFocus() }
             .padding(horizontal = 8.dp, vertical = 4.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -283,6 +323,7 @@ private fun FocusValueBox(
 
         BasicTextField(
             value = textFieldValue,
+            readOnly = readOnly,
             onValueChange = { newTfv ->
                 val str = newTfv.text
                 val isValid = if (keyboardType == KeyboardType.Number) {
@@ -315,15 +356,37 @@ private fun FocusValueBox(
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
+                .focusRequester(focusRequester)
                 .onFocusChanged { focusState ->
                     val wasFocused = isFocused
                     isFocused = focusState.isFocused
-                    if (!wasFocused && focusState.isFocused) {
-                        // AUTO-SELECT ENTIRE TEXT ON FOCUS
-                        textFieldValue = textFieldValue.copy(
-                            selection = TextRange(0, textFieldValue.text.length)
-                        )
-                        onFocusGained()
+                    if (wasFocused != focusState.isFocused) {
+                        if (focusState.isFocused) {
+                            if (readOnly) {
+                                keyboardController?.hide()
+                            }
+                            textFieldValue = textFieldValue.copy(
+                                selection = TextRange(0, textFieldValue.text.length)
+                            )
+                            onRegisterEditor?.invoke(
+                                FieldEditor(
+                                    getValue = { textFieldValue.text },
+                                    onValueChange = { newStr ->
+                                        textFieldValue = TextFieldValue(text = newStr, selection = TextRange(newStr.length))
+                                        val isValid = if (keyboardType == KeyboardType.Number) {
+                                            newStr.isEmpty() || newStr.all { it.isDigit() }
+                                        } else {
+                                            newStr.isEmpty() || newStr.toDoubleOrNull() != null || newStr == "." || newStr == ","
+                                        }
+                                        if (isValid) {
+                                            onValueChange(newStr)
+                                        }
+                                    },
+                                    onComplete = { onImeAction() }
+                                )
+                            )
+                        }
+                        onFocusChanged(focusState.isFocused)
                     }
                 }
         )

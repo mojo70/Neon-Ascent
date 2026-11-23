@@ -332,14 +332,6 @@ fun AppNavigation(
                                     }
                                 }
                             )
-                            
-                            // Ongoing Workout Indicator
-                            if (workoutState.session != null) {
-                                OngoingWorkoutOverlay(
-                                    duration = workoutState.workoutDurationSeconds,
-                                    onClick = { navController.navigate(Screen.WorkoutLog(null)) }
-                                )
-                            }
                         }
                         page == labsIndex -> BiohackingScreen(
                             onBack = { 

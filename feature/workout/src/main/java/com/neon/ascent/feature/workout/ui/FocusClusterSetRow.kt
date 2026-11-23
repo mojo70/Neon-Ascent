@@ -15,9 +15,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -33,14 +36,18 @@ import com.neon.ascent.core.common.VisualMode
 import com.neon.ascent.core.domain.workout.models.SetLog
 import com.neon.ascent.core.domain.workout.models.SetType
 
+import com.neon.ascent.feature.workout.ui.FieldEditor
+
 @Composable
 fun FocusClusterSetRow(
     sets: List<SetLog>,
     previousSets: List<SetLog>,
     previousWeight: Float? = null,
+    useCustomNumpad: Boolean = false,
     onUpdateWeight: (Float) -> Unit,
     onClick: () -> Unit,
     onSetLabelClick: (() -> Unit)? = null,
+    onRegisterWeightEditor: ((FieldEditor) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val theme = LocalNeonTheme.current
@@ -50,6 +57,8 @@ fun FocusClusterSetRow(
     val goalReps = sets.firstOrNull()?.goalReps ?: ""
     val prevTotalReps = previousSets.sumOf { it.reps }
     val weightPlaceholder = previousWeight?.let { if (it % 1 == 0f) it.toInt().toString() else it.toString() } ?: "0"
+
+    val weightValueStr = if (weight % 1 == 0f) weight.toInt().toString() else weight.toString()
 
     val primaryColor = MaterialTheme.colorScheme.primary
     val rpColor = if (theme.mode == VisualMode.STEVE) theme.ink else Color(0xFF00FFAA)
@@ -130,11 +139,16 @@ fun FocusClusterSetRow(
             ) {
                 // Weight Large Input Box
                 ClusterWeightValueBox(
-                    value = if (weight % 1 == 0f) weight.toInt().toString() else weight.toString(),
+                    value = weightValueStr,
                     label = "LBS",
                     placeholder = weightPlaceholder,
-                    onValueChange = { it.toFloatOrNull()?.let { w -> onUpdateWeight(w) } },
+                    readOnly = useCustomNumpad,
+                    onValueChange = { str ->
+                        if (str.isEmpty()) onUpdateWeight(0f)
+                        else str.toFloatOrNull()?.let { w -> onUpdateWeight(w) }
+                    },
                     onImeAction = { onClick() },
+                    onRegisterEditor = onRegisterWeightEditor,
                     modifier = Modifier.weight(1f)
                 )
 
@@ -202,11 +216,15 @@ private fun ClusterWeightValueBox(
     value: String,
     label: String,
     placeholder: String,
+    readOnly: Boolean = false,
     onValueChange: (String) -> Unit,
     onImeAction: () -> Unit,
+    onRegisterEditor: ((FieldEditor) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val theme = LocalNeonTheme.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
     var isFocused by remember { mutableStateOf(false) }
 
     val rawText = if (value == "0" || value == "0.0") "" else value
@@ -215,7 +233,7 @@ private fun ClusterWeightValueBox(
     LaunchedEffect(value) {
         if (!isFocused) {
             val fresh = if (value == "0" || value == "0.0") "" else value
-            textFieldValue = TextFieldValue(fresh)
+            textFieldValue = TextFieldValue(text = fresh, selection = TextRange(fresh.length))
         }
     }
 
@@ -233,6 +251,7 @@ private fun ClusterWeightValueBox(
                 color = if (isFocused) primaryColor else theme.hairline,
                 shape = RoundedCornerShape(8.dp)
             )
+            .clickable { focusRequester.requestFocus() }
             .padding(horizontal = 8.dp, vertical = 4.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -258,6 +277,7 @@ private fun ClusterWeightValueBox(
 
         BasicTextField(
             value = textFieldValue,
+            readOnly = readOnly,
             onValueChange = { newTfv ->
                 val str = newTfv.text
                 val isValid = str.isEmpty() || str.toDoubleOrNull() != null || str == "." || str == ","
@@ -285,13 +305,32 @@ private fun ClusterWeightValueBox(
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
+                .focusRequester(focusRequester)
                 .onFocusChanged { focusState ->
                     val wasFocused = isFocused
                     isFocused = focusState.isFocused
-                    if (!wasFocused && focusState.isFocused) {
-                        textFieldValue = textFieldValue.copy(
-                            selection = TextRange(0, textFieldValue.text.length)
-                        )
+                    if (wasFocused != focusState.isFocused) {
+                        if (focusState.isFocused) {
+                            if (readOnly) {
+                                keyboardController?.hide()
+                            }
+                            textFieldValue = textFieldValue.copy(
+                                selection = TextRange(0, textFieldValue.text.length)
+                            )
+                            onRegisterEditor?.invoke(
+                                FieldEditor(
+                                    getValue = { textFieldValue.text },
+                                    onValueChange = { newStr ->
+                                        textFieldValue = TextFieldValue(text = newStr, selection = TextRange(newStr.length))
+                                        val isValid = newStr.isEmpty() || newStr.toDoubleOrNull() != null || newStr == "." || newStr == ","
+                                        if (isValid) {
+                                            onValueChange(newStr)
+                                        }
+                                    },
+                                    onComplete = { onImeAction() }
+                                )
+                            )
+                        }
                     }
                 }
         )
