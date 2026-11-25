@@ -1166,6 +1166,21 @@ class WorkoutRepositoryImpl @Inject constructor(
                 isPrimaryVariant = true
             ),
             Exercise(
+                id = "pendlay_row",
+                name = "Pendlay Row (Barbell)",
+                description = "Explosive barbell row starting from the floor for each repetition.",
+                cues = listOf("Start bar on floor each rep", "Explosive pull to chest", "Keep back rigid and parallel to floor"),
+                muscleGroups = listOf("Back", "Biceps", "Rear Delts"),
+                equipment = listOf("Barbell"),
+                movementType = MovementType.BACK_THICKNESS,
+                dangerousFor = listOf("Lower Back Pain"),
+                familyId = "rows",
+                familyName = "Row",
+                implement = Implement.BARBELL,
+                stance = Stance.BENT_OVER,
+                isPrimaryVariant = false
+            ),
+            Exercise(
                 id = "row_inverted",
                 name = "Inverted Row (Bodyweight)",
                 description = "Horizontal bodyweight row beneath a bar or rings.",
